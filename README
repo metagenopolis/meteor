@@ -8,7 +8,7 @@ In the package, files are organized as follows:
 
   -+- README:    This file
    |
-   +- INSTALL:   Building and installation instructions from the sources for all supported systems.
+   +- Quick_start_Meteor.pdf :   Meteor Usage instructions
    |
    +- COPYING:   License
    |
