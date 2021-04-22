@@ -48,7 +48,8 @@ Building and running pre-requisite
 Installation
 ============
 
- On a GNU/Linux system, we recommand to have g++, make and ruby installed via the package manager of your distribution.
+ On a GNU/Linux system, we recommand to have g++, make and ruby installed via the package manager of your
+ distribution.
  e.g.:
 
     on Debian/Ubuntu plateforms (as root or sudoer):
