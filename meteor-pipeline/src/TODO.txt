@@ -1,0 +1,4 @@
+Class TCountedfragment
+ - Remplacer les attributs membres de type long long et double par un tableau C de pointeurs, indexé par enum TCountedReadType. 
+ - ou bien ajouter un tableau de pointeurs void* ???
+ => les colonnes sont choisies via main::aCountedReadTypeList (index)
