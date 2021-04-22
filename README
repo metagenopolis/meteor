@@ -63,7 +63,7 @@ Installation
     cd meteor-pipeline/src/
     make
 
- This will create two binaries (meteor-counter and meteor-profiler) in the folder meteor-pipeline/src/build/
+ This will create two binaries (meteor-counter and meteor-profiler) in meteor-pipeline/src/build/
 
  - Now copy the meteor pipeline executables in a folder present in the PATH environment variable.
 
