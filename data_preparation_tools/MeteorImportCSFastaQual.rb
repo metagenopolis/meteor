@@ -81,6 +81,8 @@ end  # class OptParse
 
 options = OptParse.parse(ARGV)
 
+options.CSFastaQualDir = File.expand_path(options.CSFastaQualDir)
+
 # process all CSFasta files
 if options.isDispatched
 	csfasta_file_array = Dir.glob(File.join(options.CSFastaQualDir,"*","*.csfasta")) # get csfasta in subdirectories

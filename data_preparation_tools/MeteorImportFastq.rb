@@ -84,6 +84,8 @@ end  # class OptParse
 
 options = OptParse.parse(ARGV)
 
+options.fastqDir = File.expand_path(options.fastqDir)
+
 # process all fastq files
 if options.isDispatched
 	fastq_file_array = Dir.glob(File.join(options.fastqDir,"*","*.{fq,fastq}*")) # get fastq in subdirectories
