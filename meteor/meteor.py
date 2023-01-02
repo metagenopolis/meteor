@@ -28,6 +28,7 @@ from logging.handlers import RotatingFileHandler
 import datetime
 import glob
 import re
+import subprocess
 # from dataclasses import dataclass
 
 #---------------------------- CLASS DEFINITION --------------------------------#
@@ -106,16 +107,18 @@ def get_arguments(): # pragma: no cover
         help='Download catalog')
     reference_parser = subparsers.add_parser('build',
         help='Index reference')
-    reference_parser.add_argument("-i", "--input", dest='input',
+    reference_parser.add_argument("-i", "--input", dest='input_file',
         type = str, required = True, help = "Input fasta filename.")
-    reference_parser.add_argument("-p", "--refDir", dest='refDir',
+    reference_parser.add_argument("-p", "--'refRootDir'", dest='refRootDir',
         type = str, required = True, help = "Output path of the reference repository.")
     reference_parser.add_argument("-n", "--refName", dest='refName',
         type = str, required = True, help = "Name of the reference (ansi-string without space).")
-    reference_parser.add_argument("-t", "--threads", dest='threads',
+    # reference_parser.add_argument('-1', '--no-bowtie1', dest="no_bowtie1", action='store_true', help='no index for bowtie1')
+    # reference_parser.add_argument("-2", "--no-bowtie2", dest="no_bowtie2", action="store_true", help="no index for bowtie2")
+    reference_parser.add_argument("-t", "--threads", dest='threads', default=4,
         type = int, help = "Thread count for bowtie2 (if available).")
     fastq_parser = subparsers.add_parser('fastq',
-        help='Import fastq files, Useless ?')
+        help='Import fastq files')
     fastq_parser.add_argument("-i", "--fastqDir", dest='fastq_dir',
         type = isdir, required = True, help = """Path to a directory containing all input FASTQ files.
 FASTQ files must have the extension .FASTQ or .FQ.
@@ -155,9 +158,9 @@ def main(): # pragma: no cover
     # Get arguments
     args = get_arguments()
     logger = get_log(path_log)
-
+    print(args)
     # Import FASTQ UGLY
-    if args.fastq_dir:
+    if hasattr(args, "fastq_dir"):
         if args.isdispatched:
             fastq_file_list = glob.glob(args.fastq_dir + "*" + os.sep + "*.f*q*")
         else:
@@ -193,7 +196,7 @@ def main(): # pragma: no cover
                 # create directory for the sample and move fastq file into
                 sample_dir = os.path.dirname(fastq_file) + os.sep + sample_name + os.sep
                 if not os.path.isdir(sample_dir):
-                    os.mkdir(sample_dir)
+                    os.makedirs(sample_dir)
                 os.rename(fastq_file, sample_dir + os.path.basename(fastq_file))
             config = configparser.ConfigParser()
             config["sample_info"] = {
@@ -213,8 +216,66 @@ def main(): # pragma: no cover
             }
             with open(sample_dir + full_sample_name + "_census_stage_0.ini", 'w') as configfile:
                 config.write(configfile)
-    if args.input:
-        os.mkdir(args.refDir)
+    elif hasattr(args, "input_file"):
+        # Create reference genome directory if it does not already exist
+        ref_dir = os.path.join(args.refRootDir, args.refName)
+        if not os.path.exists(ref_dir):
+            os.makedirs(ref_dir)
+
+        # Create subdirectories for fasta files and reference indices
+        fasta_dir = os.path.join(ref_dir, "fasta")
+        if not os.path.exists(fasta_dir):
+            os.makedirs(fasta_dir)
+
+        database_dir = os.path.join(ref_dir, "database")
+        if not os.path.exists(database_dir):
+            os.makedirs(database_dir)
+        # Read input fasta file and create new fasta file for each chromosome or contig
+        output_annotation_file = os.path.join(database_dir, args.refName + '_lite_annotation')
+        output_fasta_file = os.path.join(fasta_dir, args.refName + '.fasta')
+        with open(args.input_file, 'rt') as input_fasta:
+            with open(output_annotation_file, "wt") as output_annotation:
+                with open(output_fasta_file, "wt") as output_fasta:
+                    gene_id = 1
+                    for line in input_fasta:
+                        if line.startswith(">"):
+                            output_annotation.write(line[1:].split(" ")[0].strip() +"\n")
+                            output_fasta.write(">" + str(gene_id) + "\n")
+                            gene_id += 1
+                        else:
+                            output_fasta.write(line)
+        # Generate configuration file for reference genome
+        config = configparser.ConfigParser()
+        config["reference_info"] = {
+            "reference_name": args.refName,
+            "entry_type": "fragment", # Why ?
+            "reference_date": datetime.datetime.now().strftime("%Y%m%d"),
+            "database_type": "text",
+            "HAS_LITE_INFO": 1
+        }
+
+        config["reference_file"] = {
+            #IS_LARGE_REFERENCE_STR: 1,
+            "database_dir": "database_dir", #WTF ?
+            "fasta_dir": "fasta_dir", #WTF ?
+            "fasta_file_count": 1,
+            # is it possible to have several fasta
+            "fasta_file_count": args.refName + '.fasta'
+        }
+
+        # if not args.no_bowtie2:
+        index_prefix = os.path.join(database_dir, args.refName)
+        subprocess.check_call(["bowtie2-build", '-f', '-t', str(args.threads), output_fasta_file, output_fasta_file] )
+        config["bowtie2_index"] = {
+            # "is_large_reference": "1", # WTF 
+            "is_DNA_space_indexed": 1,
+            "dna_space_bowtie_index_prefix_name_1": args.refName
+        }
+
+        # Write configuration file
+        with open(os.path.join(ref_dir, args.refName + '_reference.ini'), 'wt') as config_file:
+            config.write(config_file)
+
 
 if __name__ == '__main__':
     main()
