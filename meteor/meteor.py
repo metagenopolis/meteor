@@ -771,7 +771,7 @@ def get_arguments(): # pragma: no cover
         help='Download catalog')
     reference_parser = subparsers.add_parser('build',
         help='Index reference')
-    reference_parser.add_argument("-i", dest='input_file',
+    reference_parser.add_argument("-i", dest='input_fasta_file',
         type = str, required = True, help = "Input fasta filename.")
     reference_parser.add_argument("-p", dest='refRootDir',
         type = str, required = True, help = "Output path of the reference repository.")
@@ -793,7 +793,7 @@ For paired-ends files must be named :
     fastq_parser.add_argument("-m", dest='mask_sample_name',
         type = str, required = True, help = "Regular expression for extracting sample name.")
     fastq_parser.add_argument("-t", dest='techno', choices = ["illumina", "proton"],
-        default="Illumina", required = True, type = str, help = "Sequencing technology (default: Illumina).")
+        default="Illumina", type = str, help = "Sequencing technology (default: Illumina).")
     fastq_parser.add_argument("-c", dest='iscompressed',
         default=False, action="store_true", help = "Fastq files are compressed.")
     fastq_parser.add_argument("-d", dest='isdispatched',
@@ -872,10 +872,13 @@ def main(): # pragma: no cover
             if args.isdispatched:
                 sample_name = os.path.basename(os.path.dirname(fastq_file))
             else:
-                # split full sample name (in fact library/run name) in order to extract sample_name according to regex mask
-                full_sample_name_array = re.search(args.mask_sample_name, full_sample_name)
-                # risk of TypeError: 'NoneType' object is not subscriptable
-                sample_name = full_sample_name_array[0]
+                try:
+                    # split full sample name (in fact library/run name) in order to extract sample_name according to regex mask
+                    full_sample_name_array = re.search(args.mask_sample_name, full_sample_name)
+                    # risk of TypeError: 'NoneType' object is not subscriptable
+                    sample_name = full_sample_name_array[0]
+                except NoneType:
+                    sys.exit("None matching pattern: {}".format(args.mask_sample_name))
         
             if args.isdispatched:
                 sample_dir = os.path.dirname(fastq_file) + os.sep
@@ -904,7 +907,7 @@ def main(): # pragma: no cover
             with open(sample_dir + full_sample_name + "_census_stage_0.ini", 'w') as configfile:
                 config.write(configfile)
     # Import reference UGLY
-    elif hasattr(args, "input_file"):
+    elif hasattr(args, "input_fasta_file"):
         # Create reference genome directory if it does not already exist
         ref_dir = os.path.join(args.refRootDir, args.refName)
         if not os.path.exists(ref_dir):
@@ -921,7 +924,7 @@ def main(): # pragma: no cover
         # Read input fasta file and create new fasta file for each chromosome or contig
         output_annotation_file = os.path.join(database_dir, args.refName + '_lite_annotation')
         output_fasta_file = os.path.join(fasta_dir, args.refName + '.fasta')
-        with open(args.input_file, 'rt') as input_fasta:
+        with open(args.input_fasta_file, 'rt') as input_fasta:
             with open(output_annotation_file, "wt") as output_annotation:
                 with open(output_fasta_file, "wt") as output_fasta:
                     gene_id = 1
@@ -963,6 +966,8 @@ def main(): # pragma: no cover
         # Write configuration file
         with open(os.path.join(ref_dir, args.refName + '_reference.ini'), 'wt') as config_file:
             config.write(config_file)
+    elif hasattr(args, "input_file"):
+        print("What am I supposed to do now ?")
 
 
 if __name__ == '__main__':
