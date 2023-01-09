@@ -738,22 +738,22 @@ def isdir(path): # pragma: no cover
     return os.path.abspath(path) + os.sep
 
 
-def get_log(path_log):
-    """
-    """
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s')
-    # Create log file
-    file_handler = RotatingFileHandler(path_log, 'a', 1000000, 1)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    # Stream in the the console
-    ## TO REMOVE IF daemon
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
-    logger.addHandler(stream_handler)
-    return logger
+# def get_log(path_log):
+#     """
+#     """
+#     logger = logging.getLogger()
+#     logger.setLevel(logging.DEBUG)
+#     formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s')
+#     # Create log file
+#     file_handler = RotatingFileHandler(path_log, 'a', 1000000, 1)
+#     file_handler.setFormatter(formatter)
+#     logger.addHandler(file_handler)
+#     # Stream in the the console
+#     ## TO REMOVE IF daemon
+#     stream_handler = logging.StreamHandler()
+#     stream_handler.setLevel(logging.DEBUG)
+#     logger.addHandler(stream_handler)
+#     return logger
 
 
 def get_arguments(): # pragma: no cover
@@ -844,7 +844,7 @@ def main(): # pragma: no cover
     path_log = "meteor_" + now.strftime("%Y%m%d_%H%M") + ".log"
     # Get arguments
     args = get_arguments()
-    logger = get_log(path_log)
+    # logger = get_log(path_log)
     print(args)
     # Import FASTQ UGLY
     if hasattr(args, "fastq_dir"):
