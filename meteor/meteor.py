@@ -13,7 +13,6 @@
 
 """Meteor - A plateform for quantitative metagenomic profiling of complex ecosystems"""
 
-__author__ = "Amine Ghozlane (amine.ghozlane@inrae.fr)"
 __version__  = "4.3"
 __copyright__ = "GPLv3"
 __date__ = "2022"
@@ -29,6 +28,7 @@ import datetime
 import glob
 import re
 import subprocess
+import hashlib
 # from dataclasses import dataclass
 
 #---------------------------- CLASS DEFINITION --------------------------------#
@@ -111,8 +111,7 @@ class MeteorSession:
             aMappingSection.write(config_file)
 
 
-
-    def Bowtie2MapRead():
+    def Bowtie2MapRead(self):
         # prepare bowtie2 command
         # -q --no-head --no-sq --no-unal --omit-sec-seq --end-to-end --sensitive -k 1 -S $sample/$sample.sam -U $fastq_list -p 40 -x $bt2_index
         # references repository on IBS server: /services/projects/biodatabank/meteor-data/reference
@@ -170,12 +169,13 @@ class MeteorSession:
             # ex: FLibraryMappingDir: /projects/parkinson/maping/KCL_01/mapping_vs_hs_9_9_metahit_Proton1-520-Parkinson_R1a_KCL_01
             #     FLibraryName + : Proton1-520-Parkinson_R1a_KCL_01
             #     iBowtieIndex+1 : 1
-            FMappingOutputFileNames.append(f"{FLibraryMappingDir}{C_PATH_SEP}{FLibraryName}_{iBowtieIndex+1}{C_BOWTIE2_OUTPUT_FILE_SUFFIX}")
+            FMappingOutputFileNames.append(f"{FLibraryMappingDir}{os.sep}{FLibraryName}_{iBowtieIndex+1}{C_BOWTIE2_OUTPUT_FILE_SUFFIX}")
             aBowtie2Command = f"{aBowtieProgram} {aParameters} -x {aBowtieIndexList[iBowtieIndex]} -U {FFastqList} -S {FMappingOutputFileNames[iBowtieIndex]}"
             # execute command
             subprocess.check_call(["bowtie2", aParameters, "-x", aBowtieIndexList[iBowtieIndex], "-U", FFastqList, "-S", FMappingOutputFileNames[iBowtieIndex]])
 
-    def MapRead(aTmpDir, aLibraryMappingDir, aMapperCmd, aMatchesCount, aMismatchesCount, aIsMismatchesPercentage, aIsLocalMapping, aMappingFileFormat, aIsCPUPercentage, aCPUCount):
+
+    def MapRead(self, aTmpDir, aLibraryMappingDir, aMapperCmd, aMatchesCount, aMismatchesCount, aIsMismatchesPercentage, aIsLocalMapping, aMappingFileFormat, aIsCPUPercentage, aCPUCount):
         # get around KCL feedback (inifile bug?)
         if not isinstance(aMatchesCount, int) :
             FMatchesCount = -1 
@@ -221,6 +221,7 @@ class MeteorSession:
         Bowtie2MapRead()
         return True
 
+
     def CountReadFastqFile(self, fastq_file):
         """
         Count the number of reads and number of bases
@@ -247,6 +248,132 @@ class MeteorSession:
                 # pass the quality
                 next(in_fq)
         return read_count, base_Count
+
+
+    def ProcessJob(self, workflow_ini, project_path, input_path,
+    tmp_path, remove_lock, force, mapping_dir,
+    counting_type, counting_only, mapping_only): #options : Workflow, ProjectPath, InputPath, MappingBasename
+        # directly from program arguments
+        FProjectDir = project_path
+        FSampleDir  = input_path
+        # TODO get it from census ini file, (FProjectName too)
+        FSampleName = os.path.basename(FSampleDir)
+        FMappingDone = True
+        FCountingDone = True
+        FCountingTypeList = [counting_type]
+        
+        FForce = False
+        FNoLock = remove_lock 
+        if force:
+            FForce = True
+            FNoLock = True
+        # ex: /projects/parkinson/mapping
+        FProjectMappingDir   = FProjectDir + os.sep + mapping_dir
+
+        # load information from workflow.ini ; set FMeteorJobIniFile
+        # Check excluded reference
+        FMeteorJobIniFile = LoadJobWorkflow(workflow_ini)
+
+        #### in PrepareWorkSpace ?
+        # ex: /projects/parkinson/mapping/KCL_01
+        FSampleMappingDir = FProjectMappingDir+os.sep+FSampleName
+        # make directory (and parent) if needed
+        #if not os.path.exists(FSampleMappingDir):
+        #    os.makedirs(FSampleMappingDir)  #### maybe obsolete cause done in TaskMainMapping and/or TaskExcludedMapping
+        
+        #### in PrepareLibraryIniFileNames ?
+        print(FSampleDir+os.sep+"*_"+"census_stage_0.ini")
+        FLibraryIniFileNames = sorted(glob.glob(FSampleDir+os.sep+"*_"+"census_stage_0.ini"))
+        print(FLibraryIniFileNames)
+        FLibraryCount        = len(FLibraryIniFileNames)
+        if FLibraryCount == 0:
+            sys.stderr.write("Error, no census_stage_0.ini file found in {}".format(FSampleDir))
+            sys.exit(1)
+        print("\nLaunch mapping\n")
+        aMainReferenceSection = FMeteorJobIniFile["main_reference"] # alias
+        print(aMainReferenceSection)
+        aMappingDirPathPrefix = ""
+        print( aMainReferenceSection["meteor.mapping.prefix.name"])
+        if aMainReferenceSection["meteor.mapping.prefix.name"] is None:
+            aMappingDirPathPrefix = "mapping"+"_vs_"+aMainReferenceSection["meteor.reference.name"]+"_l"+ \
+                                    "{}-{}".format(aMainReferenceSection["meteor.mapped.readlength"], "m")+aMainReferenceSection["meteor.mismatches"]+"_"
+        else:
+            aMappingDirPathPrefix = "{}_".format(aMainReferenceSection["meteor.mapping.prefix.name"])
+
+        aExcludedRefCount = FMeteorJobIniFile["worksession"]["meteor.excluded.reference.count"]
+        if not isinstance(aExcludedRefCount, int):
+            aExcludedRefCount = 0
+        else:
+            aExcludedRefCount = int(aExcludedRefCount)
+
+        aTmpHash = {}
+        # # LOOP ON EACH LIBRARY
+        for iLibrary in FLibraryIniFileNames:
+            print(FNoLock)
+            print(iLibrary)
+            # Check if lock file exist
+            if os.path.exists(iLibrary+".lock") and not FNoLock:
+                sys.stderr.write("Error, lock file not found: {}".format(iLibrary+".lock"))
+                sys.exit(1)
+            # MAPPING THIS LIBRARY ON MAIN REFERENCE
+            aLibraryCensusIniFile = configparser.ConfigParser()
+            aLibraryCensusIniFile.read_file(open(iLibrary))
+            aSampleInfo = aLibraryCensusIniFile["sample_info"] # reference
+            aMappingDirPath = aMappingDirPathPrefix + aSampleInfo["full_sample_name"]
+
+            aTmpHash["directory"] = FProjectMappingDir + os.sep + aSampleInfo["sample_name"]+os.sep+aMappingDirPath
+            aTmpHash["Stage1FileName"] = aTmpHash["directory"] + os.sep + os.path.basename(iLibrary).replace("census_stage_0", "census_stage_1")
+            FMainMappingCensusIniFileNames = aTmpHash
+            if (not os.path.exists(aTmpHash["Stage1FileName"])):
+                FMappingDone = False
+        FTmpDir = tmp_path
+        # Je ne comprends pas
+        aMD5 = hashlib.md5("FSampleDir workflow_ini").hexdigest()
+        if not os.path.exist(FTmpDir):
+            FTmpDir += os.sep + "tmp_meteor" + os.sep + aMD5
+        if counting_only:
+            # mapping already done and no overwriting
+            if (@FMappingDone and @FForce == false)
+                puts "\nINFO: Mapping already done for sample: #{@FSampleName}"
+                puts "INFO: Skipped !"
+            else # mapping not done or we want to overwrite previous results
+                # if option -t not provided, generate sample tmpdir in sample dir
+                #@FTmpSampleDir = @FTmpDir.nil? ? @FSampleDir + C_PATH_SEP + aMD5 : @FTmpDir #### NEW
+                FTmpSampleDir = @FTmpDir.nil? ? @FSampleMappingDir + C_PATH_SEP + aMD5 : @FTmpDir #### NEW
+                
+                if File.exists?(@FTmpSampleDir)
+                    STDERR.puts "WARNING, temporary dir #{@FTmpSampleDir} already exists !"
+                end
+                FileUtils.mkdir_p(@FTmpSampleDir)
+                
+                LaunchMapping(options)
+                # remove sample tmp data if created in sample dir
+                FileUtils.rm_rf(@FTmpSampleDir) if ( @FTmpDir.nil? and File.exists?(@FTmpSampleDir) ) #### NEW
+        if mapping_only:
+
+        #         # MAPPING THIS LIBRARY ON EACH EXCLUDED REFERENCE
+        #         for iExcluded in range(aExcludedRefCount):
+        #             aOKToContinue = TaskExcludedMapping(iLibrary, iExcluded)
+        #             if not aOKToContinue:
+        #                 sys.stderr.write("Error, TaskExcludedMapping failed: {}".format(FLibraryIniFileNames[iLibrary]))
+        #                 sys.exit(1)
+
+        #         if aSampleInfoSection[C_SEQUENCING_DEVICE_STR] == C_SOLID_DEVICE:
+        #             # CGH analysis
+        #             aOKToContinue = TaskCGH(iLibrary)
+        #             if not aOKToContinue:
+        #                 sys.stderr.write("Error, TaskCGH failed: {}".format(FLibraryIniFileNames[iLibrary]))
+        #          # COPYING INI FILE TO MAPPING DIRECTORY
+        #         shutil.copy(FLibraryIniFileNames[iLibrary], FProjectMappingDir)
+        #         shutil.copy(FLibraryIniFileNames[iLibrary]+".lock", FProjectMappingDir)
+
+        #     aOKToContinue = LaunchCounting()
+        #     if aOKToContinue != 0:
+        #         sys.stderr.write("Error in MeteorSession::ProcessJob, LaunchCounting exited with non zero status")
+        #         sys.exit(aOKToContinue)
+
+        #     # COPYING INI FILE TO PROJECT DIRECTORY
+        #     shutil.copy(FMeteorJobIniFile.filename, FProjectDir)
 
 
 #-------------------------- FUNCTIONS DEFINITION ------------------------------#
@@ -306,7 +433,7 @@ class MeteorSession:
     #     return aReadCount, aBaseCount
 
 
-def TaskMainMapping(iLibrary):
+def TaskMainMapping(iLibrary, FMeteorJobIniFile):
     aWorkSessionSection = FMeteorJobIniFile["worksession"] # reference
     aReferenceSection = FMeteorJobIniFile["main_reference"] # reference
     aReferenceIniFileName = aWorkSessionSection["meteor.reference.dir"] + os.sep + \
@@ -314,8 +441,9 @@ def TaskMainMapping(iLibrary):
 
     print("\n######### Task main mapping {}".format(iLibrary))
     
-    aMappedCensusIniFileName = FMainMappingCensusIniFileNames[iLibrary]["Stage1FileName"]
-    aLibraryMappingDir = FMainMappingCensusIniFileNames[iLibrary]["directory"]
+    # What is Stage1FileName ?
+    aMappedCensusIniFileName = iLibrary["Stage1FileName"]
+    aLibraryMappingDir = iLibrary["directory"]
     
     aLockedMappedCensusIniFileName = aMappedCensusIniFileName+ ".lock"
     
@@ -434,34 +562,36 @@ def TaskExcludedMapping(iLibrary, iExcluded):
 
 
 def LoadJobWorkflow(aWorkflowFile):
+    print("youpi")
     if not os.path.exists(aWorkflowFile):
         print(f"Error, file {aWorkflowFile} not found", file=sys.stderr)
         sys.exit(1)
-
-    FMeteorJobIniFile = IniFile.load(aWorkflowFile)
-
+    FMeteorJobIniFile = configparser.ConfigParser()
+    FMeteorJobIniFile.read_file(open(aWorkflowFile))
     # check if excluded reference count is correct
-    aExcludedRefCount = FMeteorJobIniFile["worksession"]["meteor.excluded.reference.count"]
-    if not integerable(aExcludedRefCount):
-        aExcludedRefCount = False
-    else:
-        aExcludedRefCount = int(aExcludedRefCount)
+    # aExcludedRefCount = FMeteorJobIniFile["worksession"]["meteor.excluded.reference.count"]
+    # if not isinstance(aExcludedRefCount, int):
+    #     aExcludedRefCount = False
+    # else:
+    #     aExcludedRefCount = int(aExcludedRefCount)
     
+    # print(FMeteorJobIniFile)
     aExcludedRefCounted = len(
-        [ s for s in FMeteorJobIniFile.sections if s.startswith("excluded_reference_")]
+         [ s for s in FMeteorJobIniFile.sections() if s.startswith("excluded_reference_")]
     )
 
-    if aExcludedRefCount != aExcludedRefCounted:
-        print(f"Error in file {aWorkflowFile}:", file=sys.stderr)
-        print(
-            f"meteor.excluded.reference.count is set to {aExcludedRefCount}",
-            file=sys.stderr,
-        )
-        print(
-            f"but found {aExcludedRefCounted} excluded_reference section(s) ...",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    # if aExcludedRefCount != aExcludedRefCounted:
+    #     print(f"Error in file {aWorkflowFile}:", file=sys.stderr)
+    #     print(
+    #         f"meteor.excluded.reference.count is set to {aExcludedRefCount}",
+    #         file=sys.stderr,
+    #     )
+    #     print(
+    #         f"but found {aExcludedRefCounted} excluded_reference section(s) ...",
+    #         file=sys.stderr,
+    #     )
+    #     sys.exit(1)
+    return FMeteorJobIniFile
 
 
 def CountAndReIndexReads(aLibraryCensusIniFile):
@@ -487,7 +617,7 @@ def CountAndReIndexReads(aLibraryCensusIniFile):
     }
 
 
-def LaunchMapping(options):
+def LaunchMapping():
     print("\nLaunch mapping\n")
     aOKToContinue = True
 
@@ -610,98 +740,6 @@ def LaunchCounting():
     return aExitStatus
 
 
-
-def ProcessJob(options): #options : Workflow, ProjectPath, InputPath, MappingBasename
-    # directly from program arguments
-    FProjectDir = options["ProjectPath"]
-    FSampleDir  = options["InputPath"]
-    # skip if not a directory
-    if not os.path.isdir(FSampleDir):
-        return 
-    # TODO get it from census ini file, (FProjectName too)
-    FSampleName = os.path.basename(FSampleDir)
-    FMappingDone = True
-    FCountingDone = True
-    FCountingTypeList = options["CountingTypeList"].to_a
-    
-    FNoLock = False
-    FForce = False
-    if options["NoLock"] is not None:
-        FNoLock = True 
-    if options["Force"] is not None:
-        FForce = True
-        FNoLock = True
-        
-    # ex: /projects/parkinson/mapping
-    FProjectMappingDir   = FProjectDir+C_PATH_SEP+options["MappingBasename"]
-
-    # load information from workflow.ini ; set FMeteorJobIniFile
-    LoadJobWorkflow(options["Workflow"])
-
-    #### in PrepareWorkSpace ?
-    # ex: /projects/parkinson/mapping/KCL_01
-    FSampleMappingDir = FProjectMappingDir+C_PATH_SEP+FSampleName
-    # make directory (and parent) if needed
-    #if not os.path.exists(FSampleMappingDir):
-    #    os.makedirs(FSampleMappingDir)  #### maybe obsolete cause done in TaskMainMapping and/or TaskExcludedMapping
-    
-    #### in PrepareLibraryIniFileNames ?
-    FLibraryIniFileNames = sorted(glob.glob(FSampleDir+C_PATH_SEP+"*_"+C_CENSUS_SEQUENCED_STR+".ini"))
-    FLibraryCount        = len(FLibraryIniFileNames)
-    if FLibraryCount == 0:
-        sys.stderr.write("Error, no {}.ini file found in {}".format(C_CENSUS_SEQUENCED_STR, FSampleDir))
-        sys.exit(1)
-
-    aMainReferenceSection = FMeteorJobIniFile[C_JOB_MAIN_REFERENCE_SECTION] # alias
-    aMappingDirPathPrefix = ""
-
-    if aMainReferenceSection["meteor.mapping.prefix.name"] is None or aMainReferenceSection["meteor.mapping.prefix.name"].empty():
-        aMappingDirPathPrefix = C_DEFAULT_SAMPLE_MAPPING_DIRECTORY+"_vs_"+aMainReferenceSection["meteor.reference.name"]+"_l"+ \
-                                "{}-{}".format(aMainReferenceSection["meteor.mapped.readlength"], "m")+aMainReferenceSection["meteor.mismatches"]+"_"
-    else:
-        aMappingDirPathPrefix = "{}_".format(aMainReferenceSection["meteor.mapping.prefix.name"])
-
-    aExcludedRefCount = FMeteorJobIniFile["worksession"]["meteor.excluded.reference.count"]
-    if integerable(aExcludedRefCount) == False:
-        aExcludedRefCount = 0
-    else:
-        aExcludedRefCount = int(aExcludedRefCount)
-
-    # LOOP ON EACH LIBRARY
-    for iLibrary in range(FL):
-        if not os.path.exists(FLibraryIniFileNames[iLibrary]+".lock") and not FNoLock:
-            sys.stderr.write("Error, lock file not found: {}".format(FLibraryIniFileNames[iLibrary]+".lock"))
-            sys.exit(1)
-                # MAPPING THIS LIBRARY ON MAIN REFERENCE
-            aOKToContinue = TaskMainMapping(iLibrary)
-            if not aOKToContinue:
-                sys.stderr.write("Error, TaskMainMapping failed: {}".format(FLibraryIniFileNames[iLibrary]))
-                sys.exit(1)
-
-            # MAPPING THIS LIBRARY ON EACH EXCLUDED REFERENCE
-            for iExcluded in range(aExcludedRefCount):
-                aOKToContinue = TaskExcludedMapping(iLibrary, iExcluded)
-                if not aOKToContinue:
-                    sys.stderr.write("Error, TaskExcludedMapping failed: {}".format(FLibraryIniFileNames[iLibrary]))
-                    sys.exit(1)
-
-            if aSampleInfoSection[C_SEQUENCING_DEVICE_STR] == C_SOLID_DEVICE:
-                # CGH analysis
-                aOKToContinue = TaskCGH(iLibrary)
-                if not aOKToContinue:
-                    sys.stderr.write("Error, TaskCGH failed: {}".format(FLibraryIniFileNames[iLibrary]))
-             # COPYING INI FILE TO MAPPING DIRECTORY
-            shutil.copy(FLibraryIniFileNames[iLibrary], FProjectMappingDir)
-            shutil.copy(FLibraryIniFileNames[iLibrary]+".lock", FProjectMappingDir)
-
-        aOKToContinue = LaunchCounting()
-        if aOKToContinue != 0:
-            sys.stderr.write("Error in MeteorSession::ProcessJob, LaunchCounting exited with non zero status")
-            sys.exit(aOKToContinue)
-
-        # COPYING INI FILE TO PROJECT DIRECTORY
-        shutil.copy(FMeteorJobIniFile.filename, FProjectDir)
-
 def isfile(path): # pragma: no cover
     """Check if path is an existing file.
 
@@ -800,7 +838,7 @@ For paired-ends files must be named :
         default=False, action="store_true", help = "Fastq files are already dispatched in directories.")
     mapping_parser = subparsers.add_parser('counter',
         help='Map reads against a gene catalog')
-    mapping_parser.add_argument("-w", dest="workflow_path", type=isfile, required=True,
+    mapping_parser.add_argument("-w", dest="workflow_ini", type=isfile, required=True,
         help="Path to meteor configuration file, e.g. workflow.ini")
     mapping_parser.add_argument("-i", dest="input_path", type = isdir, required = True,
         help = """Path to sample directory, containing the sample sequencing metadata
@@ -809,7 +847,7 @@ For paired-ends files must be named :
         help="path to project directory, containing mapping and profile data (e.g. /projects/project_dir)")
     mapping_parser.add_argument("-o", dest="mapping_dir", type=str, required=True,
         help="basename of the mapping directory")
-    mapping_parser.add_argument("-c", dest="counting-type", type=str, nargs='+', 
+    mapping_parser.add_argument("-c", dest="counting_type", type=str, nargs='+', 
         choices = ["total_reads", "shared_reads", "smart_shared_reads", "unique_reads"],
     help="""counting type string.""")
     mapping_parser.add_argument("-s", dest="strand", type=str, choices=["direct", "undirect"],
@@ -832,6 +870,15 @@ For paired-ends files must be named :
         help='Map reads against a gene catalog')
     return parser.parse_args(args=None if sys.argv[2:] else ['--help'])
 
+# class Person:
+#   def __init__(mysillyobject, name, age):
+#     mysillyobject.name = name
+#     mysillyobject.age = age
+
+#   def myfunc(abc):
+#     print("Hello my name is " + abc.name)
+
+
 #==============================================================
 # Main program
 #==============================================================
@@ -845,7 +892,6 @@ def main(): # pragma: no cover
     # Get arguments
     args = get_arguments()
     # logger = get_log(path_log)
-    print(args)
     # Import FASTQ UGLY
     if hasattr(args, "fastq_dir"):
         if args.isdispatched:
@@ -966,8 +1012,26 @@ def main(): # pragma: no cover
         # Write configuration file
         with open(os.path.join(ref_dir, args.refName + '_reference.ini'), 'wt') as config_file:
             config.write(config_file)
-    elif hasattr(args, "input_file"):
+    elif hasattr(args, "input_path"):
         print("What am I supposed to do now ?")
+        m= MeteorSession()
+        counting_type = args.counting_type
+        if args.strand:
+            counting_type = args.strand + "_" + counting_type
+        if args.coverage:
+            counting_type = counting_type + "_" + coverage
+        m.ProcessJob(args.workflow_ini,
+        args.project_path,
+        args.input_path,
+        args.tmp_path,
+        args.remove_lock,
+        args.force,
+        args.mapping_dir,
+        counting_type,
+        counting_only,
+        mapping_only)
+        # p1 = Person("John", 36)
+        # p1.myfunc()
 
 
 if __name__ == '__main__':
