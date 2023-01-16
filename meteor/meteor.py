@@ -29,12 +29,46 @@ import glob
 import re
 import subprocess
 import hashlib
+import tempfile
 # from dataclasses import dataclass
 
 #---------------------------- CLASS DEFINITION --------------------------------#
 class color:
    BOLD = '\033[1m'
    END = '\033[0m'
+
+class MeteorMapper:
+    def __init__(self, aMappingProg, aLibraryCensusIniFileName, aReferenceIniFileName, 
+                aLibraryIndexerReport, aMappedCensusIniFileName):
+        self.FLibraryCensusIniFile = configparser.ConfigParser()
+        self.FLibraryCensusIniFile.read_file(open(aLibraryCensusIniFileName))
+        self.FMappedCensusIniFileName = aMappedCensusIniFileName
+        self.FReferenceIniFile = configparser.ConfigParser()
+        self.FReferenceIniFile.read_file(open(aReferenceIniFileName))
+
+        self.FLibraryMappingDir = None
+        self.FTmpLibraryMappingDir = None
+        self.FLibraryName = self.FLibraryCensusIniFile["sample_info"]["full_sample_name"]
+        self.FSampleDir = os.path.dirname(aLibraryCensusIniFileName)
+
+        self.FNGSLibraryIndexerReport = aLibraryIndexerReport # reference to MeteorSession member
+        self.FMismatchesCount = None
+        self.FMatchesCount = None
+        self.FIsMismatchesPercentage = None
+        self.FReferenceName = self.FReferenceIniFile['reference_info']['reference_name']
+
+        self.FQualityEncoding = self.FLibraryCensusIniFile["sample_info"]["quality_encoding"]
+        self.FSequenceFileFormat = Sff[FQ]
+        self.FIsColorSpaceMapping = False
+
+        self.FMappingProgram = aMappingProg
+        self.FMappingFileFormat = None
+        self.FParametersShortLine = None
+        self.FMapperCmd = None
+        self.FMappingOutputFileNames = []
+        self.FTmpMappingOutputFileNames = []
+        self.FIsReadyForMapping = 0
+
 
 class MeteorSession:
     def __init__(self):
@@ -250,9 +284,8 @@ class MeteorSession:
         return read_count, base_Count
 
 
-    def ProcessJob(self, workflow_ini, project_path, input_path,
-    tmp_path, remove_lock, force, mapping_dir,
-    counting_type, counting_only, mapping_only): #options : Workflow, ProjectPath, InputPath, MappingBasename
+    def ProcessJob(self, workflow_ini, project_path, input_path, tmp_path, remove_lock, force, mapping_dir,
+                   counting_type, counting_only, mapping_only): #options : Workflow, ProjectPath, InputPath, MappingBasename
         # directly from program arguments
         FProjectDir = project_path
         FSampleDir  = input_path
@@ -326,31 +359,32 @@ class MeteorSession:
             FMainMappingCensusIniFileNames = aTmpHash
             if (not os.path.exists(aTmpHash["Stage1FileName"])):
                 FMappingDone = False
+
         FTmpDir = tmp_path
-        # Je ne comprends pas
-        aMD5 = hashlib.md5("FSampleDir workflow_ini").hexdigest()
-        if not os.path.exist(FTmpDir):
-            FTmpDir += os.sep + "tmp_meteor" + os.sep + aMD5
+        if not os.path.exists(FTmpDir):
+            FTmpDir = tempfile.TemporaryDirectory() 
         if counting_only:
             # mapping already done and no overwriting
-            if (@FMappingDone and @FForce == false)
-                puts "\nINFO: Mapping already done for sample: #{@FSampleName}"
-                puts "INFO: Skipped !"
-            else # mapping not done or we want to overwrite previous results
+            if FMappingDone and not FForce:
+                print("\nINFO: Mapping already done for sample: #{@FSampleName}")
+                print("INFO: Skipped !")
+            else: # mapping not done or we want to overwrite previous results
                 # if option -t not provided, generate sample tmpdir in sample dir
                 #@FTmpSampleDir = @FTmpDir.nil? ? @FSampleDir + C_PATH_SEP + aMD5 : @FTmpDir #### NEW
-                FTmpSampleDir = @FTmpDir.nil? ? @FSampleMappingDir + C_PATH_SEP + aMD5 : @FTmpDir #### NEW
+                # FTmpSampleDir = @FTmpDir.nil? ? @FSampleMappingDir + C_PATH_SEP + aMD5 : @FTmpDir #### NEW
                 
-                if File.exists?(@FTmpSampleDir)
-                    STDERR.puts "WARNING, temporary dir #{@FTmpSampleDir} already exists !"
-                end
-                FileUtils.mkdir_p(@FTmpSampleDir)
-                
+                # if File.exists?(@FTmpSampleDir)
+                #     STDERR.puts "WARNING, temporary dir #{@FTmpSampleDir} already exists !"
+                # end
+                # FileUtils.mkdir_p(@FTmpSampleDir)
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    print("le temp directory {tmpdirname} est crée")
                 LaunchMapping(options)
                 # remove sample tmp data if created in sample dir
-                FileUtils.rm_rf(@FTmpSampleDir) if ( @FTmpDir.nil? and File.exists?(@FTmpSampleDir) ) #### NEW
+                # FileUtils.rm_rf(@FTmpSampleDir) if ( @FTmpDir.nil? and File.exists?(@FTmpSampleDir) ) #### NEW
         if mapping_only:
-
+            LaunchCounting()
+        print("Done !\nJob finished without errors ...")
         #         # MAPPING THIS LIBRARY ON EACH EXCLUDED REFERENCE
         #         for iExcluded in range(aExcludedRefCount):
         #             aOKToContinue = TaskExcludedMapping(iLibrary, iExcluded)
@@ -902,8 +936,8 @@ def main(): # pragma: no cover
         ext_R1 = ("1.fq", "1.fastq", "R1.fastq", "R1.fastq.gz", "R1.fq.gz")
         ext_R2 = ("2.fq", "2.fastq", "R2.fastq", "R2.fastq.gz", "R2.fq.gz")
         for fastq_file in fastq_file_list:
-            print("Import ", fastq_file)
-            logger.info("Import ", fastq_file)
+            # print("Import ", fastq_file)
+            # logger.info("Import ", fastq_file)
             full_sample_name = os.path.basename(fastq_file)
             if args.iscompressed:
                 full_sample_name = ".".join(full_sample_name.split(".")[:-1])
@@ -1028,8 +1062,8 @@ def main(): # pragma: no cover
         args.force,
         args.mapping_dir,
         counting_type,
-        counting_only,
-        mapping_only)
+        args.counting_only,
+        args.mapping_only)
         # p1 = Person("John", 36)
         # p1.myfunc()
 
