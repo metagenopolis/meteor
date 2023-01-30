@@ -184,7 +184,7 @@ class MeteorMapper:
         # execute command
         if not os.path.isfile(self.FNGSLibraryIndexerReport['IndexedfastqFilePath']):
             sys.exit("WTF HErhehreh")
-        shutil.copy(self.FNGSLibraryIndexerReport['IndexedfastqFilePath'], "/Users/aghozlan/workspace/meteor_test/mtf.fastq")
+        #shutil.copy(self.FNGSLibraryIndexerReport['IndexedfastqFilePath'], "/Users/aghozlan/workspace/meteor_test/mtf.fastq")
         subprocess.check_call(["bowtie2", aParameters, "--no-head --no-sq --no-unal --omit-sec-seq",  "-x", aBowtieIndexList, "-U", self.FNGSLibraryIndexerReport['IndexedfastqFilePath'], "-S", FMappingOutputFileName])
 
 
@@ -827,7 +827,7 @@ For paired-ends files must be named :
         default=False, action="store_true", help = "Fastq files are compressed.")
     fastq_parser.add_argument("-d", dest='isdispatched',
         default=False, action="store_true", help = "Fastq files are already dispatched in directories.")
-    mapping_parser = subparsers.add_parser('counter',
+    mapping_parser = subparsers.add_parser('mapping',
         help='Map reads against a gene catalog')
     mapping_parser.add_argument("-w", dest="workflow_ini", type=isfile, required=True,
         help="Path to meteor configuration file, e.g. workflow.ini")
