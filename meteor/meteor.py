@@ -236,6 +236,7 @@ class MeteorMapper:
 class MeteorSession:
     def __init__(self):
         self.FMeteorJobIniFile = None
+        self.FMeteorJobIniFilename = None
         self.FProjectDir = None
         self.FSampleDir = None
         self.FTmpSampleDir = None
@@ -481,7 +482,7 @@ class MeteorSession:
         print("\nLaunch counting")
         # does not need census_stage_0.ini
         #-w /path/to/workflow_tutorial.ini -i /path/to/sample/H1 -p /path/to/project_name -m mapping
-        aparameters = " -w " + self.aReferenceIniFileName + " -i " + self.FSampleDir + " -p " + self.FProjectDir + " -o " + os.path.basename(self.FProjectMappingDir)
+        aparameters = " -w " + self.FMeteorJobIniFilename + " -i " + self.FSampleDir + " -p " + self.FProjectDir + " -o " + os.path.basename(self.FProjectMappingDir)
         if len(self.FCountingTypeList) > 0:
             aparameters += " -c " + ",".join(self.FCountingTypeList)
         if self.FForce: # force overwriting former profiling results done with same parameters
@@ -704,6 +705,7 @@ class MeteorSession:
             sys.exit(1)
         self.FMeteorJobIniFile = configparser.ConfigParser()
         self.FMeteorJobIniFile.read_file(open(aWorkflowFile))
+        self.FMeteorJobIniFilename = aWorkflowFile
         # check if excluded reference count is correct
         # aExcludedRefCount = FMeteorJobIniFile["worksession"]["meteor.excluded.reference.count"]
         # if not isinstance(aExcludedRefCount, int):
