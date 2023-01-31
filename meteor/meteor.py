@@ -28,47 +28,76 @@ import datetime
 import glob
 import re
 import subprocess
-# import hashlib
 import tempfile
 import gzip
 import shutil
-# from dataclasses import dataclass
+from dataclasses import dataclass
+# from typing import List
 
 #---------------------------- CLASS DEFINITION --------------------------------#
 class color:
    BOLD = '\033[1m'
    END = '\033[0m'
 
+@dataclass
 class MeteorMapper:
-    def __init__(self, aMappingProg, aLibraryCensusIni, aReferenceIniFileName, 
-                aLibraryIndexerReport, aMappedCensusIniFileName, FSampleDir):
-        self.FLibraryCensusIniFile = aLibraryCensusIni
-        self.FMappedCensusIniFileName = aMappedCensusIniFileName
-        self.aReferenceIniFileName = aReferenceIniFileName
-        self.FReferenceIniFile = configparser.ConfigParser()
-        self.FReferenceIniFile.read_file(open(aReferenceIniFileName))
+    FLibraryCensusIniFile: configparser.ConfigParser
+    FReferenceIniFile: configparser.ConfigParser
+    aReferenceIniFileName: str
+    aReferenceIniFileName: str
+    FLibraryMappingDir: str
+    FTmpLibraryMappingDir: str
+    FLibraryName: str
+    FSampleDir: str
+    FNGSLibraryIndexerReport: dict
+    FMismatchesCount: int
+    FMatchesCount: int
+    FIsMismatchesPercentage: float
+    FReferenceName: str
+    FMappingProgram: str
+    FMappingFileFormat: str
+    FParametersShortLine = None
+    FMapperCmd = None
+    FMappingOutputFileNames: list
+    FTmpMappingOutputFileNames: list
+    FIsReadyForMapping: int = 0
 
-        self.FLibraryMappingDir = None
-        self.FTmpLibraryMappingDir = None
+
+    def __post_init__(self):
+        self.FReferenceIniFile.read_file(open(self.aReferenceIniFileName))
         self.FLibraryName = self.FLibraryCensusIniFile["sample_info"]["full_sample_name"]
-        self.FSampleDir = FSampleDir
-
-        self.FNGSLibraryIndexerReport = aLibraryIndexerReport # reference to MeteorSession member
-        self.FMismatchesCount = None
-        self.FMatchesCount = None
-        self.FIsMismatchesPercentage = None
         self.FReferenceName = self.FReferenceIniFile['reference_info']['reference_name']
 
-        # self.FQualityEncoding = self.FLibraryCensusIniFile["sample_info"]["quality_encoding"]
-        # self.FSequenceFileFormat = Sff[FQ]
 
-        self.FMappingProgram = aMappingProg
-        self.FMappingFileFormat = None
-        self.FParametersShortLine = None
-        self.FMapperCmd = None
-        self.FMappingOutputFileNames = []
-        self.FTmpMappingOutputFileNames = []
-        self.FIsReadyForMapping = 0
+    # def __init__(self, aMappingProg, aLibraryCensusIni, aReferenceIniFileName, 
+    #             aLibraryIndexerReport, aMappedCensusIniFileName, FSampleDir):
+    #     self.FLibraryCensusIniFile = aLibraryCensusIni
+    #     self.FMappedCensusIniFileName = aMappedCensusIniFileName
+    #     self.aReferenceIniFileName = aReferenceIniFileName
+    #     self.FReferenceIniFile = configparser.ConfigParser()
+    #     self.FReferenceIniFile.read_file(open(aReferenceIniFileName))
+
+    #     self.FLibraryMappingDir = None
+    #     self.FTmpLibraryMappingDir = None
+    #     self.FLibraryName = self.FLibraryCensusIniFile["sample_info"]["full_sample_name"]
+    #     self.FSampleDir = FSampleDir
+
+    #     self.FNGSLibraryIndexerReport = aLibraryIndexerReport # reference to MeteorSession member
+    #     self.FMismatchesCount = None
+    #     self.FMatchesCount = None
+    #     self.FIsMismatchesPercentage = None
+    #     self.FReferenceName = self.FReferenceIniFile['reference_info']['reference_name']
+
+    #     # self.FQualityEncoding = self.FLibraryCensusIniFile["sample_info"]["quality_encoding"]
+    #     # self.FSequenceFileFormat = Sff[FQ]
+
+    #     self.FMappingProgram = aMappingProg
+    #     self.FMappingFileFormat = None
+    #     self.FParametersShortLine = None
+    #     self.FMapperCmd = None
+    #     self.FMappingOutputFileNames = []
+    #     self.FTmpMappingOutputFileNames = []
+    #     self.FIsReadyForMapping = 0
 
     def FinalizeMapping(self):
         # Create new mapping_census_ini_file from library_census_ini_file
@@ -378,12 +407,9 @@ class MeteorSession:
         
         aMappingProg = aWorkSessionSection["meteor.mapping.program"]
         if (aMappingProg != 'bowtie2'): 
-            sys.stderr.write("Error, unknown or unsupported mapping program : {}".format(aWorkSessionSection["meteor.mapping.program"]))
-            sys.exit(1) # C_BAD_MAPPER_EXIT
-        print("Here MTF")
-        print(self.aReferenceIniFileName)
-        print("Batard")
-        print(self.ini_files[iLibrary])
+            sys.exit("Error, unknown or unsupported mapping program : {}".format(aWorkSessionSection["meteor.mapping.program"]))
+        aMappingProg, aLibraryCensusIni, aReferenceIniFileName, 
+    #             aLibraryIndexerReport, aMappedCensusIniFileName, FSampleDir
         aMeteorMapper = MeteorMapper(aMappingProg, self.ini_files[iLibrary], self.aReferenceIniFileName, self.FLibraryIndexerReport, aMappedCensusIniFileName, self.FSampleDir)
         print("WTF")
         aOkMappingProcess = aMeteorMapper.MapRead(
@@ -405,20 +431,12 @@ class MeteorSession:
             return False
         return True
 
-    def CountAndReIndexReads(self, aLibraryCensusIniFile):
+    def CountAndReIndexReads(self, aLibraryCensusIniFile: configparser.ConfigParser):
         aSampleInfoSection = aLibraryCensusIniFile["sample_info"]
         aSampleFileSection = aLibraryCensusIniFile["sample_file"]
 
         aInputFile = self.FSampleDir + os.sep + aSampleFileSection["fastq_file"]
-        print("ICIT")
-
         aOutputFile = self.FTmpSampleDir.name + os.sep + aSampleFileSection["fastq_file"] + '.idx'
-        print(self.FTmpSampleDir)
-        print(aOutputFile)
-        # self.FTmpSampleDir.cleanup()
-        # with open(aOutputFile,"wt") as merde:
-        #     pass
-        print("please")
         aReadCount, aBaseCount = self.CountReadAndReIndexFastqFile(aInputFile, aOutputFile)
         if not os.path.isfile(aOutputFile):
             sys.exit("WFTFDSFDS")
@@ -698,10 +716,8 @@ class MeteorSession:
 
 
     def LoadJobWorkflow(self, aWorkflowFile):
-        print("youpi")
         if not os.path.exists(aWorkflowFile):
-            print(f"Error, file {aWorkflowFile} not found", file=sys.stderr)
-            sys.exit(1)
+            sys.exit(f"Error, file {aWorkflowFile} not found")
         self.FMeteorJobIniFile = configparser.ConfigParser()
         self.FMeteorJobIniFile.read_file(open(aWorkflowFile))
         # check if excluded reference count is correct
@@ -1012,8 +1028,6 @@ def main(): # pragma: no cover
         args.counting_type,
         args.counting_only,
         args.mapping_only)
-        # p1 = Person("John", 36)
-        # p1.myfunc()
 
 
 if __name__ == '__main__':
