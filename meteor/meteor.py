@@ -21,45 +21,56 @@ __date__ = "2022"
 import sys
 import os
 import argparse
-import configparser
-# import logging
-# from logging.handlers import RotatingFileHandler
+from configparser import ConfigParser
+import logging
+from logging.handlers import RotatingFileHandler
 import datetime
 import glob
 import re
 import subprocess
-import tempfile
+from tempfile import TemporaryDirectory
 import gzip
-import shutil
-from dataclasses import dataclass
+import bz2
+import lzma
+# import shutil
+from dataclasses import dataclass, field
 # from typing import List
+import urllib.request
+from tqdm import tqdm
 
 #---------------------------- CLASS DEFINITION --------------------------------#
 class color:
-   BOLD = '\033[1m'
-   END = '\033[0m'
+    BOLD = '\033[1m'
+    END = '\033[0m'
+
+class DownloadProgressBar(tqdm):
+    def update_to(self, b=1, bsize=1, tsize=None):
+        if tsize is not None:
+            self.total = tsize
+        self.update(b * bsize - self.n)
+
 
 @dataclass
 class MeteorMapper:
-    FLibraryCensusIniFile: configparser.ConfigParser
-    FReferenceIniFile: configparser.ConfigParser
+    FMappedCensusIniFileName: str
     aReferenceIniFileName: str
-    aReferenceIniFileName: str
-    FLibraryMappingDir: str
-    FTmpLibraryMappingDir: str
-    FLibraryName: str
     FSampleDir: str
     FNGSLibraryIndexerReport: dict
-    FMismatchesCount: int
-    FMatchesCount: int
-    FIsMismatchesPercentage: float
-    FReferenceName: str
     FMappingProgram: str
-    FMappingFileFormat: str
-    FParametersShortLine = None
-    FMapperCmd = None
-    FMappingOutputFileNames: list
-    FTmpMappingOutputFileNames: list
+    FLibraryCensusIniFile: ConfigParser = ConfigParser()
+    FReferenceIniFile: ConfigParser = ConfigParser()
+    FLibraryMappingDir: str = ""
+    FTmpLibraryMappingDir: str = ""
+    FLibraryName: str = ""
+    FMismatchesCount: int = 0
+    FMatchesCount: int = 0
+    FIsMismatchesPercentage: float = 0.0
+    FReferenceName: str = ""
+    FMappingFileFormat: str = ""
+    FParametersShortLine: str = ""
+    FMapperCmd: str = ""
+    FMappingOutputFileNames: list = field(default_factory=list)
+    FTmpMappingOutputFileNames: list = field(default_factory=list)
     FIsReadyForMapping: int = 0
 
 
@@ -67,37 +78,6 @@ class MeteorMapper:
         self.FReferenceIniFile.read_file(open(self.aReferenceIniFileName))
         self.FLibraryName = self.FLibraryCensusIniFile["sample_info"]["full_sample_name"]
         self.FReferenceName = self.FReferenceIniFile['reference_info']['reference_name']
-
-
-    # def __init__(self, aMappingProg, aLibraryCensusIni, aReferenceIniFileName, 
-    #             aLibraryIndexerReport, aMappedCensusIniFileName, FSampleDir):
-    #     self.FLibraryCensusIniFile = aLibraryCensusIni
-    #     self.FMappedCensusIniFileName = aMappedCensusIniFileName
-    #     self.aReferenceIniFileName = aReferenceIniFileName
-    #     self.FReferenceIniFile = configparser.ConfigParser()
-    #     self.FReferenceIniFile.read_file(open(aReferenceIniFileName))
-
-    #     self.FLibraryMappingDir = None
-    #     self.FTmpLibraryMappingDir = None
-    #     self.FLibraryName = self.FLibraryCensusIniFile["sample_info"]["full_sample_name"]
-    #     self.FSampleDir = FSampleDir
-
-    #     self.FNGSLibraryIndexerReport = aLibraryIndexerReport # reference to MeteorSession member
-    #     self.FMismatchesCount = None
-    #     self.FMatchesCount = None
-    #     self.FIsMismatchesPercentage = None
-    #     self.FReferenceName = self.FReferenceIniFile['reference_info']['reference_name']
-
-    #     # self.FQualityEncoding = self.FLibraryCensusIniFile["sample_info"]["quality_encoding"]
-    #     # self.FSequenceFileFormat = Sff[FQ]
-
-    #     self.FMappingProgram = aMappingProg
-    #     self.FMappingFileFormat = None
-    #     self.FParametersShortLine = None
-    #     self.FMapperCmd = None
-    #     self.FMappingOutputFileNames = []
-    #     self.FTmpMappingOutputFileNames = []
-    #     self.FIsReadyForMapping = 0
 
     def FinalizeMapping(self):
         # Create new mapping_census_ini_file from library_census_ini_file
@@ -114,10 +94,9 @@ class MeteorMapper:
         aMappedCensusIniFile["mapping_file"]['mapping_file_count'] = len(FMappingOutputFileNames)
 
         # should iterate only once
-        for i in range(len(FMappingOutputFileNames)):
-            aMappedCensusIniFile["mapping_file"]['bowtie_file'+"_{}".format(i+1)] = os.path.basename(FMappingOutputFileNames[i])
-
-        #inherited;
+        for output_names in FMappingOutputFileNames:
+            aMappedCensusIniFile["mapping_file"]['bowtie_file'+"_{}".format(i+1)] = os.path.basename(output_names)
+        #TODO aMappedCensusIniFile is useless for now
         aSampleInfoSection["indexed_read_length"] = FNGSLibraryIndexerReport["IndexedReadLength"]
         aSampleInfoSection["sequenced_read_count"] = FNGSLibraryIndexerReport["IndexedReadCount"]
         aSampleInfoSection["indexed_sequenced_read_count"] = FNGSLibraryIndexerReport["IndexedReadCount"]
@@ -217,7 +196,8 @@ class MeteorMapper:
         subprocess.check_call(["bowtie2", aParameters, "--no-head --no-sq --no-unal --omit-sec-seq",  "-x", aBowtieIndexList, "-U", self.FNGSLibraryIndexerReport['IndexedfastqFilePath'], "-S", FMappingOutputFileName])
 
 
-    def MapRead(self, aTmpDir, aLibraryMappingDir, aMapperCmd, aMatchesCount, aMismatchesCount, aIsMismatchesPercentage, aIsLocalMapping, aMappingFileFormat, aIsCPUPercentage, aCPUCount):
+    def MapRead(self, aLibraryMappingDir, aMapperCmd, aMatchesCount, aMismatchesCount, aIsMismatchesPercentage, aIsLocalMapping, aMappingFileFormat, aIsCPUPercentage, aCPUCount):
+        #aTmpDir, 
         # get around KCL feedback (inifile bug?)
         self.FMatchesCount = int(aMatchesCount)
         # FMatchesCount = C_DEFAULT_MAPPING_MATCHES_COUNT if (FMatchesCount == 0)
@@ -261,70 +241,49 @@ class MeteorMapper:
         self.Bowtie2MapRead()
         return True
 
-
+@dataclass
 class MeteorSession:
-    def __init__(self):
-        self.FMeteorJobIniFile = None
-        self.FMeteorJobIniFilename = None
-        self.FProjectDir = None
-        self.FSampleDir = None
-        self.FTmpSampleDir = None
-        self.FTmpDir = None
-        self.FNoLock = False
-        self.FForce = False
-        self.FMappingDone = True
-        self.FCountingDone = True
-        self.FCountingTypeList = None
-        self.FMappingDir = None
-        self.LibraryNames = None
-        self.FLibraryCount = None
-        self.FSampleName = None
-        self.FProjectName = None
-        self.FProjectMappingDir = None
-        self.FLibraryIndexerReport = {}
-        self.FLibraryIniFileNames = []
-        self.FLibraryCensusIniFileNames = []
-        self.FMainMappingCensusIniFileNames = []
-        self.FExcludedMappingCensusIniFileNames = []
+    logger: logging.Logger
+    tmp_path: str
+    FMeteorJobIniFile: ConfigParser = ConfigParser()
+    FMeteorJobIniFilename: str = "" 
+    FProjectDir: str = ""
+    FSampleDir: str = ""
+    FTmpSampleDir: TemporaryDirectory = TemporaryDirectory()
+    FTmpDir: TemporaryDirectory = TemporaryDirectory()
+    FNoLock: bool = False
+    FForce: bool = False
+    FMappingDone: bool = True
+    FCountingDone: bool = True
+    FCountingTypeList: list = field(default_factory=list)
+    FMappingDir: str = ""
+    LibraryNames: str = ""
+    FLibraryCount: str = ""
+    FSampleName: str = ""
+    FProjectName: str = ""
+    FProjectMappingDir: str = ""
+    FLibraryIndexerReport: dict = field(default_factory=dict)
+    FLibraryIniFileNames: list = field(default_factory=list)
+    FLibraryCensusIniFileNames: list = field(default_factory=list)
+    FMainMappingCensusIniFileNames: dict = field(default_factory=dict)
+    FExcludedMappingCensusIniFileNames: list = field(default_factory=list)
 
+    def __post_init__(self):
+        if self.tmp_path:
+            self.FTmpDir.dir = self.tmp_path
+            self.FTmpSampleDir.dir = self.tmp_path
 
-    def CountReadFastqFile(self, fastq_file):
-        """
-        Count the number of reads and number of bases
-    
-        :param fastq_file: Input
-    
-        Return : parser
-        """
-        read_count = 0 
-        base_Count = 0
-        with open(fastq_file, 'r') as fd:
-            # fastq may be gziped
-            if fastq_file.endswith('.gz'):
-                in_fq = gzip.GzipFile(fileobj=fd)
-            else:
-                in_fq = fd
-
-            # read input fastq line by line
-            for read_count,line in enumerate(in_fq):
-                # read the sequence
-                base_Count += len(next(in_fq).strip())
-                # pass the plus
-                next(in_fq)
-                # pass the quality
-                next(in_fq)
-        return read_count, base_Count
-
-
-    def CountReadAndReIndexFastqFile(self, fastq_file, output_file):
+    def CountReadAndReIndexFastqFile(self, fastq_file: str, output_file: str) -> tuple:
         aBaseCount = 0
         if fastq_file.endswith('.gz'):
             in_fq = gzip.open(fastq_file, "rt")
+        elif fastq_file.endswith('.bz2'):
+            in_fq = bz2.open(fastq_file, "rt")
+        elif fastq_file.endswith('.xz'):
+            in_fq = lzma.open(fastq_file, "rt")
         else:
             in_fq = open(fastq_file, "rt")
         # open output fastq in write mode
-        print("The FUCH")
-        print(output_file)
         with open(output_file, 'wt') as out_fq:
             # read input fastq line by line
             for aReadCount, line in enumerate(in_fq):
@@ -338,50 +297,16 @@ class MeteorSession:
                 # pass the quality
                 out_fq.write(next(in_fq))
         in_fq.close()
-        if not os.path.isfile(output_file):
-            sys.exit("WTF ca veut pas")
-
-        #             line = line.strip()
-        #             # line begins with @seqid
-        #             if re.match(r'^@(.+)$', line):
-        #                 # check if the previous read is valid (quality exists and same size as adn)
-        #                 aQualSize = len(qual) if qual else 0
-        #                 if aQualSize > 0:
-        #                     if adn and aQualSize == len(adn):
-        #                         aReadCount += 1
-        #                         aBaseCount += aQualSize
-        #                         # then write this indexed read
-        #                         out_fq.write(f"@{aReadCount}\n{adn}\n+\n{qual}\n")
-        #                         adn = None
-        #                 seqId = re.match(r'^@(.+)$', line).group(1)
-        #                 # NB: quality line might start with @
-        #             aCpt += 1
-        #             if line == "+" or line == f"+{seqId}":
-        #                 qual = ''
-        #                 aCpt = 3
-        #                 # previous line was adn
-        #                 adn = prev
-        #             if aCpt == 4:
-        #                 qual = line
-        #             prev = line
-
-        #         # evaluate last read
-        #         aQualSize = len(qual) if qual else 0
-        #         if aQualSize > 0:
-        #             if adn and aQualSize == len(adn):
-        #                 aReadCount += 1
-        #                 aBaseCount += aQualSize
-        #                 out_fq.write(f"@{aReadCount}\n{adn}\n+\n{qual}\n")
         return aReadCount, aBaseCount
 
 
-    def TaskMainMapping(self, iLibrary):
+    def TaskMainMapping(self, iLibrary: ConfigParser) -> bool:
         aWorkSessionSection = self.FMeteorJobIniFile["worksession"] # reference
         aReferenceSection = self.FMeteorJobIniFile["main_reference"] # reference
         self.aReferenceIniFileName = aWorkSessionSection["meteor.reference.dir"] + os.sep + \
             aReferenceSection["meteor.reference.name"] + os.sep + aReferenceSection["meteor.reference.name"] + "_reference.ini"
 
-        print("\n######### Task main mapping {}".format(iLibrary))
+        self.logger.info("Task main mapping {iLibrary}")
         
         # What is Stage1FileName ?
         aMappedCensusIniFileName = self.FMainMappingCensusIniFileNames[iLibrary]["Stage1FileName"]
@@ -391,30 +316,31 @@ class MeteorSession:
         
         # remove lock file if asked
         if self.FNoLock and os.path.exists(aLockedMappedCensusIniFileName):
-            print("\nINFO: removing lock file: {}".format(aLockedMappedCensusIniFileName))
+            self.logger.info("Removing lock file: {}".format(aLockedMappedCensusIniFileName))
             os.remove(aLockedMappedCensusIniFileName)
         # remove census 1 file if asked
         if self.FForce and os.path.exists(aMappedCensusIniFileName):
-            print("\nINFO: removing existing census 1 file: {}".format(aMappedCensusIniFileName))
+            self.logger.info("Removing existing census 1 file: {}".format(aMappedCensusIniFileName))
             os.remove(aMappedCensusIniFileName)
         
         if  os.path.exists(aMappedCensusIniFileName) or os.path.exists(aLockedMappedCensusIniFileName):
-            print("\nINFO: skipping library.\nINFO: {} already exists or is locked".format(aMappedCensusIniFileName))
+            self.logger.info("Skipping library.\n{} already exists or is locked".format(aMappedCensusIniFileName))
 
         # create lock file in result directory
-        print("je cree " + aLibraryMappingDir)
         os.makedirs(aLibraryMappingDir, exist_ok=True)
         open(aLockedMappedCensusIniFileName, 'a').close()
         
         aMappingProg = aWorkSessionSection["meteor.mapping.program"]
         if (aMappingProg != 'bowtie2'): 
             sys.exit("Error, unknown or unsupported mapping program : {}".format(aWorkSessionSection["meteor.mapping.program"]))
-        aMappingProg, aLibraryCensusIni, aReferenceIniFileName, 
-    #             aLibraryIndexerReport, aMappedCensusIniFileName, FSampleDir
-        aMeteorMapper = MeteorMapper(aMappingProg, self.ini_files[iLibrary], self.aReferenceIniFileName, self.FLibraryIndexerReport, aMappedCensusIniFileName, self.FSampleDir)
-        print("WTF")
+        aMeteorMapper = MeteorMapper(
+                            FMappingProgram=aMappingProg, FLibraryCensusIniFile=self.ini_files[iLibrary], 
+                            aReferenceIniFileName= self.aReferenceIniFileName, 
+                            FNGSLibraryIndexerReport=self.FLibraryIndexerReport, 
+                            FMappedCensusIniFileName=aMappedCensusIniFileName, 
+                            FSampleDir=self.FSampleDir)
         aOkMappingProcess = aMeteorMapper.MapRead(
-                        self.FTmpDir,
+                        #self.FTmpDir,
                         aLibraryMappingDir,
                         aReferenceSection["meteor.mapper.cmd"],
                         aReferenceSection["meteor.matches"],
@@ -432,7 +358,7 @@ class MeteorSession:
             return False
         return True
 
-    def CountAndReIndexReads(self, aLibraryCensusIniFile: configparser.ConfigParser):
+    def CountAndReIndexReads(self, aLibraryCensusIniFile: ConfigParser):
         aSampleInfoSection = aLibraryCensusIniFile["sample_info"]
         aSampleFileSection = aLibraryCensusIniFile["sample_file"]
 
@@ -453,7 +379,7 @@ class MeteorSession:
         }
 
     def LaunchMapping(self):
-        print("\nLaunch mapping\n")
+        self.logger.info("Launch mapping")
         aOKToContinue = True
 
         #~ ( build catalog reference db (bowtie2-build-l) )
@@ -473,12 +399,12 @@ class MeteorSession:
             FProjectName = aSampleInfoSection["project_name"]
             aSampleLibraryName = aSampleInfoSection["full_sample_name"]
             
-            print("\n\n######### Meteor Mapping task description")
-            print("Sample name = " + FSampleName)
-            print("Library name = " + aSampleLibraryName)
-            print("Project name = " + FProjectName)
-            print("Sequencing device = " + aSampleInfoSection["sequencing_device"])
-            print("Workflow = " + os.path.basename(iLibrary))
+            self.logger.info("Meteor Mapping task description")
+            self.logger.info("Sample name = " + FSampleName)
+            self.logger.info("Library name = " + aSampleLibraryName)
+            self.logger.info("Project name = " + FProjectName)
+            self.logger.info("Sequencing device = " + aSampleInfoSection["sequencing_device"])
+            self.logger.info("Workflow = " + os.path.basename(iLibrary))
             
             if not os.path.exists(iLibrary+".lock"):
                 ### reindexing this library reads and fill FLibraryIndexerReport
@@ -486,8 +412,7 @@ class MeteorSession:
                 # MAPPING THIS LIBRARY ON MAIN REFERENCE
                 aOKToContinue = self.TaskMainMapping(iLibrary)
                 if not aOKToContinue:
-                    sys.stderr.write("Error, TaskMainMapping failed: " + iLibrary)
-                    sys.exit(1) #### TODO
+                    sys.exit("Error, TaskMainMapping failed: " + iLibrary)
                 
                 # MAPPING THIS LIBRARY ON EACH EXCLUDED REFER
                 for iExcluded in range(aExcludedRefCount):
@@ -497,7 +422,7 @@ class MeteorSession:
 
 
     def LaunchCounting(self):
-        print("\nLaunch counting")
+        self.logger.info("Launch counting")
         # does not need census_stage_0.ini
         #-w /path/to/workflow_tutorial.ini -i /path/to/sample/H1 -p /path/to/project_name -m mapping
         aparameters = " -w " + self.FMeteorJobIniFilename + " -i " + self.FSampleDir + " -p " + self.FProjectDir + " -o " + os.path.basename(self.FProjectMappingDir)
@@ -507,8 +432,6 @@ class MeteorSession:
             aparameters += " -f"
         if self.FTmpDir: # path to directory where mapping results (SAM files) are stored. #### NEW
             aparameters += " -t " + self.FTmpDir.name
-        if not os.path.exists(self.FTmpDir.name):
-            print("Oh fuch")
         # subprocess.check_call([os.path.dirname(os.path.realpath(__file__)) + os.sep + "src" + os.sep + "build" + os.sep + "meteor-counter", aparameters])
         subprocess.check_call([os.path.dirname(os.path.realpath(__file__)) + os.sep + "src" + os.sep + "build" + os.sep + "meteor-counter", "-w", \
          self.aReferenceIniFileName, "-i", self.FSampleDir, "-p", self.FProjectDir, "-o", os.path.basename(self.FProjectMappingDir), \
@@ -526,24 +449,24 @@ class MeteorSession:
         # return aExitStatus
 
 
-    def ProcessJob(self, workflow_ini, project_path, input_path, tmp_path, remove_lock, force, mapping_dir,
+    def ProcessJob(self, workflow_ini, project_path, input_path, remove_lock, force, mapping_dir,
                    counting_type, counting_only, mapping_only): #options : Workflow, ProjectPath, InputPath, MappingBasename
         # directly from program arguments
         self.FProjectDir = project_path
         self.FSampleDir  = input_path
         # TODO get it from census ini file, (FProjectName too)
         self.FSampleName = os.path.basename(input_path)
-        self.FMappingDone = True
-        self.FCountingDone = True
+        # self.FMappingDone = True
+        # self.FCountingDone = True
         self.FCountingTypeList = counting_type
         
-        self.FForce = False
+        # self.FForce = False
         self.FNoLock = remove_lock 
         if force:
             self.FForce = True
             self.FNoLock = True
         # ex: /projects/parkinson/mapping
-        self.FProjectMappingDir   = project_path + os.sep + mapping_dir
+        self.FProjectMappingDir = project_path + os.sep + mapping_dir
 
         # load information from workflow.ini ; set FMeteorJobIniFile
         # Check excluded reference
@@ -551,24 +474,20 @@ class MeteorSession:
 
         #### in PrepareWorkSpace ?
         # ex: /projects/parkinson/mapping/KCL_01
-        self.FSampleMappingDir = self.FProjectMappingDir +os.sep+ self.FSampleName
+        self.FSampleMappingDir = self.FProjectMappingDir + os.sep + self.FSampleName
         # make directory (and parent) if needed
         #if not os.path.exists(FSampleMappingDir):
         #    os.makedirs(FSampleMappingDir)  #### maybe obsolete cause done in TaskMainMapping and/or TaskExcludedMapping
         
         #### in PrepareLibraryIniFileNames ?
-        print(self.FSampleDir+os.sep+"*_"+"census_stage_0.ini")
         self.FLibraryIniFileNames = sorted(glob.glob(self.FSampleDir+os.sep+"*_"+"census_stage_0.ini"))
         print(self.FLibraryIniFileNames)
         self.FLibraryCount = len(self.FLibraryIniFileNames)
         if self.FLibraryCount == 0:
-            sys.stderr.write("Error, no census_stage_0.ini file found in {}".format(self.FSampleDir))
-            sys.exit(1)
+            sys.exit("Error, no census_stage_0.ini file found in {}".format(self.FSampleDir))
         print("\nLaunch mapping\n")
         aMainReferenceSection = self.FMeteorJobIniFile["main_reference"] # alias
-        print(aMainReferenceSection)
         aMappingDirPathPrefix = ""
-        print( aMainReferenceSection["meteor.mapping.prefix.name"])
         if aMainReferenceSection["meteor.mapping.prefix.name"] is None:
             aMappingDirPathPrefix = "mapping"+"_vs_"+aMainReferenceSection["meteor.reference.name"]+"_l"+ \
                                     "{}-{}".format(aMainReferenceSection["meteor.mapped.readlength"], "m")+aMainReferenceSection["meteor.mismatches"]+"_"
@@ -577,18 +496,14 @@ class MeteorSession:
 
         aExcludedRefCount = int(self.FMeteorJobIniFile["worksession"]["meteor.excluded.reference.count"])
 
-        self.FMainMappingCensusIniFileNames = {}
         # # LOOP ON EACH LIBRARY
         self.ini_files = {}
         for iLibrary in self.FLibraryIniFileNames:
-            print(self.FNoLock)
-            print(iLibrary)
             # Check if lock file exist
             if os.path.exists(iLibrary+".lock") and not FNoLock:
-                sys.stderr.write("Error, lock file not found: {}".format(iLibrary+".lock"))
-                sys.exit(1)
+                sys.exit("Error, lock file not found: {}".format(iLibrary+".lock"))
             # MAPPING THIS LIBRARY ON MAIN REFERENCE
-            aLibraryCensusIniFile = configparser.ConfigParser()
+            aLibraryCensusIniFile = ConfigParser()
             aLibraryCensusIniFile.read_file(open(iLibrary))
             self.ini_files[iLibrary] = aLibraryCensusIniFile
 
@@ -602,18 +517,15 @@ class MeteorSession:
             if (not os.path.exists(self.FMainMappingCensusIniFileNames[iLibrary]["Stage1FileName"])):
                 self.FMappingDone = False
 
-        
-        self.FTmpDir = tempfile.TemporaryDirectory(dir=tmp_path)
         if not counting_only:
             # mapping already done and no overwriting
             if self.FMappingDone and not self.FForce:
-                print("\nINFO: Mapping already done for sample: #{@FSampleName}")
-                print("INFO: Skipped !")
+                self.logger.info("Mapping already done for sample: #{@FSampleName}")
+                self.logger.info("Skipped !")
             else: # mapping not done or we want to overwrite previous results
                 # if option -t not provided, generate sample tmpdir in sample dir
                 #@FTmpSampleDir = @FTmpDir.nil? ? @FSampleDir + C_PATH_SEP + aMD5 : @FTmpDir #### NEW
                 #self.FTmpSampleDir = self.FSampleMappingDir + C_PATH_SEP + aMD5 : @FTmpDir #### NEW
-                self.FTmpSampleDir = tempfile.TemporaryDirectory()
                 # if File.exists?(@FTmpSampleDir)
                 #     STDERR.puts "WARNING, temporary dir #{@FTmpSampleDir} already exists !"
                 # end
@@ -623,7 +535,7 @@ class MeteorSession:
                 # FileUtils.rm_rf(@FTmpSampleDir) if ( @FTmpDir.nil? and File.exists?(@FTmpSampleDir) ) #### NEW
         if not mapping_only:
             self.LaunchCounting()
-        print("Done !\nJob finished without errors ...")
+        self.logger.info("Done !\nJob finished without errors ...")
         #         # MAPPING THIS LIBRARY ON EACH EXCLUDED REFERENCE
         #         for iExcluded in range(aExcludedRefCount):
         #             aOKToContinue = TaskExcludedMapping(iLibrary, iExcluded)
@@ -649,77 +561,76 @@ class MeteorSession:
         #     shutil.copy(FMeteorJobIniFile.filename, FProjectDir)
 
 
-    def TaskExcludedMapping(self, iLibrary, iExcluded):
-        aWorkSessionSection = FMeteorJobIniFile["worksession"]  # reference
-        aReferenceSection = FMeteorJobIniFile["excluded_reference_" + f"{iExcluded+1}"]  # reference
+    # def TaskExcludedMapping(self, iLibrary: ConfigParser, iExcluded) -> bool:
+    #     aWorkSessionSection = FMeteorJobIniFile["worksession"]  # reference
+    #     aReferenceSection = FMeteorJobIniFile["excluded_reference_" + f"{iExcluded+1}"]  # reference
 
-        aReferenceIniFileName = (
-            aWorkSessionSection["meteor.reference.dir"]
-            + os.sep
-            + aReferenceSection["meteor.reference.name"]
-            + os.sep
-            + aReferenceSection["meteor.reference.name"]
-            + "_reference.ini"
-        )
+    #     aReferenceIniFileName = (
+    #         aWorkSessionSection["meteor.reference.dir"]
+    #         + os.sep
+    #         + aReferenceSection["meteor.reference.name"]
+    #         + os.sep
+    #         + aReferenceSection["meteor.reference.name"]
+    #         + "_reference.ini"
+    #     )
 
-        print(f"\n######### TaskExcludedMapping({iLibrary}, {iExcluded+1}); reference name: " + aReferenceSection["meteor.reference.name"])
+    #     print(f"\n######### TaskExcludedMapping({iLibrary}, {iExcluded+1}); reference name: " + aReferenceSection["meteor.reference.name"])
 
-        aMappedCensusIniFileName = self.FExcludedMappingCensusIniFileNames[iLibrary][iExcluded]["Stage1FileName"]
-        aLibraryMappingDir = self.FExcludedMappingCensusIniFileNames[iLibrary][iExcluded]["directory"]
+    #     aMappedCensusIniFileName = self.FExcludedMappingCensusIniFileNames[iLibrary][iExcluded]["Stage1FileName"]
+    #     aLibraryMappingDir = self.FExcludedMappingCensusIniFileNames[iLibrary][iExcluded]["directory"]
 
-        aLockedMappedCensusIniFileName = aMappedCensusIniFileName + ".lock"
+    #     aLockedMappedCensusIniFileName = aMappedCensusIniFileName + ".lock"
 
-        # remove lock file if asked
-        if FNoLock and os.path.exists(aLockedMappedCensusIniFileName):
-            print(f"\nINFO: removing lock file: {aLockedMappedCensusIniFileName}")
-            os.remove(aLockedMappedCensusIniFileName)
-        # remove census 1 file if asked
-        if FForce and os.path.exists(aMappedCensusIniFileName):
-            print(f"\nINFO: removing existing census 1 file: {aMappedCensusIniFileName}")
-            os.remove(aMappedCensusIniFileName)
+    #     # remove lock file if asked
+    #     if self.FNoLock and os.path.exists(aLockedMappedCensusIniFileName):
+    #         print(f"\nINFO: removing lock file: {aLockedMappedCensusIniFileName}")
+    #         os.remove(aLockedMappedCensusIniFileName)
+    #     # remove census 1 file if asked
+    #     if self.FForce and os.path.exists(aMappedCensusIniFileName):
+    #         print(f"\nINFO: removing existing census 1 file: {aMappedCensusIniFileName}")
+    #         os.remove(aMappedCensusIniFileName)
 
-        if os.path.exists(aMappedCensusIniFileName) or os.path.exists(aLockedMappedCensusIniFileName):
-            print(f"\nINFO: skipping library.\nINFO: {aMappedCensusIniFileName} already exists or is locked")
-            return True
+    #     if os.path.exists(aMappedCensusIniFileName) or os.path.exists(aLockedMappedCensusIniFileName):
+    #         print(f"\nINFO: skipping library.\nINFO: {aMappedCensusIniFileName} already exists or is locked")
+    #         return True
 
-        # create lock file in result directory
-        os.makedirs(aLibraryMappingDir, exist_ok=True)
-        open(aLockedMappedCensusIniFileName, "a").close()
+    #     # create lock file in result directory
+    #     os.makedirs(aLibraryMappingDir, exist_ok=True)
+    #     open(aLockedMappedCensusIniFileName, "a").close()
 
-        aMappingProg = aWorkSessionSection["meteor.mapping.program"]
-        if aMappingProg != 'bowtie2':
-            raise ValueError(f"Error, unknown or unsupported mapping program:"+ aWorkSessionSection["meteor.mapping.program"])
+    #     aMappingProg = aWorkSessionSection["meteor.mapping.program"]
+    #     if aMappingProg != 'bowtie2':
+    #         raise ValueError(f"Error, unknown or unsupported mapping program:"+ aWorkSessionSection["meteor.mapping.program"])
 
-        aMeteorMapper = MeteorMapper(
-            aMappingProg,
-            FLibraryIniFileNames[iLibrary],
-            aReferenceIniFileName,
-            FLibraryIndexerReport,
-            aMappedCensusIniFileName
-        )
+    #     aMeteorMapper = MeteorMapper(
+    #         aMappingProg,
+    #         FLibraryIniFileNames[iLibrary],
+    #         aReferenceIniFileName,
+    #         FLibraryIndexerReport,
+    #         aMappedCensusIniFileName
+    #     )
 
-        aOkMappingProcess = aMeteorMapper.MapRead(
-            FTmpDir,
-            aLibraryMappingDir,
-            aReferenceSection["meteor.mapper.cmd"],
-            aReferenceSection["meteor.matches"],
-            aReferenceSection["meteor.mismatches"],
-            aReferenceSection["meteor.is.perc.mismatches"],
-            False,
-            aWorkSessionSection["meteor.mapping.file.format"],
-            aWorkSessionSection["meteor.is.cpu.percentage"],
-            aWorkSessionSection["meteor.cpu.count"]
-        )
-        # remove lock file
-        if os.path.exists(aLockedMappedCensusIniFileName):
-            os.remove(aLockedMappedCensusIniFileName)
-        return True
+    #     aOkMappingProcess = aMeteorMapper.MapRead(
+    #         #FTmpDir,
+    #         aLibraryMappingDir,
+    #         aReferenceSection["meteor.mapper.cmd"],
+    #         aReferenceSection["meteor.matches"],
+    #         aReferenceSection["meteor.mismatches"],
+    #         aReferenceSection["meteor.is.perc.mismatches"],
+    #         False,
+    #         aWorkSessionSection["meteor.mapping.file.format"],
+    #         aWorkSessionSection["meteor.is.cpu.percentage"],
+    #         aWorkSessionSection["meteor.cpu.count"]
+    #     )
+    #     # remove lock file
+    #     if os.path.exists(aLockedMappedCensusIniFileName):
+    #         os.remove(aLockedMappedCensusIniFileName)
+    #     return True
 
 
-    def LoadJobWorkflow(self, aWorkflowFile):
+    def LoadJobWorkflow(self, aWorkflowFile: str):
         if not os.path.exists(aWorkflowFile):
             sys.exit(f"Error, file {aWorkflowFile} not found")
-        self.FMeteorJobIniFile = configparser.ConfigParser()
         self.FMeteorJobIniFile.read_file(open(aWorkflowFile))
         self.FMeteorJobIniFilename = aWorkflowFile
         # check if excluded reference count is correct
@@ -749,7 +660,7 @@ class MeteorSession:
 
 #-------------------------- FUNCTIONS DEFINITION ------------------------------#
 
-def isfile(path): # pragma: no cover
+def isfile(path: str): # pragma: no cover
     """Check if path is an existing file.
 
     :param path: (str) Path to the file
@@ -767,7 +678,7 @@ def isfile(path): # pragma: no cover
     return os.path.abspath(path)
 
 
-def isdir(path): # pragma: no cover
+def isdir(path: str): # pragma: no cover
     """Check if path is an existing file.
       
     :param path: Path to the directory
@@ -785,22 +696,34 @@ def isdir(path): # pragma: no cover
     return os.path.abspath(path) + os.sep
 
 
-# def get_log(path_log):
-#     """
-#     """
-#     logger = logging.getLogger()
-#     logger.setLevel(logging.DEBUG)
-#     formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s')
-#     # Create log file
-#     file_handler = RotatingFileHandler(path_log, 'a', 1000000, 1)
-#     file_handler.setFormatter(formatter)
-#     logger.addHandler(file_handler)
-#     # Stream in the the console
-#     ## TO REMOVE IF daemon
-#     stream_handler = logging.StreamHandler()
-#     stream_handler.setLevel(logging.DEBUG)
-#     logger.addHandler(stream_handler)
-#     return logger
+def download_url(url:str, output_path: str):
+    with DownloadProgressBar(unit='B', unit_scale=True,
+                             miniters=1, desc=url.split('/')[-1]) as t:
+        urllib.request.urlretrieve(url, filename=output_path, reporthook=t.update_to)
+
+
+def get_log(path_log:str) ->logging.Logger:
+    """Start logging streams
+
+    :param path_log:  Path to the log file output
+
+    :return: (logging.Logger) Return logging object
+    """
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s :: %(levelname)s :: %(message)s')
+    console_formatter = logging.Formatter('[%(levelname)s]: %(message)s')
+    # Create log file
+    file_handler = RotatingFileHandler(path_log, 'a', 1000000, 1)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    # Stream in the the console
+    ## TO REMOVE IF daemon
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(console_formatter)
+    stream_handler.setLevel(logging.INFO)
+    logger.addHandler(stream_handler)
+    return logger
 
 
 def get_arguments(): # pragma: no cover
@@ -812,7 +735,7 @@ def get_arguments(): # pragma: no cover
     Return : parser
     """
     parser = argparse.ArgumentParser(description=color.BOLD + __doc__ + color.END)
-    subparsers = parser.add_subparsers(title = 'positional arguments', help="Select activity")
+    subparsers = parser.add_subparsers(title = 'positional arguments', help="Select activity", dest= "command")
     # # Mappping commands
     download_parser = subparsers.add_parser('download',
         help='Download catalog')
@@ -820,7 +743,7 @@ def get_arguments(): # pragma: no cover
         help='Index reference')
     reference_parser.add_argument("-i", dest='input_fasta_file',
         type = str, required = True, help = "Input fasta filename.")
-    reference_parser.add_argument("-p", dest='refRootDir',
+    reference_parser.add_argument("-p", dest='reflogging.LoggerDir',
         type = str, required = True, help = "Output path of the reference repository.")
     reference_parser.add_argument("-n", dest='refName',
         type = str, required = True, help = "Name of the reference (ansi-string without space).")
@@ -891,9 +814,9 @@ def main(): # pragma: no cover
     path_log = "meteor_" + now.strftime("%Y%m%d_%H%M") + ".log"
     # Get arguments
     args = get_arguments()
-    # logger = get_log(path_log)
-    # Import FASTQ UGLY
-    if hasattr(args, "fastq_dir"):
+    logger = get_log(path_log)
+    # Import FASTQ
+    if args.command == "fastq":
         if args.isdispatched:
             fastq_file_list = glob.glob(args.fastq_dir + "*" + os.sep + "*.f*q*")
         else:
@@ -903,11 +826,10 @@ def main(): # pragma: no cover
         ext_R2 = ("2.fq", "2.fastq", "R2.fastq", "R2.fastq.gz", "R2.fq.gz")
         for fastq_file in fastq_file_list:
             # print("Import ", fastq_file)
-            # logger.info("Import ", fastq_file)
+            logger.info("Import ", fastq_file)
             full_sample_name = os.path.basename(fastq_file)
             if args.iscompressed:
                 full_sample_name = ".".join(full_sample_name.split(".")[:-1])
-            print(full_sample_name)
             # Extract paired-end info
             tag = "single"
             if full_sample_name.endswith(ext_R1):
@@ -952,10 +874,11 @@ def main(): # pragma: no cover
             }
             with open(sample_dir + full_sample_name + "_census_stage_0.ini", 'w') as configfile:
                 config.write(configfile)
-    # Import reference UGLY
-    elif hasattr(args, "input_fasta_file"):
+    # Import reference
+    elif args.command ==  "build":
+        logger.info("Import ", args.refName)
         # Create reference genome directory if it does not already exist
-        ref_dir = os.path.join(args.refRootDir, args.refName)
+        ref_dir = os.path.join(args.reflogging.LoggerDir, args.refName)
         if not os.path.exists(ref_dir):
             os.makedirs(ref_dir)
 
@@ -982,7 +905,7 @@ def main(): # pragma: no cover
                         else:
                             output_fasta.write(line)
         # Generate configuration file for reference genome
-        config = configparser.ConfigParser()
+        config = ConfigParser()
         config["reference_info"] = {
             "reference_name": args.refName,
             "entry_type": "fragment", # Why ?
@@ -993,8 +916,8 @@ def main(): # pragma: no cover
 
         config["reference_file"] = {
             #IS_LARGE_REFERENCE_STR: 1,
-            "database_dir": "database", #WTF ?
-            "fasta_dir": "fasta", #WTF ?
+            "database_dir": "database",
+            "fasta_dir": "fasta",
             #"fasta_file_count": 1,
             # is it possible to have several fasta
             "fasta_file_count": args.refName + '.fasta'
@@ -1012,9 +935,8 @@ def main(): # pragma: no cover
         # Write configuration file
         with open(os.path.join(ref_dir, args.refName + '_reference.ini'), 'wt') as config_file:
             config.write(config_file)
-    elif hasattr(args, "input_path"):
-        print("What am I supposed to do now ?")
-        m= MeteorSession()
+    elif args.command == "mapping":
+        m= MeteorSession(logger, args.tmp_path)
         # counting_type = args.counting_type
         # if args.strand:
         #     counting_type = args.strand + "_" + counting_type
@@ -1023,7 +945,6 @@ def main(): # pragma: no cover
         m.ProcessJob(args.workflow_ini,
         args.project_path,
         args.input_path,
-        args.tmp_path,
         args.remove_lock,
         args.force,
         args.mapping_dir,
