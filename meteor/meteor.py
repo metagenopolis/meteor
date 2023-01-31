@@ -213,7 +213,7 @@ class MeteorMapper:
         # execute command
         if not os.path.isfile(self.FNGSLibraryIndexerReport['IndexedfastqFilePath']):
             sys.exit("WTF HErhehreh")
-        shutil.copy(self.FNGSLibraryIndexerReport['IndexedfastqFilePath'], "/Users/aghozlan/workspace/meteor_test/mtf.fastq")
+        #shutil.copy(self.FNGSLibraryIndexerReport['IndexedfastqFilePath'], "/Users/aghozlan/workspace/meteor_test/mtf.fastq")
         subprocess.check_call(["bowtie2", aParameters, "--no-head --no-sq --no-unal --omit-sec-seq",  "-x", aBowtieIndexList, "-U", self.FNGSLibraryIndexerReport['IndexedfastqFilePath'], "-S", FMappingOutputFileName])
 
 
@@ -265,6 +265,7 @@ class MeteorMapper:
 class MeteorSession:
     def __init__(self):
         self.FMeteorJobIniFile = None
+        self.FMeteorJobIniFilename = None
         self.FProjectDir = None
         self.FSampleDir = None
         self.FTmpSampleDir = None
@@ -499,7 +500,7 @@ class MeteorSession:
         print("\nLaunch counting")
         # does not need census_stage_0.ini
         #-w /path/to/workflow_tutorial.ini -i /path/to/sample/H1 -p /path/to/project_name -m mapping
-        aparameters = " -w " + self.aReferenceIniFileName + " -i " + self.FSampleDir + " -p " + self.FProjectDir + " -o " + os.path.basename(self.FProjectMappingDir)
+        aparameters = " -w " + self.FMeteorJobIniFilename + " -i " + self.FSampleDir + " -p " + self.FProjectDir + " -o " + os.path.basename(self.FProjectMappingDir)
         if len(self.FCountingTypeList) > 0:
             aparameters += " -c " + ",".join(self.FCountingTypeList)
         if self.FForce: # force overwriting former profiling results done with same parameters
@@ -720,6 +721,7 @@ class MeteorSession:
             sys.exit(f"Error, file {aWorkflowFile} not found")
         self.FMeteorJobIniFile = configparser.ConfigParser()
         self.FMeteorJobIniFile.read_file(open(aWorkflowFile))
+        self.FMeteorJobIniFilename = aWorkflowFile
         # check if excluded reference count is correct
         # aExcludedRefCount = FMeteorJobIniFile["worksession"]["meteor.excluded.reference.count"]
         # if not isinstance(aExcludedRefCount, int):
@@ -843,7 +845,7 @@ For paired-ends files must be named :
         default=False, action="store_true", help = "Fastq files are compressed.")
     fastq_parser.add_argument("-d", dest='isdispatched',
         default=False, action="store_true", help = "Fastq files are already dispatched in directories.")
-    mapping_parser = subparsers.add_parser('counter',
+    mapping_parser = subparsers.add_parser('mapping',
         help='Map reads against a gene catalog')
     mapping_parser.add_argument("-w", dest="workflow_ini", type=isfile, required=True,
         help="Path to meteor configuration file, e.g. workflow.ini")
