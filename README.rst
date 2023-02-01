@@ -55,6 +55,7 @@ Import fastq
 ------------
 
 Meteor requires a first of fastq indexing::
+
     meteor fastq -i <name>  -p ....
 
 
@@ -64,7 +65,6 @@ Profiling
 The taxonomic profiling can be obtained from read::
 
     meteor mapping ..
-
 
 
 Analysis

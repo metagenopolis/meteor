@@ -69,6 +69,7 @@ pylint:
     - dev
 
 run:
+  stage: build
   before_script:
     - pip install twine
   script:
