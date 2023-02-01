@@ -1,0 +1,7 @@
+__py_cache__
+*.pyc
+.DS_Store
+.coverage
+*.egg-info/
+doc/build/
+meteor.egg-info

@@ -69,11 +69,9 @@ pylint:
     - dev
 
 run:
-  script:
-    # - python setup.py bdist_wheel
-    # # an alternative approach is to install and run:
-    # - pip install dist/*
+  before_script:
     - pip install build twine
+  script:
     - python -m build
     - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
   artifacts:
@@ -87,10 +85,9 @@ pages:
   before_script:
      - pip install sphinx sphinx-rtd-theme myst_parser
   script:
-   
     - cd doc
     - make html
-    - mv _build/html/ ../public/
+    - mv build/html/ ../public/
   artifacts:
     paths:
       - public
