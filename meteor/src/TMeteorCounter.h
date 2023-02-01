@@ -81,8 +81,8 @@ class TMeteorCounter {
 		TReferenceAnnotationDatabase FReferenceAnnotationDatabase;
 
 		std::string FCountingPrefixName;
-		double FMaxDistance;
-		bool FIsRelativeDistance;
+		// double FMaxDistance;
+		// bool FIsRelativeDistance;
 
 		void GetCountingStatistics(TCountingStatistics & aCountingStatistics) const;
 		int LoadReferenceAnnotationDatabase(const std::string & aReferenceIniFileName);

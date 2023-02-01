@@ -260,6 +260,8 @@ void TCountedFragment::AddRead(
 	              aFragmentPos++; break;
 	          case ctSoftClipping:
 	        	  break; // nothing
+	        	default:
+	        		break;
 	        }
 	      }
 	    }
@@ -286,6 +288,8 @@ void TCountedFragment::AddRead(
 	              aFragmentPos++; break;
 	          case ctSoftClipping:
 	          	  break; // nothing
+	          default:
+	        		break;
 	        }
 	      }
 	    }
@@ -312,6 +316,8 @@ void TCountedFragment::AddRead(
 	              aFragmentPos++; break;
 	          case ctSoftClipping:
 	              break; // nothing
+	          default:
+	        		break;
 	        }
 	      }
 	    }
@@ -339,6 +345,8 @@ void TCountedFragment::AddRead(
 	              aFragmentPos++; break;
 	          case ctSoftClipping:
 	          	  break; // nothing
+	        	default:
+	        		break;
 	        }
 	      }
 	    }

@@ -140,6 +140,8 @@ void TNGSCensusFile::WriteCountedFragmentListAsciiText(TCountedFragmentList & aC
 							aCensusFile << '\t' << aCountedFragment->GetUnDirectSmartSharedReadCount(); break;
 						case crtUndirectUniqueReads:
 							aCensusFile << '\t' << aCountedFragment->GetUnDirectUniqueReadCount(); break;
+						default:
+	        		break;
 					}
 				}
 				aCensusFile << '\n';

@@ -15,10 +15,9 @@ CXX_FLAGS = -O3 -Wall -std=c++98
 # Final binaries
 BIN1 = meteor-counter
 BIN2 = meteor-profiler
-
+OUT ?= ./build
 # Put all auto generated stuff to this build dir.
-BUILD_DIR = ./build
-
+BUILD_DIR = $(OUT)
 # List of all .cpp source files.
 CPP := $(wildcard *.cpp)
 CPP := $(filter-out counter_main.cpp, $(CPP))
@@ -43,14 +42,14 @@ $(BIN2) : $(BUILD_DIR)/$(BIN2)
 
 # Actual target of the binaries 
 $(BUILD_DIR)/$(BIN1) : $(OBJ1)
-	@# Create build directories - same structure as sources.
-	@mkdir -p $(@D)
+# 	@# Create build directories - same structure as sources.
+# 	@mkdir -p $(@D)
 	@# Just link all the object files.
 	$(LINKER) $(CXX_FLAGS) $^ -o $@
 
 $(BUILD_DIR)/$(BIN2) : $(OBJ2)
-	@# Create build directories - same structure as sources.
-	@mkdir -p $(@D)
+# 	@# Create build directories - same structure as sources.
+# 	@mkdir -p $(@D)
 	@# Just link all the object files.
 	$(LINKER) $(CXX_FLAGS) $^ -o $@
 
