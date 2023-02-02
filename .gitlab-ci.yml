@@ -69,7 +69,7 @@ run:
     - pip install twine
   script:
     - python setup.py bdist_wheel
-    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
+    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --skip-existing --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
   artifacts:
     paths:
       - dist/*.whl
@@ -77,16 +77,13 @@ run:
     - dev
 
 build_conda:
-  image: conda/miniconda3-centos7:latest
+  image: continuumio/miniconda3:latest
   stage: build
   variables:
     CI_DEBUG_TRACE: "false"
   before_script:
-    - conda config --add channels bioconda
     - conda config --add channels conda-forge
-    - conda config --add channels aghozlane
     - conda config --set anaconda_upload yes
-    - conda update conda
     - conda install -y conda-verify
     - conda install -y anaconda-client
     - conda install -y conda-build
