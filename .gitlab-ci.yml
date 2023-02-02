@@ -48,13 +48,10 @@ before_script:
 pylint:
   stage: test
   before_script:
-    - mkdir -p public/badges public/lint
-    - echo undefined > public/badges/$CI_JOB_NAME.score
     - pip install pylint-gitlab
   script:
-    - pylint --rcfile=.pylintrc --output-format=text <LIST-OF-FILES-TO-RUN-PYLINT-AGAINST> | tee pylint.txt
+    - pylint --rcfile=.pylintrc --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee pylint.txt
     - score=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' pylint.txt)
-  after_script:
     - echo "Pylint score was $score"
     - anybadge --value=$score --file=public/pylint.svg pylint
   artifacts:
