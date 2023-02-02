@@ -52,19 +52,14 @@ pylint:
     - echo undefined > public/badges/$CI_JOB_NAME.score
     - pip install pylint-gitlab
   script:
-    - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee /tmp/pylint.txt
-    - sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' /tmp/pylint.txt > public/badges/$CI_JOB_NAME.score
-    - pylint --exit-zero --output-format=pylint_gitlab.GitlabCodeClimateReporter $(find -type f -name "*.py" ! -path "**/.venv/**") > codeclimate.json
-    - pylint --exit-zero --output-format=pylint_gitlab.GitlabPagesHtmlReporter $(find -type f -name "*.py" ! -path "**/.venv/**") > public/lint/index.html
+    - pylint --rcfile=.pylintrc --output-format=text <LIST-OF-FILES-TO-RUN-PYLINT-AGAINST> | tee pylint.txt
+    - score=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' pylint.txt)
   after_script:
-    - anybadge --overwrite --label $CI_JOB_NAME --value=$(cat public/badges/$CI_JOB_NAME.score) --file=public/badges/$CI_JOB_NAME.svg 4=red 6=orange 8=yellow 10=green
-    - |
-      echo "Your score is: $(cat public/badges/$CI_JOB_NAME.score)"
+    - echo "Pylint score was $score"
+    - anybadge --value=$score --file=public/pylint.svg pylint
   artifacts:
     paths:
-      - public
-    reports:
-      codequality: codeclimate.json
+      - public/pylint.svg
   only:
     - dev
 
@@ -80,6 +75,28 @@ run:
       - dist/*.whl
   only:
     - dev
+
+build_conda:
+  image: conda/miniconda3-centos7:latest
+  stage: build
+  variables:
+    CI_DEBUG_TRACE: "false"
+  before_script:
+    - conda config --add channels bioconda
+    - conda config --add channels conda-forge
+    - conda config --add channels aghozlane
+    - conda config --set anaconda_upload yes
+    - conda update conda
+    - conda install -y conda-verify
+    - conda install -y anaconda-client
+    - conda install -y conda-build
+    - conda install -y git
+  script:
+    - anaconda login --username "$DOCKER_USER" --password "$DOCKER_PASS"
+    - conda build conda_recipe
+  only:
+    - dev
+
 
 pages:
   stage: deploy

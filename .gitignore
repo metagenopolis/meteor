@@ -5,3 +5,5 @@ __py_cache__
 *.egg-info/
 doc/build/
 meteor.egg-info
+build
+dist

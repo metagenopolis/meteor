@@ -1,0 +1,30 @@
+package:
+    name: meteor
+    version: {{ environ.get('4.3', '') }}
+
+source:
+    - git_url: https://forgemia.inra.fr/metagenopolis/meteor.git
+      git_tag: dev
+      git_depth: 1
+
+build:
+  noarch: python
+  script: {{ PYTHON }} setup.py install
+
+requirements:
+    host:
+        - python=3.11.0
+    run:
+        - cxx-compiler
+
+test:
+    commands:
+        - meteor -h
+about:
+  home: https://mgps.eu/
+  license: GPL (>= 3)
+  summary: 'Meteor is a plateform for quantitative metagenomics profiling of complex ecosystems.'
+  description: |
+    Meteor relies on genes catalogue to perform specie level taxonomic assignments and functional analysis. 
+  dev_url: https://forgemia.inra.fr/metagenopolis/meteor
+  license_family: GPL3
