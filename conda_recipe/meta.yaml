@@ -4,12 +4,12 @@ package:
 
 source:
     - git_url: https://forgemia.inra.fr/metagenopolis/meteor.git
-      git_tag: dev
-      git_depth: 1
+      git_tag: origin/dev
 
 build:
   noarch: python
-  script: {{ PYTHON }} setup.py install
+  # script: {{ PYTHON }} setup.py install
+  script: {{ PYTHON }} -m pip install .
 
 requirements:
     host:
