@@ -16,6 +16,7 @@ requirements:
     host:
         - python>=3
         - make
+        - cxx-compiler
     run:
         - cxx-compiler
         - python
