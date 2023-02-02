@@ -57,8 +57,8 @@ class MeteorMapper:
     FSampleDir: str
     FNGSLibraryIndexerReport: dict
     FMappingProgram: str
-    FLibraryCensusIniFile: ConfigParser = field(default_factory=ConfigParser())
-    FReferenceIniFile: ConfigParser = field(default_factory=ConfigParser())
+    FLibraryCensusIniFile: ConfigParser = field(default_factory=ConfigParser)
+    FReferenceIniFile: ConfigParser = field(default_factory=ConfigParser)
     FLibraryMappingDir: str = ""
     FTmpLibraryMappingDir: str = ""
     FLibraryName: str = ""
@@ -303,7 +303,7 @@ class MeteorSession:
         self.aReferenceIniFileName = aWorkSessionSection["meteor.reference.dir"] + os.sep + \
             aReferenceSection["meteor.reference.name"] + os.sep + aReferenceSection["meteor.reference.name"] + "_reference.ini"
 
-        self.logger.info("Task main mapping {iLibrary}")
+        self.logger.info("Task main mapping {}".format(iLibrary))
         
         # What is Stage1FileName ?
         aMappedCensusIniFileName = self.FMainMappingCensusIniFileNames[iLibrary]["Stage1FileName"]
