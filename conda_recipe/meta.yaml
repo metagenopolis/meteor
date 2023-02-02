@@ -4,7 +4,7 @@ package:
 
 source:
     - git_url: https://forgemia.inra.fr/metagenopolis/meteor.git
-      git_tag: dev
+      git_tag: -b dev
       git_depth: 1
 
 build:

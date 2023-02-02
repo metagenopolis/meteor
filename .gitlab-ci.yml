@@ -84,7 +84,7 @@ build_conda:
   before_script:
     - conda config --add channels conda-forge
     - conda config --set anaconda_upload yes
-    - conda update conda
+    - conda update  -n base -c defaults conda
     - conda install -y conda-verify
     - conda install -y anaconda-client
     - conda install -y conda-build

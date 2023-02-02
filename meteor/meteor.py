@@ -178,9 +178,6 @@ class MeteorMapper:
 
         # aParameters += " --phred33"
 
-        # force sam format
-        FMappingFileFormat = "sam"
-
         # complete command with input/output parameters, should iterate only once (because only one index)
         # for iBowtieIndex in range(aBowtieIndexCount):
 
