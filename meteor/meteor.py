@@ -36,18 +36,18 @@ import lzma
 from dataclasses import dataclass, field
 # from typing import List
 import urllib.request
-from tqdm import tqdm
+# from tqdm import tqdm
 
 #---------------------------- CLASS DEFINITION --------------------------------#
 class color:
     BOLD = '\033[1m'
     END = '\033[0m'
 
-class DownloadProgressBar(tqdm):
-    def update_to(self, b=1, bsize=1, tsize=None):
-        if tsize is not None:
-            self.total = tsize
-        self.update(b * bsize - self.n)
+# class DownloadProgressBar(tqdm):
+#     def update_to(self, b=1, bsize=1, tsize=None):
+#         if tsize is not None:
+#             self.total = tsize
+#         self.update(b * bsize - self.n)
 
 
 @dataclass
