@@ -1,9 +1,10 @@
 package:
     name: meteor
-    version: {{ environ.get('4.3', '') }}
+    version: {{ environ.get('GIT_DESCRIBE_TAG', '') }}
 
 source:
     - git_url: https://forgemia.inra.fr/metagenopolis/meteor.git
+      git_ref: environ.get('GIT_DESCRIBE_TAG', '')
       git_tag: origin/dev
 
 build:
@@ -13,7 +14,7 @@ build:
 
 requirements:
     host:
-        - python=3.11.0
+        - python>=3
     run:
         - cxx-compiler
 
