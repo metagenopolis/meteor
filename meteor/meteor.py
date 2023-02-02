@@ -57,8 +57,8 @@ class MeteorMapper:
     FSampleDir: str
     FNGSLibraryIndexerReport: dict
     FMappingProgram: str
-    FLibraryCensusIniFile: ConfigParser = ConfigParser()
-    FReferenceIniFile: ConfigParser = ConfigParser()
+    FLibraryCensusIniFile: ConfigParser = field(default_factory=ConfigParser())
+    FReferenceIniFile: ConfigParser = field(default_factory=ConfigParser())
     FLibraryMappingDir: str = ""
     FTmpLibraryMappingDir: str = ""
     FLibraryName: str = ""
