@@ -9,8 +9,8 @@ source:
 
 build:
   noarch: python
-  # script: {{ PYTHON }} setup.py install
-  script: {{ PYTHON }} -m pip install .
+  script: {{ PYTHON }} setup.py install
+  # script: {{ PYTHON }} -m pip install .
 
 requirements:
     host:

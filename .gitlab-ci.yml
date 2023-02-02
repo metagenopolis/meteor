@@ -86,7 +86,7 @@ build_conda:
     - conda install -y anaconda-client
     - conda install -y conda-build
     - conda install -y git
-    - anaconda login --hostname "shaman" --username "$DOCKER_USER" --password "$DOCKER_PASS"
+    - anaconda login --hostname "$DOCKER_HOST" --username "$DOCKER_USER" --password "$DOCKER_PASS"
   script:
     - conda build conda_recipe
   after_script:
