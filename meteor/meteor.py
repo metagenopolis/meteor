@@ -242,7 +242,7 @@ class MeteorMapper:
 class MeteorSession:
     logger: logging.Logger
     tmp_path: str
-    FMeteorJobIniFile: ConfigParser = ConfigParser()
+    FMeteorJobIniFile: ConfigParser = ield(default_factory=ConfigParser)
     FMeteorJobIniFilename: str = "" 
     FProjectDir: str = ""
     FSampleDir: str = ""
