@@ -89,9 +89,11 @@ build_conda:
     - conda install -y anaconda-client
     - conda install -y conda-build
     - conda install -y git
-  script:
     - anaconda login --username "$DOCKER_USER" --password "$DOCKER_PASS"
+  script:
     - conda build conda_recipe
+  after_script:
+    - anaconda logout
   only:
     - dev
 
