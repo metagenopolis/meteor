@@ -14,7 +14,7 @@ build:
 
 requirements:
     host:
-        - python=3.9
+        - python>=3
         - make
     run:
         - cxx-compiler
