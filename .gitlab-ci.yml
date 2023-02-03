@@ -79,7 +79,6 @@ build_conda:
   variables:
     CI_DEBUG_TRACE: "false"
   before_script:
-    - apt-get install -y build-essentials
     - conda config --add channels conda-forge
     - conda config --add channels bioconda
     - conda config --set anaconda_upload yes
