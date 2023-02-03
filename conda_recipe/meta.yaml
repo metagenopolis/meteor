@@ -16,10 +16,12 @@ requirements:
     host:
         - python>=3
         - make
+        - {{ compiler('c++') }}
     run:
         - cxx-compiler
         - python
         - bowtie2
+        - gcc
 
 test:
     commands:
