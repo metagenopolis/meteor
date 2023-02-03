@@ -19,6 +19,7 @@ requirements:
     run:
         - cxx-compiler
         - python
+        - bowtie2
 
 test:
     commands:
