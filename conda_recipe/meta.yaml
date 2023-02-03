@@ -20,9 +20,8 @@ requirements:
         - python>=3
     run:
         - python
-        # - bowtie2
-        # - cxx-compiler
-
+        - gxx
+        - bowtie2
 test:
     commands:
         - meteor -h
