@@ -13,19 +13,10 @@ class MeteorBuild(build):
         build.run(self)
         # build meteor
         build_path = os.path.abspath(self.build_temp)
-        print(build_path)
         cmd = [
             'make',
             'OUT=' + build_path
         ]
-
-        # targets = ['python']
-        # cmd.extend(targets)
-
-        # if platform == 'darwin':
-        #     target_path = 'OSX64_PYTHON'
-        # else:
-        #     target_path = 'UNIX_PYTHON'
 
         target_files = [os.path.join(build_path, 'meteor-counter'), 
                         os.path.join(build_path, 'meteor-profiler')]
