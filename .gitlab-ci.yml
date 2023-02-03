@@ -74,12 +74,12 @@ run:
     - dev
 
 build_conda:
-  # image: continuumio/miniconda3:latest
-  image: conda/miniconda3-centos7:latest
+  image: continuumio/miniconda3:latest
   stage: build
   variables:
     CI_DEBUG_TRACE: "false"
   before_script:
+    - apt-get install -y build-essentials
     - conda config --add channels conda-forge
     - conda config --add channels bioconda
     - conda config --set anaconda_upload yes

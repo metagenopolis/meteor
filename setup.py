@@ -6,7 +6,7 @@ from distutils.command.build import build
 from subprocess import call
 
 METEOR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'meteor', 'src')
-print(METEOR_PATH)
+
 class MeteorBuild(build):
     def run(self):
         # run original build code
@@ -46,9 +46,10 @@ class MeteorInstall(install):
     def run(self):
         # run original install code
         install.run(self)
-
+        print("HERE MTF")
+        print(self.install_lib)
         # install Meteor executables
-        self.copy_tree(self.build_lib, self.install_lib)
+        self.copy_tree(self.build_lib, os.path.join(self.install_lib, 'meteor'))
 
 
 with open('README.rst') as f:
