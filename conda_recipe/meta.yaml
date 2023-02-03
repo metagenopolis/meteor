@@ -13,15 +13,15 @@ build:
   # script: {{ PYTHON }} -m pip install .
 
 requirements:
+    build:
+        - {{ compiler('cxx') }}
+        - make
     host:
         - python>=3
-        - make
-        - {{ compiler('c++') }}
     run:
-        - cxx-compiler
         - python
-        - bowtie2
-        - gcc
+        # - bowtie2
+        # - cxx-compiler
 
 test:
     commands:
