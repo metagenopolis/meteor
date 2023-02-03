@@ -24,6 +24,9 @@ requirements:
 test:
     commands:
         - meteor -h
+        - meteor-counter -h
+        - meteor-profiler -h
+
 about:
   home: https://mgps.eu/
   license: GPL (>= 3)

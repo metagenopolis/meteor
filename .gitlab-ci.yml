@@ -80,6 +80,7 @@ build_conda:
     CI_DEBUG_TRACE: "false"
   before_script:
     - conda config --add channels conda-forge
+    - conda config --add channels bioconda
     - conda config --set anaconda_upload yes
     - conda update  -n base -c defaults conda
     - conda install -y conda-verify
