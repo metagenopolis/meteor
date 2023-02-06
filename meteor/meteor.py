@@ -34,6 +34,7 @@ import bz2
 import lzma
 # import shutil
 from dataclasses import dataclass, field
+from types import NoneType
 # from typing import List
 import urllib.request
 # from tqdm import tqdm
@@ -80,54 +81,54 @@ class MeteorMapper:
         self.FLibraryName = self.FLibraryCensusIniFile["sample_info"]["full_sample_name"]
         self.FReferenceName = self.FReferenceIniFile['reference_info']['reference_name']
 
-    def FinalizeMapping(self):
-        # Create new mapping_census_ini_file from library_census_ini_file
-        aMappedCensusIniFile = FLibraryCensusIniFile.copy()
-        aMappedCensusIniFile.filename = FMappedCensusIniFileName
+    # def FinalizeMapping(self):
+    #     # Create new mapping_census_ini_file from library_census_ini_file
+    #     aMappedCensusIniFile = FLibraryCensusIniFile.copy()
+    #     aMappedCensusIniFile.filename = FMappedCensusIniFileName
 
-        aSampleInfoSection = aMappedCensusIniFile["sample_info"]    # reference
-        aMappingSection = aMappedCensusIniFile['mapping']           # reference
-        aMappingFileSection = aMappedCensusIniFile["mapping_file"]  # reference
+    #     aSampleInfoSection = aMappedCensusIniFile["sample_info"]    # reference
+    #     aMappingSection = aMappedCensusIniFile['mapping']           # reference
+    #     aMappingFileSection = aMappedCensusIniFile["mapping_file"]  # reference
 
-        aMappedCensusIniFile['mapping']["mapping_tool"] = FMappingProgram
-        aMappedCensusIniFile['mapping']["mapping_tool_version"] = 'NA' # WTF
+    #     aMappedCensusIniFile['mapping']["mapping_tool"] = FMappingProgram
+    #     aMappedCensusIniFile['mapping']["mapping_tool_version"] = 'NA' # WTF
 
-        aMappedCensusIniFile["mapping_file"]['mapping_file_count'] = len(FMappingOutputFileNames)
+    #     aMappedCensusIniFile["mapping_file"]['mapping_file_count'] = len(FMappingOutputFileNames)
 
-        # should iterate only once
-        for output_names in FMappingOutputFileNames:
-            aMappedCensusIniFile["mapping_file"]['bowtie_file'+"_{}".format(i+1)] = os.path.basename(output_names)
-        #TODO aMappedCensusIniFile is useless for now
-        aSampleInfoSection["indexed_read_length"] = FNGSLibraryIndexerReport["IndexedReadLength"]
-        aSampleInfoSection["sequenced_read_count"] = FNGSLibraryIndexerReport["IndexedReadCount"]
-        aSampleInfoSection["indexed_sequenced_read_count"] = FNGSLibraryIndexerReport["IndexedReadCount"]
-        aSampleInfoSection["indexed_sequenced_base_count"] = FNGSLibraryIndexerReport["IndexedBaseCount"]
-        aSampleInfoSection["database_type"] = "unknown" # WTF
-        aSampleInfoSection["is_data_prefixed"] = 0  # to avoid too long path
+    #     # should iterate only once
+    #     for output_names in FMappingOutputFileNames:
+    #         aMappedCensusIniFile["mapping_file"]['bowtie_file'+"_{}".format(i+1)] = os.path.basename(output_names)
+    #     #TODO aMappedCensusIniFile is useless for now
+    #     aSampleInfoSection["indexed_read_length"] = FNGSLibraryIndexerReport["IndexedReadLength"]
+    #     aSampleInfoSection["sequenced_read_count"] = FNGSLibraryIndexerReport["IndexedReadCount"]
+    #     aSampleInfoSection["indexed_sequenced_read_count"] = FNGSLibraryIndexerReport["IndexedReadCount"]
+    #     aSampleInfoSection["indexed_sequenced_base_count"] = FNGSLibraryIndexerReport["IndexedBaseCount"]
+    #     aSampleInfoSection["database_type"] = "unknown" # WTF
+    #     aSampleInfoSection["is_data_prefixed"] = 0  # to avoid too long path
 
-        aSampleInfoSection["sample_indexing_software"] =  "Meteor"
-        aSampleInfoSection["sample_indexing_software_version"] = "3.3"
+    #     aSampleInfoSection["sample_indexing_software"] =  "Meteor"
+    #     aSampleInfoSection["sample_indexing_software_version"] = "3.3"
 
-        aSampleInfoSection["census_status"] = 1
-        aMappingSection["mapping_date"] = datetime.date.today().strftime('%Y-%m-%d')
-        aMappingSection['reference_name'] = FReferenceName
-        aMappingSection["mapping_cmdline"] = FMapperCmd
-        aMappingSection["parameters"] = FParametersShortLine;
-        aMappingSection["mapped_read_length"] = FNGSLibraryIndexerReport["MappedReadLength"]
-        aMappingSection["mapped_read_length_type"] = FNGSLibraryIndexerReport["MappedReadLengthType"]
-        aMappingSection["mismatches"] = FMismatchesCount
-        aMappingSection["is_mismatches_percentage"] = FIsMismatchesPercentage
-        aMappingSection["matches"] = FMatchesCount
-        aMappingSection["is_local_mapping"] = FIsLocalMapping # LOCAL
+    #     aSampleInfoSection["census_status"] = 1
+    #     aMappingSection["mapping_date"] = datetime.date.today().strftime('%Y-%m-%d')
+    #     aMappingSection['reference_name'] = FReferenceName
+    #     aMappingSection["mapping_cmdline"] = FMapperCmd
+    #     aMappingSection["parameters"] = FParametersShortLine;
+    #     aMappingSection["mapped_read_length"] = FNGSLibraryIndexerReport["MappedReadLength"]
+    #     aMappingSection["mapped_read_length_type"] = FNGSLibraryIndexerReport["MappedReadLengthType"]
+    #     aMappingSection["mismatches"] = FMismatchesCount
+    #     aMappingSection["is_mismatches_percentage"] = FIsMismatchesPercentage
+    #     aMappingSection["matches"] = FMatchesCount
+    #     aMappingSection["is_local_mapping"] = FIsLocalMapping # LOCAL
 
-        aMappingSection["mapping_software"] = "Meteor"
-        aMappingSection["mapping_software_version"] = "3.2"
+    #     aMappingSection["mapping_software"] = "Meteor"
+    #     aMappingSection["mapping_software_version"] = "3.2"
 
-        aMappingSection["processed_read_count"] = FNGSLibraryIndexerReport["IndexedReadCount"]
+    #     aMappingSection["processed_read_count"] = FNGSLibraryIndexerReport["IndexedReadCount"]
 
-        aMappingFileSection["mapping_file_format"] = FMappingFileFormat
-        with open(FMappedCensusIniFileName, 'wt') as config_file:
-            aMappingSection.write(config_file)
+    #     aMappingFileSection["mapping_file_format"] = FMappingFileFormat
+    #     with open(FMappedCensusIniFileName, 'wt') as config_file:
+    #         aMappingSection.write(config_file)
 
 
     def Bowtie2MapRead(self):
@@ -498,7 +499,7 @@ class MeteorSession:
         self.ini_files = {}
         for iLibrary in self.FLibraryIniFileNames:
             # Check if lock file exist
-            if os.path.exists(iLibrary+".lock") and not FNoLock:
+            if os.path.exists(iLibrary+".lock") and not self.FNoLock:
                 sys.exit("Error, lock file not found: {}".format(iLibrary+".lock"))
             # MAPPING THIS LIBRARY ON MAIN REFERENCE
             aLibraryCensusIniFile = ConfigParser()
