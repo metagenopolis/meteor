@@ -54,7 +54,7 @@ class MeteorInstall(install):
         self.copy_tree(self.build_lib, self.install_lib)
 
 
-with open('README.rst') as f:
+with open('README.md') as f:
     readme = f.read()
 setup(name='meteor',
       version='3.3',
