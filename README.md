@@ -1,28 +1,20 @@
-=======
-Meteor
-=======
+# Meteor
 
-|install with bioconda| |Pipeline status| |Coverage report| |pylint| |Latest Release|
 
-.. |install with bioconda| image:: https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat
-    :target: http://bioconda.github.io/recipes/meteor/README.html
-.. |Pipeline status| image:: https://forgemia.inra.fr/metagenopolis/meteor/badges/dev/pipeline.svg
-    :target: https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev
-.. |Coverage report| image:: https://forgemia.inra.fr/metagenopolis/meteor/badges/dev/coverage.svg
-   :target: https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev
-.. |Latest Release| image:: https://forgemia.inra.fr/metagenopolis/meteor/-/badges/release.svg
-   :target: https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev
-.. |pylint| image:: https://forgemia.inra.fr/metagenopolis/meteor/badges/pylint.svg
-   :target: https://forgemia.inra.fr/metagenopolis/meteor/lint/
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/metaphlan/README.html)
+[![pipeline status](https://forgemia.inra.fr/metagenopolis/meteor/badges/dev/pipeline.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev)
+[![coverage report](https://forgemia.inra.fr/metagenopolis/meteor/badges/dev/coverage.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev)
+[![Latest Release](https://forgemia.inra.fr/metagenopolis/meteor/-/badges/release.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/releases)
 
-Introduction
-============
+
+## Introduction
 
 Meteor is a plateform for quantitative metagenomics profiling of complex ecosystems.
 Meteor relies on genes catalogue to perform specie level taxonomic assignments and functional analysis. 
 
-Installation
-============
+Check the [wiki](https://forgemia.inra.fr/metagenopolis/meteor/-/wikis/home) for more information.
+
+## Installation
 
 You can install Meteor using the pip command::
 
@@ -32,52 +24,37 @@ Meteor is also available with bioconda::
 
     conda install -c bioconda meteor
 
-Getting started
-===============
+## Getting started
 
-Download reference
-------------------
+
+### Download reference
 
 Several gut microbial gene catalogue were designed.
 
-+-------+------------+
-| Name  | Reference  |
-+=======+============+
-| human |  ref  |
-+-------+------------+
-| mouse |  ref  |
-+-------+------------+
-| pig |  ref  |
-+-------+------------+
-| chicken |  ref  |
-+-------+------------+
-
 These references can be downloaded and indexed::
+```
+meteor download <name> <outputdir>
+```
 
-    meteor download <name> <outputdir>
-
-Import custom reference
------------------------
+### Import custom reference
 
 Users can also import custom gene catalogue with the command::
 
     meteor reference ....
 
-Import fastq
-------------
+### Import fastq
 
 Meteor requires a first of fastq indexing::
+```
+meteor fastq -i <name>  -p ....
+```
 
-    meteor fastq -i <name>  -p ....
-
-
-Profiling
-----------
+### Profiling
 
 The taxonomic profiling can be obtained from read::
+```
+meteor mapping ..
+```
 
-    meteor mapping ..
+### Analysis
 
-
-Analysis
-========
