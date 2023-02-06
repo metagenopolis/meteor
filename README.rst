@@ -2,7 +2,7 @@
 Meteor
 =======
 
-|install with bioconda| |Pipeline status| |Coverage report| |Latest Release|
+|install with bioconda| |Pipeline status| |Coverage report| |pylint| |Latest Release|
 
 .. |install with bioconda| image:: https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat
     :target: http://bioconda.github.io/recipes/meteor/README.html
@@ -12,7 +12,8 @@ Meteor
    :target: https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev
 .. |Latest Release| image:: https://forgemia.inra.fr/metagenopolis/meteor/-/badges/release.svg
    :target: https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev
-
+.. |pylint| image:: https://forgemia.inra.fr/metagenopolis/meteor/badges/pylint.svg
+   :target: https://forgemia.inra.fr/metagenopolis/meteor/lint/
 
 Introduction
 ============
