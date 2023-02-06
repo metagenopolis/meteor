@@ -50,7 +50,7 @@ pylint:
   before_script:
     - pip install pylint-gitlab
   script:
-    - pylint --rcfile=.pylintrc --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee pylint.txt
+    - pylint --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee pylint.txt
     - score=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' pylint.txt)
     - echo "Pylint score was $score"
     - anybadge --value=$score --file=public/pylint.svg pylint
