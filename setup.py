@@ -46,12 +46,12 @@ class MeteorInstall(install):
     def run(self):
         # run original install code
         install.run(self)
-        # install Meteor executables
-        target_files = [os.path.join(self.build_lib, 'meteor-counter'), 
-                        os.path.join(self.build_lib, 'meteor-profiler')]
-        for target in target_files:
-                self.copy_file(target, self.install_scripts)
-        #self.copy_tree(self.build_lib, self.install_scripts)
+        # # install Meteor executables
+        # target_files = [os.path.join(self.build_lib, 'meteor-counter'), 
+        #                 os.path.join(self.build_lib, 'meteor-profiler')]
+        # for target in target_files:
+        #         self.copy_file(target, self.install_scripts)
+        self.copy_tree(self.build_lib, self.install_lib)
 
 
 with open('README.rst') as f:
