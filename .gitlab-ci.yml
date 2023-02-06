@@ -45,28 +45,47 @@ before_script:
 #   only:
 #     - dev
 
+
 pylint:
   stage: test
   before_script:
-    - mkdir -p public/badges public/lint
-    - echo undefined > public/badges/$CI_JOB_NAME.score
+    - mkdir -p public/
     - pip install pylint-gitlab
   script:
-    - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee /tmp/pylint.txt
-    - sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' /tmp/pylint.txt > public/badges/$CI_JOB_NAME.score
-    - pylint --exit-zero --output-format=pylint_gitlab.GitlabCodeClimateReporter $(find -type f -name "*.py" ! -path "**/.venv/**") > codeclimate.json
-    - pylint --exit-zero --output-format=pylint_gitlab.GitlabPagesHtmlReporter $(find -type f -name "*.py" ! -path "**/.venv/**") > public/lint/index.html
+    - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee pylint.txt
+    - score=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' pylint.txt)
   after_script:
-      - anybadge --overwrite --label $CI_JOB_NAME --value=$(cat public/badges/$CI_JOB_NAME.score) --file=public/badges/$CI_JOB_NAME.svg 4=red 6=orange 8=yellow 10=green
-      - |
-        echo "Your score is: $(cat public/badges/$CI_JOB_NAME.score)"
+    - anybadge --value=$score --file=public/pylint.svg --label pylint
+    - echo "Pylint score was $score"
   artifacts:
     paths:
-      - public
-    reports:
-      codequality: codeclimate.json
+      - public/pylint.svg
   only:
     - dev
+
+#pylint:
+#  stage: test
+#  before_script:
+#    - mkdir -p public/badges public/lint
+#    - echo undefined > public/badges/$CI_JOB_NAME.score
+#    - pip install pylint-gitlab
+#  script:
+#    - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee /tmp/pylint.txt
+#    - sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' /tmp/pylint.txt > public/badges/$CI_JOB_NAME.score
+#    - pylint --exit-zero --output-format=pylint_gitlab.GitlabCodeClimateReporter $(find -type f -name "*.py" ! -path "**/.venv/**") > codeclimate.json
+#    - pylint --exit-zero --output-format=pylint_gitlab.GitlabPagesHtmlReporter $(find -type f -name "*.py" ! -path "**/.venv/**") > public/lint/index.html
+#  after_script:
+#      - anybadge --overwrite --label $CI_JOB_NAME --value=$(cat public/badges/$CI_JOB_NAME.score) --file=public/badges/$CI_JOB_NAME.svg 4=red 6=orange 8=yellow 10=green
+#      - |
+#        echo "Your score is: $(cat public/badges/$CI_JOB_NAME.score)"
+#  artifacts:
+#    paths:
+#      - public
+#    reports:
+#      codequality: codeclimate.json
+#  only:
+#    - dev
+
 
 run:
   stage: build
