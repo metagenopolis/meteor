@@ -14,7 +14,7 @@ build:
 
 requirements:
     build:
-        - {{ compiler('cxx') }}
+        # - {{ compiler('cxx') }}
         - make
         - gxx
     host:
@@ -25,7 +25,7 @@ requirements:
 test:
     commands:
         - meteor -h
-        - meteor-profiler -h
+        # - meteor-profiler -h
 
 about:
   home: https://mgps.eu/
