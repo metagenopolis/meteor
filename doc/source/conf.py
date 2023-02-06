@@ -37,5 +37,5 @@ html_static_path = ['_static']
 # The readme that already exists
 readme_path = pathlib.Path(__file__).parent.resolve().parent / "README.rst"
 # We copy a modified version here
-readme_target = pathlib.Path(__file__).parent / source / "README.rst"
+readme_target = pathlib.Path(__file__).parent / source / "index.rst"
 shutil.copyfile(readme_path, readme_target)
