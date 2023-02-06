@@ -1,10 +1,17 @@
 =======
 Meteor
 =======
-## Notes for Meteor Version
-`pipeline status <https://forgemia.inra.fr/metagenopolis/meteor/badges/master/pipeline.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/master>`
-`coverage report <https://forgemia.inra.fr/metagenopolis/meteor/badges/master/coverage.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/master>`
-`Latest Release <https://forgemia.inra.fr/metagenopolis/meteor/-/badges/release.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/releases>`
+
+|install with bioconda| |Pipeline status| |Coverage report| |Latest Release|
+
+.. |install with bioconda| image:: https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat
+    :target: http://bioconda.github.io/recipes/meteor/README.html
+.. |Pipeline status| image:: https://forgemia.inra.fr/metagenopolis/meteor/badges/dev/pipeline.svg
+    :target: https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev
+.. |Coverage report| image:: https://forgemia.inra.fr/metagenopolis/meteor/badges/dev/coverage.svg
+   :target: https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev
+.. |Latest Release| image:: https://forgemia.inra.fr/metagenopolis/meteor/-/badges/release.svg
+   :target: https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev
 
 
 Introduction
