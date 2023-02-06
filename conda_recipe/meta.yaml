@@ -25,7 +25,6 @@ requirements:
 test:
     commands:
         - meteor -h
-        - meteor-counter -h
         - meteor-profiler -h
 
 about:
