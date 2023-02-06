@@ -46,16 +46,18 @@ class MeteorInstall(install):
     def run(self):
         # run original install code
         install.run(self)
-        print("HERE MTF")
-        print(self.install_lib)
         # install Meteor executables
-        self.copy_tree(self.build_lib, os.path.join(self.install_lib, 'meteor'))
+        target_files = [os.path.join(self.build_lib, 'meteor-counter'), 
+                        os.path.join(self.build_lib, 'meteor-profiler')]
+        for target in target_files:
+                self.copy_file(target, self.install_scripts)
+        #self.copy_tree(self.build_lib, self.install_scripts)
 
 
 with open('README.rst') as f:
     readme = f.read()
 setup(name='meteor',
-      version='4.3',
+      version='3.3',
       license='GPLv3',
       description='A plateform for quantitative metagenomic profiling of complex ecosystems.',
       long_description=readme,

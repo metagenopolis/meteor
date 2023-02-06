@@ -37,6 +37,7 @@ from dataclasses import dataclass, field
 # from typing import List
 import urllib.request
 # from tqdm import tqdm
+import pathlib
 
 #---------------------------- CLASS DEFINITION --------------------------------#
 class color:
