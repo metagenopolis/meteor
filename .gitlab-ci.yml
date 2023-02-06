@@ -62,7 +62,7 @@ pylint:
         echo "Your score is: $(cat public/badges/$CI_JOB_NAME.score)"
   artifacts:
     paths:
-      - public/pylint.svg
+      - public
     reports:
       codequality: codeclimate.json
   only:
