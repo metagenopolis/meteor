@@ -412,11 +412,11 @@ class MeteorSession:
                 if not aOKToContinue:
                     sys.exit("Error, TaskMainMapping failed: " + iLibrary)
                 
-                # MAPPING THIS LIBRARY ON EACH EXCLUDED REFER
-                for iExcluded in range(aExcludedRefCount):
-                    aOKToContinue = TaskExcludedMapping(iLibrary, iExcluded)
-                    if not aOKToContinue:
-                        sys.exit("Error, TaskExcludedMapping failed: " + iLibrary)
+                # MAPPING THIS LIBRARY ON EACH EXCLUDED REFERENCE
+                # for iExcluded in range(aExcludedRefCount):
+                #     aOKToContinue = TaskExcludedMapping(iLibrary, iExcluded)
+                #     if not aOKToContinue:
+                #         sys.exit("Error, TaskExcludedMapping failed: " + iLibrary)
 
 
     def LaunchCounting(self):
@@ -694,10 +694,10 @@ def isdir(path: str): # pragma: no cover
     return os.path.abspath(path) + os.sep
 
 
-def download_url(url:str, output_path: str):
-    with DownloadProgressBar(unit='B', unit_scale=True,
-                             miniters=1, desc=url.split('/')[-1]) as t:
-        urllib.request.urlretrieve(url, filename=output_path, reporthook=t.update_to)
+# def download_url(url:str, output_path: str):
+#     with DownloadProgressBar(unit='B', unit_scale=True,
+#                              miniters=1, desc=url.split('/')[-1]) as t:
+#         urllib.request.urlretrieve(url, filename=output_path, reporthook=t.update_to)
 
 
 def get_log(path_log:str) ->logging.Logger:
@@ -854,7 +854,7 @@ def main(): # pragma: no cover
                 if not os.path.isdir(sample_dir):
                     os.makedirs(sample_dir)
                 os.rename(fastq_file, sample_dir + os.path.basename(fastq_file))
-            config = configparser.ConfigParser()
+            config = ConfigParser()
             config["sample_info"] = {
                 "sample_name": sample_name,
                 "condition_name": "NA", # What is this ?
