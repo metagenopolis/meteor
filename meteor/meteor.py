@@ -20,7 +20,7 @@ __date__ = "2022"
 #-------------------------- MODULES IMPORTATION -------------------------------#
 import sys
 import os
-import argparse
+from argparse import ArgumentParser
 from configparser import ConfigParser
 import logging
 from logging.handlers import RotatingFileHandler
@@ -36,9 +36,9 @@ import lzma
 from dataclasses import dataclass, field
 from types import NoneType
 # from typing import List
-import urllib.request
+# import urllib.request
 # from tqdm import tqdm
-import pathlib
+# import pathlib
 
 #---------------------------- CLASS DEFINITION --------------------------------#
 class color:
@@ -725,7 +725,7 @@ def get_log(path_log:str) ->logging.Logger:
     return logger
 
 
-def get_arguments(): # pragma: no cover
+def get_arguments()->ArgumentParser: # pragma: no cover
     """
     Meteor help and arguments
     
@@ -733,7 +733,7 @@ def get_arguments(): # pragma: no cover
     
     Return : parser
     """
-    parser = argparse.ArgumentParser(description=color.BOLD + __doc__ + color.END)
+    parser = ArgumentParser(description=color.BOLD + __doc__ + color.END)
     subparsers = parser.add_subparsers(title = 'positional arguments', help="Select activity", dest= "command")
     # # Mappping commands
     download_parser = subparsers.add_parser('download',
@@ -804,7 +804,7 @@ For paired-ends files must be named :
 #==============================================================
 # Main program
 #==============================================================
-def main(): # pragma: no cover
+def main()->None: # pragma: no cover
     """
     Main program function
     """
