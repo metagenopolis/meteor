@@ -13,16 +13,24 @@ Meteor is a plateform for quantitative metagenomics profiling of complex ecosyst
 Meteor relies on genes catalogue to perform specie level taxonomic assignments and functional analysis. 
 
 Check the [wiki](https://forgemia.inra.fr/metagenopolis/meteor/-/wikis/home) for more information.
+If you use SHAMAN for your project, please cite the following publication:  
+## Dependencies
+
+Meteor requires:
+- g++ and make
+- [bowtie2](https://github.com/BenLangmead/bowtie2)
 
 ## Installation
 
-You can install Meteor using the pip command::
+Meteor is available with bioconda which includes all its dependencies:
+```
+conda install -c bioconda meteor
+```
 
-    pip install meteor
-
-Meteor is also available with bioconda::
-
-    conda install -c bioconda meteor
+And with pip:
+```
+pip install meteor
+```
 
 ## Getting started
 
@@ -31,20 +39,21 @@ Meteor is also available with bioconda::
 
 Several gut microbial gene catalogue were designed.
 
-These references can be downloaded and indexed::
+These references can be downloaded and indexed:
 ```
 meteor download <name> <outputdir>
 ```
 
 ### Import custom reference
 
-Users can also import custom gene catalogue with the command::
-
+Users can also import custom gene catalogue with the command:
+```
     meteor reference ....
+```
 
 ### Import fastq
 
-Meteor requires a first of fastq indexing::
+Meteor requires a first of fastq indexing:
 ```
 meteor fastq -i <name>  -p ....
 ```
