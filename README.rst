@@ -2,9 +2,9 @@
 Meteor
 =======
 ## Notes for Meteor Version
-[![pipeline status](https://forgemia.inra.fr/metagenopolis/meteor/badges/master/pipeline.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/master)
-[![coverage report](https://forgemia.inra.fr/metagenopolis/meteor/badges/master/coverage.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/master)
-[![Latest Release](https://forgemia.inra.fr/metagenopolis/meteor/-/badges/release.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/releases)
+`pipeline status <https://forgemia.inra.fr/metagenopolis/meteor/badges/master/pipeline.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/master>`
+`coverage report <https://forgemia.inra.fr/metagenopolis/meteor/badges/master/coverage.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/master>`
+`Latest Release <https://forgemia.inra.fr/metagenopolis/meteor/-/badges/release.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/releases>`
 
 
 Introduction
