@@ -46,24 +46,23 @@ before_script:
 #     - dev
 
 
-pylint:
-  stage: test
-  before_script:
-    - mkdir -p public/
-    - pip install pylint-gitlab
-  script:
-    - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee pylint.txt
-    - score=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' pylint.txt)
-  after_script:
-    - anybadge --value=$score --file=public/pylint.svg --label pylint
-    - echo "Pylint score was $score"
-  artifacts:
-    paths:
-      - public/pylint.svg
-  only:
-    - dev
-
-#pylint:
+# pylint:
+#   stage: test
+#   before_script:
+#     - mkdir -p public/badges public/lint
+#     - pip install pylint-gitlab
+#   script:
+#     - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee /tmp/pylint.txt
+#     - score=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' pylint.txt)
+#     - echo "Pylint score was $score" > public/badges/$CI_JOB_NAME.score
+#     - anybadge --value=$score --file=public/pylint.svg --label pylint
+    
+#   artifacts:
+#     paths:
+#       - public
+#   only:
+#     - dev
+# pylint:
 #  stage: test
 #  before_script:
 #    - mkdir -p public/badges public/lint
@@ -85,7 +84,18 @@ pylint:
 #      codequality: codeclimate.json
 #  only:
 #    - dev
-
+stage: test
+before_script:
+  - pip install pylint pylint-exit anybadge
+script:
+  - mkdir ./pylint
+  - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee ./pylint/pylint.log
+  - PYLINT_SCORE=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' ./pylint/pylint.log)
+  - anybadge --label=Pylint --file=pylint/pylint.svg --value=$PYLINT_SCORE 2=red 4=orange 8=yellow 10=green
+  - echo "Pylint score is $PYLINT_SCORE"
+artifacts:
+  paths:
+    - ./pylint/
 
 run:
   stage: build
@@ -120,7 +130,7 @@ build_conda:
   after_script:
     - anaconda logout
   only:
-    - dev
+    - tags
 
 
 pages:
