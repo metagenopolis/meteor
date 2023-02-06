@@ -56,7 +56,6 @@ before_script:
 #     - score=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' pylint.txt)
 #     - echo "Pylint score was $score" > public/badges/$CI_JOB_NAME.score
 #     - anybadge --value=$score --file=public/pylint.svg --label pylint
-    
 #   artifacts:
 #     paths:
 #       - public
@@ -84,31 +83,34 @@ before_script:
 #      codequality: codeclimate.json
 #  only:
 #    - dev
-stage: test
-before_script:
-  - pip install pylint pylint-exit anybadge
-script:
-  - mkdir ./pylint
-  - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee ./pylint/pylint.log
-  - PYLINT_SCORE=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' ./pylint/pylint.log)
-  - anybadge --label=Pylint --file=pylint/pylint.svg --value=$PYLINT_SCORE 2=red 4=orange 8=yellow 10=green
-  - echo "Pylint score is $PYLINT_SCORE"
-artifacts:
-  paths:
-    - ./pylint/
-
-run:
-  stage: build
+pylint:
+  stage: test
   before_script:
-    - pip install twine
+    - pip install pylint pylint-exit anybadge
   script:
-    - python setup.py bdist_wheel
-    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --skip-existing --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
+    - mkdir ./pylint
+    - pylint --exit-zero --output-format=text $(find -type f -name "*.py" ! -path "**/.venv/**") | tee ./pylint/pylint.log
+    - PYLINT_SCORE=$(sed -n 's/^Your code has been rated at \([-0-9.]*\)\/.*/\1/p' ./pylint/pylint.log)
+    - anybadge --label=Pylint --file=pylint/pylint.svg --value=$PYLINT_SCORE 2=red 4=orange 8=yellow 10=green
+    - echo "Pylint score is $PYLINT_SCORE"
   artifacts:
     paths:
-      - dist/*.whl
+      - ./pylint/
   only:
-    - dev
+      - dev
+
+  run:
+    stage: build
+    before_script:
+      - pip install twine
+    script:
+      - python setup.py bdist_wheel
+      - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --skip-existing --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
+    artifacts:
+      paths:
+        - dist/*.whl
+    only:
+      - dev
 
 build_conda:
   image: continuumio/miniconda3:latest
