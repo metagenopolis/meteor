@@ -44,9 +44,17 @@ before_script:
 #         path: coverage.xml
 #   only:
 #     - dev
+mypy:
+  stage: static-code-test
+  before_script:
+    - pip install mypy
+  script:
+    - mypy meteor
+  only:
+    - dev
 
 pylint:
-  stage: test
+  stage: static-code-test
   before_script:
     - pip install pylint anybadge
     - mkdir ./pylint

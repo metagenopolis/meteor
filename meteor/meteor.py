@@ -13,14 +13,14 @@
 
 """Meteor - A plateform for quantitative metagenomic profiling of complex ecosystems"""
 
-__version__  = "4.3"
+__version__  = "3.3"
 __copyright__ = "GPLv3"
 __date__ = "2022"
 
 #-------------------------- MODULES IMPORTATION -------------------------------#
 import sys
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from configparser import ConfigParser
 import logging
 from logging.handlers import RotatingFileHandler
@@ -34,7 +34,7 @@ import bz2
 import lzma
 # import shutil
 from dataclasses import dataclass, field
-from types import NoneType
+# from types import NoneType
 # from typing import List
 # import urllib.request
 # from tqdm import tqdm
@@ -52,7 +52,7 @@ class color:
 #         self.update(b * bsize - self.n)
 
 
-@dataclass
+@dataclass(slots=True)
 class MeteorMapper:
     FMappedCensusIniFileName: str
     aReferenceIniFileName: str
@@ -74,9 +74,12 @@ class MeteorMapper:
     FMappingOutputFileNames: list = field(default_factory=list)
     FTmpMappingOutputFileNames: list = field(default_factory=list)
     FIsReadyForMapping: int = 0
+    FCPUCount: int = 1
+    FIsLocalMapping: int = 0
+    FMappedReadCount: int = 0
 
 
-    def __post_init__(self):
+    def __post_init__(self)->None:
         self.FReferenceIniFile.read_file(open(self.aReferenceIniFileName))
         self.FLibraryName = self.FLibraryCensusIniFile["sample_info"]["full_sample_name"]
         self.FReferenceName = self.FReferenceIniFile['reference_info']['reference_name']
@@ -131,7 +134,7 @@ class MeteorMapper:
     #         aMappingSection.write(config_file)
 
 
-    def Bowtie2MapRead(self):
+    def Bowtie2MapRead(self)->None:
         # prepare bowtie2 command
         # -q --no-head --no-sq --no-unal --omit-sec-seq --end-to-end --sensitive -k 1 -S $sample/$sample.sam -U $fastq_list -p 40 -x $bt2_index
         # references repository on IBS server: /services/projects/biodatabank/meteor-data/reference
@@ -195,7 +198,9 @@ class MeteorMapper:
         subprocess.check_call(["bowtie2", aParameters, "--no-head --no-sq --no-unal --omit-sec-seq",  "-x", aBowtieIndexList, "-U", self.FNGSLibraryIndexerReport['IndexedfastqFilePath'], "-S", FMappingOutputFileName])
 
 
-    def MapRead(self, aLibraryMappingDir, aMapperCmd, aMatchesCount, aMismatchesCount, aIsMismatchesPercentage, aIsLocalMapping, aMappingFileFormat, aIsCPUPercentage, aCPUCount):
+    def MapRead(self, aLibraryMappingDir, aMapperCmd, aMatchesCount, aMismatchesCount, 
+                aIsMismatchesPercentage, aIsLocalMapping, aMappingFileFormat, 
+                aIsCPUPercentage, aCPUCount)->bool:
         #aTmpDir, 
         # get around KCL feedback (inifile bug?)
         self.FMatchesCount = int(aMatchesCount)
@@ -218,7 +223,6 @@ class MeteorMapper:
         self.FIsMismatchesPercentage = int(aIsMismatchesPercentage)
         self.FIsLocalMapping = int(aIsLocalMapping)  # LOCAL
         self.FParametersShortLine = f"l{self.FNGSLibraryIndexerReport['MappedReadLength']}-m{self.FMismatchesCount}"
-        self.FMappedReadCount = 0
         self.FMappingFileFormat = aMappingFileFormat
         self.FMapperCmd = aMapperCmd
         
@@ -240,37 +244,41 @@ class MeteorMapper:
         self.Bowtie2MapRead()
         return True
 
-@dataclass
+@dataclass(slots=True)
 class MeteorSession:
     logger: logging.Logger
     tmp_path: str
-    FMeteorJobIniFile: ConfigParser = field(default_factory=ConfigParser)
     FMeteorJobIniFilename: str = "" 
     FProjectDir: str = ""
     FSampleDir: str = ""
-    FTmpSampleDir: TemporaryDirectory = TemporaryDirectory()
-    FTmpDir: TemporaryDirectory = TemporaryDirectory()
+    FSampleName: str = ""
+    FProjectName: str = ""
+    FProjectMappingDir: str = ""
+    FSampleMappingDir: str = ""
+    aReferenceIniFileName: str = ""
+    FMappingDir: str = ""
+    LibraryNames: str = ""
+    FLibraryCount: int = 0
     FNoLock: bool = False
     FForce: bool = False
     FMappingDone: bool = True
     FCountingDone: bool = True
     FCountingTypeList: list = field(default_factory=list)
-    FMappingDir: str = ""
-    LibraryNames: str = ""
-    FLibraryCount: str = ""
-    FSampleName: str = ""
-    FProjectName: str = ""
-    FProjectMappingDir: str = ""
+    ini_files: dict = field(default_factory=dict)
     FLibraryIndexerReport: dict = field(default_factory=dict)
     FLibraryIniFileNames: list = field(default_factory=list)
     FLibraryCensusIniFileNames: list = field(default_factory=list)
     FMainMappingCensusIniFileNames: dict = field(default_factory=dict)
     FExcludedMappingCensusIniFileNames: list = field(default_factory=list)
+    FTmpSampleDir: TemporaryDirectory = field(default_factory=TemporaryDirectory)
+    FTmpDir: TemporaryDirectory = field(default_factory=TemporaryDirectory)
+    FMeteorJobIniFile: ConfigParser = field(default_factory=ConfigParser)
 
-    def __post_init__(self):
+    def __post_init__(self)->None:
         if self.tmp_path:
-            self.FTmpDir.dir = self.tmp_path
-            self.FTmpSampleDir.dir = self.tmp_path
+            self.FTmpDir =  TemporaryDirectory(dir=self.tmp_path)
+            print(self.FTmpDir.name)
+            self.FTmpSampleDir = TemporaryDirectory(dir=self.tmp_path)
 
     def CountReadAndReIndexFastqFile(self, fastq_file: str, output_file: str) -> tuple:
         aBaseCount = 0
@@ -357,7 +365,7 @@ class MeteorSession:
             return False
         return True
 
-    def CountAndReIndexReads(self, aLibraryCensusIniFile: ConfigParser):
+    def CountAndReIndexReads(self, aLibraryCensusIniFile: ConfigParser)->None:
         aSampleInfoSection = aLibraryCensusIniFile["sample_info"]
         aSampleFileSection = aLibraryCensusIniFile["sample_file"]
 
@@ -377,7 +385,7 @@ class MeteorSession:
             "MappedReadLengthType": "overall",
         }
 
-    def LaunchMapping(self):
+    def LaunchMapping(self)->None:
         self.logger.info("Launch mapping")
         aOKToContinue = True
 
@@ -420,7 +428,7 @@ class MeteorSession:
                 #         sys.exit("Error, TaskExcludedMapping failed: " + iLibrary)
 
 
-    def LaunchCounting(self):
+    def LaunchCounting(self)->None:
         self.logger.info("Launch counting")
         # does not need census_stage_0.ini
         #-w /path/to/workflow_tutorial.ini -i /path/to/sample/H1 -p /path/to/project_name -m mapping
@@ -449,7 +457,7 @@ class MeteorSession:
 
 
     def ProcessJob(self, workflow_ini, project_path, input_path, remove_lock, force, mapping_dir,
-                   counting_type, counting_only, mapping_only): #options : Workflow, ProjectPath, InputPath, MappingBasename
+                   counting_type, counting_only, mapping_only)->None: #options : Workflow, ProjectPath, InputPath, MappingBasename
         # directly from program arguments
         self.FProjectDir = project_path
         self.FSampleDir  = input_path
@@ -496,7 +504,6 @@ class MeteorSession:
         aExcludedRefCount = int(self.FMeteorJobIniFile["worksession"]["meteor.excluded.reference.count"])
 
         # # LOOP ON EACH LIBRARY
-        self.ini_files = {}
         for iLibrary in self.FLibraryIniFileNames:
             # Check if lock file exist
             if os.path.exists(iLibrary+".lock") and not self.FNoLock:
@@ -640,9 +647,9 @@ class MeteorSession:
         #     aExcludedRefCount = int(aExcludedRefCount)
         
         # print(FMeteorJobIniFile)
-        aExcludedRefCounted = len(
-             [ s for s in self.FMeteorJobIniFile.sections() if s.startswith("excluded_reference_")]
-        )
+        # aExcludedRefCounted = len(
+        #      [ s for s in self.FMeteorJobIniFile.sections() if s.startswith("excluded_reference_")]
+        # )
 
         # if aExcludedRefCount != aExcludedRefCounted:
         #     print(f"Error in file {aWorkflowFile}:", file=sys.stderr)
@@ -673,7 +680,7 @@ def isfile(path: str): # pragma: no cover
             msg = "{0} is a directory".format(path)
         else:
             msg = "{0} does not exist.".format(path)
-        raise argparse.ArgumentTypeError(msg)
+        raise ArgumentTypeError(msg)
     return os.path.abspath(path)
 
 
@@ -691,7 +698,7 @@ def isdir(path: str): # pragma: no cover
             msg = "{0} is a file".format(path)
         else:
             msg = "{0} does not exist.".format(path)
-        raise argparse.ArgumentTypeError(msg)
+        raise ArgumentTypeError(msg)
     return os.path.abspath(path) + os.sep
 
 
@@ -725,7 +732,7 @@ def get_log(path_log:str) ->logging.Logger:
     return logger
 
 
-def get_arguments()->ArgumentParser: # pragma: no cover
+def get_arguments()->Namespace: # pragma: no cover
     """
     Meteor help and arguments
     
@@ -839,14 +846,11 @@ def main()->None: # pragma: no cover
             if args.isdispatched:
                 sample_name = os.path.basename(os.path.dirname(fastq_file))
             else:
-                try:
-                    # split full sample name (in fact library/run name) in order to extract sample_name according to regex mask
-                    full_sample_name_array = re.search(args.mask_sample_name, full_sample_name)
-                    # risk of TypeError: 'NoneType' object is not subscriptable
-                    sample_name = full_sample_name_array[0]
-                except NoneType:
-                    sys.exit("None matching pattern: {}".format(args.mask_sample_name))
-        
+                # split full sample name (in fact library/run name) in order to extract sample_name according to regex mask
+                full_sample_name_array = re.search(args.mask_sample_name, full_sample_name)
+                if not full_sample_name_array:
+                    raise TypeError("No sample match the given mask: {args.mask_sample_name}")
+                sample_name = full_sample_name_array[0]
             if args.isdispatched:
                 sample_dir = os.path.dirname(fastq_file) + os.sep
             else:
@@ -862,8 +866,8 @@ def main()->None: # pragma: no cover
                 "project_name" : args.project_name,
                 "sequencing_date": "1900-01-01", # Then it is useless
                 "sequencing_device": args.techno,
-                "census_status": 0, # what is this ?
-                "read_length": -1, # Then it is useless
+                "census_status": "0", # what is this ?
+                "read_length": "-1", # Then it is useless
                 "tag": tag,
                 "full_sample_name": full_sample_name
             }
@@ -910,7 +914,7 @@ def main()->None: # pragma: no cover
             "entry_type": "fragment", # Why ?
             "reference_date": datetime.datetime.now().strftime("%Y%m%d"),
             "database_type": "text",
-            "HAS_LITE_INFO": 1
+            "HAS_LITE_INFO": "1"
         }
 
         config["reference_file"] = {
@@ -927,7 +931,7 @@ def main()->None: # pragma: no cover
             output_fasta_file, os.path.join(fasta_dir, args.refName)])
         config["bowtie2_index"] = {
             # "is_large_reference": "1", # WTF 
-            "is_DNA_space_indexed": 1,
+            "is_DNA_space_indexed": "1",
             "dna_space_bowtie_index_prefix_name_1": args.refName
         }
 
