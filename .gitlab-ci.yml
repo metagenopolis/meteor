@@ -46,7 +46,7 @@ before_script:
 #     - dev
 
 mypy:
-  stage: static-code-test
+  stage: test
   before_script:
     - pip install mypy
   script:
@@ -55,7 +55,7 @@ mypy:
     - dev
 
 pylint:
-  stage: static-code-test
+  stage: test
   before_script:
     - pip install pylint anybadge
     - mkdir ./pylint
