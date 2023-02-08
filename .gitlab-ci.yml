@@ -44,6 +44,7 @@ before_script:
 #         path: coverage.xml
 #   only:
 #     - dev
+
 mypy:
   stage: static-code-test
   before_script:
@@ -67,7 +68,7 @@ pylint:
     paths:
       - ./pylint/
   only:
-      - dev
+    - dev
 
 run:
   stage: build
