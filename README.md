@@ -51,7 +51,7 @@ meteor download <name> <outputdir>
 
 Users can also import custom gene catalogue with the command:
 ```
-    meteor reference ....
+meteor reference ....
 ```
 
 ### Import fastq

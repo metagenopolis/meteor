@@ -81,7 +81,7 @@ run:
     paths:
       - dist/*.whl
   only:
-    - dev
+    - tags
 
 build_conda:
   image: continuumio/miniconda3:latest
