@@ -10,16 +10,19 @@ import logging
 @dataclass
 class ReferenceBuilder(session):
     input_fasta_file:Path
-    reference_dir: Path
-    ref_name: Path
-    ref_dir: Path= field(default_factory=Path)
+    ref_dir: Path
+    # ref_name: Path
+    # ref_dir: Path= field(default_factory=Path)
     fasta_dir: Path= field(default_factory=Path)
     database_dir: Path= field(default_factory=Path)
 
     def __post_init__(self)->None:
-        # Create reference genome directory if it does not already exist
-        self.ref_dir = self.reference_dir / self.ref_name
+        # Create reference dir
         self.ref_dir.mkdir(exist_ok=True)
+
+        # Create reference genome directory if it does not already exist
+        # self.ref_dir = self.reference_dir / self.ref_name
+        # self.ref_dir.mkdir(exist_ok=True)
 
         # Create subdirectories for fasta files and reference indices
         self.fasta_dir = self.ref_dir / "fasta"
