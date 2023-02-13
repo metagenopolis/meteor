@@ -46,12 +46,13 @@ class Mapper(session):
     #     check_call(["bowtie2", aParameters, "--no-head --no-sq --no-unal --omit-sec-seq",  "-x", aBowtieIndexList, "-U", self.FNGSLibraryIndexerReport["IndexedfastqFilePath"], "-S", FMappingOutputFile.name])
 
     def execute(self)->None:
+
         # Pairing info
-        check_call(["bowtie2", f" -p {self.threads}", 
-        "--mm --no-head --no-sq --no-unal --omit-sec-seq",  
-        "-x", aBowtieIndexList, "-U", 
-        self.FNGSLibraryIndexerReport["IndexedfastqFilePath"], 
-        "-S", FMappingOutputFile.name])
+        # check_call(["bowtie2", f" -p {self.threads}", 
+        # "--mm --no-head --no-sq --no-unal --omit-sec-seq",  
+        # "-x", aBowtieIndexList, "-U", 
+        # self.FNGSLibraryIndexerReport["IndexedfastqFilePath"], 
+        # "-S", FMappingOutputFile.name])
         # self.FMatchesCount = aMatchesCount
         # self.FCPUCount = aCPUCount
         # # get around KCL feedback bug(?). Default FMismatchesCount is 3

@@ -190,7 +190,7 @@ def main()->None: # pragma: no cover
     # Import reference
     elif args.command ==  "build":
         reference_builder = ReferenceBuilder(args.threads, 
-            args.input_fasta_file, args.reference_dir, [profile_info])
+            args.input_fasta_file, args.reference_dir, args.ref_name)
         reference_builder.execute()
     elif args.command == "mapping":
         counter = Counter(args.threads, args.input_dir,
