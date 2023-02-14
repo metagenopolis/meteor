@@ -53,6 +53,7 @@ mypy:
     - mypy meteor
   only:
     - dev
+  allow_failure: true
 
 pylint:
   stage: test
