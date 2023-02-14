@@ -1,28 +1,30 @@
 from subprocess import check_call
 from pathlib import Path
 from configparser import ConfigParser
-from MeteorSession import session
+from meteorsession import Session
 from dataclasses import dataclass, field
 from datetime import datetime
 from textwrap import fill
 import logging
+import gzip
+import bz2
+import lzma
+
+"""
+Prepare reference for meteor and index
+"""
 
 @dataclass
-class ReferenceBuilder(session):
-    input_fasta_file:Path
+class ReferenceBuilder(Session):
+    input_fasta:Path
     ref_dir: Path
-    # ref_name: Path
-    # ref_dir: Path= field(default_factory=Path)
+    ref_name: Path
     fasta_dir: Path= field(default_factory=Path)
     database_dir: Path= field(default_factory=Path)
 
     def __post_init__(self)->None:
-        # Create reference dir
-        self.ref_dir.mkdir(exist_ok=True)
-
         # Create reference genome directory if it does not already exist
-        # self.ref_dir = self.reference_dir / self.ref_name
-        # self.ref_dir.mkdir(exist_ok=True)
+        self.ref_dir.mkdir(exist_ok=True)
 
         # Create subdirectories for fasta files and reference indices
         self.fasta_dir = self.ref_dir / "fasta"
@@ -38,7 +40,7 @@ class ReferenceBuilder(session):
         # Read input fasta file and create new fasta file for each chromosome or contig
         self.output_annotation_file = self.database_dir / f"{self.ref_name}_lite_annotation"
         self.output_fasta_file = self.fasta_dir / f"{self.ref_name}.fasta"
-    
+
     def set_reference_config(self, ref_name:str)->ConfigParser:
         """Write configuration file for reference genome
 
@@ -69,13 +71,21 @@ class ReferenceBuilder(session):
 
     def read_reference(self):
         seq = ""
-        with self.input_fasta_file.open("rt", encoding="utf-8") as input_fasta:
-            for line in input_fasta:
+        print(self.input_fasta.name)
+        if self.input_fasta.suffix == ".gz":
+            in_fasta = gzip.open(self.input_fasta, "rt")
+        elif self.input_fasta.suffix == ".bz2":
+            in_fasta = bz2.open(self.input_fasta, "rt")
+        elif self.input_fasta.suffix == ".xz":
+            in_fasta = lzma.open(self.input_fasta, "rt")
+        else:
+            in_fasta = open(self.input_fasta, "rt")
+        with in_fasta:
+            for line in in_fasta:
                 if line.startswith(">"):
                     if len(seq) > 0:
                         yield header, fill(seq, width=80)
                     header = line.split(" ")[0].strip()
-                    del(seq)
                     seq = ""
                 else:
                     seq += line.strip()
@@ -88,8 +98,8 @@ class ReferenceBuilder(session):
                     output_annotation.write(f"{header}")
                     output_fasta.write(f">{gene_id}\n{seq}")
 
-    def execute(self):
+    def execute(self)->bool:
         logging.info(f"Import {self.ref_name}")
         self.create_reference()
-        check_call(["bowtie2-build", '-f', '-t', str(self.threads),
+        check_call(["bowtie2-build", "-f", "-t", str(self.threads),
             self.output_fasta_file, self.fasta_dir/ self.ref_name])

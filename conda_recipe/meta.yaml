@@ -22,6 +22,7 @@ requirements:
     run:
         - python
         - bowtie2
+        - tqdm
 test:
     commands:
         - meteor -h

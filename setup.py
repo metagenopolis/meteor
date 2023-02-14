@@ -18,7 +18,7 @@ class MeteorBuild(build):
             'OUT=' + build_path
         ]
 
-        target_files = [os.path.join(build_path, 'meteor-counter'), 
+        target_files = [os.path.join(build_path, 'meteor-counter'),
                         os.path.join(build_path, 'meteor-profiler')]
 
         def compile():
@@ -47,7 +47,7 @@ class MeteorInstall(install):
         # run original install code
         install.run(self)
         # # install Meteor executables
-        # target_files = [os.path.join(self.build_lib, 'meteor-counter'), 
+        # target_files = [os.path.join(self.build_lib, 'meteor-counter'),
         #                 os.path.join(self.build_lib, 'meteor-profiler')]
         # for target in target_files:
         #         self.copy_file(target, self.install_scripts)
@@ -64,6 +64,7 @@ setup(name='meteor',
       author='Amine Ghozlane',
       author_email='amine.ghozlane@pasteur.fr',
       platforms= ['Linux', 'Unix', 'Darwin', 'Windows'],
+      install_requires=['tqdm'],
       package_dir={'meteor':'meteor'},
       classifiers = [
         "Programming Language :: Python :: 3",

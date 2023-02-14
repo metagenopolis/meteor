@@ -3,9 +3,11 @@ from configparser import ConfigParser
 from dataclasses import dataclass
 from typing import Optional, Protocol
 
+"""Start a meteor session, is too short."""
 
 @dataclass
-class session(Protocol):
+class Session(Protocol):
+    """Class inheritating from Protocol that present shared function."""
     threads: Optional[int]
     # locked_file
 
@@ -13,7 +15,7 @@ class session(Protocol):
         """Save a configuration file"""
         with config_path.open("wt", encoding="utf-8") as configfile:
             config.write(configfile)
-    
+
     # def acquire_lock(self, lockfile: Path):
     #     """Acquire exclusive lock file access"""
     #     locked_file_descriptor = lockfile.open("w+", encoding="UTF-8")

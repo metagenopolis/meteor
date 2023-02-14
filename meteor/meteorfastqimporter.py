@@ -5,10 +5,16 @@ from configparser import ConfigParser
 from typing import Union
 import logging
 from dataclasses import dataclass, field
-from MeteorSession import session
+from meteorsession import Session
+
+"""
+Import and prepare fastq
+"""
 
 @dataclass
-class FastqImporter(session):
+class FastqImporter(Session):
+    """FastqImporter handle the fastq import
+    """
     isdispatched:bool
     fastq_dir: Path
     mask_sample_name: str
@@ -20,9 +26,9 @@ class FastqImporter(session):
     ext_r2: tuple= field(default_factory=tuple)
 
     def __post_init__(self)->None:
-        self.ext_r1 = tuple(["".join(i) for i in product(self.sequence, "1", 
+        self.ext_r1 = tuple(["".join(i) for i in product(self.sequence, "1",
                                             self.extension, self.compression)])
-        self.ext_r2 = tuple(["".join(j) for j in product(self.sequence, "2", 
+        self.ext_r2 = tuple(["".join(j) for j in product(self.sequence, "2",
                                             self.extension, self.compression)])
 
     def replace_ext(self, path: Union[str, Path], new_ext: str = "")->Path:
@@ -30,7 +36,7 @@ class FastqImporter(session):
         return Path(str(path).replace(extensions, new_ext))
 
 
-    def set_fastq_config(self, sample_name:str, tag:str, fastq_file:str, 
+    def set_fastq_config(self, sample_name:str, tag:str, fastq_file:str,
                         full_sample_name:str)->ConfigParser:
         """Set configuration for fastq
 
@@ -75,9 +81,9 @@ class FastqImporter(session):
             if self.isdispatched:
                 sample_name = fastq_file.parent.name
             else:
-                # split full sample name (in fact library/run name) in order 
+                # split full sample name (in fact library/run name) in order
                 # to extract sample_name according to regex mask
-                full_sample_name_array = re.search(self.mask_sample_name, 
+                full_sample_name_array = re.search(self.mask_sample_name,
                                                 full_sample_name.name)
                 if full_sample_name_array:
                     sample_name = full_sample_name_array[0]
@@ -91,7 +97,7 @@ class FastqImporter(session):
                 sample_dir = fastq_file.parent / sample_name
                 sample_dir.mkdir(exist_ok=True)
                 fastq_file.rename(sample_dir / fastq_file.name)
-            config_fastq = self.set_fastq_config(sample_name, tag, 
+            config_fastq = self.set_fastq_config(sample_name, tag,
                                             fastq_file, full_sample_name)
             config_path = sample_dir / f"{full_sample_name}_census_stage_0.ini"
             self.save_config(config_fastq, config_path)
