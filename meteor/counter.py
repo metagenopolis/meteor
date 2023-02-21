@@ -6,6 +6,7 @@ from pathlib import Path
 from subprocess import check_call
 from mapper import Mapper
 from session import Session, Component
+from typing import Type
 import gzip
 import bz2
 import lzma
@@ -20,7 +21,7 @@ Run mapping and performs counting
 class Counter(Session):
     """Counter session map and count
     """
-    meteor: Component
+    meteor: Type[Component]
     counting_type: str
     mapping_type: str
     counting_only: bool
@@ -96,18 +97,17 @@ class Counter(Session):
         # LOOP ON EACH LIBRARY
         for library in self.ini_data:
             census = self.ini_data[library]["census"]
-            # sample_info = census["sample_info"] # reference
+            sample_info = census["sample_info"] # reference
             sample_file = census["sample_file"]
-            # logging.info("Meteor Mapping task description")
-            # logging.info("Sample name = " +  sample_info["sample_name"])
-            # logging.info("Library name = " + sample_info["full_sample_name"])
-            # logging.info("Project name = " + sample_info["project_name"])
-            # logging.info("Sequencing device = " + sample_info["sequencing_device"])
-            # logging.info("Workflow = " + library.name)
+            logging.info("Meteor Mapping task description")
+            logging.info("Sample name = " +  sample_info["sample_name"])
+            logging.info("Library name = " + sample_info["full_sample_name"])
+            logging.info("Project name = " + sample_info["project_name"])
+            logging.info("Sequencing device = " + sample_info["sequencing_device"])
+            logging.info("Workflow = " + library.name)
 
             # reindexing this library reads and fill FLibraryIndexerReport
             fastq_path = self.meteor.fastq_dir / sample_file["fastq_file"]
-            print(fastq_path)
             try:
                 with NamedTemporaryFile(mode="wt", dir = self.meteor.tmp_dir) as output_desc:
                     aReadCount, aBaseCount = self.count_index_fastq(fastq_path, output_desc)
@@ -127,23 +127,7 @@ class Counter(Session):
             except IOError:
                 logging.error(f"Cannot create temporary files in {self.meteor.tmp_dir.name}")
     
-    # def launch_mapping2(self)->None:
-    #     logging.info("Launch mapping")
-    #     try:
-    #         with NamedTemporaryFile(mode="wt", dir = self.meteor.tmp_dir) as output_desc:
-    #             for library in tqdm(self.ini_data):
-    #                 sample_file = self.ini_data[library]["census"]["sample_file"]
-    #                 fastq_path = self.meteor.fastq_dir / sample_file["fastq_file"]
-    #                 aReadCount, aBaseCount = self.count_index_fastq(fastq_path, output_desc)
-    #             mapping_process = Mapper(self.meteor, self.ini_data[library], 
-    #                                          Path(output_desc.name),
-    #                                          self.mapping_type)
-    #             if not mapping_process.execute():
-    #                 raise ValueError(f"Error, TaskMainMapping failed for {library}")
-    #     except IOError:
-    #         logging.error(f"Cannot create temporary files in {self.meteor.tmp_dir.name}")
-    
-    def launch_counting(self, workflow_ini)->None:
+    def launch_counting(self, workflow_ini: Path)->None:
         logging.info("Launch counting")
         # if self.force: # force overwriting former profiling results done with same parameters
         #     aparameters += " -f"
@@ -157,9 +141,9 @@ class Counter(Session):
         mapping_done = True
         try:
             # Get the ini ref
-            ref_ini_file = list(self.meteor.ref_dir.glob("**/*_reference.ini"))
-            assert len(ref_ini_file) == 1
-            ref_ini_file = ref_ini_file[0]
+            ref_ini_file_list = list(self.meteor.ref_dir.glob("**/*_reference.ini"))
+            assert len(ref_ini_file_list) == 1
+            ref_ini_file = ref_ini_file_list[0]
             ref_ini = ConfigParser()
             ref_ini.read_file(open(ref_ini_file))
             self.meteor.ref_name = ref_ini["reference_info"]["reference_name"]
@@ -195,7 +179,6 @@ class Counter(Session):
                     logging.info("Skipped !")
                 else:
                     self.launch_mapping()
-                    # self.launch_mapping2()
             if not self.mapping_only:
                 logging.info("Launch mapping")
                 config = self.set_workflow_config(ref_ini)

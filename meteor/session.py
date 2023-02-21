@@ -1,19 +1,19 @@
 from pathlib import Path
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import Optional, Protocol
+from typing import Protocol
 
 """Start a meteor session, is too short."""
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(kw_only=True)
 class Component:
     """Set of important constant for meteor"""
-    threads: Optional [int]
-    fastq_dir: Optional [Path]
-    mapping_dir: Optional [Path]
-    ref_dir: Optional [Path]
-    ref_name: Optional [str]
-    tmp_path: Optional [Path]
+    threads: int = field(default_factory=int)
+    fastq_dir: Path = field(default_factory=Path)
+    mapping_dir: Path = field(default_factory=Path)
+    ref_dir: Path = field(default_factory=Path)
+    ref_name: str = field(default_factory=str)
+    tmp_path: Path = field(default_factory=Path)
     tmp_dir: Path = field(default_factory=Path)
     sequence: tuple = ("R", "")
     extension: tuple = (".fq", ".fastq")

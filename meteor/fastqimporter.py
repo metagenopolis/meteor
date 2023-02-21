@@ -1,11 +1,11 @@
-import re
 from itertools import product
 from pathlib import Path
 from configparser import ConfigParser
-# from typing import Union
-import logging
 from dataclasses import dataclass, field
 from session import Session, Component
+from typing import Type
+import logging
+import re
 
 """
 Import and prepare fastq
@@ -15,7 +15,7 @@ Import and prepare fastq
 class FastqImporter(Session):
     """FastqImporter handle the fastq import
     """
-    meteor: Component
+    meteor: Type[Component]
     isdispatched:bool
     mask_sample_name: str
     project_name: str
@@ -30,13 +30,9 @@ class FastqImporter(Session):
                             self.meteor.extension, self.meteor.compression)])
         self.ext = tuple(["".join(i) for i in product(self.meteor.extension, 
                                                       self.meteor.compression)])
-
-    # def replace_ext(self, path: Union[str, Path], new_ext: str = "")->Path:
-    #     extensions = "".join(Path(path).suffixes)
-    #     return Path(str(path).replace(extensions, new_ext))
     
     def replace_ext(self, path: Path)->str:
-        """
+        """Replace all fastq/compressed extension to get a fullpathname for counter
         """
         extensions = "".join(path.suffixes)
         path_str = str(path)
@@ -49,8 +45,8 @@ class FastqImporter(Session):
                         full_sample_name:str)->ConfigParser:
         """Set configuration for fastq
 
-        :param ref_dir: Path object of reference directory
-        :param ref_name: Name of the reference
+        :param sample_name: Sample name
+        :param tag: Identified tag (single or 1 or 2)
         """
         config = ConfigParser()
         config["sample_info"] = {

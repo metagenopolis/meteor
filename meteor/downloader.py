@@ -5,6 +5,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from hashlib import md5
 from urllib.request import urlretrieve
+from typing import Type
 import logging
 
 """
@@ -15,7 +16,7 @@ Download and index reference
 class Downloader(Session):
     """Download and prepare catalogues"""
     # user_choice: list
-    meteor: Component
+    meteor: Type[Component]
     choice: str
     configuration_path: Path = field(default_factory=Path)
     catalogues_config: ConfigParser = field(default_factory=ConfigParser)

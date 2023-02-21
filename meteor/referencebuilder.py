@@ -5,6 +5,7 @@ from session import Session, Component
 from dataclasses import dataclass, field
 from datetime import datetime
 from textwrap import fill
+from typing import Type
 import logging
 import gzip
 import bz2
@@ -16,7 +17,7 @@ Prepare reference for meteor and index
 
 @dataclass
 class ReferenceBuilder(Session):
-    meteor: Component
+    meteor: Type[Component]
     input_fasta: Path
     fasta_dir: Path = field(default_factory=Path)
     database_dir: Path = field(default_factory=Path)
@@ -58,7 +59,7 @@ class ReferenceBuilder(Session):
             "database_dir": "database",
             "fasta_dir": "fasta",
             # is it possible to have several fasta
-            "fasta_file_count": 1,
+            "fasta_file_count": "1",
             "fasta_filename_1": self.output_fasta_file.name
         }
         config["bowtie2_index"] = {

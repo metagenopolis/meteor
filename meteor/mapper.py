@@ -4,6 +4,7 @@ from pathlib import Path
 from session import Session, Component
 from configparser import ConfigParser
 from datetime import datetime
+from typing import Type
 """
 Effective mapping
 """
@@ -13,7 +14,7 @@ class Mapper(Session):
     """
     Run the bowtie
     """
-    meteor: Component
+    meteor: Type[Component]
     census: dict
     fastq_reindex: Path
     mapping_type: str
@@ -59,7 +60,7 @@ class Mapper(Session):
         # execute command
         # --mm
         useless = "--trim-to 80 -k 10000"
-        # check_call(["bowtie2", parameters, "--no-head --no-sq --no-unal --omit-sec-seq", useless,  
+        # check_call(["bowtie2", parameters, "--mm --no-head --no-sq --no-unal --omit-sec-seq", useless,  
         #             "-x", bowtie_index, "-U", self.fastq_reindex, "-S", sam_file])
         config = self.set_mapping_config(parameters + " "+ useless, sam_file)
         self.save_config(config, self.census["Stage1FileName"])
