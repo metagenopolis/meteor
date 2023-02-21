@@ -64,7 +64,7 @@ setup(name='meteor',
       author='Amine Ghozlane',
       author_email='amine.ghozlane@pasteur.fr',
       platforms= ['Linux', 'Unix', 'Darwin', 'Windows'],
-      install_requires=['tqdm'],
+      #install_requires=['tqdm'],
       package_dir={'meteor':'meteor'},
       classifiers = [
         "Programming Language :: Python :: 3",

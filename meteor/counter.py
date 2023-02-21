@@ -6,7 +6,6 @@ from pathlib import Path
 from subprocess import check_call
 from mapper import Mapper
 from session import Session, Component
-from tqdm import tqdm
 import gzip
 import bz2
 import lzma
@@ -95,7 +94,7 @@ class Counter(Session):
         """
         logging.info("Launch mapping")
         # LOOP ON EACH LIBRARY
-        for library in tqdm(self.ini_data):
+        for library in self.ini_data:
             census = self.ini_data[library]["census"]
             # sample_info = census["sample_info"] # reference
             sample_file = census["sample_file"]

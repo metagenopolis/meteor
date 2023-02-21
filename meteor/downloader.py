@@ -4,29 +4,12 @@ from referencebuilder import ReferenceBuilder
 from configparser import ConfigParser
 from pathlib import Path
 from hashlib import md5
-from tqdm import tqdm
 from urllib.request import urlretrieve
 import logging
-
 
 """
 Download and index reference
 """
-
-class TqdmUpTo(tqdm):
-    """Provides `update_to(n)` which uses `tqdm.update(delta_n)`."""
-    def update_to(self, b=1, bsize=1, tsize=None):
-        """
-        b  : int, optional
-            Number of blocks transferred so far [default: 1].
-        bsize  : int, optional
-            Size of each block (in tqdm units) [default: 1].
-        tsize  : int, optional
-            Total size (in tqdm units). If [default: None] remains unchanged.
-        """
-        if tsize is not None:
-            self.total = tsize
-        return self.update(b * bsize - self.n)  # also sets self.n = b * bsize
 
 @dataclass
 class Downloader(Session):
@@ -51,12 +34,14 @@ class Downloader(Session):
                 file_hash.update(chunk)
         return file_hash.hexdigest()
 
-    def download_file(self, url, catalog_fasta):
-        with TqdmUpTo(unit='B', unit_scale=True, unit_divisor=1024, miniters=1,
-              desc=url.split('/')[-1]) as t:  # all optional kwargs
-            urlretrieve(url, filename=catalog_fasta,
-                       reporthook=t.update_to, data=None)
-            t.total = t.n
+
+    # prepare progressbar
+    def show_progress(self, block_num:int, block_size:int, total_size:int):
+        print("Download of {} catalogue : {}%".format(self.choice,
+            round(block_num * block_size / total_size *100,2)), end="\r")
+
+    def download_file(self, url:str, catalog_fasta:Path)->tuple:
+        return urlretrieve(url, filename=catalog_fasta, reporthook=self.show_progress)
 
     def execute(self)->bool:
         try:
