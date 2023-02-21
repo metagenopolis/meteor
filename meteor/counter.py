@@ -151,7 +151,7 @@ class Counter(Session):
         check_call([Path(__file__).parent / "src" / "build" / "meteor-counter",
             "-i", str(self.meteor.fastq_dir) + "/", "-p", str(self.meteor.ref_dir.parent) + "/",
             "-o", str(self.meteor.mapping_dir) + "/", "-w", workflow_ini,
-            "-c", self.counting_type], "-f")
+            "-c", self.counting_type, "-f"])
         #"-t", str(self.meteor.tmp_dir) + "/"
 
     def execute(self)->bool:
