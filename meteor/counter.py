@@ -62,7 +62,7 @@ class Counter(Session):
             in_fq = open(fastq_file, "rt", encoding="UTF-8")
         # read input fastq line by line
         with in_fq:
-            for read_count, line in enumerate(in_fq, start=1):
+            for read_count, line in enumerate(in_fq, start=1): # pylint: disable=unused-variable
                 output_desc.write(f"@{read_count}\n")
                 # read the sequence
                 read = next(in_fq)
@@ -107,9 +107,8 @@ class Counter(Session):
         """
         logging.info("Launch mapping")
         # loop on each library
-        print(self.ini_data.items)
-        for library in self.ini_data:
-            census = self.ini_data[library]["census"]
+        for library, dict_data in  self.ini_data.items():
+            census = dict_data["census"]
             sample_info = census["sample_info"] # reference
             sample_file = census["sample_file"]
             logging.info("Meteor Mapping task description")
@@ -130,9 +129,9 @@ class Counter(Session):
                     census.set("sample_info", "indexed_sequenced_read_count",  str(read_count))
                     census.set("sample_info","indexed_sequenced_base_count", str(base_count))
                     census.set("sample_info", "is_data_prefixed", str(0))
-                    self.ini_data[library]["census"] = census
+                    dict_data["census"] = census
                     # mapping this library on the reference
-                    mapping_process = Mapper(self.meteor, self.ini_data[library],
+                    mapping_process = Mapper(self.meteor, dict_data,
                                              Path(output_desc.name),
                                              self.mapping_type)
                     if not mapping_process.execute():
@@ -179,7 +178,8 @@ class Counter(Session):
                     census_ini.read_file(cens)
                     sample_info = census_ini["sample_info"]
                     # sample_file = census_ini['sample_file'] # reference
-                    stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"] / f"mapping_vs_{self.meteor.ref_name}_{census_ini['sample_info']['full_sample_name']}"
+                    stage1_dir = (self.meteor.mapping_dir / sample_info["sample_name"] /
+                                  f"mapping_vs_{self.meteor.ref_name}_{census_ini['sample_info']['full_sample_name']}")
                     # sample_info["full_sample_name"]
                     stage1_dir.mkdir(exist_ok=True, parents=True)
                     self.ini_data[library] = {

@@ -33,12 +33,27 @@ class FastqImporter(Session):
     ext: tuple= field(default_factory=tuple)
 
     def __post_init__(self)->None:
-        self.ext_r1 = tuple(["".join(i) for i in product(self.meteor.sequence, "1",
-                            self.meteor.extension, self.meteor.compression)])
-        self.ext_r2 = tuple(["".join(j) for j in product(self.meteor.sequence, "2",
-                            self.meteor.extension, self.meteor.compression)])
-        self.ext = tuple(["".join(k) for k in product(self.meteor.extension,
-                                                      self.meteor.compression)])
+        self.ext_r1 = tuple(self.extension(str(1)))
+        self.ext_r2 = tuple(self.extension(str(2)))
+        self.ext = tuple(self.short_extension())
+
+    def extension(self, pair:str)->str:
+        """Get all possible extension for a given fastq including pairing info
+
+        :param pair: A string giving the strand
+        :return: (str) A string of a given combinaition
+        """
+        for ext in product(self.meteor.sequence, pair,
+                         self.meteor.extension, self.meteor.compression):
+            yield "".join(ext)
+
+    def short_extension(self):
+        """Get all possible extension for a given fastq
+
+        :return: (str) A string of a given combinaition
+        """
+        for short_ext in product(self.meteor.extension, self.meteor.compression):
+            yield "".join(short_ext)
 
     def replace_ext(self, fastq_file_name: str)->str:
         """Replace all fastq/compressed extension to get a fullpathname for counter
