@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#    A copy of the GNU General Public License is available at
+#    http://www.gnu.org/licenses/gpl-3.0.html
+
+"""Prepare reference for meteor and index"""
+
 from subprocess import check_call
 from pathlib import Path
 from configparser import ConfigParser
@@ -11,12 +25,9 @@ import gzip
 import bz2
 import lzma
 
-"""
-Prepare reference for meteor and index
-"""
-
 @dataclass
 class ReferenceBuilder(Session):
+    """Index the database with bowtie2 using meteor style"""
     meteor: Type[Component]
     input_fasta: Path
     fasta_dir: Path = field(default_factory=Path)
@@ -82,7 +93,7 @@ class ReferenceBuilder(Session):
         elif self.input_fasta.suffix == ".xz":
             in_fasta = lzma.open(self.input_fasta, "rt")
         else:
-            in_fasta = open(self.input_fasta, "rt")
+            in_fasta = open(self.input_fasta, "rt", encoding="UTF-8")
         with in_fasta:
             for line in in_fasta:
                 if line.startswith(">"):
@@ -105,7 +116,8 @@ class ReferenceBuilder(Session):
                     output_fasta.write(f">{gene_id}\n{seq}")
 
     def execute(self)->bool:
-        logging.info(f"Import {self.meteor.ref_name}")
+        """Build the database"""
+        logging.info("Import %s", self.meteor.ref_name)
         # Prepare the reference for meteor
         self.create_reference()
         # Build the index with bowtie

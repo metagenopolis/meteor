@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#    A copy of the GNU General Public License is available at
+#    http://www.gnu.org/licenses/gpl-3.0.html
+
+"""Import and prepare fastq"""
+
 from itertools import product
 from pathlib import Path
 from configparser import ConfigParser
@@ -7,14 +21,9 @@ from typing import Type
 import logging
 import re
 
-"""
-Import and prepare fastq
-"""
-
 @dataclass
 class FastqImporter(Session):
-    """FastqImporter handle the fastq import
-    """
+    """FastqImporter handle the fastq import"""
     meteor: Type[Component]
     isdispatched:bool
     mask_sample_name: str
@@ -28,17 +37,18 @@ class FastqImporter(Session):
                             self.meteor.extension, self.meteor.compression)])
         self.ext_r2 = tuple(["".join(j) for j in product(self.meteor.sequence, "2",
                             self.meteor.extension, self.meteor.compression)])
-        self.ext = tuple(["".join(i) for i in product(self.meteor.extension, 
+        self.ext = tuple(["".join(k) for k in product(self.meteor.extension,
                                                       self.meteor.compression)])
-    
-    def replace_ext(self, path: Path)->str:
+
+    def replace_ext(self, fastq_file_name: str)->str:
         """Replace all fastq/compressed extension to get a fullpathname for counter
+
+        :param fastq_file_name: Name of the fastq file
+        :return: (str) A string without the expected extension in the name
         """
-        extensions = "".join(path.suffixes)
-        path_str = str(path)
         for e in self.ext:
-            path_str = path_str.replace(e, "")
-        return path_str
+            fastq_file_name = fastq_file_name.replace(e, "")
+        return fastq_file_name
 
 
     def set_fastq_config(self, sample_name:str, tag:str, fastq_file:Path,
@@ -47,6 +57,9 @@ class FastqImporter(Session):
 
         :param sample_name: Sample name
         :param tag: Identified tag (single or 1 or 2)
+        :param fastq_file: A fastq file path
+        :param full_sample_name: A fastq file name without the extension
+        :return: (ConfigParser) A configparser configuration
         """
         config = ConfigParser()
         config["sample_info"] = {
@@ -67,15 +80,14 @@ class FastqImporter(Session):
         return config
 
     def execute(self) -> bool:
-        """Dispatch the fastq file
-        """
-        logging.info("Actual import")
+        """Dispatch the fastq file"""
+        logging.info("Start importing task")
         if self.isdispatched:
             fastq_file_list = self.meteor.fastq_dir.glob( "*/*.f*q*")
         else:
             fastq_file_list = self.meteor.fastq_dir.glob("*.f*q*")
         for fastq_file in fastq_file_list:
-            logging.info(f"Import {fastq_file}")
+            logging.info("Import %s", fastq_file)
             # Extract paired-end info
             tag = "single"
             if fastq_file.name.endswith(self.ext_r1):
@@ -83,7 +95,7 @@ class FastqImporter(Session):
             elif fastq_file.name.endswith(self.ext_r2):
                 tag = "2"
             # Get rid of all possible extension
-            full_sample_name = self.replace_ext(fastq_file)
+            full_sample_name = self.replace_ext(fastq_file.name)
             if self.isdispatched:
                 sample_name = fastq_file.parent.name
             else:
@@ -104,7 +116,7 @@ class FastqImporter(Session):
                 sample_dir.mkdir(exist_ok=True)
                 sym_fastq = Path(sample_dir / fastq_file.name)
                 sym_fastq.symlink_to(fastq_file.resolve())
-            config_fastq = self.set_fastq_config(sample_name, tag, sym_fastq, 
+            config_fastq = self.set_fastq_config(sample_name, tag, sym_fastq,
                                                  full_sample_name)
             config_path = sample_dir / f"{full_sample_name}_census_stage_0.ini"
             self.save_config(config_fastq, config_path)

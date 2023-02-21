@@ -17,9 +17,6 @@ __version__  = "3.3"
 __copyright__ = "GPLv3"
 __date__ = "2022"
 
-import sys
-import logging
-import argparse
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from pathlib import Path
 from session import Component
@@ -27,6 +24,9 @@ from fastqimporter import FastqImporter
 from referencebuilder import ReferenceBuilder
 from counter import Counter
 from downloader import Downloader
+import sys
+import logging
+
 
 class Color:
     BOLD = "\033[1m"
@@ -100,8 +100,10 @@ def get_arguments()->Namespace: # pragma: no cover
     Return : parser
     """
     parser = ArgumentParser(description=Color.BOLD + __doc__ + Color.END, prog= "Meteor")
-    parser.add_argument('--version', action='version', version=f"%(prog)s {__version__}")
-    subparsers = parser.add_subparsers(title = "positional arguments", help="Select activity", dest= "command", required=True)
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    subparsers = parser.add_subparsers(title = "positional arguments",
+                                       help="Select activity", dest= "command",
+                                       required=True)
     # Mappping commands
     download_parser = subparsers.add_parser("download", help="Download catalog")
     download_parser.add_argument("-i", dest="user_choice", type=str,
@@ -118,7 +120,7 @@ def get_arguments()->Namespace: # pragma: no cover
         required = True, help = "Output path of the reference repository.")
     reference_parser.add_argument("-n", dest="ref_name", metavar="REFERENCE_NAME", type = str,
         required = True, help = "Name of the reference (ansi-string without space).")
-    reference_parser.add_argument("-t", dest="threads", default=1, type = int, 
+    reference_parser.add_argument("-t", dest="threads", default=1, type = int,
         help = "Threads count.")
     fastq_parser = subparsers.add_parser("fastq", help="Import fastq files")
     fastq_parser.add_argument("-i", dest="fastq_dir", type = isdir,
@@ -138,7 +140,7 @@ If compressed, [gz,bz2,xz] are accepted.""", required = True)
     fastq_parser.add_argument("-d", dest="isdispatched", default=False,
         action="store_true", help = "Fastq files are already dispatched in directories.")
     mapping_parser = subparsers.add_parser("mapping", help="Map reads against a gene catalog")
-    mapping_parser.add_argument("-i", dest="fastq_dir", type = isdir, required = True, 
+    mapping_parser.add_argument("-i", dest="fastq_dir", type = isdir, required = True,
         help = """Path to sample directory, containing the sample sequencing metadata
         (files ending with _census_stage_0.ini)""")
     mapping_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
@@ -149,7 +151,7 @@ If compressed, [gz,bz2,xz] are accepted.""", required = True)
         choices = ["total_reads", "shared_reads", "smart_shared_reads", "unique_reads"],
         help="Counting type string (default smart_shared_reads).")
     mapping_parser.add_argument("-p", dest="mapping_type", type=str,
-        choices=["local", "end-to-end"], default="end-to-end", 
+        choices=["local", "end-to-end"], default="end-to-end",
         help="Mapping type (Default end-to-end)")
     mapping_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
         help="Path to the directory where temporary files (e.g. sam) are stored")
@@ -174,12 +176,11 @@ def main()->None: # pragma: no cover
     # Let us logging
     logger = get_logging()
     # Create a meteor dataset
-    print(args)
     meteor = Component
     # Import FASTQ
     if args.command == "fastq":
         meteor.fastq_dir = args.fastq_dir
-        fastq_importer = FastqImporter(meteor, args.isdispatched, 
+        fastq_importer = FastqImporter(meteor, args.isdispatched,
                                        args.mask_sample_name, args.project_name)
         fastq_importer.execute()
     # Import reference
@@ -196,7 +197,7 @@ def main()->None: # pragma: no cover
         meteor.ref_dir = args.ref_dir
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
-        counter = Counter(meteor, args.counting_type, args.mapping_type, 
+        counter = Counter(meteor, args.counting_type, args.mapping_type,
                           args.counting_only, args.mapping_only)
         counter.execute()
     else:
