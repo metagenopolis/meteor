@@ -17,7 +17,7 @@ from pathlib import Path
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
-from typing import Type
+from typing import Type, Generator
 import logging
 import re
 
@@ -37,20 +37,20 @@ class FastqImporter(Session):
         self.ext_r2 = tuple(self.extension(str(2)))
         self.ext = tuple(self.short_extension())
 
-    def extension(self, pair:str)->str:
+    def extension(self, pair:str) -> Generator:
         """Get all possible extension for a given fastq including pairing info
 
         :param pair: A string giving the strand
-        :return: (str) A string of a given combinaition
+        :return: (Generator) A generator of a string from a given combination
         """
         for ext in product(self.meteor.sequence, pair,
                          self.meteor.extension, self.meteor.compression):
             yield "".join(ext)
 
-    def short_extension(self):
+    def short_extension(self) -> Generator:
         """Get all possible extension for a given fastq
 
-        :return: (str) A string of a given combinaition
+        :return: (Generator) A generator of a string from a given combination
         """
         for short_ext in product(self.meteor.extension, self.meteor.compression):
             yield "".join(short_ext)
