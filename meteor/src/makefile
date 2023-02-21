@@ -10,7 +10,7 @@ else
 	LINKER = $(CXX)
 endif
 
-CXX_FLAGS = -O3 -Wall -std=c++98 
+CXX_FLAGS = -O3 -Wall -std=c++98 -g
 
 # Final binaries
 BIN1 = meteor-counter

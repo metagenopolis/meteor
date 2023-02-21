@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
-from meteorsession import Session
-from meteorreferencebuilder import ReferenceBuilder
+from session import Session, Component
+from referencebuilder import ReferenceBuilder
 from configparser import ConfigParser
 from pathlib import Path
 from hashlib import md5
@@ -31,8 +31,9 @@ class TqdmUpTo(tqdm):
 @dataclass
 class Downloader(Session):
     """Download and prepare catalogues"""
-    user_choice: list
-    output_dir: Path
+    # user_choice: list
+    meteor: Component
+    choice: str
     configuration_path: Path = field(default_factory=Path)
     catalogues_config: ConfigParser = field(default_factory=ConfigParser)
 
@@ -40,7 +41,7 @@ class Downloader(Session):
         self.configuration_path = Path(__file__).parent / "dataverse_inrae.ini"
         assert self.configuration_path.exists()
         self.catalogues_config.read_file(self.configuration_path.open("rt", encoding="UTF-8"))
-        self.output_dir.mkdir(exist_ok=True)
+        self.meteor.ref_dir.mkdir(exist_ok=True)
 
     def getmd5(self, catalog):
         logging.info("Compute md5sum")
@@ -59,15 +60,16 @@ class Downloader(Session):
 
     def execute(self)->bool:
         try:
-            for choice in self.user_choice:
-                logging.info(f"Download {choice} microbiome reference catalog")
-                url = self.catalogues_config[choice]["nr_catalogue"]
-                md5_expect = self.catalogues_config[choice]["md5"]
-                catalog_fasta = self.output_dir / self.catalogues_config[choice]["filename"]
-                #self.download_file(url, catalog_fasta)
-                assert md5_expect == self.getmd5(catalog_fasta)
-                reference_builder = ReferenceBuilder(self.threads,
-                    catalog_fasta, self.output_dir / choice, choice)
-                reference_builder.execute()
+            # for choice in self.user_choice:
+            logging.info(f"Download {self.choice} microbiome reference catalog")
+            url = self.catalogues_config[self.choice]["nr_catalogue"]
+            md5_expect = self.catalogues_config[self.choice]["md5"]
+            catalog_fasta = self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
+            self.download_file(url, catalog_fasta)
+            assert md5_expect == self.getmd5(catalog_fasta)
+            reference_builder = ReferenceBuilder(self.meteor,
+                catalog_fasta)
+            reference_builder.execute()
         except AssertionError:
             logging.error(f"MD5sum of {catalog_fasta} has a different value than expected")
+        return True

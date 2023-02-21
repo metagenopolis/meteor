@@ -19,12 +19,14 @@ __date__ = "2022"
 
 import sys
 import logging
+import argparse
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from pathlib import Path
-from meteorfastqimporter import FastqImporter
-from meteorreferencebuilder import ReferenceBuilder
-from meteorcounter import Counter
-from meteordownloader import Downloader
+from session import Component
+from fastqimporter import FastqImporter
+from referencebuilder import ReferenceBuilder
+from counter import Counter
+from downloader import Downloader
 
 class Color:
     BOLD = "\033[1m"
@@ -97,24 +99,27 @@ def get_arguments()->Namespace: # pragma: no cover
 
     Return : parser
     """
-    parser = ArgumentParser(description=Color.BOLD + __doc__ + Color.END)
-    parser.add_argument("-t", dest="threads", default=4,
-        type = int, help = "Threads count.")
-    subparsers = parser.add_subparsers(title = "positional arguments", help="Select activity", dest= "command")
-    # # Mappping commands
+    parser = ArgumentParser(description=Color.BOLD + __doc__ + Color.END, prog= "Meteor")
+    parser.add_argument('--version', action='version', version=f"%(prog)s {__version__}")
+    subparsers = parser.add_subparsers(title = "positional arguments", help="Select activity", dest= "command", required=True)
+    # Mappping commands
     download_parser = subparsers.add_parser("download", help="Download catalog")
-    download_parser.add_argument("-i", dest="user_choice", type=str, nargs="+",
-        default=["chicken"], choices = ["chicken", "pig"],
+    download_parser.add_argument("-i", dest="user_choice", type=str,
+        default=["chicken"], choices = ["chicken", "pig"], required=True,
         help="Select the catalogue to download (default chicken microbiome).")
-    download_parser.add_argument("-o", dest="output_dir", type=isdir,
+    download_parser.add_argument("-o", dest="ref_dir", type=isdir, required=True,
         help="Output directory.")
+    download_parser.add_argument("-t", dest="threads", default=1, type = int,
+        help = "Threads count.")
     reference_parser = subparsers.add_parser("build", help="Index reference")
     reference_parser.add_argument("-i", dest="input_fasta_file", type = isfile,
         required = True, help = "Input fasta filename.")
-    reference_parser.add_argument("-o", dest="reference_dir", type = isdir,
+    reference_parser.add_argument("-o", dest="ref_dir", type = isdir,
         required = True, help = "Output path of the reference repository.")
-    reference_parser.add_argument("-n", dest="ref_name", type = str,
+    reference_parser.add_argument("-n", dest="ref_name", metavar="REFERENCE_NAME", type = str,
         required = True, help = "Name of the reference (ansi-string without space).")
+    reference_parser.add_argument("-t", dest="threads", default=1, type = int, 
+        help = "Threads count.")
     fastq_parser = subparsers.add_parser("fastq", help="Import fastq files")
     fastq_parser.add_argument("-i", dest="fastq_dir", type = isdir,
         help = """Path to a directory containing all input fastq files.
@@ -128,30 +133,33 @@ If compressed, [gz,bz2,xz] are accepted.""", required = True)
         required = True, help = "Project name (ansi-string without space).")
     fastq_parser.add_argument("-m", dest="mask_sample_name", type = str,
         required = True, help = "Regular expression for extracting sample name.")
-    fastq_parser.add_argument("-c", dest="iscompressed", default=False,
-        action="store_true", help = "Fastq files are compressed.")
+    # fastq_parser.add_argument("-c", dest="iscompressed", default=False,
+    #     action="store_true", help = "Fastq files are compressed.")
     fastq_parser.add_argument("-d", dest="isdispatched", default=False,
         action="store_true", help = "Fastq files are already dispatched in directories.")
     mapping_parser = subparsers.add_parser("mapping", help="Map reads against a gene catalog")
-    mapping_parser.add_argument("-i", dest="sample_dir", type = isdir, required = True,
+    mapping_parser.add_argument("-i", dest="fastq_dir", type = isdir, required = True, 
         help = """Path to sample directory, containing the sample sequencing metadata
         (files ending with _census_stage_0.ini)""")
-    mapping_parser.add_argument("-r", dest="reference_dir", type=isdir, required=True,
-        help="Path to reference directory (files ending with _reference.ini)")
+    mapping_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
+        help="Path to reference directory (Path containing *_reference.ini)")
     mapping_parser.add_argument("-o", dest="mapping_dir", type=isdir, required=True,
         help="Path to project directory, containing mapping and profile data (e.g. /projects/project_dir)")
-    mapping_parser.add_argument("-c", dest="counting_type", type=str, nargs="+", default=["smart_shared_reads"],
+    mapping_parser.add_argument("-c", dest="counting_type", type=str, default="smart_shared_reads",
         choices = ["total_reads", "shared_reads", "smart_shared_reads", "unique_reads"],
         help="Counting type string (default smart_shared_reads).")
-    mapping_parser.add_argument("-t", dest="tmp_dir", type=isdir,
+    mapping_parser.add_argument("-p", dest="mapping_type", type=str,
+        choices=["local", "end-to-end"], default="end-to-end", 
+        help="Mapping type (Default end-to-end)")
+    mapping_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
         help="Path to the directory where temporary files (e.g. sam) are stored")
-    mapping_parser.add_argument("-f", dest="force", action="store_true",
-        help="Force overwriting, ignoring previous results and lock files")
     mapping_parser.add_argument("-m", dest="mapping_only", action="store_true",
         help="Execute mapping only")
     mapping_parser.add_argument("-n", dest="counting_only", action="store_true",
         help="Execute counting only")
-    return parser.parse_args(args=None if sys.argv[2:] else ["--help"])
+    mapping_parser.add_argument("-t", dest="threads", default=1, type = int,
+        help = "Threads count.")
+    return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
 
 #==============================================================
@@ -165,25 +173,37 @@ def main()->None: # pragma: no cover
     args = get_arguments()
     # Let us logging
     logger = get_logging()
+    # Create a meteor dataset
+    print(args)
+    meteor = Component
     # Import FASTQ
     if args.command == "fastq":
-        fastq_importer = FastqImporter(args.threads,
-            args.isdispatched, args.fastq_dir,
-            args.mask_sample_name, args.project_name)
+        meteor.fastq_dir = args.fastq_dir
+        fastq_importer = FastqImporter(meteor, args.isdispatched, 
+                                       args.mask_sample_name, args.project_name)
         fastq_importer.execute()
     # Import reference
     elif args.command ==  "build":
-        reference_builder = ReferenceBuilder(args.threads,
-            args.input_fasta_file, args.reference_dir, args.ref_name)
+        meteor.ref_name = args.ref_name
+        meteor.ref_dir = args.ref_dir
+        meteor.threads = args.threads
+        reference_builder = ReferenceBuilder(meteor, args.input_fasta_file)
         reference_builder.execute()
     # Run mapping
     elif args.command == "mapping":
-        counter = Counter(args.threads, args.sample_dir,
-        args.mapping_dir, args.counting_type, args.reference_dir, args.tmp_dir,
-        args.force, args.counting_only, args.mapping_only)
+        meteor.fastq_dir = args.fastq_dir
+        meteor.mapping_dir = args.mapping_dir
+        meteor.ref_dir = args.ref_dir
+        meteor.tmp_path = args.tmp_path
+        meteor.threads = args.threads
+        counter = Counter(meteor, args.counting_type, args.mapping_type, 
+                          args.counting_only, args.mapping_only)
         counter.execute()
-    elif args.command ==  "download":
-        downloader = Downloader(args.threads, args.user_choice, args.output_dir)
+    else:
+        meteor.ref_name = args.user_choice
+        meteor.ref_dir = args.ref_dir
+        meteor.threads = args.threads
+        downloader = Downloader(meteor, args.user_choice)
         downloader.execute()
     # Close logging
     logger.handlers[0].close()

@@ -169,17 +169,17 @@ void TMappingDataFile::CountFragmentFromSAMFile(TCountedFragmentList & aCountedF
 	////  char aSAMFileBuf[65535]; //64K buffer, used with alternative std::getline function
 
 	TReadMatchInfoList aReadMatchInfoList;
-
+  cout << "RAs le bol" << FMainMappingFileName.c_str() << endl;
 	ifstream aSAMFile(FMainMappingFileName.c_str()); // read only stream on the file
 	string line;
 
 	if(aSAMFile){
-
+		cout << "putain " << FMainMappingFileName.c_str() << endl;
 		while (getline(aSAMFile, line)) { // ending '\n' is removed
 
 			// store current alignment (match) properties in aSAMMatch.
 			aSAMReader.GetMatch(line, aSAMMatch);
-
+			cout << "de " << FMainMappingFileName.c_str() << endl;
 			//if (aSAMMatch.RName == "1") { cerr << endl << "line: "<< line << endl << "fragment 1 unmatched ? " << aSAMMatch.Unmapped << endl; }
 
 			if (!aSAMMatch.Unmapped)
@@ -204,7 +204,7 @@ void TMappingDataFile::CountFragmentFromSAMFile(TCountedFragmentList & aCountedF
 					aReadMatchInfoList.Initialize(aReadID);
 					aCurrentReadID = aReadID;
 				}
-
+				cout << "merde " << FMainMappingFileName.c_str() << endl;
 				/// continue to fill ReadMatchInfoList
 		        // 1- check if local alignment is acceptable
 		        // retrieve fragment (reference) length
@@ -235,7 +235,7 @@ void TMappingDataFile::CountFragmentFromSAMFile(TCountedFragmentList & aCountedF
 					aReadMatchInfoItem.ReadSAMFlag = aSAMMatch.Flag;
 					aReadMatchInfoItem.ReadSAMCigar = aSAMMatch.Cigar;
 					aReadMatchInfoItem.ReadSAMOpt = aSAMMatch.Opt;
-
+					cout << "du con " << FMainMappingFileName.c_str() << endl;
 					aReadMatchInfoItem.ReadDistance = (double)aSAMMatch.EditDistance + aLocalMatchInfo.SupplementaryMismatchesCount;
 					if (FIsRelativeDistance) aReadMatchInfoItem.ReadDistance /= (double)(aSAMMatch.AlignmentLength + aLocalMatchInfo.SupplementaryMismatchesCount);
 		        }
@@ -250,6 +250,7 @@ void TMappingDataFile::CountFragmentFromSAMFile(TCountedFragmentList & aCountedF
 			CountSAMReadList(aReadMatchInfoList, aCountedFragmentList);
 		}
 		aSAMFile.close();
+		cout << "ICI finak " << FMainMappingFileName.c_str() << endl;
 	}
 	else {
 		cerr<<"Error in "<<__FILE__<<", line "<<__LINE__<<", cannot open file: "<<FMainMappingFileName<<endl;

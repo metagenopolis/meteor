@@ -1,7 +1,7 @@
 from subprocess import check_call
 from pathlib import Path
 from configparser import ConfigParser
-from meteorsession import Session
+from session import Session, Component
 from dataclasses import dataclass, field
 from datetime import datetime
 from textwrap import fill
@@ -16,62 +16,64 @@ Prepare reference for meteor and index
 
 @dataclass
 class ReferenceBuilder(Session):
-    input_fasta:Path
-    ref_dir: Path
-    ref_name: Path
-    fasta_dir: Path= field(default_factory=Path)
-    database_dir: Path= field(default_factory=Path)
+    meteor: Component
+    input_fasta: Path
+    fasta_dir: Path = field(default_factory=Path)
+    database_dir: Path = field(default_factory=Path)
+    output_annotation_file: Path = field(default_factory=Path)
+    output_fasta_file: Path = field(default_factory=Path)
 
     def __post_init__(self)->None:
         # Create reference genome directory if it does not already exist
-        self.ref_dir.mkdir(exist_ok=True)
+        self.meteor.ref_dir.mkdir(exist_ok=True)
 
         # Create subdirectories for fasta files and reference indices
-        self.fasta_dir = self.ref_dir / "fasta"
-        self.fasta_dir.mkdir(exist_ok=True)
-        self.database_dir = self.ref_dir /"database"
+        self.fasta_dir = self.meteor.ref_dir / self.meteor.ref_name / "fasta"
+        self.fasta_dir.mkdir(exist_ok=True, parents=True)
+        self.database_dir = self.meteor.ref_dir / self.meteor.ref_name / "database"
         self.database_dir.mkdir(exist_ok=True)
 
+        # Read input fasta file and create new fasta file for each chromosome or contig
+        self.output_annotation_file = self.database_dir / f"{self.meteor.ref_name}_lite_annotation"
+        self.output_fasta_file = self.fasta_dir / f"{self.meteor.ref_name}.fasta"
+
         # Write configuration file
-        config_ref = self.set_reference_config(self.ref_name)
-        config_path = self.ref_dir / f"{self.ref_name}_reference.ini"
+        config_ref = self.set_reference_config()
+        config_path = self.meteor.ref_dir / self.meteor.ref_name / f"{self.meteor.ref_name}_reference.ini"
         self.save_config(config_ref, config_path)
 
-        # Read input fasta file and create new fasta file for each chromosome or contig
-        self.output_annotation_file = self.database_dir / f"{self.ref_name}_lite_annotation"
-        self.output_fasta_file = self.fasta_dir / f"{self.ref_name}.fasta"
-
-    def set_reference_config(self, ref_name:str)->ConfigParser:
+    def set_reference_config(self)->ConfigParser:
         """Write configuration file for reference genome
-
-        :param ref_name: Name of the reference
         """
         config = ConfigParser()
         config["reference_info"] = {
-            "reference_name": ref_name,
-            # "entry_type": "fragment", # Why ?
-            "reference_date": datetime.now().strftime("%Y%m%d"),
+            "reference_name": self.meteor.ref_name,
+            "entry_type": "fragment", # Why ?
+            "reference_date": datetime.now().strftime("%Y-%m-%d"),
             "database_type": "text",
-            "HAS_LITE_INFO": "1"
+            "has_lite_info": "1"
         }
         config["reference_file"] = {
             #IS_LARGE_REFERENCE_STR: 1,
             "database_dir": "database",
             "fasta_dir": "fasta",
-            #"fasta_file_count": 1,
             # is it possible to have several fasta
-            "fasta_file_count": f"{ref_name}.fasta"
+            "fasta_file_count": 1,
+            "fasta_filename_1": self.output_fasta_file.name
         }
         config["bowtie2_index"] = {
-            # "is_large_reference": "1", # WTF
+            "is_large_reference": "0", # WTF
             "is_DNA_space_indexed": "1",
-            "dna_space_bowtie_index_prefix_name_1": ref_name
+            "dna_space_bowtie_index_prefix_name_1": self.meteor.ref_name
         }
         return config
 
     def read_reference(self):
+        """Read genes by genes the catalogue including different compression format.
+
+        :return: A generator object that iterate over each gene
+        """
         seq = ""
-        print(self.input_fasta.name)
         if self.input_fasta.suffix == ".gz":
             in_fasta = gzip.open(self.input_fasta, "rt")
         elif self.input_fasta.suffix == ".bz2":
@@ -92,6 +94,9 @@ class ReferenceBuilder(Session):
             yield header, fill(seq, width=80)
 
     def create_reference(self):
+        """Write a new reference file for meteor with numeroted genes
+        and file giving the correspondance between each gene.
+        """
         with self.output_annotation_file.open("wt", encoding="utf-8", newline="\n") as output_annotation:
             with self.output_fasta_file.open("wt", encoding="utf-8", newline="\n") as output_fasta:
                 for gene_id, (header, seq) in enumerate(self.read_reference(), start=1):
@@ -99,7 +104,10 @@ class ReferenceBuilder(Session):
                     output_fasta.write(f">{gene_id}\n{seq}")
 
     def execute(self)->bool:
-        logging.info(f"Import {self.ref_name}")
+        logging.info(f"Import {self.meteor.ref_name}")
+        # Prepare the reference for meteor
         self.create_reference()
-        check_call(["bowtie2-build", "-f", "-t", str(self.threads),
-            self.output_fasta_file, self.fasta_dir/ self.ref_name])
+        # Build the index with bowtie
+        check_call(["bowtie2-build", "-f", "-t", str(self.meteor.threads),
+            self.output_fasta_file, self.fasta_dir/ self.meteor.ref_name])
+        return True
