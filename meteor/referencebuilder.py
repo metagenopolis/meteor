@@ -15,7 +15,7 @@
 from subprocess import check_call
 from pathlib import Path
 from configparser import ConfigParser
-from session import Session, Component
+from meteor.session import Session, Component
 from dataclasses import dataclass, field
 from datetime import datetime
 from textwrap import fill

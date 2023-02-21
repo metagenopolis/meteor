@@ -16,7 +16,7 @@ from itertools import product
 from pathlib import Path
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from session import Session, Component
+from meteor.session import Session, Component
 from typing import Type
 import logging
 import re

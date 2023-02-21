@@ -18,8 +18,8 @@ import tempfile
 from configparser import ConfigParser
 from pathlib import Path
 from subprocess import check_call
-from mapper import Mapper
-from session import Session, Component
+from meteor.mapper import Mapper
+from meteor.session import Session, Component
 from typing import Type
 import gzip
 import bz2
@@ -148,10 +148,10 @@ class Counter(Session):
         logging.info("Launch counting")
         # if self.force: # force overwriting former profiling results done with same parameters
         #     aparameters += " -f"
-        check_call([Path(__file__).parent / "src" / "build" / "meteor-counter",
-            "-i", str(self.meteor.fastq_dir) + "/", "-p", str(self.meteor.ref_dir.parent) + "/",
-            "-o", str(self.meteor.mapping_dir) + "/", "-w", workflow_ini,
-            "-c", self.counting_type, "-f"])
+        check_call(["meteor-counter", "-i", str(self.meteor.fastq_dir) + "/",
+                    "-p", str(self.meteor.ref_dir.parent) + "/",
+                    "-o", str(self.meteor.mapping_dir) + "/", "-w", workflow_ini,
+                    "-c", self.counting_type, "-f"])
         #"-t", str(self.meteor.tmp_dir) + "/"
 
     def execute(self)->bool:

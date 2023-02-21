@@ -13,8 +13,8 @@
 """Download and index reference"""
 
 from dataclasses import dataclass, field
-from session import Session, Component
-from referencebuilder import ReferenceBuilder
+from meteor.session import Session, Component
+from meteor.referencebuilder import ReferenceBuilder
 from configparser import ConfigParser
 from pathlib import Path
 from hashlib import md5

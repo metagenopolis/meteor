@@ -19,11 +19,11 @@ __date__ = "2022"
 
 from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from pathlib import Path
-from session import Component
-from fastqimporter import FastqImporter
-from referencebuilder import ReferenceBuilder
-from counter import Counter
-from downloader import Downloader
+from meteor.session import Component
+from meteor.fastqimporter import FastqImporter
+from meteor.referencebuilder import ReferenceBuilder
+from meteor.counter import Counter
+from meteor.downloader import Downloader
 import sys
 import logging
 
