@@ -81,14 +81,8 @@ void TMeteorCounter::AddMappingLibrary(
 	    if (!aTmpDir.empty()) {
 	        aDirName = aTmpDir + C_PATH_SEP + aDirName;
 	    }
-      // MODIFIED
 	    string aOriginalFileName = aDirName + C_PATH_SEP + aMappingFileNameList[0];
-      // string aOriginalFileName = aDirName + C_PATH_SEP;
-      if (aMappingFileNameList.size() != 1 ) cerr << "je fais chier" << endl; 
-      cout << "size " << aMappingFileNameList.size() << endl;
-      cout << "shit " << aOriginalFileName << endl;
-      // string aOriginalFileName = aMappingFileNameList[0];
-	    // string aOriginalFileName = ExtractFileDir(aMainMappingCensusIniFileName) + C_PATH_SEP + aMappingFileNameList[0];
+	    //string aOriginalFileName = ExtractFileDir(aMainMappingCensusIniFileName) + C_PATH_SEP + aMappingFileNameList[0];
 
 		// aOriginalFileName (SAM file) is not read yet. First we read excluded mapping files (see the for loop below).
 	    aMappingData->AddMainMapping(aOriginalFileName);
