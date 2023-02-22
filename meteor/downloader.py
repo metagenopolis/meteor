@@ -12,6 +12,7 @@
 
 """Download and index reference"""
 
+import logging
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
 from meteor.referencebuilder import ReferenceBuilder
@@ -20,7 +21,7 @@ from pathlib import Path
 from hashlib import md5
 from urllib.request import urlretrieve
 from typing import Type
-import logging
+
 
 @dataclass
 class Downloader(Session):
@@ -30,7 +31,7 @@ class Downloader(Session):
     configuration_path: Path = field(default_factory=Path)
     catalogues_config: ConfigParser = field(default_factory=ConfigParser)
 
-    def __post_init__(self)->None:
+    def __post_init__(self) -> None:
         try:
             self.configuration_path = Path(__file__).parent / "dataverse_inrae.ini"
             assert self.configuration_path.exists()
@@ -40,7 +41,7 @@ class Downloader(Session):
             self.catalogues_config.read_file(config)
         self.meteor.ref_dir.mkdir(exist_ok=True)
 
-    def getmd5(self, catalog: Path)->str:
+    def getmd5(self, catalog: Path) -> str:
         """Compute in md5 chunck by chunk to avoid memory overload
         :param catalog: A path object to the downloaded catalog
         :return: A string of the md5sum
@@ -52,11 +53,16 @@ class Downloader(Session):
                 file_hash.update(chunk)
         return file_hash.hexdigest()
 
-    def show_progress(self, block_num:int, block_size:int, total_size:int):
-        """Show download progress block per block"""
+    def show_progress(self, block_num: int, block_size: int, total_size: int):
+        """Show download progress block per block
+
+        :param block_num: Number of the block
+        :param block_size: One block size
+        :param total_size: Total size of the file in block
+        """
         print(f"Download of {self.choice} catalogue : {round(block_num * block_size / total_size *100,2)}%", end="\r")
 
-    def execute(self)->bool:
+    def execute(self) -> bool:
         try:
             # for choice in self.user_choice:
             logging.info("Download %s microbiome reference catalog", self.choice)
@@ -65,8 +71,7 @@ class Downloader(Session):
             catalog_fasta = self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
             urlretrieve(url, filename=catalog_fasta, reporthook=self.show_progress)
             assert md5_expect == self.getmd5(catalog_fasta)
-            reference_builder = ReferenceBuilder(self.meteor,
-                catalog_fasta)
+            reference_builder = ReferenceBuilder(self.meteor, catalog_fasta)
             reference_builder.execute()
         except AssertionError:
             logging.error("MD5sum of %s has a different value than expected", catalog_fasta)

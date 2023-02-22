@@ -12,18 +12,19 @@
 
 """Prepare reference for meteor and index"""
 
-from subprocess import check_call
-from pathlib import Path
-from configparser import ConfigParser
-from meteor.session import Session, Component
-from dataclasses import dataclass, field
-from datetime import datetime
-from textwrap import fill
-from typing import Type
 import logging
 import gzip
 import bz2
 import lzma
+from subprocess import check_call
+from pathlib import Path
+from configparser import ConfigParser
+from dataclasses import dataclass, field
+from datetime import datetime
+from textwrap import fill
+from typing import Type
+from meteor.session import Session, Component
+
 
 @dataclass
 class ReferenceBuilder(Session):
@@ -35,7 +36,7 @@ class ReferenceBuilder(Session):
     output_annotation_file: Path = field(default_factory=Path)
     output_fasta_file: Path = field(default_factory=Path)
 
-    def __post_init__(self)->None:
+    def __post_init__(self) -> None:
         # Create reference genome directory if it does not already exist
         self.meteor.ref_dir.mkdir(exist_ok=True)
 
@@ -54,19 +55,18 @@ class ReferenceBuilder(Session):
         config_path = self.meteor.ref_dir / self.meteor.ref_name / f"{self.meteor.ref_name}_reference.ini"
         self.save_config(config_ref, config_path)
 
-    def set_reference_config(self)->ConfigParser:
+    def set_reference_config(self) -> ConfigParser:
         """Write configuration file for reference genome
         """
         config = ConfigParser()
         config["reference_info"] = {
             "reference_name": self.meteor.ref_name,
-            "entry_type": "fragment", # Why ?
+            "entry_type": "fragment",  # Why ?
             "reference_date": datetime.now().strftime("%Y-%m-%d"),
             "database_type": "text",
             "has_lite_info": "1"
         }
         config["reference_file"] = {
-            #IS_LARGE_REFERENCE_STR: 1,
             "database_dir": "database",
             "fasta_dir": "fasta",
             # is it possible to have several fasta
@@ -74,7 +74,7 @@ class ReferenceBuilder(Session):
             "fasta_filename_1": self.output_fasta_file.name
         }
         config["bowtie2_index"] = {
-            "is_large_reference": "0", # WTF
+            "is_large_reference": "0",  # WTF
             "is_DNA_space_indexed": "1",
             "dna_space_bowtie_index_prefix_name_1": self.meteor.ref_name
         }
@@ -85,6 +85,7 @@ class ReferenceBuilder(Session):
 
         :return: A generator object that iterate over each gene
         """
+        header = ""
         seq = ""
         if self.input_fasta.suffix == ".gz":
             in_fasta = gzip.open(self.input_fasta, "rt")
@@ -115,12 +116,12 @@ class ReferenceBuilder(Session):
                     output_annotation.write(f"{header}")
                     output_fasta.write(f">{gene_id}\n{seq}")
 
-    def execute(self)->bool:
+    def execute(self) -> bool:
         """Build the database"""
         logging.info("Import %s", self.meteor.ref_name)
         # Prepare the reference for meteor
         self.create_reference()
         # Build the index with bowtie
         check_call(["bowtie2-build", "-f", "-t", str(self.meteor.threads),
-            self.output_fasta_file, self.fasta_dir/ self.meteor.ref_name])
+                    self.output_fasta_file, self.fasta_dir / self.meteor.ref_name])
         return True

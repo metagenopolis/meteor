@@ -12,6 +12,11 @@
 
 """Run mapping and performs counting"""
 
+import gzip
+import bz2
+import lzma
+import logging
+import sys
 from dataclasses import dataclass, field
 from tempfile import mkdtemp, NamedTemporaryFile
 import tempfile
@@ -21,11 +26,6 @@ from subprocess import check_call
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
 from typing import Type
-import gzip
-import bz2
-import lzma
-import logging
-import sys
 
 
 @dataclass
@@ -36,10 +36,10 @@ class Counter(Session):
     counting_type: str
     mapping_type: str
     counting_only: bool
-    mapping_only:bool
+    mapping_only: bool
     ini_data: dict = field(default_factory=dict)
 
-    def __post_init__(self)->None:
+    def __post_init__(self) -> None:
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.mapping_dir.mkdir(exist_ok=True)
 
@@ -62,7 +62,7 @@ class Counter(Session):
             in_fq = open(fastq_file, "rt", encoding="UTF-8")
         # read input fastq line by line
         with in_fq:
-            for read_count, line in enumerate(in_fq, start=1): # pylint: disable=unused-variable
+            for read_count, line in enumerate(in_fq, start=1):  # pylint: disable=unused-variable
                 output_desc.write(f"@{read_count}\n")
                 # read the sequence
                 read = next(in_fq)
@@ -75,7 +75,7 @@ class Counter(Session):
             output_desc.flush()
         return read_count, base_count
 
-    def set_workflow_config(self, ref_ini)->ConfigParser:
+    def set_workflow_config(self, ref_ini) -> ConfigParser:
         """Write configuration file for reference genome
 
         :return: (ConfigParser) A configparser object
@@ -91,7 +91,6 @@ class Counter(Session):
             "meteor.excluded.reference.count": "0"
         }
         config["main_reference"] = {
-            #IS_LARGE_REFERENCE_STR: 1,
             "meteor.reference.name": self.meteor.ref_name,
             "meteor.matches": "10000",
             "meteor.mismatches": "5",
@@ -102,14 +101,14 @@ class Counter(Session):
         }
         return config
 
-    def launch_mapping(self)->None:
+    def launch_mapping(self) -> None:
         """Create temporary indexed files and map aga
         """
         logging.info("Launch mapping")
         # loop on each library
-        for library, dict_data in  self.ini_data.items():
+        for library, dict_data in self.ini_data.items():
             census = dict_data["census"]
-            sample_info = census["sample_info"] # reference
+            sample_info = census["sample_info"]  # reference
             sample_file = census["sample_file"]
             logging.info("Meteor Mapping task description")
             logging.info("Sample name = %s",  sample_info["sample_name"])
@@ -121,13 +120,13 @@ class Counter(Session):
             # reindexing this library reads and fill FLibraryIndexerReport
             fastq_path = self.meteor.fastq_dir / sample_file["fastq_file"]
             try:
-                with NamedTemporaryFile(mode="wt", dir = self.meteor.tmp_dir) as output_desc:
+                with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as output_desc:
                     read_count, base_count = self.count_index_fastq(fastq_path, output_desc)
                     census.set("sample_info", "census_status",  str(1))
                     census.set("sample_info", "indexed_read_length", str(1))
                     census.set("sample_info", "sequenced_read_count",  str(read_count))
                     census.set("sample_info", "indexed_sequenced_read_count",  str(read_count))
-                    census.set("sample_info","indexed_sequenced_base_count", str(base_count))
+                    census.set("sample_info", "indexed_sequenced_base_count", str(base_count))
                     census.set("sample_info", "is_data_prefixed", str(0))
                     dict_data["census"] = census
                     # mapping this library on the reference
@@ -139,21 +138,19 @@ class Counter(Session):
             except IOError:
                 logging.error("Cannot create temporary files in %s", self.meteor.tmp_dir.name)
 
-    def launch_counting(self, workflow_ini: Path)->None:
+    def launch_counting(self, workflow_ini: Path) -> None:
         """Launch meteor counter
 
         :param workflow_ini: A path object to workflow configuration
         """
         logging.info("Launch counting")
-        # if self.force: # force overwriting former profiling results done with same parameters
-        #     aparameters += " -f"
+        # "-t", str(self.meteor.tmp_dir) + "/"
         check_call(["meteor-counter", "-i", str(self.meteor.fastq_dir) + "/",
                     "-p", str(self.meteor.ref_dir.parent) + "/",
                     "-o", str(self.meteor.mapping_dir) + "/", "-w", workflow_ini,
                     "-c", self.counting_type, "-f"])
-        #"-t", str(self.meteor.tmp_dir) + "/"
 
-    def execute(self)->bool:
+    def execute(self) -> bool:
         """Compute the mapping"""
         mapping_done = True
         try:
@@ -171,8 +168,8 @@ class Counter(Session):
         try:
             census_ini_files = list(self.meteor.fastq_dir.glob("*_census_stage_0.ini"))
             assert len(census_ini_files) > 0
+            #  MAPPING THIS LIBRARY ON MAIN REFERENCE
             for library in census_ini_files:
-                #MAPPING THIS LIBRARY ON MAIN REFERENCE
                 census_ini = ConfigParser()
                 with open(library, "rt", encoding="UTF-8") as cens:
                     census_ini.read_file(cens)

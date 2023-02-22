@@ -45,6 +45,16 @@ before_script:
 #   only:
 #     - dev
 
+flake8:
+  stage: test
+  before_script:
+    - pip install flake8
+  script:
+    - flake8 --max-line-length=120 meteor
+  only:
+    - dev
+  allow_failure: true
+
 mypy:
   stage: test
   before_script:

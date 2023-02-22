@@ -17,6 +17,7 @@ from configparser import ConfigParser
 from dataclasses import dataclass, field
 from typing import Protocol
 
+
 @dataclass(kw_only=True)
 class Component:
     """Set of important constant for meteor"""
@@ -31,11 +32,16 @@ class Component:
     extension: tuple = (".fq", ".fastq")
     compression: tuple = (".gz", ".bz2", ".xz")
 
+
 class Session(Protocol):
     """Class inheritating from Protocol that present shared function."""
 
-    def save_config(self, config: ConfigParser, config_path: Path)->None:
-        """Save a configuration file"""
+    def save_config(self, config: ConfigParser, config_path: Path) -> None:
+        """Save a configuration file
+
+        :param config: A configparser object
+        :param config_path: (Path) An output path object
+        """
         with config_path.open("wt", encoding="utf-8") as configfile:
             config.write(configfile)
 
