@@ -204,15 +204,16 @@ void TMappingDataFile::CountFragmentFromSAMFile(TCountedFragmentList & aCountedF
 					aReadMatchInfoList.Initialize(aReadID);
 					aCurrentReadID = aReadID;
 				}
-				cout << "merde " << FMainMappingFileName.c_str() << endl;
+				cout << "merde rohhh" << aSAMMatch.RName.c_str() << endl;
 				/// continue to fill ReadMatchInfoList
 		        // 1- check if local alignment is acceptable
 		        // retrieve fragment (reference) length
 		        int aFragmentSize = FReferenceAnnotationDatabase->GetLiteReferenceAnnotationTable().GetFragmentSize(atoi(aSAMMatch.RName.c_str()));
-
+		        cout << "fait chier " << aFragmentSize<< endl;
 		        if (FIsLocalAlignment){
 		          aLocalMatchInfo = IsAcceptedLocalMatch(aFragmentSize, aSAMMatch.Cigar, aSAMMatch.Pos, FAlignmentLengthCutoff, FSoftClippingLengthCutoff, FKeepInternalLocalAlignment);
 		          aOKToProcessRead = aLocalMatchInfo.IsAccepted;
+		          cout << "j'en ai marre " << endl;
 		        }
 		        else {
 				  aLocalMatchInfo.IsAccepted = true;
@@ -220,6 +221,7 @@ void TMappingDataFile::CountFragmentFromSAMFile(TCountedFragmentList & aCountedF
 		          aLocalMatchInfo.NewReadEndLocation = aSAMMatch.Pos + aSAMMatch.AlignmentLength - 1;
 		          aLocalMatchInfo.SupplementaryMismatchesCount = 0;
 		          aOKToProcessRead = true;
+		          cout << "rahhh " << endl;
 		        }
 		        if (aOKToProcessRead){
 					// add an empty TReadMatchInfoItem and return its reference (IsRejected is set to true).

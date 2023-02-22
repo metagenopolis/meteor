@@ -78,9 +78,9 @@ void TMeteorCounter::AddMappingLibrary(
 
 		string aDirName = ExtractFileDir(aMainMappingCensusIniFileName);
 	    // the user has set a tmp directory path
-	    // if (!aTmpDir.empty()) {
-	    //     aDirName = aTmpDir + C_PATH_SEP + aDirName;
-	    // }
+	    if (!aTmpDir.empty()) {
+	        aDirName = aTmpDir + C_PATH_SEP + aDirName;
+	    }
       // MODIFIED
 	    string aOriginalFileName = aDirName + C_PATH_SEP + aMappingFileNameList[0];
       // string aOriginalFileName = aDirName + C_PATH_SEP;

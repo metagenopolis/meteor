@@ -73,6 +73,14 @@ class ReferenceBuilder(Session):
             "fasta_file_count": "1",
             "fasta_filename_1": self.output_fasta_file.name
         }
+        # useless but meteor crash otherwise
+        # config["bowtie_index"] = {
+        #   "is_large_reference": "1",
+        #   "is_color_space_indexed": "1",
+        #   "color_space_bowtie_index_prefix_name_1": "mock_colorspace_index",
+        #   "is_DNA_space_indexed": "1",
+        #   "dna_space_bowtie_index_prefix_name_1": "mock_dnaspace_index"
+        # }
         config["bowtie2_index"] = {
             "is_large_reference": "0",  # WTF
             "is_DNA_space_indexed": "1",
@@ -85,7 +93,6 @@ class ReferenceBuilder(Session):
 
         :return: A generator object that iterate over each gene
         """
-        header = ""
         seq = ""
         if self.input_fasta.suffix == ".gz":
             in_fasta = gzip.open(self.input_fasta, "rt")
@@ -99,21 +106,20 @@ class ReferenceBuilder(Session):
             for line in in_fasta:
                 if line.startswith(">"):
                     if len(seq) > 0:
-                        yield header, fill(seq, width=80)
-                    header = line.split(" ")[0].strip()
+                        yield len(seq), fill(seq, width=80)
                     seq = ""
                 else:
                     seq += line.strip()
-            yield header, fill(seq, width=80)
+            yield len(seq), fill(seq, width=80)
 
     def create_reference(self):
         """Write a new reference file for meteor with numeroted genes
         and file giving the correspondance between each gene.
         """
-        with self.output_annotation_file.open("wt", encoding="utf-8", newline="\n") as output_annotation:
-            with self.output_fasta_file.open("wt", encoding="utf-8", newline="\n") as output_fasta:
-                for gene_id, (header, seq) in enumerate(self.read_reference(), start=1):
-                    output_annotation.write(f"{header}")
+        with self.output_annotation_file.open("wt", encoding="UTF-8") as output_annotation:
+            with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
+                for gene_id, (len_seq, seq) in enumerate(self.read_reference(), start=1):
+                    output_annotation.write(f"{gene_id}\t{len_seq}\n")
                     output_fasta.write(f">{gene_id}\n{seq}")
 
     def execute(self) -> bool:

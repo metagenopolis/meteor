@@ -146,7 +146,7 @@ class Counter(Session):
         logging.info("Launch counting")
         # "-t", str(self.meteor.tmp_dir) + "/"
         check_call(["meteor-counter", "-i", str(self.meteor.fastq_dir) + "/",
-                    "-p", str(self.meteor.ref_dir.parent) + "/",
+                    "-p", str(self.meteor.ref_dir.parent.resolve()) + "/",
                     "-o", str(self.meteor.mapping_dir) + "/", "-w", workflow_ini,
                     "-c", self.counting_type, "-f"])
 
