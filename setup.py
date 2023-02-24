@@ -11,6 +11,8 @@
 #    http://www.gnu.org/licenses/gpl-3.0.html
 
 """Setup meteor"""
+# pylint: disable=deprecated-module
+# pylint: disable=redefined-builtin
 import os
 from setuptools import setup, find_packages
 from setuptools.command.install import install
@@ -65,7 +67,7 @@ class MeteorInstall(install):
 
 
 
-with open("README.md") as f:
+with open("README.md", encoding="UTF-8") as f:
     readme = f.read()
 setup(name="meteor",
       version="3.3",

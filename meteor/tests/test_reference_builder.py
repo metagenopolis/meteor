@@ -1,4 +1,5 @@
 """Test reference builder main objects"""
+# pylint: disable=redefined-outer-name
 from ..session import Component
 from ..referencebuilder import ReferenceBuilder
 from pathlib import Path
@@ -9,16 +10,16 @@ import pytest
 @pytest.fixture
 def builder_defec(tmp_path: Path, datadir: Path):
     meteor = Component
-    meteor.ref_dir=tmp_path
-    meteor.ref_name="defect"
+    meteor.ref_dir = tmp_path
+    meteor.ref_name = "defect"
     return ReferenceBuilder(meteor, input_fasta=datadir/"defect_catalogue.fasta.gz")
 
 
 @pytest.fixture
 def builder(tmp_path: Path, datadir: Path):
     meteor = Component
-    meteor.ref_dir=tmp_path
-    meteor.ref_name="test"
+    meteor.ref_dir = tmp_path
+    meteor.ref_name = "test"
     return ReferenceBuilder(meteor, input_fasta=datadir/"test_catalogue.fasta.gz")
 
 
