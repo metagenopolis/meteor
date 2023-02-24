@@ -115,7 +115,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                  help="Threads count.")
     reference_parser = subparsers.add_parser("build", help="Index reference")
     reference_parser.add_argument("-i", dest="input_fasta_file", type=isfile,
-                                  required=True, help="Input fasta filename.")
+                                  required=True, help="Input fasta filename (compressed format accepted).")
     reference_parser.add_argument("-o", dest="ref_dir", type=isdir, required=True,
                                   help="Output path of the reference repository.")
     reference_parser.add_argument("-n", dest="ref_name", metavar="REFERENCE_NAME",

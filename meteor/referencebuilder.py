@@ -24,6 +24,7 @@ from datetime import datetime
 from textwrap import fill
 from typing import Type
 from meteor.session import Session, Component
+from typing import Generator
 
 
 @dataclass
@@ -73,7 +74,7 @@ class ReferenceBuilder(Session):
             "fasta_file_count": "1",
             "fasta_filename_1": self.output_fasta_file.name
         }
-        # useless but meteor crash otherwise
+        # useless
         # config["bowtie_index"] = {
         #   "is_large_reference": "1",
         #   "is_color_space_indexed": "1",
@@ -88,7 +89,7 @@ class ReferenceBuilder(Session):
         }
         return config
 
-    def read_reference(self):
+    def read_reference(self) -> Generator:
         """Read genes by genes the catalogue including different compression format.
 
         :return: A generator object that iterate over each gene
@@ -110,7 +111,8 @@ class ReferenceBuilder(Session):
                     seq = ""
                 else:
                     seq += line.strip()
-            yield len(seq), fill(seq, width=80)
+            if len(seq) > 0:
+                yield len(seq), fill(seq, width=80)
 
     def create_reference(self):
         """Write a new reference file for meteor with numeroted genes
@@ -120,7 +122,7 @@ class ReferenceBuilder(Session):
             with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
                 for gene_id, (len_seq, seq) in enumerate(self.read_reference(), start=1):
                     output_annotation.write(f"{gene_id}\t{len_seq}\n")
-                    output_fasta.write(f">{gene_id}\n{seq}")
+                    output_fasta.write(f">{gene_id}\n{seq}\n")
 
     def execute(self) -> bool:
         """Build the database"""
