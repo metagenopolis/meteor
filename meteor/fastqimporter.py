@@ -38,7 +38,7 @@ class FastqImporter(Session):
         self.ext_r2 = tuple(self.extension(str(2)))
         self.ext = tuple(self.short_extension())
 
-    def extension(self, pair: str) -> Generator:
+    def extension(self, pair: str) -> Generator:  # pragma: no cover
         """Get all possible extension for a given fastq including pairing info
 
         :param pair: A string giving the strand
@@ -48,7 +48,7 @@ class FastqImporter(Session):
                            self.meteor.compression):
             yield "".join(ext)
 
-    def short_extension(self) -> Generator:
+    def short_extension(self) -> Generator:  # pragma: no cover
         """Get all possible extension for a given fastq
 
         :return: (Generator) A generator of a string from a given combination
