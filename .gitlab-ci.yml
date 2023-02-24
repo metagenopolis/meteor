@@ -58,7 +58,7 @@ flake8:
 mypy:
   stage: test
   before_script:
-    - pip install mypy
+    - pip install mypy pytest
   script:
     - mypy meteor
   only:
