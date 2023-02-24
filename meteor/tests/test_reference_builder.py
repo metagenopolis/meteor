@@ -1,5 +1,5 @@
+"""Test reference builder main objects"""
 from ..session import Component
-from typing import Type
 from ..referencebuilder import ReferenceBuilder
 from pathlib import Path
 from hashlib import md5
@@ -39,7 +39,7 @@ def test_read_reference(builder_defec: ReferenceBuilder):
         pytest.param("b8d7e70fe88abbf1cf1746e5a02439ea", "2912b682a8e7554025cc5feadd641570", id="Accurate output"),
     )
 )
-def test_create_reference(builder, annotation_md5: str, fasta_md5: str):
+def test_create_reference(builder: ReferenceBuilder, annotation_md5: str, fasta_md5: str):
     builder.create_reference()
     with open(builder.output_annotation_file, "rb") as output_annotation_file:
         assert md5(output_annotation_file.read()).hexdigest() == annotation_md5
