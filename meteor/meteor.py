@@ -124,7 +124,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     reference_parser.add_argument("-t", dest="threads", default=1, type=int,
                                   help="Threads count.")
     fastq_parser = subparsers.add_parser("fastq", help="Import fastq files")
-    fastq_parser.add_argument("-i", dest="fastq_dir", type=isdir, required=True,
+    fastq_parser.add_argument("-i", dest="input_fastq_dir", type=isdir, required=True,
                               help="""Path to a directory containing all input fastq files.
                                         FASTQ files must have the extension .fastq or .fq.
                                         For paired-ends files must be named :
@@ -132,14 +132,18 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                                             or
                                             file_1.[fastq/fq] & file_2.[fastq/fq].
                                         If compressed, [gz,bz2,xz] are accepted.""")
-    fastq_parser.add_argument("-p", dest="project_name", type=str, required=True,
-                              help="Project name (ansi-string without space).")
+    fastq_parser.add_argument("-p", dest="ispaired", default=False, action="store_true",
+                              help = "Fastq files are paired.")
     fastq_parser.add_argument("-m", dest="mask_sample_name", type=str,
-                              required=True, help="Regular expression for extracting sample name.")
+                              help="Regular expression for extracting sample name.")
+    fastq_parser.add_argument("-n", dest="project_name", type=str, required=True,
+                              help="Project name (ansi-string without space).")
+    fastq_parser.add_argument("-o", dest="fastq_dir", type=isdir, required=True,
+                                  help="Output path of the fastq repository.")
     # fastq_parser.add_argument("-c", dest="iscompressed", default=False,
     #     action="store_true", help = "Fastq files are compressed.")
-    fastq_parser.add_argument("-d", dest="isdispatched", default=False, action="store_true",
-                              help="Fastq files are already dispatched in directories.")
+    # fastq_parser.add_argument("-d", dest="isdispatched", default=False, action="store_true",
+    #                           help="Fastq files are already dispatched in directories.")
     mapping_parser = subparsers.add_parser("mapping", help="Map reads against a gene catalog")
     mapping_parser.add_argument("-i", dest="fastq_dir", type=isdir, required=True,
                                 help="""Path to sample directory, containing the sample sequencing metadata
@@ -181,8 +185,11 @@ def main() -> None:  # pragma: no cover
     # Import FASTQ
     if args.command == "fastq":
         meteor.fastq_dir = args.fastq_dir
-        fastq_importer = FastqImporter(meteor, args.isdispatched,
-                                       args.mask_sample_name, args.project_name)
+        # args.isdispatched,
+        fastq_importer = FastqImporter(meteor, args.input_fastq_dir, 
+                                       args.ispaired, 
+                                       args.mask_sample_name,
+                                       args.project_name)
         fastq_importer.execute()
     # Import reference
     elif args.command == "build":

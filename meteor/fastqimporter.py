@@ -26,7 +26,8 @@ from meteor.session import Session, Component
 class FastqImporter(Session):
     """FastqImporter handle the fastq import"""
     meteor: Type[Component]
-    isdispatched: bool
+    input_fastq_dir: Path
+    ispaired: bool
     mask_sample_name: str
     project_name: str
     ext_r1: tuple = field(default_factory=tuple)
@@ -34,8 +35,8 @@ class FastqImporter(Session):
     ext: tuple = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
-        self.ext_r1 = tuple(self.extension(str(1)))
-        self.ext_r2 = tuple(self.extension(str(2)))
+        self.ext_r1 = tuple(self.extension("1"))
+        self.ext_r2 = tuple(self.extension("2"))
         self.ext = tuple(self.short_extension())
 
     def extension(self, pair: str) -> Generator:  # pragma: no cover
@@ -56,18 +57,45 @@ class FastqImporter(Session):
         for short_ext in product(self.meteor.extension, self.meteor.compression):
             yield "".join(short_ext)
 
-    def replace_ext(self, fastq_file_name: str) -> str:
-        """Replace all fastq/compressed extension to get a fullpathname for counter
+    def replace_ext(self, fastq_filename: str) -> str:
+        """Replace all fastq/compressed extension to get a fullpathname
 
-        :param fastq_file_name: Name of the fastq file
+        :param fastq_filename: Name of the fastq file
         :return: (str) A string without the expected extension in the name
         """
         for e in self.ext:
-            fastq_file_name = fastq_file_name.replace(e, "")
-        return fastq_file_name
+            fastq_filename = fastq_filename.replace(e, "")
+        return fastq_filename
+    
+    def get_paired_dirname(self, fastq_filename:str, tag:str) -> str:
+        """Replace all fastq/compressed extension and pairing to get a sample_name
 
+        :param fastq_filename: Name of the fastq file
+        :return: (str) A string without the expected extension in the name
+        """
+        for e in tuple(self.extension(tag)):
+            print(e)
+            fastq_filename = fastq_filename.replace(e, "")
+        return fastq_filename
+
+    def get_fastq_file(self):  # pragma: no cover
+        """Find all fastq file in the given input"""
+        yield from self.input_fastq_dir.glob("*.f*q*")
+    
+    def get_tag(self, fastq_filename:str) -> str:
+        """Extract paired-end info
+        
+        :param fastq_filename: Name of the fastq file
+        :return: (str) A string giving pairing status
+        """
+        if fastq_filename.endswith(self.ext_r1):
+            return "1"
+        elif fastq_filename.endswith(self.ext_r2):
+            return "2"
+        raise ValueError("Pairing tag (1 or 2) is not detect in the fastq name.")
+        
     def set_fastq_config(self, sample_name: str, tag: str, fastq_file: Path,
-                         full_sample_name: str) -> ConfigParser:
+                         full_sample_name: str) -> ConfigParser:  # pragma: no cover
         """Set configuration for fastq
 
         :param sample_name: Sample name
@@ -97,40 +125,41 @@ class FastqImporter(Session):
     def execute(self) -> bool:
         """Dispatch the fastq file"""
         logging.info("Start importing task")
-        if self.isdispatched:
-            fastq_file_list = self.meteor.fastq_dir.glob("**/*.f*q*")
-        else:
-            fastq_file_list = self.meteor.fastq_dir.glob("*.f*q*")
-        for fastq_file in fastq_file_list:
+        if len(list(self.get_fastq_file())) == 0:
+            logging.error("No fastq file detected in %s", self.input_fastq_dir)
+            raise ValueError("No fastq file detected")
+        for fastq_file in self.get_fastq_file():
             logging.info("Import %s", fastq_file)
-            # Extract paired-end info
-            tag = "single"
-            if fastq_file.name.endswith(self.ext_r1):
-                tag = "1"
-            elif fastq_file.name.endswith(self.ext_r2):
-                tag = "2"
             # Get rid of all possible extension
             full_sample_name = self.replace_ext(fastq_file.name)
-            if self.isdispatched:
-                sample_name = fastq_file.parent.name
+            if self.ispaired:
+                # Extract paired-end info
+                tag = self.get_tag(fastq_file.name)
             else:
-                # split full sample name (in fact library/run name) in order
+                tag = "single"
+            # split full sample name (in fact library/run name) in order
+            if self.mask_sample_name:
                 # to extract sample_name according to regex mask
                 full_sample_name_array = re.search(self.mask_sample_name,
-                                                   full_sample_name)
+                                                    full_sample_name)
                 if full_sample_name_array:
                     sample_name = full_sample_name_array[0]
                 else:
+                    logging.info("File %s do not match the mask", fastq_file)
                     # sample do not match the mask
                     continue
-            if self.isdispatched:
-                sample_dir = fastq_file.parent
             else:
-                # create directory for the sample and move fastq file into
-                sample_dir = fastq_file.parent / sample_name
-                sample_dir.mkdir(exist_ok=True)
-                sym_fastq = Path(sample_dir / fastq_file.name)
+                if self.ispaired:
+                     sample_name = self.get_paired_dirname(fastq_file.name, tag)
+                else:
+                    sample_name = full_sample_name
+             # Create directory for the sample and symlink fastq file into
+            sample_dir = self.meteor.fastq_dir / sample_name
+            sample_dir.mkdir(exist_ok=True, parents=True)
+            sym_fastq = Path(sample_dir / fastq_file.name)
+            if not sym_fastq.is_symlink():
                 sym_fastq.symlink_to(fastq_file.resolve())
+            # Create a configuration
             config_fastq = self.set_fastq_config(sample_name, tag, sym_fastq,
                                                  full_sample_name)
             config_path = sample_dir / f"{full_sample_name}_census_stage_0.ini"

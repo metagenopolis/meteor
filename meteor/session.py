@@ -28,9 +28,9 @@ class Component:
     ref_name: str = field(default_factory=str)
     tmp_path: Path = field(default_factory=Path)
     tmp_dir: Path = field(default_factory=Path)
-    sequence: tuple = ("R", "")
+    sequence: tuple = ("_R", ".R", "_", ".", "")
     extension: tuple = (".fq", ".fastq")
-    compression: tuple = (".gz", ".bz2", ".xz")
+    compression: tuple = (".gz", ".bz2", ".xz", "")
 
 
 class Session(Protocol):

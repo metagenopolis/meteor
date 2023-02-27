@@ -56,7 +56,7 @@ class ReferenceBuilder(Session):
         config_path = self.meteor.ref_dir / self.meteor.ref_name / f"{self.meteor.ref_name}_reference.ini"
         self.save_config(config_ref, config_path)
 
-    def set_reference_config(self) -> ConfigParser:
+    def set_reference_config(self) -> ConfigParser:  # pragma: no cover
         """Write configuration file for reference genome
         """
         config = ConfigParser()
