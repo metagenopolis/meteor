@@ -18,7 +18,7 @@ from itertools import product
 from pathlib import Path
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import Type, Generator, Union
+from typing import Type, Generator
 from meteor.session import Session, Component
 
 
