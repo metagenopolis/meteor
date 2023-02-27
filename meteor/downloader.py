@@ -53,7 +53,7 @@ class Downloader(Session):
                 file_hash.update(chunk)
         return file_hash.hexdigest()
 
-    def show_progress(self, block_num: int, block_size: int, total_size: int):
+    def show_progress(self, block_num: int, block_size: int, total_size: int):  # pragma: no cover
         """Show download progress block per block
 
         :param block_num: Number of the block

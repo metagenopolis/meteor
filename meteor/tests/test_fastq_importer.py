@@ -12,6 +12,7 @@
 
 """Import and prepare fastq"""
 
+# pylint: disable=redefined-outer-name
 from ..session import Component
 from ..fastqimporter import FastqImporter
 from pathlib import Path
