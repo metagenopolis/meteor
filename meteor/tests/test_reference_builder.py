@@ -33,6 +33,7 @@ def builder(tmp_path: Path, datadir: Path):
     meteor = Component
     meteor.ref_dir = tmp_path
     meteor.ref_name = "test"
+    meteor.threads = 1
     return ReferenceBuilder(meteor, input_fasta=datadir/"test_catalogue.fasta.gz")
 
 
@@ -59,3 +60,11 @@ def test_create_reference(builder: ReferenceBuilder, annotation_md5: str, fasta_
         assert md5(output_annotation_file.read()).hexdigest() == annotation_md5
     with open(builder.output_fasta_file, "rb") as output_fasta_file:
         assert md5(output_fasta_file.read()).hexdigest() == fasta_md5
+
+
+def test_execute(builder: ReferenceBuilder):
+    builder.execute()
+    assert builder.output_annotation_file.exists()
+    assert builder.output_fasta_file.exists()
+    # 6 bt2 file
+    assert len(list(builder.output_fasta_file.parent.glob("*.bt2"))) == 6

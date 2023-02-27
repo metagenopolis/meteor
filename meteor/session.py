@@ -21,7 +21,7 @@ from typing import Protocol
 @dataclass(kw_only=True)
 class Component:
     """Set of important constant for meteor"""
-    threads: int = field(default_factory=int)
+    threads: int | None
     fastq_dir: Path = field(default_factory=Path)
     mapping_dir: Path = field(default_factory=Path)
     ref_dir: Path = field(default_factory=Path)

@@ -18,7 +18,7 @@ from itertools import product
 from pathlib import Path
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import Type, Generator
+from typing import Type, Generator, Union
 from meteor.session import Session, Component
 
 
@@ -28,7 +28,7 @@ class FastqImporter(Session):
     meteor: Type[Component]
     input_fastq_dir: Path
     ispaired: bool
-    mask_sample_name: str
+    mask_sample_name: str | None
     project_name: str
     ext_r1: tuple = field(default_factory=tuple)
     ext_r2: tuple = field(default_factory=tuple)
@@ -66,8 +66,8 @@ class FastqImporter(Session):
         for e in self.ext:
             fastq_filename = fastq_filename.replace(e, "")
         return fastq_filename
-    
-    def get_paired_dirname(self, fastq_filename:str, tag:str) -> str:
+
+    def get_paired_dirname(self, fastq_filename: str, tag: str) -> str:
         """Replace all fastq/compressed extension and pairing to get a sample_name
 
         :param fastq_filename: Name of the fastq file
@@ -81,10 +81,10 @@ class FastqImporter(Session):
     def get_fastq_file(self):  # pragma: no cover
         """Find all fastq file in the given input"""
         yield from self.input_fastq_dir.glob("*.f*q*")
-    
-    def get_tag(self, fastq_filename:str) -> str:
+
+    def get_tag(self, fastq_filename: str) -> str:
         """Extract paired-end info
-        
+
         :param fastq_filename: Name of the fastq file
         :return: (str) A string giving pairing status
         """
@@ -93,7 +93,7 @@ class FastqImporter(Session):
         elif fastq_filename.endswith(self.ext_r2):
             return "2"
         raise ValueError("Pairing tag (1 or 2) is not detect in the fastq name.")
-        
+
     def set_fastq_config(self, sample_name: str, tag: str, fastq_file: Path,
                          full_sample_name: str) -> ConfigParser:  # pragma: no cover
         """Set configuration for fastq
@@ -140,8 +140,7 @@ class FastqImporter(Session):
             # split full sample name (in fact library/run name) in order
             if self.mask_sample_name:
                 # to extract sample_name according to regex mask
-                full_sample_name_array = re.search(self.mask_sample_name,
-                                                    full_sample_name)
+                full_sample_name_array = re.search(self.mask_sample_name, full_sample_name)
                 if full_sample_name_array:
                     sample_name = full_sample_name_array[0]
                 else:
@@ -150,10 +149,10 @@ class FastqImporter(Session):
                     continue
             else:
                 if self.ispaired:
-                     sample_name = self.get_paired_dirname(fastq_file.name, tag)
+                    sample_name = self.get_paired_dirname(fastq_file.name, tag)
                 else:
                     sample_name = full_sample_name
-             # Create directory for the sample and symlink fastq file into
+            # Create directory for the sample and symlink fastq file into
             sample_dir = self.meteor.fastq_dir / sample_name
             sample_dir.mkdir(exist_ok=True, parents=True)
             sym_fastq = Path(sample_dir / fastq_file.name)

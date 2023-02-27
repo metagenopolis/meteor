@@ -22,7 +22,7 @@ import pytest
 def builder(tmp_path: Path, datadir: Path):
     meteor = Component
     meteor.fastq_dir = tmp_path
-    return FastqImporter(meteor, datadir, False, "\d+", "fun")
+    return FastqImporter(meteor, datadir, False, "\\d+", "fun")
 
 
 @pytest.fixture
@@ -43,14 +43,14 @@ def builder_paired(tmp_path: Path, datadir: Path):
 def builder_single_mask(tmp_path: Path, datadir: Path):
     meteor = Component
     meteor.fastq_dir = tmp_path / "single_mask"
-    return FastqImporter(meteor, datadir / "single_mask", False, "Zymo_\d+", "fun")
+    return FastqImporter(meteor, datadir / "single_mask", False, "Zymo_\\d+", "fun")
 
 
 @pytest.fixture
 def builder_paired_mask(tmp_path: Path, datadir: Path):
     meteor = Component
     meteor.fastq_dir = tmp_path / "paired_mask"
-    return FastqImporter(meteor, datadir / "paired_mask", True, "Zymo_\d+", "fun")
+    return FastqImporter(meteor, datadir / "paired_mask", True, "Zymo_\\d+", "fun")
 
 
 @pytest.fixture
@@ -110,33 +110,33 @@ def test_get_paired_dirname(builder: FastqImporter, fastq_filename: str, tag: st
     assert builder.get_paired_dirname(fastq_filename, tag) == sample_name
 
 
-def test_execute_single(builder_single: FastqImporter, expected_dir):
+def test_execute_single(builder_single: FastqImporter, expected_dir: tuple):
     builder_single.execute()
-    assert all(Path(builder_single.meteor.fastq_dir / dir ).exists() for dir in expected_dir)
-    assert all(Path(builder_single.meteor.fastq_dir / dir ).is_dir() for dir in expected_dir)
-    assert all(len(list(Path(builder_single.meteor.fastq_dir / dir ).glob("*.f*q*"))) == 1 
+    assert all(Path(builder_single.meteor.fastq_dir / dir).exists() for dir in expected_dir)
+    assert all(Path(builder_single.meteor.fastq_dir / dir).is_dir() for dir in expected_dir)
+    assert all(len(list(Path(builder_single.meteor.fastq_dir / dir).glob("*.f*q*"))) == 1
                for dir in expected_dir)
 
 
-def test_execute_paired(builder_paired: FastqImporter, expected_dir):
+def test_execute_paired(builder_paired: FastqImporter, expected_dir: tuple):
     builder_paired.execute()
-    assert all(Path(builder_paired.meteor.fastq_dir / dir ).exists() for dir in expected_dir)
-    assert all(Path(builder_paired.meteor.fastq_dir / dir ).is_dir() for dir in expected_dir)
-    assert all(len(list(Path(builder_paired.meteor.fastq_dir / dir ).glob("*.f*q*"))) == 2 
+    assert all(Path(builder_paired.meteor.fastq_dir / dir).exists() for dir in expected_dir)
+    assert all(Path(builder_paired.meteor.fastq_dir / dir).is_dir() for dir in expected_dir)
+    assert all(len(list(Path(builder_paired.meteor.fastq_dir / dir).glob("*.f*q*"))) == 2
                for dir in expected_dir)
 
 
-def test_execute_single_mask(builder_single_mask: FastqImporter, expected_dir_mask):
+def test_execute_single_mask(builder_single_mask: FastqImporter, expected_dir_mask: tuple):
     builder_single_mask.execute()
-    assert all(Path(builder_single_mask.meteor.fastq_dir / dir ).exists() for dir in expected_dir_mask)
-    assert all(Path(builder_single_mask.meteor.fastq_dir / dir ).is_dir() for dir in expected_dir_mask)
-    assert all(len(list(Path(builder_single_mask.meteor.fastq_dir / dir ).glob("*.f*q*"))) == 1 
+    assert all(Path(builder_single_mask.meteor.fastq_dir / dir).exists() for dir in expected_dir_mask)
+    assert all(Path(builder_single_mask.meteor.fastq_dir / dir).is_dir() for dir in expected_dir_mask)
+    assert all(len(list(Path(builder_single_mask.meteor.fastq_dir / dir).glob("*.f*q*"))) == 1
                for dir in expected_dir_mask)
 
 
-def test_execute_paired_mask(builder_paired_mask: FastqImporter, expected_dir_mask):
+def test_execute_paired_mask(builder_paired_mask: FastqImporter, expected_dir_mask: tuple):
     builder_paired_mask.execute()
-    assert all(Path(builder_paired_mask.meteor.fastq_dir / dir ).exists() for dir in expected_dir_mask)
-    assert all(Path(builder_paired_mask.meteor.fastq_dir / dir ).is_dir() for dir in expected_dir_mask)
-    assert all(len(list(Path(builder_paired_mask.meteor.fastq_dir / dir ).glob("*.f*q*"))) == 2 
+    assert all(Path(builder_paired_mask.meteor.fastq_dir / dir).exists() for dir in expected_dir_mask)
+    assert all(Path(builder_paired_mask.meteor.fastq_dir / dir).is_dir() for dir in expected_dir_mask)
+    assert all(len(list(Path(builder_paired_mask.meteor.fastq_dir / dir).glob("*.f*q*"))) == 2
                for dir in expected_dir_mask)

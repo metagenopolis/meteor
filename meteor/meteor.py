@@ -133,13 +133,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                             file_1.[fastq/fq] & file_2.[fastq/fq].
                                         If compressed, [gz,bz2,xz] are accepted.""")
     fastq_parser.add_argument("-p", dest="ispaired", default=False, action="store_true",
-                              help = "Fastq files are paired.")
+                              help="Fastq files are paired.")
     fastq_parser.add_argument("-m", dest="mask_sample_name", type=str,
                               help="Regular expression for extracting sample name.")
     fastq_parser.add_argument("-n", dest="project_name", type=str, required=True,
                               help="Project name (ansi-string without space).")
     fastq_parser.add_argument("-o", dest="fastq_dir", type=isdir, required=True,
-                                  help="Output path of the fastq repository.")
+                              help="Output path of the fastq repository.")
     # fastq_parser.add_argument("-c", dest="iscompressed", default=False,
     #     action="store_true", help = "Fastq files are compressed.")
     # fastq_parser.add_argument("-d", dest="isdispatched", default=False, action="store_true",
@@ -186,8 +186,8 @@ def main() -> None:  # pragma: no cover
     if args.command == "fastq":
         meteor.fastq_dir = args.fastq_dir
         # args.isdispatched,
-        fastq_importer = FastqImporter(meteor, args.input_fastq_dir, 
-                                       args.ispaired, 
+        fastq_importer = FastqImporter(meteor, args.input_fastq_dir,
+                                       args.ispaired,
                                        args.mask_sample_name,
                                        args.project_name)
         fastq_importer.execute()
