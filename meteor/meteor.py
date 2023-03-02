@@ -160,15 +160,23 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Counting type string (default smart_shared_reads).")
     mapping_parser.add_argument("-p", dest="mapping_type", type=str,
                                 choices=["local", "end-to-end"], default="end-to-end",
-                                help="Mapping type (Default end-to-end)")
+                                help="Counting type (Default end-to-end)")
+    mapping_parser.add_argument("-trim", dest="trim", type=int, default=80,
+                                help="Trim reads for mapping (default 80. If 0, no trim)")
+    mapping_parser.add_argument("-align", dest="alignment_number", type=int, default=10000,
+                                help="Number alignments considered for each read (default 10000)")
     mapping_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
                                 help="Path to the directory where temporary files (e.g. sam) are stored")
+    mapping_parser.add_argument("-k", dest="keep_bam", action="store_true",
+                                help="Keep bam files")
     mapping_parser.add_argument("-m", dest="mapping_only", action="store_true",
                                 help="Execute mapping only")
     mapping_parser.add_argument("-n", dest="counting_only", action="store_true",
                                 help="Execute counting only")
     mapping_parser.add_argument("-t", dest="threads", default=1, type=int,
                                 help="Threads count.")
+    mapping_parser.add_argument("-pysam", dest="pysam_test", action="store_true",
+                                help="Execute mapping only")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
 
@@ -206,7 +214,8 @@ def main() -> None:  # pragma: no cover
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
         counter = Counter(meteor, args.counting_type, args.mapping_type,
-                          args.counting_only, args.mapping_only)
+                          args.trim, args.alignment_number,
+                          args.counting_only, args.mapping_only, args.pysam_test)
         counter.execute()
     else:
         meteor.ref_name = args.user_choice
