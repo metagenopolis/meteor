@@ -65,11 +65,11 @@ class Downloader(Session):
             self.start_time = time()
             return
         duration = time() - self.start_time
-        progress_size = int(block_num * block_size)
-        speed = int(progress_size / (1024 * duration))
-        percent = round(block_num * block_size / total_size *100,2)
-        print(f"Download of {self.choice} catalogue : {percent}%, {progress_size/ (1024 * 1024)} MB,"
-              f"{speed} KB/s, {duration} seconds passed", end="\r")
+        progress_size = block_num * block_size
+        speed = progress_size / (1024 * duration)
+        percent = block_num * block_size / total_size
+        print(f"Download of {self.choice} catalogue : {percent:.1%}, {progress_size/ (1024 * 1024):.0f} MB, "
+              f"{speed:.0f} KB/s, {duration:.0f} elapsed time", end="\r")
 
     def extract_tar(self, catalogue: Path) -> None:
         with tarfile.open(catalogue) as tar:
