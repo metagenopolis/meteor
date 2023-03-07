@@ -44,10 +44,11 @@ class Downloader(Session):
 
     def getmd5(self, catalog: Path) -> str:
         """Compute in md5 chunck by chunk to avoid memory overload
-        :param catalog: A path object to the downloaded catalog
-        :return: A string of the md5sum
+
+        :param catalog: (Path) A path object to the downloaded catalog
+        :return: (str) A string of the md5sum
         """
-        logging.info("Compute md5sum")
+        logging.info("Checking file")
         with catalog.open("rb") as f:
             file_hash = md5()
             while chunk := f.read(8192):
@@ -74,8 +75,13 @@ class Downloader(Session):
               f"{speed:.0f} KB/s, {int(hours):0>2}:{int(minutes):0>2}:{int(seconds):0>2} elapsed time.", end="\r", flush=True)
 
     def extract_tar(self, catalogue: Path) -> None:
+        """Extract tar file
+
+        :param catalogue: (Path) A path object to the given catalog
+        """
+        logging.info("Extracting catalogue")
         with tarfile.open(catalogue) as tar:
-            tar.extractall()
+            tar.extractall(path=self.meteor.ref_dir)
 
     def execute(self) -> bool:
         try:
