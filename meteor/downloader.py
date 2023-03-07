@@ -65,7 +65,7 @@ class Downloader(Session):
             self.start_time = time()
             return
         duration = time() - self.start_time
-        progress_size = round(block_num * block_size, 2)
+        progress_size = int(block_num * block_size)
         speed = int(progress_size / (1024 * duration))
         percent = round(block_num * block_size / total_size *100,2)
         print(f"Download of {self.choice} catalogue : {percent}%, {progress_size/ (1024 * 1024)} MB,"
