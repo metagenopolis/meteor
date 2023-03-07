@@ -61,7 +61,6 @@ class Downloader(Session):
         :param block_size: One block size
         :param total_size: Total size of the file in block
         """
-        print(f"Download of {self.choice} catalogue : {}%", end="\r")
         if block_num == 0:
             self.start_time = time()
             return
