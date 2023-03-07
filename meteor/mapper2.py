@@ -19,7 +19,7 @@ from configparser import ConfigParser
 from datetime import datetime
 from typing import Type
 from meteor.session import Session, Component
-import pysam
+from pysam import view, sort, index
 from tempfile import NamedTemporaryFile
 # from memory_profiler import profile
 from time import perf_counter
@@ -79,7 +79,7 @@ class Mapper2(Session):
         :param samfile: (str) SAM filename
         """
         # convert sam to bam using pysam
-        pysam.view("-@", str(self.meteor.threads), "-S", "-b", "-o",
+        view("-@", str(self.meteor.threads), "-S", "-b", "-o",
                    bam_file, samfile, catch_stdout=False)
 
     # @profile(stream=fp)
@@ -90,11 +90,10 @@ class Mapper2(Session):
         :return: bamfile (str) BAM filename
         """
         # sort the bam file
-        pysam.sort("-o", sorted_bamfile, "-@", str(self.meteor.threads),
+        sort("-o", sorted_bamfile, "-@", str(self.meteor.threads),
                    "-O", "bam", bamfile, catch_stdout=False)
         # index the bam file
-        pysam.index(sorted_bamfile)
-        print(sorted_bamfile)
+        index(sorted_bamfile)
 
     # @profile(stream=fp)
     def execute(self) -> bool:

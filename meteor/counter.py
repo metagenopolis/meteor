@@ -30,7 +30,7 @@ from meteor.session import Session, Component
 from typing import Type
 from collections import defaultdict
 import itertools
-import pysam
+from pysam import index, idxstats, AlignmentFile
 from time import perf_counter
 
 
@@ -190,9 +190,9 @@ class Counter(Session):
         :outfile: (str) count table name
         """
         # index the bam file
-        pysam.index(bamfile)
+        index(bamfile)
         # create count table
-        table = pysam.idxstats(bamfile)
+        table = idxstats(bamfile)
         # write the count table
         with outfile.open("wt", encoding="UTF-8") as out:
             for line in table:
@@ -389,7 +389,7 @@ class Counter(Session):
         logging.info("Launch counting")
         # "-t", str(self.meteor.tmp_dir) + "/"
         # open the BAM file
-        with pysam.AlignmentFile(bam_file, "rb") as bamdesc:
+        with AlignmentFile(str(bam_file.resolve()), "rb") as bamdesc:
             if self.mapping_type == "total_reads":
                 # name of the filtered BAM file
                 new_filename = bam_file.parent / f"unsorted_filtered_{bam_file.name}"
@@ -397,7 +397,7 @@ class Counter(Session):
                 read_list = list(itertools.chain(reads.values()))
                 merged_list = list(itertools.chain.from_iterable(read_list))
                 # writing the filtered BAM file
-                with pysam.AlignmentFile(new_filename, "wb", template=bamdesc) as total_reads:
+                with AlignmentFile(str(new_filename.resolve()), "wb", template=bamdesc) as total_reads:
                     for element in merged_list:
                         total_reads.write(element)
                 self.write_table(str(new_filename.resolve()), count_file)

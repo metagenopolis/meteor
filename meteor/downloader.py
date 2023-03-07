@@ -20,7 +20,7 @@ from pathlib import Path
 from hashlib import md5
 from urllib.request import urlretrieve
 from typing import Type
-from time import time
+from time import time, sleep
 import tarfile
 
 @dataclass
@@ -28,6 +28,7 @@ class Downloader(Session):
     """Download and prepare catalogues"""
     meteor: Type[Component]
     choice: str
+    check_md5: bool
     configuration_path: Path = field(default_factory=Path)
     catalogues_config: ConfigParser = field(default_factory=ConfigParser)
     start_time: float  = field(default_factory=float)
@@ -71,8 +72,10 @@ class Downloader(Session):
         percent = block_num * block_size / total_size
         hours, rem = divmod(duration, 3600)
         minutes, seconds = divmod(rem, 60)
-        print(f"Download of {self.choice} catalogue : {percent:.1%}, {progress_size/ (1024 * 1024):.0f} MB, "
-              f"{speed:.0f} KB/s, {int(hours):0>2}:{int(minutes):0>2}:{int(seconds):0>2} elapsed time.", end="\r", flush=True)
+        print(f"Download of {self.choice} catalogue : {percent:.1%}, {progress_size/ (1024 * 1024): 8.0f} MB, "
+              f"{speed: 6.0f} KB/s, {int(hours):0>2}:{int(minutes):0>2}:{int(seconds):0>2} elapsed time.",
+              end="\r", flush=True)
+        sleep(1.0)
 
     def extract_tar(self, catalogue: Path) -> None:
         """Extract tar file
@@ -91,7 +94,8 @@ class Downloader(Session):
             md5_expect = self.catalogues_config[self.choice]["md5"]
             catalogue = self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
-            assert md5_expect == self.getmd5(catalogue)
+            if self.check_md5:
+                assert md5_expect == self.getmd5(catalogue)
             self.extract_tar(catalogue)
         except AssertionError:
             logging.error("MD5sum of %s has a different value than expected", catalogue)

@@ -109,6 +109,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
     download_parser.add_argument("-i", dest="user_choice", type=str, required=True,
                                  choices=["chicken", "pig", "human_gut"],
                                  help="Select the catalogue to download.")
+    download_parser.add_argument("-c", dest="check_md5", action="store_true",
+                                 help="Check the md5sum of the catalogue.")
     download_parser.add_argument("-o", dest="ref_dir", type=isdir, required=True,
                                  help="Output directory.")
     reference_parser = subparsers.add_parser("build", help="Index reference")
@@ -218,7 +220,7 @@ def main() -> None:  # pragma: no cover
     else:
         meteor.ref_name = args.user_choice
         meteor.ref_dir = args.ref_dir
-        downloader = Downloader(meteor, args.user_choice)
+        downloader = Downloader(meteor, args.user_choice, args.check_md5)
         downloader.execute()
     # Close logging
     logger.handlers[0].close()
