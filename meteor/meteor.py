@@ -107,12 +107,10 @@ def get_arguments() -> Namespace:  # pragma: no cover
     # Mappping commands
     download_parser = subparsers.add_parser("download", help="Download catalog")
     download_parser.add_argument("-i", dest="user_choice", type=str, required=True,
-                                 default=["chicken"], choices=["chicken", "pig"],
-                                 help="Select the catalogue to download (default chicken microbiome).")
+                                 choices=["chicken", "pig", "human_gut"],
+                                 help="Select the catalogue to download.")
     download_parser.add_argument("-o", dest="ref_dir", type=isdir, required=True,
                                  help="Output directory.")
-    download_parser.add_argument("-t", dest="threads", default=1, type=int,
-                                 help="Threads count.")
     reference_parser = subparsers.add_parser("build", help="Index reference")
     reference_parser.add_argument("-i", dest="input_fasta_file", type=isfile,
                                   required=True, help="Input fasta filename (compressed format accepted).")
@@ -220,7 +218,6 @@ def main() -> None:  # pragma: no cover
     else:
         meteor.ref_name = args.user_choice
         meteor.ref_dir = args.ref_dir
-        meteor.threads = args.threads
         downloader = Downloader(meteor, args.user_choice)
         downloader.execute()
     # Close logging

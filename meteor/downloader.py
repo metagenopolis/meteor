@@ -15,13 +15,12 @@
 import logging
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
-from meteor.referencebuilder import ReferenceBuilder
 from configparser import ConfigParser
 from pathlib import Path
 from hashlib import md5
 from urllib.request import urlretrieve
 from typing import Type
-
+import tarfile
 
 @dataclass
 class Downloader(Session):
@@ -53,7 +52,7 @@ class Downloader(Session):
                 file_hash.update(chunk)
         return file_hash.hexdigest()
 
-    def show_progress(self, block_num: int, block_size: int, total_size: int):  # pragma: no cover
+    def show_progress(self, block_num: int, block_size: int, total_size: int) -> None:  # pragma: no cover
         """Show download progress block per block
 
         :param block_num: Number of the block
@@ -62,17 +61,20 @@ class Downloader(Session):
         """
         print(f"Download of {self.choice} catalogue : {round(block_num * block_size / total_size *100,2)}%", end="\r")
 
+    def extract_tar(self, catalogue: Path) -> None:
+        with tarfile.open(catalogue) as tar:
+            tar.extractall()
+
     def execute(self) -> bool:
         try:
             # for choice in self.user_choice:
-            logging.info("Download %s microbiome reference catalog", self.choice)
-            url = self.catalogues_config[self.choice]["nr_catalogue"]
+            logging.info("Download %s microbiome reference catalogue", self.choice)
+            url = self.catalogues_config[self.choice]["catalogue"]
             md5_expect = self.catalogues_config[self.choice]["md5"]
-            catalog_fasta = self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
-            urlretrieve(url, filename=catalog_fasta, reporthook=self.show_progress)
-            assert md5_expect == self.getmd5(catalog_fasta)
-            reference_builder = ReferenceBuilder(self.meteor, catalog_fasta)
-            reference_builder.execute()
+            catalogue = self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
+            urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
+            assert md5_expect == self.getmd5(catalogue)
+            self.extract_tar(catalogue)
         except AssertionError:
-            logging.error("MD5sum of %s has a different value than expected", catalog_fasta)
+            logging.error("MD5sum of %s has a different value than expected", catalogue)
         return True
