@@ -20,6 +20,7 @@ from pathlib import Path
 from hashlib import md5
 from urllib.request import urlretrieve
 from typing import Type
+from time import time
 import tarfile
 
 @dataclass
@@ -29,6 +30,7 @@ class Downloader(Session):
     choice: str
     configuration_path: Path = field(default_factory=Path)
     catalogues_config: ConfigParser = field(default_factory=ConfigParser)
+    start_time: float  = field(default_factory=float)
 
     def __post_init__(self) -> None:
         try:
@@ -59,7 +61,16 @@ class Downloader(Session):
         :param block_size: One block size
         :param total_size: Total size of the file in block
         """
-        print(f"Download of {self.choice} catalogue : {round(block_num * block_size / total_size *100,2)}%", end="\r")
+        print(f"Download of {self.choice} catalogue : {}%", end="\r")
+        if block_num == 0:
+            self.start_time = time()
+            return
+        duration = time() - self.start_time
+        progress_size = round(block_num * block_size, 2)
+        speed = int(progress_size / (1024 * duration))
+        percent = round(block_num * block_size / total_size *100,2)
+        print(f"Download of {self.choice} catalogue : {percent}%, {progress_size/ (1024 * 1024)} MB,"
+              f"{speed} KB/s, {duration} seconds passed", end="\r")
 
     def extract_tar(self, catalogue: Path) -> None:
         with tarfile.open(catalogue) as tar:
