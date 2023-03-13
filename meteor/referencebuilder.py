@@ -107,12 +107,13 @@ class ReferenceBuilder(Session):
             for line in in_fasta:
                 if line.startswith(">"):
                     if len(seq) > 0:
-                        yield len(seq), fill(seq, width=80)
+                        yield header, len(seq), fill(seq, width=80)
+                    header = line[1:].split(" ")[0].strip()
                     seq = ""
                 else:
                     seq += line.strip()
             if len(seq) > 0:
-                yield len(seq), fill(seq, width=80)
+                yield header, len(seq), fill(seq, width=80)
 
     def create_reference(self):
         """Write a new reference file for meteor with numeroted genes
@@ -120,8 +121,8 @@ class ReferenceBuilder(Session):
         """
         with self.output_annotation_file.open("wt", encoding="UTF-8") as output_annotation:
             with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
-                for gene_id, (len_seq, seq) in enumerate(self.read_reference(), start=1):
-                    output_annotation.write(f"{gene_id}\t{len_seq}\n")
+                for gene_id, (header, len_seq, seq) in enumerate(self.read_reference(), start=1):
+                    output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
                     output_fasta.write(f">{gene_id}\n{seq}\n")
 
     def execute(self) -> bool:

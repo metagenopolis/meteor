@@ -39,19 +39,20 @@ def builder(tmp_path: Path, datadir: Path):
 
 def test_read_reference(builder_defec: ReferenceBuilder):
     res = (
-        (80, "ATGAAAATGAACCTGCAAAAGGACATGTTTGATCGCAAATTGCGATACAAGATGTACAAAGATGGTAAAAAGTGGGTGTT"),
-        (56, "TGCCAGCATGGCGACTTTGTCTTTGATTGGGGCTTTTTTGGGCGGTGGTAGCGCCC"),
-        (74, "ATGAAAATGAACCTGCAAAAGGACGATCGCAAATTGCGATACAAGATGTACAAAGATGGTAAAAAGTGGGTGTT"),
+        ("1", 80, "ATGAAAATGAACCTGCAAAAGGACATGTTTGATCGCAAATTGCGATACAAGATGTACAAAGATGGTAAAAAGTGGGTGTT"),
+        ("2", 56, "TGCCAGCATGGCGACTTTGTCTTTGATTGGGGCTTTTTTGGGCGGTGGTAGCGCCC"),
+        ("4", 74, "ATGAAAATGAACCTGCAAAAGGACGATCGCAAATTGCGATACAAGATGTACAAAGATGGTAAAAAGTGGGTGTT"),
     )
-    for i, (length, sequence) in enumerate(builder_defec.read_reference()):
-        assert length == res[i][0]
-        assert sequence == res[i][1]
+    for i, (header, length, sequence) in enumerate(builder_defec.read_reference()):
+        assert header == res[i][0]
+        assert length == res[i][1]
+        assert sequence == res[i][2]
 
 
 @pytest.mark.parametrize(
     ("annotation_md5", "fasta_md5"),
     (
-        pytest.param("b8d7e70fe88abbf1cf1746e5a02439ea", "2912b682a8e7554025cc5feadd641570", id="Accurate output"),
+        pytest.param("1a2dec7bc98bc3cf7a94997d54c2d9c0", "2912b682a8e7554025cc5feadd641570", id="Accurate output"),
     )
 )
 def test_create_reference(builder: ReferenceBuilder, annotation_md5: str, fasta_md5: str):
