@@ -78,6 +78,7 @@ class Mapper2(Session):
 
         :param samfile: (str) SAM filename
         """
+        print(samfile)
         # convert sam to bam using pysam
         view("-@", str(self.meteor.threads), "-S", "-b", "-o",
                    bam_file, samfile, catch_stdout=False)
@@ -110,6 +111,7 @@ class Mapper2(Session):
             parameters += f"--trim-to {self.trim} "
         if self.alignment_number > 0 and self.counting_type != "unique_reads":
             parameters += f"-k {self.alignment_number} "
+        #with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_sam_file:
         with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_sam_file:
             # execute command
             start = perf_counter()

@@ -57,10 +57,10 @@ def test_read_reference(builder_defec: ReferenceBuilder):
 )
 def test_create_reference(builder: ReferenceBuilder, annotation_md5: str, fasta_md5: str):
     builder.create_reference()
-    with open(builder.output_annotation_file, "rb") as output_annotation_file:
-        assert md5(output_annotation_file.read()).hexdigest() == annotation_md5
-    with open(builder.output_fasta_file, "rb") as output_fasta_file:
-        assert md5(output_fasta_file.read()).hexdigest() == fasta_md5
+    with builder.output_annotation_file.open("rb") as output_annotation:
+        assert md5(output_annotation.read()).hexdigest() == annotation_md5
+    with builder.output_fasta_file.open("rb") as output_fasta:
+        assert md5(output_fasta.read()).hexdigest() == fasta_md5
 
 
 def test_execute(builder: ReferenceBuilder):
