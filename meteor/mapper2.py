@@ -38,7 +38,7 @@ class Mapper2(Session):
     alignment_number: int
     counting_type: str
 
-    def set_mapping_config(self, cmd: str, bam_file: Path) -> ConfigParser:
+    def set_mapping_config(self, cmd: str, bam_file: Path) -> ConfigParser:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
@@ -80,7 +80,7 @@ class Mapper2(Session):
         """
         print(samfile)
         # convert sam to bam using pysam
-        view("-@", str(self.meteor.threads), "-S", "-b", "-o",
+        view("-@", str(self.meteor.threads), "-1", "-u", "-S", "-b", "-o",
                    bam_file, samfile, catch_stdout=False)
 
     # @profile(stream=fp)

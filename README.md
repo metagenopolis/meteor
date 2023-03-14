@@ -40,33 +40,54 @@ pip install meteor
 
 ### Download reference
 
-Several gut microbial gene catalogue were designed.
+Meteor requires to download locally a microbial gene catalogue. Several catalogues are currently available:
 
-These references can be downloaded and indexed:
+|  Microbial gene catalogue | \<name\> | Nb. Genes | Metagenomic Species Pan-genomes (MSPs) |Size (Gb)  | Description  |
+|---|---|---|---|---|---|
+|  *Gallus gallus domesticus* | chicken_caecal  | 13.6M  | 2420 | | [link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/FHPJH5)
+| *Homo sapiens oral*  |  human_oral | 8.4M  | 853 | | [link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/WQ4UTV)
+| *Homo sapiens gut* |  human_gut | 10.4M  | 1990 | [link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/FLANUP)
+|  *Rattus norvegicus* | rat_gut  | 5.9M | 1627 | | [link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.57745/GVL2EE)
+|  *Mus musculus*  | mouse_gut  | 5.0M  | 1252 | | [link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/L11MXM)
+|  *Sus domesticus* | pig_gut  | 9.3M  | 1523 | | [link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/OPAULL)
+|  *Oryctolagus cuniculus* | rabbit_gut  | 5.7M | 1053 | | [link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/5EJKAS)
+
+These references can be downloaded with following command:
 ```
-meteor download <name> <outputdir>
+meteor download -i <name> -c -o <refdir>
 ```
 
 ### Import custom reference
 
 Users can also import custom gene catalogue with the command:
 ```
-meteor reference ....
+meteor build -i <fastafile> -n <name> -o <refdir> -t <threads>
 ```
 
 ### Import fastq
 
 Meteor requires a first of fastq indexing:
 ```
-meteor fastq -i <name>  -p ....
+meteor fastq -i <fastqdir>  [-p paired reads] -n <projectname> -o <outputdir>
 ```
+When multiple sequencing were performed on one sample, it is possible to group these samples with a regular expression:
+```
+meteor fastq -i <fastqdir>  -m Zymo_\\d+ -n <projectname> -o <outputdir>
+```
+Which group samples the same id.
 
 ### Profiling
 
-The taxonomic profiling can be obtained from read::
+The profiling can be obtained from read:
 ```
-meteor mapping ..
+meteor mapping -i <fastqdir> -r <refdir> -o <mappingdir>
 ```
 
-### Analysis
-
+### Taxonomic analysis
+```
+meteor profiler -i <mappingdir> -o
+```
+### Functionnal analysis
+```
+meteor profiler -i <mappingdir> -o
+```

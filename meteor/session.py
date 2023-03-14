@@ -26,7 +26,9 @@ class Component:
     mapping_dir: Path = field(default_factory=Path)
     ref_dir: Path = field(default_factory=Path)
     ref_name: str = field(default_factory=str)
+    # Path given by the user
     tmp_path: Path = field(default_factory=Path)
+    # Path used by meteor in the end
     tmp_dir: Path = field(default_factory=Path)
     sequence: tuple = ("_R", ".R", "_", ".", "")
     extension: tuple = (".fq", ".fastq")

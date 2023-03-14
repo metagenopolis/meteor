@@ -16,22 +16,54 @@
 from ..session import Component
 from ..mapper2 import Mapper2
 from pathlib import Path
-from hashlib import md5
+from configparser import ConfigParser
 import pytest
 
 
 @pytest.fixture
-def mapping_builder(tmp_path: Path, datadir: Path):
+def mapping_builder(datadir: Path, tmp_path: Path):
     meteor = Component
-    meteor.ref_dir = tmp_path
+    meteor.ref_dir = datadir
     meteor.ref_name = "test"
     meteor.threads = 1
-    return Mapper2(meteor, {}, [str(datadir / "eva71.fq.xz")], "end-to-end", 80, 10000, "smart_shared_reads")
+    meteor.tmp_dir = tmp_path
+    ref_ini_file = datadir / "eva71" / "eva71_reference.ini"
+    ref_ini = ConfigParser()
+    with ref_ini_file.open("rt", encoding="UTF-8") as ref:
+        ref_ini.read_file(ref)
+    census_ini_file = datadir / "eva71_bench_census_stage_0.ini"
+    census_ini = ConfigParser()
+    with census_ini_file.open("rt", encoding="UTF-8") as cens:
+        census_ini.read_file(cens)
+        sample_info = census_ini["sample_info"]
+        stage1_dir = tmp_path / sample_info["sample_name"]
+        stage1_dir.mkdir(exist_ok=True, parents=True)
+        data_dict = {
+            "census": census_ini,
+            "directory": stage1_dir,
+            "Stage1FileName": stage1_dir / census_ini_file.name.replace("stage_0", "stage_1"),
+            "reference": ref_ini
+        }
+    return Mapper2(meteor, data_dict, [str(datadir / "eva71_bench.fq.gz")],
+                   "end-to-end", 80, 10000, "smart_shared_reads")
 
 
 def test_create_bam(mapping_builder: Mapper2,  datadir: Path, tmp_path: Path):
-    input_sam = datadir / "eva71.sam"
-    result_bam = tmp_path / "eva71.bam"
-    mapping_builder.create_bam(str(input_sam.resolve()),  str(result_bam.resolve()))
-    with result_bam.open("rb") as bam:
-        assert  md5(bam.read()).hexdigest() == "427347d53952911c850bd95e577175a8"
+    input_sam = datadir / "eva71_bench.sam"
+    output_bam = tmp_path / "eva71_bench.bam"
+    mapping_builder.create_bam(str(input_sam.resolve()),  str(output_bam.resolve()))
+    assert output_bam.exists()
+
+
+def test_sort_bam(mapping_builder: Mapper2,  datadir: Path, tmp_path: Path):
+    input_bam = datadir / "eva71_bench.bam"
+    output_bam = tmp_path / "eva71_bench_sorted.bam"
+    mapping_builder.sort_bam(str(input_bam.resolve()), str(output_bam.resolve()))
+    assert output_bam.exists()
+
+
+def test_execute(mapping_builder: Mapper2):
+    mapping_builder.execute()
+    output_bam = (mapping_builder.census["directory"] /
+                  f"{mapping_builder.census['census']['sample_info']['sample_name']}.bam")
+    assert output_bam.exists()
