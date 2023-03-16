@@ -8,3 +8,4 @@ meteor.egg-info
 build
 dist
 doc
+test

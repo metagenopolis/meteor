@@ -13,7 +13,7 @@ build:
 
 requirements:
     build:
-        - {{ compiler('cxx') }}
+        # - {{ compiler('cxx') }}
         - make
         - gxx
     host:
@@ -21,6 +21,7 @@ requirements:
     run:
         - python
         - bowtie2
+        - pysam
 test:
     commands:
         - meteor -h
