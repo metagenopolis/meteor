@@ -26,7 +26,7 @@ from meteor.fastqimporter import FastqImporter
 from meteor.referencebuilder import ReferenceBuilder
 from meteor.counter import Counter
 from meteor.downloader import Downloader
-
+from tempfile import TemporaryDirectory, mkdtemp
 
 class Color:
     BOLD = "\033[1m"
@@ -154,9 +154,9 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="""Path to project directory, containing mapping
                                         and profile data (e.g. /projects/project_dir)""")
     mapping_parser.add_argument("-c", dest="counting_type", type=str,
-                                default="smart_shared_reads",
-                                choices=["total_reads", "shared_reads",
-                                         "smart_shared_reads", "unique_reads"],
+                                default="smart_shared",
+                                # "shared_reads",
+                                choices=["total", "smart_shared", "unique", "best"],
                                 help="Counting type string (default smart_shared_reads).")
     mapping_parser.add_argument("-p", dest="mapping_type", type=str,
                                 choices=["local", "end-to-end"], default="end-to-end",
@@ -177,6 +177,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Threads count.")
     mapping_parser.add_argument("-pysam", dest="pysam_test", action="store_true",
                                 help="Execute mapping only")
+    subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
 
@@ -217,11 +218,33 @@ def main() -> None:  # pragma: no cover
                           args.trim, args.alignment_number,
                           args.counting_only, args.mapping_only, args.pysam_test)
         counter.execute()
-    else:
+    elif args.command == "downloader":
         meteor.ref_name = args.user_choice
         meteor.ref_dir = args.ref_dir
         downloader = Downloader(meteor, args.user_choice, args.check_md5)
         downloader.execute()
+    # Testing
+    else:
+        tmpdirname = mkdtemp()
+        # with TemporaryDirectory() as tmpdirname:
+        meteor.ref_name = "test"
+        meteor.ref_dir = Path(tmpdirname) / "ref"
+        meteor.threads = 1
+        meteor.tmp_path = None
+        meteor.tmp_dir = Path(tmpdirname)
+        meteor.mapping_dir = Path(tmpdirname) / "map"
+        meteor.fastq_dir = Path(tmpdirname) / "fastq"
+        meteor.fastq_dir.mkdir(exist_ok=True)
+        downloader = Downloader(meteor, "test", True)
+        downloader.execute()
+        fastq_importer = FastqImporter(meteor, meteor.tmp_dir,
+                                        False, None, "test_project")
+        fastq_importer.execute()
+        counter = Counter(meteor, "best", "end-to-end",
+                            80, 1, False, False, True)
+        counter.execute()
+
+
     # Close logging
     logger.handlers[0].close()
 

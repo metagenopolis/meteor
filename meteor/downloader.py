@@ -49,7 +49,7 @@ class Downloader(Session):
         :param catalog: (Path) A path object to the downloaded catalog
         :return: (str) A string of the md5sum
         """
-        logging.info("Checking file")
+        logging.info("Checking file md5 %s", str(catalog))
         with catalog.open("rb") as f:
             file_hash = md5()
             while chunk := f.read(8192):
@@ -75,7 +75,6 @@ class Downloader(Session):
         print(f"Download of {self.choice} catalogue : {percent:.1%}, {progress_size/ (1024 * 1024): 8.0f} MB, "
               f"{speed: 6.0f} KB/s, {int(hours):0>2}:{int(minutes):0>2}:{int(seconds):0>2} elapsed time.",
               end="\r", flush=True)
-        sleep(1.0)
 
     def extract_tar(self, catalogue: Path) -> None:
         """Extract tar file
@@ -94,6 +93,13 @@ class Downloader(Session):
             md5_expect = self.catalogues_config[self.choice]["md5"]
             catalogue = self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
+            if self.choice == "test":
+                logging.info("Download test fastq file")
+                url_fastq = self.catalogues_config[self.choice]["fastq"]
+                fastq_test = self.meteor.tmp_dir / self.catalogues_config[self.choice]["fastqfilename"]
+                md5fastq_expect = self.catalogues_config[self.choice]["md5fastq"]
+                urlretrieve(url_fastq, filename=fastq_test, reporthook=self.show_progress)
+                assert md5fastq_expect == self.getmd5(fastq_test)
             if self.check_md5:
                 assert md5_expect == self.getmd5(catalogue)
             self.extract_tar(catalogue)

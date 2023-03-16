@@ -61,6 +61,7 @@ flake8:
 mypy:
   stage: test
   before_script:
+  #pysam-stubs
     - pip install mypy pytest
   script:
     - mypy meteor

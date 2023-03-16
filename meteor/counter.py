@@ -379,6 +379,7 @@ class Counter(Session):
         with open(output, "wt", encoding="UTF-8") as out:
             for genome, abundance in abundance_dict.items():
                 out.write(f"{genome}\t{database[genome]}\t{abundance}\n")
+        return True
 
     def launch_counting2(self, bam_file: Path, count_file: Path) -> None:
         """Launch meteor counter
@@ -388,9 +389,11 @@ class Counter(Session):
         """
         logging.info("Launch counting")
         # "-t", str(self.meteor.tmp_dir) + "/"
+        if self.counting_type == "best":
+            return self.write_table(str(bam_file.resolve()), count_file)
         # open the BAM file
         with AlignmentFile(str(bam_file.resolve()), "rb") as bamdesc:
-            if self.mapping_type == "total_reads":
+            if self.mapping_type == "total":
                 # name of the filtered BAM file
                 new_filename = bam_file.parent / f"unsorted_filtered_{bam_file.name}"
                 reads, genomes = self.filter_bam(bamdesc)
@@ -400,8 +403,8 @@ class Counter(Session):
                 with AlignmentFile(str(new_filename.resolve()), "wb", template=bamdesc) as total_reads:
                     for element in merged_list:
                         total_reads.write(element)
-                self.write_table(str(new_filename.resolve()), count_file)
-            elif self.counting_type == "smart_shared_reads":
+                return self.write_table(str(new_filename.resolve()), count_file)
+            elif self.counting_type == "smart_shared":
                 # create a dictionary containing the length of reference genomes
                 # get name of reference sequence
                 references = bamdesc.references
@@ -422,7 +425,7 @@ class Counter(Session):
                 multiple = self.compute_abm(reads, coef_read, database)
                 # Calculate reference abundance & write count table
                 abundance = self.compute_abs(unique, multiple)
-                self.write_stat(count_file, abundance, database)
+                return self.write_stat(count_file, abundance, database)
 
     def execute(self) -> bool:
         """Compute the mapping"""
@@ -488,10 +491,7 @@ class Counter(Session):
                     count_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.tsv"
                     if self.pysam_test:
                         start = perf_counter()
-                        if self.counting_type == "unique_reads":
-                            self.write_table(str(bam_file.resolve()), count_file)
-                        else:
-                            self.launch_counting2(bam_file, count_file)
+                        self.launch_counting2(bam_file, count_file)
                         logging.info("Completed counting creation in %f seconds", perf_counter() - start)
                     else:
                         self.launch_counting(workflow_ini)

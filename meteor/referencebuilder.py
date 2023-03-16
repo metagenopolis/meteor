@@ -94,6 +94,7 @@ class ReferenceBuilder(Session):
 
         :return: A generator object that iterate over each gene
         """
+        header = ""
         seq = ""
         if self.input_fasta.suffix == ".gz":
             in_fasta = gzip.open(self.input_fasta, "rt")

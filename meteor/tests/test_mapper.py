@@ -10,7 +10,7 @@
 #    A copy of the GNU General Public License is available at
 #    http://www.gnu.org/licenses/gpl-3.0.html
 
-"""Test reference builder main objects"""
+"""Test mapper builder main object"""
 
 # pylint: disable=redefined-outer-name
 from ..session import Component
