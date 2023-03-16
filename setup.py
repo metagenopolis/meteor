@@ -77,7 +77,7 @@ setup(name="meteor",
       author="Amine Ghozlane",
       author_email="amine.ghozlane@pasteur.fr",
       platforms= ["Linux", "Unix", "Darwin", "Windows"],
-      install_requires=[],
+      install_requires=["pysam"],
       packages=find_packages(),
       classifiers = [
         "Environment :: Console",

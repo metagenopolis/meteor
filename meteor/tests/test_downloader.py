@@ -16,7 +16,6 @@
 from ..session import Component
 from ..downloader import Downloader
 from pathlib import Path
-from hashlib import md5
 import pytest
 
 
@@ -25,6 +24,7 @@ def downer(tmp_path: Path):
     meteor = Component
     meteor.fastq_dir = tmp_path
     meteor.ref_dir = tmp_path
+    meteor.tmp_dir = tmp_path
     meteor.ref_name = "test"
     meteor.threads = 1
     return Downloader(meteor, choice="test", check_md5=True)
@@ -44,4 +44,4 @@ def test_extract_tar(downer: Downloader, datadir: Path):
 def test_execute(downer: Downloader):
     downer.execute()
     assert Path(downer.meteor.ref_dir / "mock").exists()
-    assert Path(downer.meteor.ref_dir / "test.fastq.xz").exists()
+    assert Path(downer.meteor.ref_dir / "test.fastq.gz").exists()

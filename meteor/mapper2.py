@@ -78,10 +78,9 @@ class Mapper2(Session):
 
         :param samfile: (str) SAM filename
         """
-        print(samfile)
         # convert sam to bam using pysam
         view("-@", str(self.meteor.threads), "-1", "-u", "-S", "-b", "-o",
-                   bam_file, samfile, catch_stdout=False)
+             bam_file, samfile, catch_stdout=False)
 
     # @profile(stream=fp)
     def sort_bam(self, bamfile: str, sorted_bamfile: str) -> None:
@@ -92,7 +91,7 @@ class Mapper2(Session):
         """
         # sort the bam file
         sort("-o", sorted_bamfile, "-@", str(self.meteor.threads),
-                   "-O", "bam", bamfile, catch_stdout=False)
+             "-O", "bam", bamfile, catch_stdout=False)
         # index the bam file
         index(sorted_bamfile)
 
@@ -111,7 +110,7 @@ class Mapper2(Session):
             parameters += f"--trim-to {self.trim} "
         if self.alignment_number > 0 and self.counting_type != "unique_reads":
             parameters += f"-k {self.alignment_number} "
-        #with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_sam_file:
+        # Start mapping
         with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_sam_file:
             # execute command
             start = perf_counter()

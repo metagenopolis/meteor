@@ -26,7 +26,8 @@ from meteor.fastqimporter import FastqImporter
 from meteor.referencebuilder import ReferenceBuilder
 from meteor.counter import Counter
 from meteor.downloader import Downloader
-from tempfile import TemporaryDirectory, mkdtemp
+from tempfile import TemporaryDirectory
+
 
 class Color:
     BOLD = "\033[1m"
@@ -225,26 +226,21 @@ def main() -> None:  # pragma: no cover
         downloader.execute()
     # Testing
     else:
-        tmpdirname = mkdtemp()
-        # with TemporaryDirectory() as tmpdirname:
-        meteor.ref_name = "test"
-        meteor.ref_dir = Path(tmpdirname) / "ref"
-        meteor.threads = 1
-        meteor.tmp_path = None
-        meteor.tmp_dir = Path(tmpdirname)
-        meteor.mapping_dir = Path(tmpdirname) / "map"
-        meteor.fastq_dir = Path(tmpdirname) / "fastq"
-        meteor.fastq_dir.mkdir(exist_ok=True)
-        downloader = Downloader(meteor, "test", True)
-        downloader.execute()
-        fastq_importer = FastqImporter(meteor, meteor.tmp_dir,
-                                        False, None, "test_project")
-        fastq_importer.execute()
-        counter = Counter(meteor, "best", "end-to-end",
-                            80, 1, False, False, True)
-        counter.execute()
-
-
+        with TemporaryDirectory() as tmpdirname:
+            meteor.ref_name = "test"
+            meteor.ref_dir = Path(tmpdirname) / "ref"
+            meteor.threads = 1
+            meteor.tmp_path = Path("")
+            meteor.tmp_dir = Path(tmpdirname)
+            meteor.mapping_dir = Path(tmpdirname) / "map"
+            meteor.fastq_dir = Path(tmpdirname)
+            downloader = Downloader(meteor, "test", True)
+            downloader.execute()
+            fastq_importer = FastqImporter(meteor, meteor.tmp_dir, False, None, "test_project")
+            fastq_importer.execute()
+            meteor.fastq_dir = Path(tmpdirname) / "test"
+            counter = Counter(meteor, "best", "end-to-end", 80, 1, False, False, True)
+            counter.execute()
     # Close logging
     logger.handlers[0].close()
 

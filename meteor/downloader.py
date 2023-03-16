@@ -20,8 +20,9 @@ from pathlib import Path
 from hashlib import md5
 from urllib.request import urlretrieve
 from typing import Type
-from time import time, sleep
+from time import time
 import tarfile
+
 
 @dataclass
 class Downloader(Session):
@@ -31,7 +32,7 @@ class Downloader(Session):
     check_md5: bool
     configuration_path: Path = field(default_factory=Path)
     catalogues_config: ConfigParser = field(default_factory=ConfigParser)
-    start_time: float  = field(default_factory=float)
+    start_time: float = field(default_factory=float)
 
     def __post_init__(self) -> None:
         try:
