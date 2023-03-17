@@ -20,7 +20,7 @@ requirements:
         - {{ compiler('cxx') }}
     #     - make
     host:
-        - python>=3
+        - python>=3.11
     run:
         - python
         - bowtie2

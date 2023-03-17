@@ -29,7 +29,7 @@ Meteor is available with bioconda which includes all its dependencies:
 conda install -c bioconda meteor
 ```
 
-And with pip:
+And with pip with a recent Python >= 3.11:
 ```
 pip install meteor
 ```
