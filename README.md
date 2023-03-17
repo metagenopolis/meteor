@@ -39,7 +39,15 @@ meteor test
 ```
 ## Getting started
 
-### Download a reference catalogue
+A basic usage of meteor will require to:
+1. **Download a reference catalogue**
+2. **Import the raw fastq files**
+3. **Map reads against the reference catalogue**
+4. **Profile taxonomic or functionnal abundances**
+
+
+### 1. Download or build a custom reference
+-------------------------------------------
 
 Meteor requires to download locally a microbial gene catalogue. Several catalogues are currently available:
 
@@ -58,15 +66,13 @@ These references can be downloaded with following command:
 meteor download -i <name> -c -o <refdir>
 ```
 
-### Import custom reference
-
 Users can also import custom gene catalogue with the command:
 ```
 meteor build -i <fastafile> -n <name> -o <refdir> -t <threads>
 ```
 
-### Import fastq
-
+### 2. Import fastq
+-------------------
 Meteor requires a first of fastq indexing:
 ```
 meteor fastq -i <fastqdir>  [-p paired reads] -n <projectname> -o <outputdir>
@@ -74,46 +80,49 @@ meteor fastq -i <fastqdir>  [-p paired reads] -n <projectname> -o <outputdir>
 When multiple sequencing were performed for a library, the option -m allows to group these samples.
 Example:
 
-Illumina_lib1-**SAMPLE_01**.fastq
-Illumina_lib1-**SAMPLE_02**.fastq
-Illumina_lib2-**SAMPLE_01**.fastq
-Illumina_lib2-**SAMPLE_02**.fastq
+Illumina_lib1-**SAMPLE_01**.fastq <br />
+Illumina_lib1-**SAMPLE_02**.fastq <br />
+Illumina_lib2-**SAMPLE_01**.fastq <br />
+Illumina_lib2-**SAMPLE_02**.fastq <br />
 
-In this case, the command would be:
+In this case, the following command groups samples the same library.:
 ```
 meteor fastq -i ./  -m SAMPLE_\\d+ -n projectname -o outputdir
 ```
-Which group samples the same id.
 
-### Profiling
 
+### 3. Profiling
+----------------
 The profiling can be obtained from read:
 ```
 meteor mapping -i <fastqdir> -r <refdir> -o <mappingdir>
 ```
 
-### Taxonomic analysis
-The taxonomic profiling can be performed several level of accuracy (gene, MSP, SuperKingdom, Phylum,Class, Order, Family, Genus, Specie)
+### 4. Taxonomic analysis
+-------------------------
+The taxonomic profiling can be performed several level of accuracy (gene, MSP, SuperKingdom, Phylum,Class, Order, Family, Genus, Specie). MSPs were calculated with [MSPminer](https://academic.oup.com/bioinformatics/article/35/9/1544/5106712).
 ```
 meteor profiler -i <mappingdir> -l <accuracy> -o <countingdir>
 ```
 
-### Functionnal analysis
-
-Meteor provides an ARDs annotation based on (MUSTARD)[https://www.nature.com/articles/s41564-018-0292-6] and (KEGG)[https://academic.oup.com/nar/article/36/suppl_1/D480/2507484]
+### 5. Functionnal analysis
+---------------------------
+Meteor provides an ARDs annotation based on [MUSTARD](https://www.nature.com/articles/s41564-018-0292-6) and a pathway annotation based on [KEGG r107](https://academic.oup.com/nar/article/36/suppl_1/D480/2507484). Their abundance are
 ```
-meteor profiler -i <mappingdir> -o <countingdir>
+meteor profiler -i <mappingdir> -a <annotation> -o <countingdir>
 ```
 
 ## The METEOR team
 The main contributors to METEOR:
-* Nicolas Pons
+
 * Franck Gauthier
 * Amine Ghozlane
-* Florence Thirion
 * Florian Plaza Oñate
+* Nicolas Pons
+* Florence Thirion
+
 
 ## Acknowledgements
 Special thanks to the following people:
-* Emmanuelle Le Chatelier
 * Mathieu Almeida
+* Emmanuelle Le Chatelier

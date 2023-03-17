@@ -8,16 +8,16 @@ source:
 
 build:
   noarch: python
-  script: {{ PYTHON }} setup.py install
+  script: {{ PYTHON }} -m pip install .
   # always_include_files:
   #   - meteor-counter
   #   - meteor-profiler
-  # ignore_run_exports_from:
-  #   - {{ compiler('cxx') }}
+  ignore_run_exports_from:
+    - {{ compiler('cxx') }}
 
 requirements:
-    # build:
-    #     - {{ compiler('cxx') }}
+    build:
+        - {{ compiler('cxx') }}
     #     - make
     host:
         - python>=3

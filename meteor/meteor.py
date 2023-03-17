@@ -168,8 +168,6 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Number alignments considered for each read (default 10000)")
     mapping_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
                                 help="Path to the directory where temporary files (e.g. sam) are stored")
-    mapping_parser.add_argument("-k", dest="keep_bam", action="store_true",
-                                help="Keep bam files")
     mapping_parser.add_argument("-m", dest="mapping_only", action="store_true",
                                 help="Execute mapping only")
     mapping_parser.add_argument("-n", dest="counting_only", action="store_true",
@@ -217,7 +215,7 @@ def main() -> None:  # pragma: no cover
         meteor.threads = args.threads
         counter = Counter(meteor, args.counting_type, args.mapping_type,
                           args.trim, args.alignment_number,
-                          args.counting_only, args.mapping_only, args.pysam_test)
+                          args.counting_only, args.mapping_only)
         counter.execute()
     elif args.command == "download":
         meteor.ref_name = args.user_choice
