@@ -91,6 +91,7 @@ class Downloader(Session):
             # for choice in self.user_choice:
             logging.info("Download %s microbiome reference catalogue", self.choice)
             url = self.catalogues_config[self.choice]["catalogue"]
+            print(url)
             md5_expect = self.catalogues_config[self.choice]["md5"]
             catalogue = self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)

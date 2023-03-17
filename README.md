@@ -33,15 +33,18 @@ And with pip:
 ```
 pip install meteor
 ```
-
+You can test the installation of meteor with:
+```
+meteor test
+```
 ## Getting started
 
-### Download reference
+### Download a reference catalogue
 
 Meteor requires to download locally a microbial gene catalogue. Several catalogues are currently available:
 
-|  Microbial gene catalogue | \<name\> | Nb. Genes | Metagenomic Species Pan-genomes (MSPs) |Size (Gb)  | Description  |
-|---|---|---|---|---|---|
+|  Microbial gene catalogue | \<name\> | Genes count | Metagenomic Species Pan-genomes (MSPs) |Size (Gb)  | Description  |
+|:---|:---:|:---:|:---:|:---:|:---:|
 |  *Gallus gallus domesticus* | chicken_caecal  | 13.6M  | 2420 | | [link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/FHPJH5)
 | *Homo sapiens oral*  |  human_oral | 8.4M  | 853 | | [link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/WQ4UTV)
 | *Homo sapiens gut* |  human_gut | 10.4M  | 1990 | |[link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/FLANUP)
@@ -68,9 +71,17 @@ Meteor requires a first of fastq indexing:
 ```
 meteor fastq -i <fastqdir>  [-p paired reads] -n <projectname> -o <outputdir>
 ```
-When multiple sequencing were performed on one sample, it is possible to group these samples with a regular expression:
+When multiple sequencing were performed for a library, the option -m allows to group these samples.
+Example:
+
+Illumina_lib1-**SAMPLE_01**.fastq
+Illumina_lib1-**SAMPLE_02**.fastq
+Illumina_lib2-**SAMPLE_01**.fastq
+Illumina_lib2-**SAMPLE_02**.fastq
+
+In this case, the command would be:
 ```
-meteor fastq -i <fastqdir>  -m Zymo_\\d+ -n <projectname> -o <outputdir>
+meteor fastq -i ./  -m SAMPLE_\\d+ -n projectname -o outputdir
 ```
 Which group samples the same id.
 
@@ -82,10 +93,27 @@ meteor mapping -i <fastqdir> -r <refdir> -o <mappingdir>
 ```
 
 ### Taxonomic analysis
+The taxonomic profiling can be performed several level of accuracy (gene, MSP, SuperKingdom, Phylum,Class, Order, Family, Genus, Specie)
 ```
-meteor profiler -i <mappingdir> -o
+meteor profiler -i <mappingdir> -l <accuracy> -o <countingdir>
 ```
+
 ### Functionnal analysis
+
+Meteor provides an ARDs annotation based on (MUSTARD)[https://www.nature.com/articles/s41564-018-0292-6] and (KEGG)[https://academic.oup.com/nar/article/36/suppl_1/D480/2507484]
 ```
-meteor profiler -i <mappingdir> -o
+meteor profiler -i <mappingdir> -o <countingdir>
 ```
+
+## The METEOR team
+The main contributors to METEOR:
+* Nicolas Pons
+* Franck Gauthier
+* Amine Ghozlane
+* Florence Thirion
+* Florian Plaza Oñate
+
+## Acknowledgements
+Special thanks to the following people:
+* Emmanuelle Le Chatelier
+* Mathieu Almeida

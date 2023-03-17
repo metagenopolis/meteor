@@ -219,7 +219,7 @@ def main() -> None:  # pragma: no cover
                           args.trim, args.alignment_number,
                           args.counting_only, args.mapping_only, args.pysam_test)
         counter.execute()
-    elif args.command == "downloader":
+    elif args.command == "download":
         meteor.ref_name = args.user_choice
         meteor.ref_dir = args.ref_dir
         downloader = Downloader(meteor, args.user_choice, args.check_md5)
