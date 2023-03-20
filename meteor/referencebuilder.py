@@ -121,7 +121,7 @@ class ReferenceBuilder(Session):
         and file giving the correspondance between each gene.
         """
         with self.output_annotation_file.open("wt", encoding="UTF-8") as output_annotation:
-            output_annotation.write("gene_id\ngene_name\ngene_length\n")
+            output_annotation.write("gene_id\tgene_name\tgene_length\n")
             with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
                 for gene_id, (header, len_seq, seq) in enumerate(self.read_reference(), start=1):
                     output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")

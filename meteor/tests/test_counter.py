@@ -17,3 +17,13 @@ from ..session import Component
 from ..counter import Counter
 from pathlib import Path
 import pytest
+
+
+@pytest.fixture
+def counter_best(tmp_path: Path):
+    meteor = Component
+    meteor.ref_dir = tmp_path
+    meteor.ref_name = "test"
+    meteor.threads = 1
+    return Counter(meteor, counting_type="best", mapping_type="end-to-end", trim=80,
+                   alignment_number=10000, counting_only=False, mapping_only=False)

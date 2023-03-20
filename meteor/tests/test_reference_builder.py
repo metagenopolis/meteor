@@ -52,7 +52,7 @@ def test_read_reference(builder_defec: ReferenceBuilder):
 @pytest.mark.parametrize(
     ("annotation_md5", "fasta_md5"),
     (
-        pytest.param("1092481d78bd616f6433d0991b00b9f9", "2912b682a8e7554025cc5feadd641570", id="Accurate output"),
+        pytest.param("be4ea162246d2f23ed8b33bdf9b209d8", "2912b682a8e7554025cc5feadd641570", id="Accurate output"),
     )
 )
 def test_create_reference(builder: ReferenceBuilder, annotation_md5: str, fasta_md5: str):
