@@ -48,7 +48,7 @@ class ReferenceBuilder(Session):
         self.database_dir.mkdir(exist_ok=True)
 
         # Read input fasta file and create new fasta file for each chromosome or contig
-        self.output_annotation_file = self.database_dir / f"{self.meteor.ref_name}_lite_annotation"
+        self.output_annotation_file = self.database_dir / f"{self.meteor.ref_name}_lite_annotation.tsv"
         self.output_fasta_file = self.fasta_dir / f"{self.meteor.ref_name}.fasta"
 
         # Write configuration file
@@ -121,6 +121,7 @@ class ReferenceBuilder(Session):
         and file giving the correspondance between each gene.
         """
         with self.output_annotation_file.open("wt", encoding="UTF-8") as output_annotation:
+            output_annotation.write(["gene_id", "gene_name", "gene_length"])
             with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
                 for gene_id, (header, len_seq, seq) in enumerate(self.read_reference(), start=1):
                     output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")

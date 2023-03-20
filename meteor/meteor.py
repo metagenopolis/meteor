@@ -174,8 +174,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Execute counting only")
     mapping_parser.add_argument("-t", dest="threads", default=1, type=int,
                                 help="Threads count.")
-    mapping_parser.add_argument("-pysam", dest="pysam_test", action="store_true",
-                                help="Execute mapping only")
+    mapping_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
+                                help="Execute original meteor")
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
@@ -215,7 +215,7 @@ def main() -> None:  # pragma: no cover
         meteor.threads = args.threads
         counter = Counter(meteor, args.counting_type, args.mapping_type,
                           args.trim, args.alignment_number,
-                          args.counting_only, args.mapping_only)
+                          args.counting_only, args.mapping_only, args.pysam_test)
         counter.execute()
     elif args.command == "download":
         meteor.ref_name = args.user_choice
