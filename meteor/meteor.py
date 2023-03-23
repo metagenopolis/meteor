@@ -168,7 +168,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
     mapping_parser.add_argument("-trim", dest="trim", type=int, default=80,
                                 help="Trim reads for mapping (default 80. If 0, no trim)")
     mapping_parser.add_argument("-id", dest="identity_threshold", type=float, default=0.95,
-                                help="Aligned reads should have an identity to reference > 0.95 (default). If 0, no filtering)")
+                                help="Aligned reads should have an identity to reference > 0.95 (default)."
+                                "If 0, no filtering)")
     mapping_parser.add_argument("-align", dest="alignment_number", type=int, default=10000,
                                 help="Number alignments considered for each read (default 10000)")
     mapping_parser.add_argument("-k", dest="keep_bam", action="store_true",

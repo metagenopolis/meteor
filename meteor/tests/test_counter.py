@@ -76,19 +76,6 @@ def counter_total(datadir: Path, tmp_path: Path) -> Counter:
                    identity_threshold=0.95, alignment_number=10000, counting_only=False, mapping_only=False)
 
 
-@pytest.fixture
-def counter_unique(datadir: Path, tmp_path: Path) -> Counter:
-    meteor = Component
-    meteor.tmp_path = tmp_path
-    meteor.fastq_dir = datadir / "part1"
-    meteor.ref_dir = datadir / "catalogue"
-    meteor.ref_name = "test"
-    meteor.threads = 1
-    meteor.mapping_dir = tmp_path
-    return Counter(meteor, counting_type="unique", mapping_type="end-to-end", trim=80,
-                   identity_threshold=0.95, alignment_number=10000, counting_only=False, mapping_only=False)
-
-
 def test_launch_mapping2(counter_best: Counter):
     ref_ini_file = counter_best.meteor.ref_dir / "mock" / "mock_reference.ini"
     ref_ini = ConfigParser()
@@ -208,7 +195,7 @@ def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        unique_reads, genes_mult, unique_on_gene = counter_unique.uniq_from_mult(reads, genes, database)
+        unique_reads, genes_mult, unique_on_gene = counter_unique.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
         assert "7ZVI4:02660:13822_2" not in unique_reads
         genes_list = list(set(map(int, chain.from_iterable(genes_mult.values()))))
         assert len(genes_list) == 59
@@ -225,7 +212,7 @@ def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)
+        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
         read_dict, co = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
         # gene "7ZVI4:02660:13822_2" did not align with gene aligned by other reads
         assert co[("7ZVI4:02650:13780_2", "11003")] == 0.5
@@ -240,7 +227,7 @@ def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> Non
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)
+        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
         read_dict, co_dict = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
         assert next(counter_smart_shared.get_co_coefficient("11003", read_dict, co_dict)) == 0.5
 
@@ -253,7 +240,7 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)
+        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
         read_dict, coef_read = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
         assert multiple_dict["11003"] == 0.5
@@ -266,7 +253,7 @@ def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)
+        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
         read_dict, coef_read = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
         abundance = counter_smart_shared.compute_abs(unique_on_gene, multiple_dict)
@@ -285,7 +272,7 @@ def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
 def test_save_bam(counter_unique: Counter, datadir: Path, tmp_path: Path) -> None:
     bamfile = datadir / "total.bam"
     with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
-        reads, genes = counter_unique.filter_bam(bamdesc)
+        reads, genes = counter_unique.filter_bam(bamdesc)  # pylint: disable=unused-variable
         read_list = list(chain(reads.values()))
         merged_list = list(chain.from_iterable(read_list))
         tmpbamfile = tmp_path / "test"

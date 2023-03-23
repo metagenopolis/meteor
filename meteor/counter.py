@@ -162,7 +162,7 @@ class Counter(Session):
                     "-p", str(self.meteor.ref_dir.parent.resolve()) + "/",
                     "-o", str(self.meteor.mapping_dir) + "/", "-w", workflow_ini,
                     "-c", self.counting_type, "-f"])
-        logging.info(f"Meteor counter completed Execution in %f seconds", perf_counter() - start)
+        logging.info("Meteor counter completed Execution in %f seconds", perf_counter() - start)
 
     def launch_mapping2(self) -> None:
         """Create temporary indexed files and map against
@@ -216,7 +216,7 @@ class Counter(Session):
                 And  genes [DICT] = contains the set of reference genes.
                                     key : read_id
         """
-        tmp_score: Dict[defaultdict] = dict()
+        tmp_score: Dict[defaultdict] = {}
         genes = defaultdict(list)
         # contains a list a alignment of each read
         reads = defaultdict(list)
@@ -259,9 +259,10 @@ class Counter(Session):
                 tmp_score[read_id] = score
                 # In best counting, it cannot happen because one aligment was selected by bowtie
                 if self.counting_type == "best":
-                    raise ValueError("Bam file contains read aligned against multiple genes. It should be aligned with bowtie2 -k 1 option. ")
+                    raise ValueError("Bam file contains read aligned against multiple genes. "
+                                     "It should be aligned with bowtie2 -k 1 option.")
                 # In smart_shared and unique case, we reinitialise all
-                elif self.counting_type == "smart_shared" or self.counting_type == "unique":
+                elif self.counting_type in ("unique", "smart_shared"):
                     reads[read_id] = [element]
                     genes[read_id] = [element.reference_name]
                 # In total count, we keep all
@@ -276,7 +277,8 @@ class Counter(Session):
                 genes[read_id] = list(set(reference_names))
         return reads, genes
 
-    def uniq_from_mult(self, reads:defaultdict, genes: defaultdict, database: dict) -> tuple[defaultdict, defaultdict, dict]:
+    def uniq_from_mult(self, reads:defaultdict, genes: defaultdict,
+                       database: dict) -> tuple[defaultdict, defaultdict, dict]:
         """
         Function that filter unique reads from all reads. Multiple reads are
         reads that map to more than one genes. And Unique reads are reads that map
