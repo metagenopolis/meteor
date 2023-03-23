@@ -97,7 +97,7 @@ def test_launch_mapping2(counter_best: Counter):
     counter_best.launch_mapping2()
     assert counter_best.ini_data[census_ini_file]["Stage1FileName"].exists()
     # Fail with changing day
-    #with counter_best.ini_data[census_ini_file]["Stage1FileName"].open("rb") as stage1:
+    # with counter_best.ini_data[census_ini_file]["Stage1FileName"].open("rb") as stage1:
     #    assert md5(stage1.read()).hexdigest() == "a8a5b5e400dafb226ce3bab1a2cee69d"
     bam = stage1_dir / "part1.bam"
     bai = stage1_dir / "part1.bam.bai"
@@ -112,6 +112,7 @@ def test_write_table(counter_best: Counter, datadir: Path, tmp_path: Path) -> No
     assert output.exists()
     with output.open("rb") as out:
         assert md5(out.read()).hexdigest() == "ee62cfb1d37b5c4716e717c46a2782f9"
+
 
 # detail of the mapping
 # 500 reads; of these:
@@ -131,16 +132,17 @@ def test_filter_bam_best(counter_best: Counter, datadir: Path) -> None:
         # 358 genes highlighted
         assert len(genes_list) == 358
 
+
 def test_filter_bam_total(counter_total: Counter, datadir: Path) -> None:
     bamfile = datadir / "total.bam"
     with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
         reads, genes = counter_total.filter_bam(bamdesc)
         # 11003 is mapped by two reads
-        assert "11003" in  genes["7ZVI4:02650:13780_2"]
+        assert "11003" in genes["7ZVI4:02650:13780_2"]
         assert "11003" in genes["7ZVI4:02660:14094_2"]
         genes_list = list(set(map(int, chain.from_iterable(genes.values()))))
         # read with 93.75 identity
-        assert  "7ZVI4:02653:13846_2" not in reads
+        assert "7ZVI4:02653:13846_2" not in reads
         # read with multiple alignment with same score (148) against gene 3971 and 5259
         assert "7ZVI4:02660:13822_2" in reads
         # read with multiple alignment with same score (0) against gene 11003 and 26832
@@ -156,11 +158,11 @@ def test_filter_bam_smart_shared(counter_smart_shared: Counter, datadir: Path) -
     with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
         reads, genes = counter_smart_shared.filter_bam(bamdesc)
         # 11003 is mapped by two reads
-        assert "11003" in  genes["7ZVI4:02650:13780_2"]
+        assert "11003" in genes["7ZVI4:02650:13780_2"]
         assert "11003" in genes["7ZVI4:02660:14094_2"]
         genes_list = list(set(map(int, chain.from_iterable(genes.values()))))
         # read with 93.75 identity
-        assert  "7ZVI4:02653:13846_2" not in reads
+        assert "7ZVI4:02653:13846_2" not in reads
         # read with multiple alignment with same score (148) against gene 3971 and 5259
         assert "7ZVI4:02660:13822_2" in reads
         # read with multiple alignment with same score (0) against gene 11003 and 26832
@@ -177,7 +179,7 @@ def test_filter_bam_unique(counter_unique: Counter, datadir: Path) -> None:
         reads, genes = counter_unique.filter_bam(bamdesc)
         genes_list = list(set(map(int, chain.from_iterable(genes.values()))))
         # read with 93.75 identity
-        assert  "7ZVI4:02653:13846_2" not in reads
+        assert "7ZVI4:02653:13846_2" not in reads
         # read with multiple alignment with same score (148) against gene 3971 and 5259
         assert "7ZVI4:02660:13822_2" in reads
         # read with multiple alignment with same score (0) against gene 11003 and 26832
@@ -195,7 +197,9 @@ def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        unique_reads, genes_mult, unique_on_gene = counter_unique.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
+        (unique_reads,
+         genes_mult,
+         unique_on_gene) = counter_unique.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
         assert "7ZVI4:02660:13822_2" not in unique_reads
         genes_list = list(set(map(int, chain.from_iterable(genes_mult.values()))))
         assert len(genes_list) == 59
@@ -206,13 +210,15 @@ def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
     with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
         reads, genes = counter_smart_shared.filter_bam(bamdesc)
         # 11003 is mapped by two reads
-        assert "11003" in  genes["7ZVI4:02650:13780_2"]
+        assert "11003" in genes["7ZVI4:02650:13780_2"]
         assert "11003" in genes["7ZVI4:02660:14094_2"]
         references = bamdesc.references
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
+        (unique_reads, genes_mult,
+         unique_on_gene) = counter_smart_shared.uniq_from_mult(reads, genes,
+                                                               database)  # pylint: disable=unused-variable
         read_dict, co = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
         # gene "7ZVI4:02660:13822_2" did not align with gene aligned by other reads
         assert co[("7ZVI4:02650:13780_2", "11003")] == 0.5
@@ -227,7 +233,9 @@ def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> Non
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
+        (unique_reads, genes_mult,
+         unique_on_gene) = counter_smart_shared.uniq_from_mult(reads, genes,
+                                                               database)  # pylint: disable=unused-variable
         read_dict, co_dict = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
         assert next(counter_smart_shared.get_co_coefficient("11003", read_dict, co_dict)) == 0.5
 
@@ -240,10 +248,13 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
+        (unique_reads, genes_mult,
+         unique_on_gene) = counter_smart_shared.uniq_from_mult(reads, genes,
+                                                               database)  # pylint: disable=unused-variable
         read_dict, coef_read = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
         assert multiple_dict["11003"] == 0.5
+
 
 def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
     bamfile = datadir / "total.bam"
@@ -253,7 +264,9 @@ def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        unique_reads, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(reads, genes, database)  # pylint: disable=unused-variable
+        (unique_reads, genes_mult,
+         unique_on_gene) = counter_smart_shared.uniq_from_mult(reads, genes,
+                                                               database)  # pylint: disable=unused-variable
         read_dict, coef_read = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
         abundance = counter_smart_shared.compute_abs(unique_on_gene, multiple_dict)
@@ -312,6 +325,7 @@ def test_launch_counting2_smart_shared(counter_smart_shared: Counter, datadir: P
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "a09c94e5402521d621a4d94d615cb924"
 
+
 def test_execute(counter_smart_shared: Counter, tmp_path: Path):
     counter_smart_shared.execute()
     workflow = tmp_path / "workflow.ini"
@@ -320,5 +334,3 @@ def test_execute(counter_smart_shared: Counter, tmp_path: Path):
     assert part1.exists()
     with part1.open("rb") as out:
         assert md5(out.read()).hexdigest() == "fd9b52548ee66d2c29d7703a20a912bc"
-
-

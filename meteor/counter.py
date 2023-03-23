@@ -277,7 +277,7 @@ class Counter(Session):
                 genes[read_id] = list(set(reference_names))
         return reads, genes
 
-    def uniq_from_mult(self, reads:defaultdict, genes: defaultdict,
+    def uniq_from_mult(self, reads: defaultdict, genes: defaultdict,
                        database: dict) -> tuple[defaultdict, defaultdict, dict]:
         """
         Function that filter unique reads from all reads. Multiple reads are
@@ -458,7 +458,7 @@ class Counter(Session):
                 read_list = list(chain(reads.values()))
                 merged_list = list(chain.from_iterable(read_list))
                 bamfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                bamfile_sorted =  Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                bamfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                 self.save_bam(bamfile, bamdesc, merged_list)
                 sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
                      "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
