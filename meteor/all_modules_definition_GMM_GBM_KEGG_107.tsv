@@ -1,0 +1,662 @@
+M00001	KEGG	Glycolysis (Embden-Meyerhof pathway), glucose => pyruvate	(K00844,K12407,K00845,K25026,K00886,K08074,K00918) (K01810,K06859,K13810,K15916) (K00850,K16370,K21071,K00918) (K01623,K01624,K11645,K16305,K16306) K01803 ((K00134,K00150) K00927,K11389) (K01834,K15633,K15634,K15635) K01689 (K00873,K12406)
+M00002	KEGG	Glycolysis, core module involving three-carbon compounds	K01803 ((K00134,K00150) K00927,K11389) (K01834,K15633,K15634,K15635) K01689 (K00873,K12406)
+M00003	KEGG	Gluconeogenesis, oxaloacetate => fructose-6P	(K01596,K01610) K01689 (K01834,K15633,K15634,K15635) K00927 (K00134,K00150) K01803 ((K01623,K01624,K11645) (K03841,K02446,K11532,K01086,K04041),K01622)
+M00004	KEGG	Pentose phosphate pathway (Pentose phosphate cycle)	(K13937,((K00036,K19243) (K01057,K07404))) K00033 K01783 (K01807,K01808) K00615 K00616 (K01810,K06859,K13810,K15916)
+M00005	KEGG	PRPP biosynthesis, ribose 5P => PRPP	K00948
+M00006	KEGG	Pentose phosphate pathway, oxidative phase, glucose 6P => ribulose 5P	(K13937,((K00036,K19243) (K01057,K07404))) K00033
+M00007	KEGG	Pentose phosphate pathway, non-oxidative phase, fructose 6P => ribose 5P	K00615 (K00616,K13810) K01783 (K01807,K01808)
+M00008	KEGG	Entner-Doudoroff pathway, glucose-6P => glyceraldehyde-3P + pyruvate	K00036 (K01057,K07404) K01690 K01625
+M00009	KEGG	Citrate cycle (TCA cycle, Krebs cycle)	(K01647,K05942) (K01681,K01682) (K00031,K00030) ((K00164+K00658,K01616)+K00382,K00174+K00175-K00177-K00176) (K01902+K01903,K01899+K01900,K18118) (K00234+K00235+K00236+(K00237,K25801),K00239+K00240+K00241-(K00242,K18859,K18860),K00244+K00245+K00246-K00247) (K01676,K01679,K01677+K01678) (K00026,K00025,K00024,K00116)
+M00010	KEGG	Citrate cycle, first carbon oxidation, oxaloacetate => 2-oxoglutarate	(K01647,K05942) (K01681,K01682) (K00031,K00030)
+M00011	KEGG	Citrate cycle, second carbon oxidation, 2-oxoglutarate => oxaloacetate	((K00164+K00658,K01616)+K00382,K00174+K00175-K00177-K00176) (K01902+K01903,K01899+K01900,K18118) (K00234+K00235+K00236+(K00237,K25801),K00239+K00240+K00241-(K00242,K18859,K18860),K00244+K00245+K00246-K00247) (K01676,K01679,K01677+K01678) (K00026,K00025,K00024,K00116)
+M00012	KEGG	Glyoxylate cycle	K01647 (K01681,K01682) K01637 (K01638,K19282) (K00026,K00025,K00024)
+M00013	KEGG	Malonate semialdehyde pathway, propanoyl-CoA => acetyl-CoA	(K00248,K00232) (K07511,K14729) K05605 K23146 K00140
+M00014	KEGG	Glucuronate pathway (uronate pathway)	K00012 ((K12447 K16190),(K00699 (K01195,K14756))) K00002 K13247 -- K03331 (K05351,K00008) K00854
+M00015	KEGG	Proline biosynthesis, glutamate => proline	((K00931 K00147),K12657) K00286
+M00016	KEGG	Lysine biosynthesis, succinyl-DAP pathway, aspartate => lysine	(K00928,K12524,K12525,K12526) K00133 K01714 K00215 K00674 (K00821,K14267) K01439 K01778 (K01586,K12526)
+M00017	KEGG	Methionine biosynthesis, aspartate => homoserine => methionine	(K00928,K12524,K12525) K00133 (K00003,K12524,K12525) (K00651,K00641) K01739 (K01760,K14155) (K00548,K24042,K00549)
+M00018	KEGG	Threonine biosynthesis, aspartate => homoserine => threonine	(K00928,K12524,K12525,K12526) K00133 (K00003,K12524,K12525) (K00872,K02204,K02203) K01733
+M00019	KEGG	Valine/isoleucine biosynthesis, pyruvate => valine / 2-oxobutanoate => isoleucine	K01652+(K01653,K11258) K00053 K01687 K00826
+M00020	KEGG	Serine biosynthesis, glycerate-3P => serine	K00058 K00831 (K01079,K02203,K22305,K25528)
+M00021	KEGG	Cysteine biosynthesis, serine => cysteine	(K00640,K23304) (K01738,K13034,K17069)
+M00022	KEGG	Shikimate pathway, phosphoenolpyruvate + erythrose-4P => chorismate	(K01626,K03856,K13853) (((K01735,K13829) ((K03785,K03786) K00014,K13832)),K13830) ((K00891,K13829) (K00800,K24018),K13830) K01736
+M00023	KEGG	Tryptophan biosynthesis, chorismate => tryptophan	(((K01657+K01658,K13503,K13501,K01656) K00766),K13497) (((K01817,K24017) (K01656,K01609)),K13498,K13501) (K01695+(K01696,K06001),K01694)
+M00024	KEGG	Phenylalanine biosynthesis, chorismate => phenylpyruvate => phenylalanine	((K01850,K04092,K14187,K04093,K04516,K06208,K06209) (K01713,K04518,K05359),K14170) (K00832,K00838)
+M00025	KEGG	Tyrosine biosynthesis, chorismate => HPP => tyrosine	(((K01850,K04092,K14170,K04093,K04516,K06208,K06209) (K04517,K00211)),K14187) (K00832,K00838)
+M00026	KEGG	Histidine biosynthesis, PRPP => histidine	(K00765-K02502) (K01523 K01496,K11755,K14152) (K01814,K24017) (K02501+K02500,K01663) ((K01693 K00817 (K04486,K05602,K18649)),(K01089 K00817)) (K00013,K14152)
+M00027	KEGG	GABA (gamma-Aminobutyrate) shunt	K01580 (K13524,K07250,K00823,K16871) (K00135,K00139,K17761)
+M00028	KEGG	Ornithine biosynthesis, glutamate => ornithine	(K00618,K00619,K14681,K14682,K00620,K22477,K22478) ((K00930,K22478) K00145,K12659) (K00818,K00821) (K01438,K14677,K00620)
+M00029	KEGG	Urea cycle	K01948 K00611 K01940 (K01755,K14681) K01476
+M00030	KEGG	Lysine biosynthesis, AAA pathway, 2-oxoglutarate => 2-aminoadipate => lysine	K01655 K17450 K01705 K05824 K00838 K00143 (K00293,K24034) K00290
+M00031	KEGG	Lysine biosynthesis, mediated by LysW, 2-aminoadipate => lysine	K05826
+M00032	KEGG	Lysine degradation, lysine => saccharopine => acetoacetyl-CoA	K14157 K14085 K00825 (K15791+K00658+K00382) K00252 (K07514,(K07515,K07511) K00022)
+M00033	KEGG	Ectoine biosynthesis, aspartate => ectoine	K00928 K00133 K00836 K06718 K06720
+M00034	KEGG	Methionine salvage pathway	K00789 K01611 K00797 ((K01243,K01244) K00899,(K00772,K05810)) K08963 (K16054,K08964 (K09880,K08965 K08966)) K08967 (K00815,K08969,K23977,K00832,K00838)
+M00035	KEGG	Methionine degradation	K00789 (K00558,K17398,K17399) K01251 (K01697,K10150)
+M00036	KEGG	Leucine degradation, leucine => acetoacetate + acetyl-CoA	K00826 ((K00166+K00167,K11381)+K09699+K00382) (K00253,K00249) (K01968+K01969) (K05607,K13766) K01640
+M00037	KEGG	Melatonin biosynthesis, animals, tryptophan => serotonin => melatonin	K00502 K01593 K00669 K00543
+M00038	KEGG	Tryptophan metabolism, tryptophan => kynurenine => 2-aminomuconate	(K00453,K00463) (K01432,K14263,K07130) K00486 K01556 K00452 K03392 (K10217,K23234)
+M00039	KEGG	Monolignol biosynthesis, phenylalanine/tyrosine => monolignol	(K10775,K13064) K00487 K01904 K13065 K09754 K00588 K09753 K09755 K13066 (K00083,K22395)
+M00040	KEGG	Tyrosine biosynthesis, chorismate => arogenate => tyrosine	(K01850,K04092,K14170) (K00832,K15849) (K00220,K24018,K15227)
+M00042	KEGG	Catecholamine biosynthesis, tyrosine => dopamine => noradrenaline => adrenaline	(K00505,K00501) K01593 K00503 K00553
+M00043	KEGG	Thyroid hormone biosynthesis, tyrosine => triiodothyronine/thyroxine	K00431
+M00044	KEGG	Tyrosine degradation, tyrosine => homogentisate	(K00815,K00838,K00832,K03334) K00457 K00451 K01800 (K01555,K16171)
+M00045	KEGG	Histidine degradation, histidine => N-formiminoglutamate => glutamate	K01745 K01712 K01468 (K01479,K00603,K13990,(K05603 K01458))
+M00046	KEGG	Pyrimidine degradation, uracil => beta-alanine, thymine => 3-aminoisobutanoate	(K00207,K17722+K17723) K01464 (K01431,K06016)
+M00047	KEGG	Creatine pathway	K00613 K00542 K00933
+M00048	KEGG	De novo purine biosynthesis, PRPP + glutamine => IMP	K00764 (K01945,K11787,K11788,K13713) (K00601,K11175,K08289,K11787,K01492) (K01952,(K23269+K23264+K23265),(K23270+K23265)) (K01933,K11787,K11788 (K01587,K11808,K01589 K01588)) (K01923,K01587,K13713) K01756 (K00602,(K01492,K06863 K11176))
+M00049	KEGG	Adenine ribonucleotide biosynthesis, IMP => ADP,ATP	K01939 K01756 (K00939,K18532,K18533,K00944) K00940
+M00050	KEGG	Guanine ribonucleotide biosynthesis, IMP => GDP,GTP	K00088 K01951 K00942 (K00940,K18533)
+M00051	KEGG	De novo pyrimidine biosynthesis, glutamine (+ PRPP) => UMP	(K11540,(K11541 K01465),((K01954,K01955+K01956) (K00609+K00610,K00608) K01465)) (K00226,K00254,K17828) (K13421,K00762 K01591)
+M00052	KEGG	Pyrimidine ribonucleotide biosynthesis, UMP => UDP/UTP,CDP/CTP	(K13800,K13809,K09903) (K00940,K18533) K01937
+M00053	KEGG	Deoxyribonucleotide biosynthesis, ADP/GDP/CDP/UDP => dATP/dGTP/dCTP/dUTP	(K00525+K00526,K10807+K10808) (K00940,K18533)
+M00055	KEGG	N-glycan precursor biosynthesis	K01001 (K07432+K07441) K03842 K03843 K03844 K03845 K03846 K03847 K03846 K00729 K03848 K03849 K03850
+M00056	KEGG	O-glycan biosynthesis, mucin type core	K00710 (K00731,K09653) (K00727,K09662,K09663) K00739
+M00057	KEGG	Glycosaminoglycan biosynthesis, linkage tetrasaccharide	K00771 K00733 K00734 K10158
+M00058	KEGG	Glycosaminoglycan biosynthesis, chondroitin sulfate backbone	K00746 (K13499,K00747,K03419)
+M00059	KEGG	Glycosaminoglycan biosynthesis, heparan sulfate backbone	(K02369,K02370) (K02366,K02367) (K02368,K02370) (K02576,K02577,K02578,K02579) K01793
+M00060	KEGG	KDO2-lipid A biosynthesis, Raetz pathway, LpxL-LpxM type	K00677 K02535 K02536 (K03269,K09949) K00748 K00912 K02527 K02517 K02560
+M00061	KEGG	D-Glucuronate degradation, D-glucuronate => pyruvate + D-glyceraldehyde 3P	K01812 K00040 (K01686,K08323) K00874 (K01625,K17463)
+M00063	KEGG	CMP-KDO biosynthesis	K06041 K01627 K03270 K00979
+M00064	KEGG	ADP-L-glycero-D-manno-heptose biosynthesis	K03271 (K03272,K21344) K03273 (K03272,K21345) K03274
+M00065	KEGG	GPI-anchor biosynthesis, core oligosaccharide	(K03857+K03859+K03858+K03861+K03860+(K11001,K11002)-K09658) K03434 K05283 (K05284+K07541) K07542 K05285 K05286 (K05288+K05287) (K05310+K05287)
+M00066	KEGG	Lactosylceramide biosynthesis	K00720 (K07553,K09905)
+M00067	KEGG	Sulfoglycolipids biosynthesis, ceramide/1-alkyl-2-acylglycerol => sulfatide/seminolipid	K04628 K01019
+M00068	KEGG	Glycosphingolipid biosynthesis, globo-series, LacCer => Gb4Cer	K01988 K00719
+M00069	KEGG	Glycosphingolipid biosynthesis, ganglio series, LacCer => GT3	K03370 (K03371,K03369)
+M00070	KEGG	Glycosphingolipid biosynthesis, lacto-series, LacCer => Lc4Cer	K03766 (K07819,K07820,K03877)
+M00071	KEGG	Glycosphingolipid biosynthesis, neolacto-series, LacCer => nLc4Cer	K03766 (K07966,K07967,K07968,K07969)
+M00072	KEGG	N-glycosylation by oligosaccharyltransferase	K07151+K12666+K12667+K12668+K12669+K12670-K00730-K12691
+M00073	KEGG	N-glycan precursor trimming	K01228 K05546 K23741 K01230
+M00074	KEGG	N-glycan biosynthesis, high-mannose type	K05546 K23741 K01230 K05528 K05529+K05530 K05529+K05531+K05532+K05533+K05534 K05535
+M00075	KEGG	N-glycan biosynthesis, complex type	K01231 K00736
+M00076	KEGG	Dermatan sulfate degradation	-- K01136 K01217 K01135 K01197 K01195
+M00077	KEGG	Chondroitin sulfate degradation	K01135 K01197 K01195 K01132
+M00078	KEGG	Heparan sulfate degradation	(K07964,K07965) K01136 K01217 K01565 K10532 K01205 -- K01195 K01137
+M00079	KEGG	Keratan sulfate degradation	-- K01132 K12309 K01137 K12373
+M00081	KEGG	Pectin degradation	K01051 K01184 K01213
+M00082	KEGG	Fatty acid biosynthesis, initiation	(K11262,(K02160+K01961,K11263)+(K01962+K01963,K18472)) (K00665,K00667+K00668,K11533,(K00645 (K00648,K18473)))
+M00083	KEGG	Fatty acid biosynthesis, elongation	K00665,(K00667 K00668),K11533,((K00647,K09458) K00059 (K02372,K01716,K16363) (K00208,K02371,K10780,K00209))
+M00085	KEGG	Fatty acid elongation in mitochondria	(K07508,K07509) (K00022 K07511,K07515) K07512
+M00086	KEGG	beta-Oxidation, acyl-CoA synthesis	K01897,K15013
+M00087	KEGG	beta-Oxidation	(K00232,K00249,K00255,K06445,K09479) (((K01692,K07511,K13767) (K00022,K07516)),K01825,K01782,K07514,K07515,K10527) (K00632,K07508,K07509,K07513)
+M00088	KEGG	Ketone body biosynthesis, acetyl-CoA => acetoacetate/3-hydroxybutyrate/acetone	K00626 K01641 K01640
+M00089	KEGG	Triacylglycerol biosynthesis	(K00629,K13506,K13507,K00630,K13508) (K00655,K13509,K13523,K19007,K13513,K13517,K13519,K14674,K22831) (K01080,K15728,K18693) (K11155,K11160,K14456,K22848,K22849)
+M00090	KEGG	Phosphatidylcholine (PC) biosynthesis, choline => PC	(K00866,K14156) K00968 (K00994,K13644)
+M00091	KEGG	Phosphatidylcholine (PC) biosynthesis, PE => PC	K00551,(K16369 K00550),K00570
+M00092	KEGG	Phosphatidylethanolamine (PE) biosynthesis, ethanolamine => PE	(K00894,K14156) K00967 (K00993,K13644)
+M00093	KEGG	Phosphatidylethanolamine (PE) biosynthesis, PA => PS => PE	K00981 (K00998,K17103) K01613
+M00094	KEGG	Ceramide biosynthesis	K00654 K04708 (K04709,K04710,K24621,K24622,K23727) K04712
+M00095	KEGG	C5 isoprenoid biosynthesis, mevalonate pathway	K00626 K01641 K00021 K00869 (K00938,K13273) K01597 K01823
+M00096	KEGG	C5 isoprenoid biosynthesis, non-mevalonate pathway	K01662 K00099 (K00991,K12506) K00919 (K01770,K12506) K03526 K03527 K01823
+M00097	KEGG	beta-Carotene biosynthesis, GGAP => beta-carotene	K02291 K02293 K15744 K00514 K09835 K06443
+M00098	KEGG	Acylglycerol degradation	(K01046,K12298,K16816,K13534,K14073,K14074,K14075,K14076,K22283,K14452,K22284,K14674,K14675,K17900) (K01054,K25824)
+M00099	KEGG	Sphingosine biosynthesis	K00654 K04708 (K04709,K04710,K24621,K24622,K23727) K04712 (K01441,K12348,K12349)
+M00100	KEGG	Sphingosine degradation	K04718 K01634
+M00101	KEGG	Cholesterol biosynthesis, squalene 2,3-epoxide => cholesterol	K01852 K05917 K00222 K07750 K07748 K13373 K09828 K01824 K00227 K00213
+M00102	KEGG	Ergocalciferol biosynthesis, squalene 2,3-epoxide => ergosterol/ergocalciferol	K01852 K05917 K00222 K07750 K07748 K09827 K00559 K09829 K00227 K09831 K00223
+M00103	KEGG	Cholecalciferol biosynthesis	K07419 K07438
+M00104	KEGG	Bile acid biosynthesis, cholesterol => cholate/chenodeoxycholate	K00489 K12408 K07431 K00251 K00037 K00488 K08748 K01796 K10214 K12405 K08764 K11992
+M00106	KEGG	Conjugated bile acid biosynthesis, cholate => taurocholate/glycocholate	K08748 K00659
+M00107	KEGG	Steroid hormone biosynthesis, cholesterol => pregnenolone => progesterone	K00498 K00070
+M00108	KEGG	C21-Steroid hormone biosynthesis, progesterone => corticosterone/aldosterone	K00513 (K00497,K07433) K07433
+M00109	KEGG	C21-Steroid hormone biosynthesis, progesterone => cortisol/cortisone	K00512 K00513 K00497 (K15680,K00071)
+M00110	KEGG	C19/C18-Steroid hormone biosynthesis, pregnenolone => androstenedione => estrone	K00512 K00070 K07434
+M00112	KEGG	Tocopherol/tocotorienol biosynthesis, homogentisate + phytyl/geranylgeranyl-PP => tocopherol/tocotorienol	K09833 (K12502,K18534) K09834 K05928
+M00113	KEGG	Jasmonic acid biosynthesis	K00454 K01723 K10525 K05894 K10526 K00232 K10527 K07513 --
+M00114	KEGG	Ascorbate biosynthesis, plants, fructose-6P => ascorbate	K01809 K17497 K00966 K10046 K14190 K10047 K17744 K00225
+M00115	KEGG	NAD biosynthesis, aspartate => quinolinate => NAD	(K00278,K06989) K03517 K00767 (K00969,K06210) (K01916,K01950)
+M00116	KEGG	Menaquinone biosynthesis, chorismate (+ polyprenyl-PP) => menaquinol	K02552 K02551 K08680 K02549 K01911 K01661 K19222 K02548 K03183
+M00117	KEGG	Ubiquinone biosynthesis, prokaryotes, chorismate (+ polyprenyl-PP) => ubiquinol	(K03181,K18240) K03179 (K03182+K03186) K18800 K00568 K03185 K03183 (K03184,K06134) K00568
+M00118	KEGG	Glutathione biosynthesis, glutamate => glutathione	(K11204+K11205,K01919) (K21456,K01920)
+M00119	KEGG	Pantothenate biosynthesis, valine/L-aspartate => pantothenate	K00826 K00606 K00077
+M00120	KEGG	Coenzyme A biosynthesis, pantothenate => CoA	(K00867,K03525,K01947,K09680) ((K01922,K21977) K01598,K13038) (K02318,(K00954,K02201) K00859)
+M00121	KEGG	Heme biosynthesis, plants and bacteria, glutamate => heme	K01885 K02492 K01845 K01698 K01749 (K01719,K13542,K13543) K01599 (K00228,K02495) (K00230,K00231,K08973) K01772
+M00122	KEGG	Cobalamin biosynthesis, cobyrinate a,c-diamide => cobalamin	(K00798,K19221) K02232 (K02225,K02227) K02231
+M00123	KEGG	Biotin biosynthesis, pimeloyl-ACP/CoA => biotin	K00652 ((K00833,K19563) K01935,K19562) K01012
+M00124	KEGG	Pyridoxal-P biosynthesis, erythrose-4P => pyridoxal-P	K03472 K03473 K00831 K00097 K03474 K00275
+M00125	KEGG	Riboflavin biosynthesis, plants and bacteria, GTP => riboflavin/FMN/FAD	(K01497,K14652) (K01498 K00082,K11752) (K22912,K20860,K20861,K20862,K21063,K21064)
+M00126	KEGG	Tetrahydrofolate biosynthesis, GTP => THF	(K01495,K09007,K22391) (K01077,K01113,(K08310,K19965)) ((K13939,(K13940,K01633 K00950) K00796),(K01633 K13941)) (K11754,K20457) (K00287,K13998)
+M00127	KEGG	Thiamine biosynthesis, prokaryotes, AIR (+ DXP/tyrosine) => TMP/TPP	K03148+K03154 K03151
+M00128	KEGG	Ubiquinone biosynthesis, eukaryotes, 4-hydroxybenzoate + polyprenyl-PP => ubiquinol	K06125 K06126 K00591 -- -- K06127 K06134 K00591
+M00129	KEGG	Ascorbate biosynthesis, animals, glucose-1P => ascorbate	K00963 K00012 K00699 K01195 K00002 K01053 K00103
+M00130	KEGG	Inositol phosphate metabolism, PI=> PIP2 => Ins(1,4,5)P3 => Ins(1,3,4,5)P4	(K00888,K19801,K13711) (K00889,K13712) (K01116,K05857,K05858,K05859,K05860,K05861) K00911
+M00131	KEGG	Inositol phosphate metabolism, Ins(1,3,4,5)P4 => Ins(1,3,4)P3 => myo-inositol	K01106 K01107 K01109 K01092
+M00132	KEGG	Inositol phosphate metabolism, Ins(1,3,4)P3 => phytate	(K00913,K01765) K00915 K10572
+M00133	KEGG	Polyamine biosynthesis, arginine => agmatine => putrescine => spermidine	(K01583,K01584,K01585,K02626) K01480
+M00134	KEGG	Polyamine biosynthesis, arginine => ornithine => putrescine	K01476 K01581
+M00135	KEGG	GABA biosynthesis, eukaryotes, putrescine => GABA	K00657 K00274 (K00128,K14085,K00149) --
+M00136	KEGG	GABA biosynthesis, prokaryotes, putrescine => GABA	K09470 K09471 K09472 K09473
+M00137	KEGG	Flavanone biosynthesis, phenylalanine => naringenin	K10775 K00487 K01904 K00660 K01859
+M00138	KEGG	Flavonoid biosynthesis, naringenin => pelargonidin	K00475 K13082 K05277
+M00140	KEGG	C1-unit interconversion, prokaryotes	K00600 (K01491,(K00300 K01500)) K01938
+M00141	KEGG	C1-unit interconversion, eukaryotes	K00600 (K00288,(K13403 K13402))
+M00142	KEGG	NADH:ubiquinone oxidoreductase, mitochondria	K03878+K03879+K03880+K03881+K03882+K03883+K03884
+M00143	KEGG	NADH dehydrogenase (ubiquinone) Fe-S protein/flavoprotein complex, mitochondria	K03934+K03935+K03936+K03937+K03938+K03939+K03940+K03941+K03942+K03943-K03944
+M00144	KEGG	NADH:quinone oxidoreductase, prokaryotes	K00330+(K00331+K00332+K00333,K00331+K13378,K13380)+K00334+K00335+K00336+K00337+K00338+K00339+K00340+(K00341+K00342)+K00343
+M00145	KEGG	NAD(P)H:quinone oxidoreductase, chloroplasts and cyanobacteria	K05574+K05582+K05581+K05579+K05572+K05580+K05578+K05576+K05577+K05575+K05573-K05583-K05584-K05585
+M00146	KEGG	NADH dehydrogenase (ubiquinone) 1 alpha subcomplex	K03945+K03946+K03947+K03948+K03949+K03950+K03951+K03952+K03953+K03954+K03955+K03956+K11352+K11353
+M00147	KEGG	NADH dehydrogenase (ubiquinone) 1 beta subcomplex	K03957+K03958+K03959+K03960+K03961+K03962+K03963+K03964+K03965+K03966+K11351+K03967+K03968
+M00148	KEGG	Succinate dehydrogenase (ubiquinone)	K00236+(K00237,K25801)+K00234+K00235
+M00149	KEGG	Succinate dehydrogenase, prokaryotes	K00241+(K00242,K18859,K18860)+K00239+K00240
+M00150	KEGG	Fumarate reductase, prokaryotes	K00244+K00245+K00246+K00247
+M00151	KEGG	Cytochrome bc1 complex respiratory unit	((K00412+K00413,K00410)+K00411),K03886+K03887+K03888,K03890+K03891+K03889
+M00152	KEGG	Cytochrome bc1 complex	K00411+K00412+K00413+K00414+K00415+K00416+K00417+K00418+K00419+K00420
+M00153	KEGG	Cytochrome bd ubiquinol oxidase	K00425+K00426+(K00424,K22501)
+M00154	KEGG	Cytochrome c oxidase	(K02257+K02262+K02256+K02261+K02263+K02264+K02265+K02266+K02267+K02268+K02270-K02271+K02272-K02273+K02258+K02259+K02260)
+M00155	KEGG	Cytochrome c oxidase, prokaryotes	K02275+(K02274+K02276,K15408)-K02277
+M00156	KEGG	Cytochrome c oxidase, cbb3-type	((K00404+K00405,K15862)+K00407+K00406)
+M00157	KEGG	F-type ATPase, prokaryotes and chloroplasts	K02111+K02112+K02113+K02114+K02115+K02108+K02109+K02110
+M00158	KEGG	F-type ATPase, eukaryotes	K02132+K02133+K02136+K02134+K02135+K02137+K02126+K02127+K02128+K02138+(K02129,K01549)+(K02130,K02139)+K02140+(K02141,K02131)-K02142-K02143+K02125
+M00159	KEGG	V/A-type ATPase, prokaryotes	K02117+K02118+K02119+K02120+K02121+K02122+K02107+K02123+K02124
+M00160	KEGG	V-type ATPase, eukaryotes	K02145+K02147+K02148+K02149+K02150+K02151+K02152+K02144+K02154+(K03661,K02155)+K02146+K02153+K03662
+M00161	KEGG	Photosystem II	K02703+K02706+K02705+K02704+K02707+K02708
+M00162	KEGG	Cytochrome b6f complex	K02635+K02637+K02634+K02636+K02642+K02643+K03689+K02640
+M00163	KEGG	Photosystem I	K02689+K02690+K02691+K02692+K02693+K02694
+M00165	KEGG	Reductive pentose phosphate cycle (Calvin cycle)	K00855 (K01601-K01602) K00927 (K05298,K00150,K00134) (K01623,K01624) (K03841,K02446,K11532,K01086) K00615 (K01623,K01624) (K01100,K11532,K01086) K00615 (K01807,K01808)
+M00166	KEGG	Reductive pentose phosphate cycle, ribulose-5P => glyceraldehyde-3P	K00855 (K01601-K01602) K00927 (K05298,K00150,K00134)
+M00167	KEGG	Reductive pentose phosphate cycle, glyceraldehyde-3P => ribulose-5P	(K01623,K01624) (K03841,K02446,K11532,K01086) K00615 (K01623,K01624) (K01100,K11532,K01086) K00615 (K01807,K01808)
+M00168	KEGG	CAM (Crassulacean acid metabolism), dark	K01595 (K00025,K00026,K00024)
+M00169	KEGG	CAM (Crassulacean acid metabolism), light	K00029 K01006
+M00170	KEGG	C4-dicarboxylic acid cycle, phosphoenolpyruvate carboxykinase type	K01595 K14454 K14455 K01610
+M00171	KEGG	C4-dicarboxylic acid cycle, NAD - malic enzyme type	K01595 K14454 K14455 (K00025,K00026) K00028 (K00814,K14272) K01006
+M00172	KEGG	C4-dicarboxylic acid cycle, NADP - malic enzyme type	K01595 K00051 K00029 K01006
+M00173	KEGG	Reductive citrate cycle (Arnon-Buchanan cycle)	(K00169+K00170+K00171+K00172,K03737) ((K01007,K01006) K01595,K01959+K01960,K01958) K00024 (K01676,K01679,K01677+K01678) (K00239+K00240-K00241-K00242,K00244+K00245-K00246-K00247,K18556+K18557+K18558+K18559+K18560) (K01902+K01903) (K00174+K00175-K00177-K00176) K00031 (K01681,K01682) (K15230+K15231,K15232+K15233 K15234)
+M00174	KEGG	Methane oxidation, methanotroph, methane => formaldehyde	((K10944+K10945+K10946),(K16157+K16158+K16159+K16160+K16161+K16162)) ((K14028-K14029),K23995)
+M00175	KEGG	Nitrogen fixation, nitrogen => ammonia	K02588+K02586+K02591-K00531,K22896+K22897+K22898+K22899
+M00176	KEGG	Assimilatory sulfate reduction, sulfate => H2S	(K13811,K00958+K00860,K00955+K00957,K00956+K00957+K00860) K00390 (K00380+K00381,K00392)
+M00307	KEGG	Pyruvate oxidation, pyruvate => acetyl-CoA	((K00163,K00161+K00162)+K00627+K00382-K13997),K00169+K00170+K00171+(K00172,K00189),K03737
+M00308	KEGG	Semi-phosphorylative Entner-Doudoroff pathway, gluconate => glycerate-3P	K05308 K00874 K01625 (K00134 K00927,K00131,K18978)
+M00309	KEGG	Non-phosphorylative Entner-Doudoroff pathway, gluconate/galactonate => glycerate	K05308 (K11395,K18127) (K18020+K18021+K18022,K18128,K03738)
+M00338	KEGG	Cysteine biosynthesis, homocysteine + serine => cysteine	(K01697,K10150) K01758
+M00344	KEGG	Formaldehyde assimilation, xylulose monophosphate pathway	K17100 K00863 K01624 K03841
+M00345	KEGG	Formaldehyde assimilation, ribulose monophosphate pathway	(((K08093,K13812) K08094),K13831) (K00850,K16370) K01624
+M00346	KEGG	Formaldehyde assimilation, serine pathway	K00600 K00830 K00018 K11529 K01689 K01595 K00024 K08692+K14067 K08691
+M00356	KEGG	Methanogenesis, methanol => methane	K14080+K04480+K14081 K00399+K00401+K00402 (K22480+K22481+K22482,K03388+K03389+K03390,K08264+K08265,K03388+K03389+K03390+K14127+(K14126+K14128,K22516+K00125))
+M00357	KEGG	Methanogenesis, acetate => methane	((K00925 K00625),K01895) (K00193+K00197+K00194) (K00577+K00578+K00579+K00580+K00581-K00582-K00583+K00584) (K00399+K00401+K00402) (K22480+K22481+K22482,K03388+K03389+K03390,K08264+K08265,K03388+K03389+K03390+K14127+(K14126+K14128,K22516+K00125))
+M00358	KEGG	Coenzyme M biosynthesis	K08097 K05979 K05884 K13039+K06034
+M00363	KEGG	EHEC pathogenicity signature, Shiga toxin	K11006 K11007
+M00364	KEGG	C10-C20 isoprenoid biosynthesis, bacteria	K01823 (K00795,K13789,K13787)
+M00365	KEGG	C10-C20 isoprenoid biosynthesis, archaea	K01823 K13787
+M00366	KEGG	C10-C20 isoprenoid biosynthesis, plants	K01823 K14066 K00787 K13789
+M00367	KEGG	C10-C20 isoprenoid biosynthesis, non-plant eukaryotes	K01823 K00787 K00804
+M00368	KEGG	Ethylene biosynthesis, methionine => ethylene	K00789 (K01762,K20772) K05933
+M00369	KEGG	Cyanogenic glycoside biosynthesis, tyrosine => dhurrin	K13027 K13029 K13030
+M00370	KEGG	Glucosinolate biosynthesis, tryptophan => glucobrassicin	(K11812,K11813) K11818 K11819 K11820 K11821
+M00371	KEGG	Castasterone biosynthesis, campesterol => castasterone	(K09587,K12639) K09588 K09591 (K12637,K12638) K20623 (K09590,K12640,K25959)
+M00372	KEGG	Abscisic acid biosynthesis, beta-carotene => abscisic acid	(K15746,K15747) K09838 -K14594 K09840 K09841 K09842
+M00373	KEGG	Ethylmalonyl pathway	K00626 K00023 K17865 K14446 K14447 K14448 K14449 K08691 K14451
+M00374	KEGG	Dicarboxylate-hydroxybutyrate cycle	(K00169+K00170+K00171+K00172) K01007 K01595 K00024 (K01677+K01678) (K00239+K00240-K00241-K18860) (K01902+K01903) (K15038,K15017) K14465 (K14467,K18861) K14534 K15016 K00626
+M00375	KEGG	Hydroxypropionate-hydroxybutylate cycle	(K01964+K15037+K15036) K15017 K15039 K15018 K15019 K15020 K05606 (K01848+K01849) (K15038,K15017) K14465 (K14466,K18861) K14534 K15016 K00626
+M00376	KEGG	3-Hydroxypropionate bi-cycle	(K02160+K01961+K01962+K01963) K14468 K14469 K15052 K05606 (K01847,K01848+K01849) (K14471+K14472) (K00239+K00240+K00241) K01679
+M00377	KEGG	Reductive acetyl-CoA pathway (Wood-Ljungdahl pathway)	K00198 (K05299-K15022,K22015+K25123+K25124) K01938 K01491-K01500 K00297-K25007-K25008 K15023 K14138+K00197+K00194
+M00378	KEGG	F420 biosynthesis, archaea	K11780+K11781
+M00415	KEGG	Fatty acid elongation in endoplasmic reticulum	(K10247,K10205,K10248,K10249,K10244,K10203,K10250,K15397,K10245,K10246) K10251 K10703 K10258
+M00416	KEGG	Cytochrome aa3-600 menaquinol oxidase	K02827+K02826+K02828+K02829
+M00417	KEGG	Cytochrome o ubiquinol oxidase	K02297+K02298+K02299+K02300
+M00418	KEGG	Toluene degradation, anaerobic, toluene => benzoyl-CoA	K07540 K07543+K07544 K07545 K07546 K07547+K07548 K07549+K07550
+M00419	KEGG	Cymene degradation, p-cymene => p-cumate	K10616+K18293 K10617 K10618
+M00422	KEGG	Acetyl-CoA pathway, CO2 => acetyl-CoA	K00192+K00195 K00193+K00197+K00194
+M00432	KEGG	Leucine biosynthesis, 2-oxoisovalerate => 2-oxoisocaproate	K01649 (K01702,K01703+K01704) K00052
+M00433	KEGG	Lysine biosynthesis, 2-oxoglutarate => 2-oxoadipate	K01655 (K17450 K01705,K16792+K16793) K05824
+M00525	KEGG	Lysine biosynthesis, acetyl-DAP pathway, aspartate => lysine	K00928 K00133 K01714 K00215 K05822 K00841 K05823 K01778 K01586
+M00526	KEGG	Lysine biosynthesis, DAP dehydrogenase pathway, aspartate => lysine	(K00928,K12524,K12525,K12526) K00133 K01714 K00215 K03340 (K01586,K12526)
+M00527	KEGG	Lysine biosynthesis, DAP aminotransferase pathway, aspartate => lysine	(K00928,K12524,K12525,K12526) K00133 K01714 K00215 K10206 K01778 (K01586,K12526)
+M00528	KEGG	Nitrification, ammonia => nitrite	K10944+K10945+K10946 K10535
+M00529	KEGG	Denitrification, nitrate => nitrogen	(K00370+K00371+K00374,K02567+K02568) (K00368,K15864) (K04561+K02305) K00376
+M00530	KEGG	Dissimilatory nitrate reduction, nitrate => ammonia	(K00370+K00371+K00374,K02567+K02568) (K00362+K00363,K03385+K15876)
+M00531	KEGG	Assimilatory nitrate reduction, nitrate => ammonia	(K00367,K10534,K00372-K00360) (K00366,K17877,K26139+K26138,K00361)
+M00532	KEGG	Photorespiration	(K01601-K01602) K19269 K11517 K03781 K14272 K00600 K00830 (K15893,K15919) K15918
+M00533	KEGG	Homoprotocatechuate degradation, homoprotocatechuate => 2-oxohept-3-enedioate	K00455 K00151 K01826 K05921
+M00534	KEGG	Naphthalene degradation, naphthalene => salicylate	K14579+K14580+K14578+K14581 K14582 K14583 K14584 K14585 K00152
+M00535	KEGG	Isoleucine biosynthesis, pyruvate => 2-oxobutanoate	K09011 K01703+K01704 K00052
+M00537	KEGG	Xylene degradation, xylene => methylbenzoate	K15757+K15758 K00055 K00141
+M00538	KEGG	Toluene degradation, toluene => benzoate	K15760+K15761-K15762+K15763+K15764-K15765 K00055 K00141
+M00539	KEGG	Cumate degradation, p-cumate => 2-oxopent-4-enoate + 2-methylpropanoate	K10619+K16303+K16304+K18227 K10620 K10621 K10622 K10623
+M00540	KEGG	Benzoate degradation, cyclohexanecarboxylic acid =>pimeloyl-CoA	K04116 K04117 K07534 K07535 K07536
+M00541	KEGG	Benzoyl-CoA degradation, benzoyl-CoA => 3-hydroxypimeloyl-CoA	(K04112+K04113+K04114+K04115,K19515+K19516) K07537 K07538 K07539
+M00542	KEGG	EHEC/EPEC pathogenicity signature, T3SS and effectors	K03221+K03219+K03222+K03226+K03227+K03228+K03229+K03230+K03224+K03225 K12784 K12787 K12785 K12786 K12788 K16041 K16042
+M00543	KEGG	Biphenyl degradation, biphenyl => 2-oxopent-4-enoate + benzoate	K08689+K15750+K18087+K18088 K08690 K00462 K10222
+M00544	KEGG	Carbazole degradation, carbazole => 2-oxopent-4-enoate + anthranilate	K15751-K15752-K15753 K15754+K15755 K15756
+M00545	KEGG	Trans-cinnamate degradation, trans-cinnamate => acetyl-CoA	(((K05708+K05709+K05710+K00529) K05711),K05712) K05713 K05714 K02554 K01666 K04073
+M00546	KEGG	Purine degradation, xanthine => urea	(K00106,K00087+K13479+K13480,K13481+K13482,K11177+K11178+K13483) (K00365,K16838,K16839,K22879) (K13484,K07127 (K13485,K16838,K16840)) (K01466,K16842) K01477
+M00547	KEGG	Benzene/toluene degradation, benzene => catechol / toluene => 3-methylcatechol	K03268+K16268+K18089+K18090 K16269
+M00548	KEGG	Benzene degradation, benzene => catechol	K16249+K16243+K16244+K16242+K16245+K16246
+M00549	KEGG	Nucleotide sugar biosynthesis, glucose => UDP-glucose	(K00844,K00845,K25026,K12407,K00886) (K01835,K15779,K15778) (K00963,K12447)
+M00550	KEGG	Ascorbate degradation, ascorbate => D-xylulose-5P	K02821+K02822+K03475 K03476 K03078 K03079 K03077
+M00551	KEGG	Benzoate degradation, benzoate => catechol / methylbenzoate => methylcatechol	K05549+K05550+K05784 K05783
+M00552	KEGG	D-galactonate degradation, De Ley-Doudoroff pathway, D-galactonate => glycerate-3P	K01684 K00883 K01631 K00134 K00927
+M00554	KEGG	Nucleotide sugar biosynthesis, galactose => UDP-galactose	K00849 K00965
+M00555	KEGG	Betaine biosynthesis, choline => betaine	(K17755,((K00108,K11440,K00499) (K00130,K14085)))
+M00563	KEGG	Methanogenesis, methylamine/dimethylamine/trimethylamine => methane	K14082 ((K16177-K16176),(K16179-K16178),(K14084-K14083)) K00399+K00401+K00402 (K22480+K22481+K22482,K03388+K03389+K03390,K08264+K08265,K03388+K03389+K03390+K14127+(K14126+K14128,K22516+K00125))
+M00564	KEGG	Helicobacter pylori pathogenicity signature, cagA pathogenicity island	K15842 K12086 -K12087 K12088 K12089 K12090 K03196 K12091 -K12092 K12093 K12094 K12095 K12096 K12097 K12098 -K12099 -K12100 K12101 K12102 K12103 K12104 K12105 K12106 K12107 K12108 K12109 K12110
+M00565	KEGG	Trehalose biosynthesis, D-glucose 1P => trehalose	K00975 K00703 (K00700,K16149) K01214 K06044 K01236
+M00567	KEGG	Methanogenesis, CO2 => methane	(K00200+K00201+K00202+K00203-K11261+(K00205,K11260,K00204)) K00672 K01499 (K00319,K13942) K00320 (K00577+K00578+K00579+K00580+K00581-K00582-K00583+K00584) (K00399+K00401+K00402) (K22480+K22481+K22482,K03388+K03389+K03390,K08264+K08265,K03388+K03389+K03390+K14127+(K14126+K14128,K22516+K00125))
+M00568	KEGG	Catechol ortho-cleavage, catechol => 3-oxoadipate	K03381 K01856 K03464 (K01055,K14727)
+M00569	KEGG	Catechol meta-cleavage, catechol => acetyl-CoA / 4-methylcatechol => propanoyl-CoA	(K00446,K07104) ((K10217 K01821 K01617),K10216) (K18364,K02554) (K18365,K01666) (K18366,K04073)
+M00570	KEGG	Isoleucine biosynthesis, threonine => 2-oxobutanoate => isoleucine	(K17989,K01754) K01652+(K01653,K11258) K00053 K01687 K00826
+M00572	KEGG	Pimeloyl-ACP biosynthesis, BioC-BioH pathway, malonyl-ACP => pimeloyl-ACP	K02169 (K00647,K09458) K00059 K02372 K00208 (K02170,K09789,K19560,K19561)
+M00573	KEGG	Biotin biosynthesis, BioI pathway, long-chain-acyl-ACP => pimeloyl-ACP => biotin	K16593 K00652 K19563 K01935 K01012
+M00574	KEGG	Pertussis pathogenicity signature, pertussis toxin	K11023 -K11024 K11025 K11026 K11027
+M00575	KEGG	Pertussis pathogenicity signature, T1SS	K22944 K11004 K07389 K11003 K12340
+M00576	KEGG	ETEC pathogenicity signature, heat-labile and heat-stable enterotoxins	(K10928+K10929) (K16883,K16884)
+M00577	KEGG	Biotin biosynthesis, BioW pathway, pimelate => pimeloyl-CoA => biotin	K01906 K00652 (K00833,K19563) K01935 K01012
+M00579	KEGG	Phosphate acetyltransferase-acetate kinase pathway, acetyl-CoA => acetate	(K00625,K13788,K15024) K00925
+M00580	KEGG	Pentose phosphate pathway, archaea, fructose 6P => ribose 5P	(K08094 (K08093,K13812),K13831) K01807
+M00595	KEGG	Thiosulfate oxidation by SOX complex, thiosulfate => sulfate	K17222+K17223+K17224-K17225-K22622+K17226+K17227
+M00596	KEGG	Dissimilatory sulfate reduction, sulfate => H2S	K00958 (K00394+K00395) (K11180+K11181)
+M00597	KEGG	Anoxygenic photosystem II	K08928+K08929
+M00598	KEGG	Anoxygenic photosystem I	K08940+K08941+K08942+K08943
+M00608	KEGG	2-Oxocarboxylic acid chain extension, 2-oxoglutarate => 2-oxoadipate => 2-oxopimelate => 2-oxosuberate	K10977 K16792+K16793 K10978
+M00609	KEGG	Cysteine biosynthesis, methionine => cysteine	K00789 K17462 K01243 K07173 K17216 K17217
+M00611	KEGG	Oxygenic photosynthesis in plants and cyanobacteria	(M00161,M00163) M00165
+M00612	KEGG	Anoxygenic photosynthesis in purple bacteria	M00597 M00165
+M00613	KEGG	Anoxygenic photosynthesis in green nonsulfur bacteria	M00597 M00376
+M00614	KEGG	Anoxygenic photosynthesis in green sulfur bacteria	M00598 M00173
+M00615	KEGG	Nitrate assimilation	(K02575,K15576+K15577+K15578-K15579) M00531
+M00616	KEGG	Sulfate-sulfur assimilation	(K02048,K23163)+K02046+K02047+K02045 M00176
+M00617	KEGG	Methanogen	M00567,M00357,M00356,M00563
+M00618	KEGG	Acetogen	M00377 M00579
+M00620	KEGG	Incomplete reductive citrate cycle, acetyl-CoA => oxoglutarate	(K00169+K00170+K00171+K00172) (K01959+K01960) K00024 (K01677+K01678) (K18209+K18210) (K01902+K01903) (K00174+K00175+K00176+K00177)
+M00622	KEGG	Nicotinate degradation, nicotinate => fumarate	K18029+K18030 K14974 K18028 K15357 K13995 K01799
+M00623	KEGG	Phthalate degradation, phthalate => protocatechuate	K18068+K18069 K18067 K04102
+M00624	KEGG	Terephthalate degradation, terephthalate => 3,4-dihydroxybenzoate	K18074+K18075+K18077 K18076
+M00625	KEGG	Methicillin resistance	K02547 K02546 K02545
+M00627	KEGG	beta-Lactam resistance, Bla system	K02172 K02171 (K18766,K17836)
+M00630	KEGG	D-Galacturonate degradation (fungi), D-galacturonate => glycerol	(K18106,K19634) K18102 K18103 K18107
+M00631	KEGG	D-Galacturonate degradation (bacteria), D-galacturonate => pyruvate + D-glyceraldehyde 3P	K01812 K00041 (K01685,K16849+K16850) K00874 (K01625,K17463)
+M00632	KEGG	Galactose degradation, Leloir pathway, galactose => alpha-D-glucose-1P	K01785 K00849 K00965 K01784
+M00633	KEGG	Semi-phosphorylative Entner-Doudoroff pathway, gluconate/galactonate => glycerate-3P	K05308 K18126 K11395 (K00131,K18978)
+M00636	KEGG	Phthalate degradation, phthalate => protocatechuate	K18251+K18252-K18253-K18254 K18255 K18256
+M00637	KEGG	Anthranilate degradation, anthranilate => catechol	(K05599+K05600+K11311,K16319+K16320+K18248+K18249)
+M00638	KEGG	Salicylate degradation, salicylate => gentisate	K18242+K18243+K14578+K14581
+M00639	KEGG	Multidrug resistance, efflux pump MexCD-OprJ	K18294 K18295+K18296-K08721
+M00641	KEGG	Multidrug resistance, efflux pump MexEF-OprN	K18297 K18298+K18299-K18300
+M00642	KEGG	Multidrug resistance, efflux pump MexJK-OprM	K18301 K18302+K18303-K18139
+M00643	KEGG	Multidrug resistance, efflux pump MexXY-OprM	K18129 K18094+K18095+K18139
+M00649	KEGG	Multidrug resistance, efflux pump AdeABC	K18143 K18144 K18145+K18146-K18147
+M00651	KEGG	Vancomycin resistance, D-Ala-D-Lac type	(K18345 K18344 K07260 K18346),(K18351 K18352 K18354 K18353) (K18347 K15739 K08641)
+M00652	KEGG	Vancomycin resistance, D-Ala-D-Ser type	K18350 K18349 K18348 K18856 K18866
+M00660	KEGG	Xanthomonas spp. pathogenicity signature, T3SS and effectors	K03222+K03226+K03227+K03228+K03229+K03230+K03224+K03225+K03223+K18374+K18376 K18373 K18375 K18377 K18378 K18379 K18380 K18381
+M00661	KEGG	Paspaline biosynthesis, geranylgeranyl-PP + indoleglycerol phosphate => paspaline	K18385 K18386 K18387
+M00664	KEGG	Nodulation	K14658 K14659 K14666 K14657
+M00672	KEGG	Penicillin biosynthesis, aminoadipate + cycteine + valine => penicillin	K12743 K04126 K10852
+M00673	KEGG	Cephamycin C biosynthesis, aminoadipate + cycteine + valine => cephamycin C	K12743 K04126 K04127 K12744 K12745 K04128 K18062 K18063
+M00674	KEGG	Clavaminate biosynthesis, arginine + glyceraldehyde-3P => clavaminate	K12673 K12674 K12675 K12676
+M00675	KEGG	Carbapenem-3-carboxylate biosynthesis, pyrroline-5-carboxylate + malonyl-CoA => carbapenem-3-carboxylate	K18317 K18316 K18315
+M00696	KEGG	Multidrug resistance, efflux pump AcrEF-TolC	K18140 K18141+K18142+K12340
+M00697	KEGG	Multidrug resistance, efflux pump MdtEF-TolC	K07690 K18898+K18899+K12340
+M00698	KEGG	Multidrug resistance, efflux pump BpeEF-OprC	K18900 K18901+K18902+K18903
+M00700	KEGG	Multidrug resistance, efflux pump AbcA	(K18906,K18907) K18104
+M00702	KEGG	Multidrug resistance, efflux pump NorB	(K18906,K18907) K08170
+M00704	KEGG	Tetracycline resistance, efflux pump Tet38	K18906 K08168
+M00705	KEGG	Multidrug resistance, efflux pump MepA	K18909 K18908
+M00714	KEGG	Multidrug resistance, efflux pump QacA	K18938 K08167
+M00718	KEGG	Multidrug resistance, efflux pump MexAB-OprM	K18131 K03585+K18138+K18139
+M00725	KEGG	Cationic antimicrobial peptide (CAMP) resistance, dltABCD operon	K19077 K19078 K03367+K03739+K14188+K03740
+M00726	KEGG	Cationic antimicrobial peptide (CAMP) resistance, lysyl-phosphatidylglycerol (L-PG) synthase MprF	K19077 K19078 K14205
+M00730	KEGG	Cationic antimicrobial peptide (CAMP) resistance, VraFG transporter	K19077 K19078 K19079+K19080
+M00736	KEGG	Nocardicin A biosynthesis, L-pHPG + arginine + serine => nocardicin A	K19102+K19103+K05375 K19104 K19105 K19106
+M00740	KEGG	Methylaspartate cycle	K01647 K01681 K00031 K00261 K19268+K01846 K04835 K19280 K14449 K19281 K19282 K00024
+M00741	KEGG	Propanoyl-CoA metabolism, propanoyl-CoA => succinyl-CoA	(K01965+K01966,K11263+(K18472,K19312+K22568),K01964+K15036+K15037) K05606 (K01847,K01848+K01849)
+M00744	KEGG	Cationic antimicrobial peptide (CAMP) resistance, protease PgtE	K07637 K07660 K08477
+M00745	KEGG	Imipenem resistance, repression of porin OprD	(K18072 K18073),(K07644 K07665),K18297 K18093
+M00746	KEGG	Multidrug resistance, repression of porin OmpF	K13632 K18513 K09476
+M00761	KEGG	Undecaprenylphosphate alpha-L-Ara4N biosynthesis, UDP-GlcA => undecaprenyl phosphate alpha-L-Ara4N	K10011 K07806 K10012 K13014
+M00763	KEGG	Ornithine biosynthesis, mediated by LysW, glutamate => ornithine	K05826
+M00769	KEGG	Multidrug resistance, efflux pump MexPQ-OpmE	K18304 K19591 K19595+K19594+K19593
+M00773	KEGG	Tylosin biosynthesis, methylmalonyl-CoA + malonyl-CoA => tylactone => tylosin	K15988+K24555+K24556+K24557+K24558 K15989+K15990 K15992 K15991 K15993 K15994 K15995 K15996
+M00774	KEGG	Erythromycin biosynthesis, propanoyl-CoA + methylmalonyl-CoA => deoxyerythronolide B => erythromycin A/B	K10817+K24563+K24564 K14366 K14367 K14368+K15997 K14370 K14369
+M00775	KEGG	Oleandomycin biosynthesis, malonyl-CoA + methylmalonyl-CoA => 8,8a-deoxyoleandolide => oleandomycin	K16007+K24565+K24566 K16008 K16009 K13320 K16010
+M00776	KEGG	Pikromycin/methymycin biosynthesis, methylmalonyl-CoA + malonyl-CoA => narbonolide/10-deoxymethynolide => pikromycin/methymycin	K16000+K16001+K16002-K16003 K16004 K16005 K16006
+M00777	KEGG	Avermectin biosynthesis, 2-methylbutanoyl-CoA/isobutyryl-CoA => 6,8a-Seco-6,8a-deoxy-5-oxoavermectin 1a/1b aglycone => avermectin A1a/B1a/A1b/B1b	K14371+K24567+K24568+K24569 K14372 K14373 K14374 K14375
+M00778	KEGG	Type II polyketide backbone biosynthesis, acyl-CoA + malonyl-CoA => polyketide	K05551+K05552+K05553 -K12420 ((K05554,K14249,K15884,K15885) (K05555,K14250),K15886)
+M00779	KEGG	Dihydrokalafungin biosynthesis, octaketide => dihydrokalafungin	K05556 (K14626,K14627) (K14628,K14629) (K14630+K14631,K14632)
+M00780	KEGG	Tetracycline/oxytetracycline biosynthesis, pretetramide => tetracycline/oxytetracycline	K14251 K14252 K14253 K14254 K14255 K14256 K21301
+M00781	KEGG	Nogalavinone/aklavinone biosynthesis, deoxynogalonate/deoxyaklanonate => nogalavinone/aklavinone	K15941 K15942 K15943 K15944
+M00782	KEGG	Mithramycin biosynthesis, 4-demethylpremithramycinone => mithramycin	K15959 K15960 K15961 K15963 K15964 K15965 K15966 K15967
+M00783	KEGG	Tetracenomycin C/8-demethyltetracenomycin C biosynthesis, tetracenomycin F2 => tetracenomycin C/8-demethyltetracenomycin C	K15968 K15969 K15886 -K15970 K15971 K15972
+M00784	KEGG	Elloramycin biosynthesis, 8-demethyltetracenomycin C => elloramycin A	K19566 K19567 K19568 K19569 K19570
+M00785	KEGG	Cycloserine biosynthesis, arginine/serine => cycloserine	K19741 K19723
+M00786	KEGG	Fumitremorgin alkaloid biosynthesis, tryptophan + proline => fumitremorgin C/A	K18281 K14132 K17475 K18280 K17827 K17826 K14134 K17825 K18279
+M00787	KEGG	Bacilysin biosynthesis, prephenate => bacilysin	K19546 K19547 K19550 K19549 K19548 K13037
+M00788	KEGG	Terpentecin biosynthesis, GGAP => terpentecin	K19835 K19834
+M00789	KEGG	Rebeccamycin biosynthesis, tryptophan => rebeccamycin	K14266 K19884 K19885 K19886+K19887 K19888 K19889
+M00790	KEGG	Pyrrolnitrin biosynthesis, tryptophan => pyrrolnitrin	K14266 K19981 K14257 K19982
+M00793	KEGG	dTDP-L-rhamnose biosynthesis	K00973 K01710 (K01790 K00067,K23987)
+M00794	KEGG	dTDP-6-deoxy-D-allose biosynthesis	K13312 K13313
+M00795	KEGG	dTDP-beta-L-noviose biosynthesis	K19855 K12710 K17625
+M00796	KEGG	dTDP-D-mycaminose biosynthesis	K19853 K19854 K13307
+M00797	KEGG	dTDP-D-desosamine biosynthesis	K13308 K13309 (K13310,K16436) (K13311,K13326)
+M00798	KEGG	dTDP-L-mycarose biosynthesis	K16435 K13315 K13317 (K13316,K16438) K13318
+M00799	KEGG	dTDP-L-oleandrose biosynthesis	K16435 K13315 K16438 K19856 K19857
+M00800	KEGG	dTDP-L-megosamine biosynthesis	K16435 K16436 K13326 K16438 K13322
+M00801	KEGG	dTDP-L-olivose biosynthesis	K16435 K13327 K19858 K13319
+M00802	KEGG	dTDP-D-forosamine biosynthesis	K16435 K13327 K13328 K13329 K13330
+M00803	KEGG	dTDP-D-angolosamine biosynthesis	K16435 K19859 K16436 K13332
+M00804	KEGG	Complete nitrification, comammox, ammonia => nitrite => nitrate	K10944+K10945+K10946 K10535 K00370+K00371
+M00805	KEGG	Staurosporine biosynthesis, tryptophan => staurosporine	K20075 K20076 K20077+K20078 K20079 K20080 K20081 K20082
+M00808	KEGG	Violacein biosynthesis, tryptophan => violacein	K20086 K20087+K20088 K20089 K20090
+M00810	KEGG	Nicotine degradation, pyridine pathway, nicotine => 2,6-dihydroxypyridine/succinate semialdehyde	K19818+K19819+K19820 (K19826,K19890) K19185+K19186+K19187 K19188 -K20155
+M00811	KEGG	Nicotine degradation, pyrrolidine pathway, nicotine => succinate semialdehyde	K20170,K20169 (K20170,(K20158 K19700)) K20171-K20172 K15359,K18276
+M00814	KEGG	Acarbose biosynthesis, sedoheptulopyranose-7P => acarbose	K19969 K19979 K19974 K20424 K20425 K20426 K20427 K20430 -- --
+M00815	KEGG	Validamycin A biosynthesis, sedoheptulopyranose-7P => validamycin A	K19969 K20431 K20432 K20433 K20434 K20435 K20436 K20437 K20438
+M00819	KEGG	Pentalenolactone biosynthesis, farnesyl-PP => pentalenolactone	K12250 K15907 -- K18056 K17747 K18091 K18057 K17476
+M00823	KEGG	Chlortetracycline biosynthesis, pretetramide => chlortetracycline	K14251 K14252 K14253 K14254 K14255 K14256 K21301 K14257+K21297
+M00824	KEGG	9-membered enediyne core biosynthesis, malonyl-CoA => 3-hydroxyhexadeca-4,6,8,10,12,14-hexaenoyl-ACP => 9-membered enediyne core	K15314 K21160+K21161+K21162+K21163+K21164+K21165+K21166+K21167
+M00825	KEGG	10-membered enediyne core biosynthesis, malonyl-CoA => 3-hydroxyhexadeca-4,6,8,10,12,14-hexaenoyl-ACP => 10-membered enediyne core	K15314 K21168+K21169+K21170+K21171+K21172+K21173+K21174
+M00826	KEGG	C-1027 benzoxazolinate moiety biosynthesis, chorismate => benzoxazolinyl-CoA	K20159+K21175 K20156 K21176 K21177 K21178 K21179
+M00827	KEGG	C-1027 beta-amino acid moiety biosynthesis, tyrosine => 3-chloro-4,5-dihydroxy-beta-phenylalanyl-PCP	K21183
+M00828	KEGG	Maduropeptin beta-hydroxy acid moiety biosynthesis, tyrosine => 3-(4-hydroxyphenyl)-3-oxopropanoyl-PCP	K21183
+M00829	KEGG	3,6-Dimethylsalicylyl-CoA biosynthesis, malonyl-CoA => 6-methylsalicylate => 3,6-dimethylsalicylyl-CoA	K15320 K21191 K21192
+M00830	KEGG	Neocarzinostatin naphthoate moiety biosynthesis, malonyl-CoA => 2-hydroxy-5-methyl-1-naphthoate => 2-hydroxy-7-methoxy-5-methyl-1-naphthoyl-CoA	K20422 K20420 K20421 K20423
+M00831	KEGG	Kedarcidin 2-hydroxynaphthoate moiety biosynthesis, malonyl-CoA => 3,6,8-trihydroxy-2-naphthoate => 3-hydroxy-7,8-dimethoxy-6-isopropoxy-2-naphthoyl-CoA	K21221 K21222 K21223 K21224 K21225
+M00832	KEGG	Kedarcidin 2-aza-3-chloro-beta-tyrosine moiety biosynthesis, azatyrosine => 2-aza-3-chloro-beta-tyrosyl-PCP	K21183
+M00833	KEGG	Calicheamicin biosynthesis, calicheamicinone => calicheamicin	K21254 K21255 K21256 K21257 K21258
+M00834	KEGG	Calicheamicin orsellinate moiety biosynthesis, malonyl-CoA => orsellinate-ACP => 5-iodo-2,3-dimethoxyorsellinate-ACP	K21254 K21255 K21256 K21257 K21258
+M00835	KEGG	Pyocyanine biosynthesis, chorismate => pyocyanine	K13063 K20261 K06998 K20260 K20262 K21103 K20940
+M00836	KEGG	Coenzyme F430 biosynthesis, sirohydrochlorin => coenzyme F430	K22011 K22012 (K21610+K21611) K21612
+M00837	KEGG	Prodigiosin biosynthesis, L-proline => prodigiosin	K21780+K21781 K21782 K21783 K21784 K21785 K21786
+M00838	KEGG	Undecylprodigiosin biosynthesis, L-proline => undecylprodigiosin	K21780+K21781 K21782 K21783 K21784 K21785 K21786
+M00840	KEGG	Tetrahydrofolate biosynthesis, mediated by ribA and trpF, GTP => THF	K14652 K22100 -- K01633 K13941 K22099 K00287
+M00841	KEGG	Tetrahydrofolate biosynthesis, mediated by PTPS, GTP => THF	K01495 K22101 K13941 K11754 K13998
+M00842	KEGG	Tetrahydrobiopterin biosynthesis, GTP => BH4	K01495 K01737 K00072
+M00843	KEGG	L-threo-Tetrahydrobiopterin biosynthesis, GTP => L-threo-BH4	K01495 K01737 K17745
+M00844	KEGG	Arginine biosynthesis, ornithine => arginine	K00611 K01940 (K01755,K14681)
+M00845	KEGG	Arginine biosynthesis, glutamate => acetylcitrulline => arginine	K22478 K00145 K00821 K09065 K01438 K01940 K01755
+M00846	KEGG	Siroheme biosynthesis, glutamyl-tRNA => siroheme	K02492 K01845 K01698 K01749 (K01719,K13542,K13543) (K02302,(K00589,K02303,K02496,K13542,K13543)+(K02304,(K24866+K03794)))
+M00847	KEGG	Heme biosynthesis, archaea, siroheme => heme	K22225 K22226 (K22227,K25033)
+M00848	KEGG	Aurachin biosynthesis, anthranilate => aurachin A	K09460 K02078+K14245+K14246+K22798 K22799 K22800 K21272 K21271 K22801 K22802
+M00849	KEGG	C5 isoprenoid biosynthesis, mevalonate pathway, archaea	K00626 K01641 (K00021,K00054) ((K00869 (K17942,(K25517+K09128 K25518+K03186))),(K18689 K18690 K22813)) K06981 K01823
+M00850	KEGG	Vibrio cholerae pathogenicity signature, cholera toxins	(K10928+K10929) K10954 K10952 K10953 K10948 K11018
+M00851	KEGG	Carbapenem resistance	(K18768,K18970,K19316,K22346,K18794,K19318,K18971,K18793,K19319,K19320,K19321,K19322,K18972,K19211,K18976,K21277,K18782,K18781,K18780,K19099,K19216)
+M00852	KEGG	Vibrio cholerae pathogenicity signature, toxin coregulated pilus	K10961 K10920 K10919 K10930 K10931 K10962 K10932 K10963 K10933 K10964 K10965 K10934 K10935 K10966
+M00853	KEGG	ETEC pathogenicity signature, colonization factors	K22850 -K22851 K22852 K22853 K22854
+M00854	KEGG	Glycogen biosynthesis, glucose-1P => glycogen/starch	(K00963 (K00693+K00750,K16150,K16153,K13679,K20812)),(K00975 (K00703,K13679,K20812)) (K00700,K16149)
+M00855	KEGG	Glycogen degradation, glycogen => glucose-6P	(K00688,K16153) (K01196,((K00705,K22451) (K02438,K01200))) (K15779,K01835,K15778)
+M00856	KEGG	Salmonella enterica pathogenicity signature, typhoid toxin	K11014 K11023 K19298 K22918
+M00857	KEGG	Salmonella enterica pathogenicity signature, Vi antigen	K22914 K22926 K22925 K22915 K22916 K22917 (K22924+K22921+K22923+K22922)
+M00859	KEGG	Bacillus anthracis pathogenicity signature, anthrax toxin	K11030 K08645 K11029
+M00860	KEGG	Bacillus anthracis pathogenicity signature, polyglutamic acid capsule biosynthesis	K22976 K22977 K22980 K07282 K22116 K01932 K22981
+M00861	KEGG	beta-Oxidation, peroxisome, VLCFA	K00232 K12405 (K07513,K08764)
+M00862	KEGG	beta-Oxidation, peroxisome, tri/dihydroxycholestanoyl-CoA => choloyl/chenodeoxycholoyl-CoA	K10214 K12405 K08764
+M00866	KEGG	KDO2-lipid A biosynthesis, Raetz pathway, non-LpxL-LpxM type	K00677 (K02535,K16363) K02536 (K03269,K09949) K00748 K00912 K02527 K02517 K09778
+M00867	KEGG	KDO2-lipid A modification pathway	K12977 K03760 K23082+K23083 K23159 K09953
+M00868	KEGG	Heme biosynthesis, animals and fungi, glycine => heme	K00643 K01698 K01749 K01719 K01599 K00228 K00231 K01772
+M00872	KEGG	O-glycan biosynthesis, mannose type (core M3)	K00728 K18207 K09654 K17547
+M00873	KEGG	Fatty acid biosynthesis in mitochondria, animals	K18660 K03955+K00645 K09458 K11539+K13370 K22540 K07512
+M00874	KEGG	Fatty acid biosynthesis in mitochondria, fungi	K11262 K03955+K00645 K09458 K00059 K22541 K07512
+M00875	KEGG	Staphyloferrin B biosynthesis, L-serine => staphyloferrin B	K23371 K21949 K21721 K23372 K23373 K23374 K23375
+M00876	KEGG	Staphyloferrin A biosynthesis, L-ornithine => staphyloferrin A	K21898 K23446 K23447
+M00877	KEGG	Kanosamine biosynthesis, glucose 6-phosphate => kanosamine	K18652 K18653 K18654
+M00878	KEGG	Phenylacetate degradation, phenylaxetate => acetyl-CoA/succinyl-CoA	K01912 K02609+K02610+K02611+K02612+K02613 K15866 K02618 K02615 K01692 K00074
+M00879	KEGG	Arginine succinyltransferase pathway, arginine => glutamate	K00673 K01484 K00840 K06447 K05526
+M00880	KEGG	Molybdenum cofactor biosynthesis, GTP => molybdenum cofactor	((K03639 K03637),K20967) (K03635,K21142) (((K03831,K03638) K03750),K15376)
+M00881	KEGG	Lipoic acid biosynthesis, plants and bacteria, octanoyl-ACP => dihydrolipoyl-E2/H	K03801 K03644
+M00882	KEGG	Lipoic acid biosynthesis, eukaryotes, octanoyl-ACP => dihydrolipoyl-H	K23735 K03644
+M00883	KEGG	Lipoic acid biosynthesis, animals and bacteria, octanoyl-ACP => dihydrolipoyl-H => dihydrolipoyl-E2	(K23735,K23734) K03644 (K10105,K16869)
+M00884	KEGG	Lipoic acid biosynthesis, octanoyl-CoA => dihydrolipoyl-E2	K23750 K03644
+M00889	KEGG	Puromycin biosynthesis, ATP => puromycin	K12628 K12629 K12630 K12631 K12632 K12633 K12634 K12635 K12636
+M00890	KEGG	Roseoflavin biosynthesis, FMN => roseoflavin	K22598 -- K22269
+M00891	KEGG	Ditryptophenaline biosynthesis, tryptophan + phenylalanine => ditryptophenaline	K23646 K23647 K21477
+M00892	KEGG	UDP-N-acetyl-D-glucosamine biosynthesis, eukaryotes, glucose => UDP-GlcNAc	(K00844,K12407,K00845) K01810 K00820 K00621 K01836 K00972
+M00893	KEGG	Lovastatin biosynthesis, malonyl-CoA => lovastatin acid	K20981 K20982 K20985 K20980
+M00894	KEGG	Cannabidiol biosynthesis, malonyl-CoA => cannabidiol/dronabinol	K20503 K20508 -- K20502 K20501
+M00895	KEGG	Thiamine biosynthesis, prokaryotes, AIR (+ DXP/glycine) => TMP/TPP	K03148+K03154 K03151
+M00896	KEGG	Thiamine biosynthesis, archaea, AIR (+ NAD+) => TMP/TPP	K22699
+M00897	KEGG	Thiamine biosynthesis, plants, AIR (+ NAD+) => TMP/thiamine/TPP	K03146
+M00898	KEGG	Thiamine biosynthesis, pyridoxal-5P => TMP/thiamine/TPP	K03146
+M00899	KEGG	Thiamine salvage pathway, HMP/HET => TMP	K00878
+M00900	KEGG	Crocin biosynthesis, crocetin => crocin	K21371 K21354
+M00901	KEGG	Fumiquinazoline biosynthesis, tryptophan + alanine + anthranilate => fumiquinazoline	K23665 K23666 K23667 K23668
+M00902	KEGG	Podophyllotoxin biosynthesis, coniferyl alcohol => podophyllotoxin	K21568 K19650 K21207 K21203 K21205 K21204 K21202
+M00903	KEGG	Fosfomycin biosynthesis, phosphoenolpyruvate => fosfomycin	K23999 K09459 K12901 K12902 K24000 K12903
+M00904	KEGG	Dapdiamides biosynthesis, L-2,3-diaminopropanoate => dapdiamide A/B/C	K22113 K01957 K22114
+M00905	KEGG	Grixazone biosynthesis, aspartate 4-semialdehyde => grixazone B	K18287 K17835 K20204
+M00906	KEGG	Ethynylserine biosynthesis, lysine => ethynylserine	K23669 K23670 K23671 K23672 K23673
+M00909	KEGG	UDP-N-acetyl-D-glucosamine biosynthesis, prokaryotes, glucose => UDP-GlcNAc	(K00845,K25026) (K01810,K13810,K15916) K00820 K03431 K04042
+M00910	KEGG	Phenylalanine biosynthesis, chorismate => arogenate => phenylalanine	K01850 K15849 K05359
+M00911	KEGG	Riboflavin biosynthesis, fungi, GTP => riboflavin/FMN/FAD	K01497 K14654 K14655 --
+M00912	KEGG	NAD biosynthesis, tryptophan => quinolinate => NAD	(K00453,K00463) (K01432,K14263,K07130) K00486 K01556 K00452 K00767 (K00969,K06210) (K01916,K01950)
+M00913	KEGG	Pantothenate biosynthesis, 2-oxoisovalerate/spermine => pantothenate	K00606 K00077
+M00914	KEGG	Coenzyme A biosynthesis, archaea, 2-oxoisovalerate => 4-phosphopantoate => CoA	K00606 K00077 K06982 K09722 K13038 K02201 K09735
+M00915	KEGG	Caffeine degradation, caffeine => xanthine	K21722 K21723 K21724
+M00916	KEGG	Pyridoxal-P biosynthesis, R5P + glyceraldehyde-3P + glutamine => pyridoxal-P	K06215+K08681
+M00917	KEGG	Phytosterol biosynthesis, squalene 2,3-epoxide => campesterol/sitosterol	K01853 K00559 K14423 K23558 -- K08246 K05917 K00222 K01824 K08242
+M00918	KEGG	Aerobactin biosynthesis, lysine => aerobactin	K03897 K03896 K03894 K03895
+M00919	KEGG	Ectoine degradation, ectoine => aspartate	K15783 K15784 K15785 K15786
+M00921	KEGG	Cyclooctatin biosynthesis, dimethylallyl-PP + isopentenyl-PP => cyclooctatin	K13787 K18686 K22997 K22998
+M00922	KEGG	CMP-Neu5Ac biosynthesis	K24257 K01654 K00983
+M00923	KEGG	UDP-L-FucNAm biosynthesis	K15894 K19068 K24258 K24259
+M00924	KEGG	Cobalamin biosynthesis, anaerobic, uroporphyrinogen III => sirohydrochlorin => cobyrinate a,c-diamide	(K02302,(K02303,K13542) (K02304,K24866)) (K02190,K03795,K22011) K03394 (K05934,K13541,K21479) K05936 (K02189,K13541) K02188 K05895 (K02191 K03399,K00595) K06042 K02224
+M00925	KEGG	Cobalamin biosynthesis, aerobic, uroporphyrinogen III => precorrin 2 => cobyrinate a,c-diamide	(K02303,K13542) (K03394,K13540) K02229 (K05934,K13540,K13541) K05936 K02228 K05895 K00595 K06042 K02224 K02230+K09882+K09883
+M00926	KEGG	Heme biosynthesis, bacteria, glutamyl-tRNA => coproporphyrin III => heme	K02492 K01845 K01698 K01749 (K01719,K13542) K01599 K00231 K01772 K00435
+M00927	KEGG	Gibberellin A12 biosynthesis, GAPP => GA12	K04120 K04121 K04122 K04123
+M00928	KEGG	Gibberellin A4/A1 biosynthesis, GA12/GA53 => GA4/GA1	K05282 K04124
+M00929	KEGG	Gibberellin A1 biosynthesis, GGPP => GA1	K20657 K21292 K12917 K12918 K12919
+M00930	KEGG	Menaquinone biosynthesis, futalosine pathway	K11782 K18285 (K18286,K20810) K11783 K11784 K11785
+M00931	KEGG	Menaquinone biosynthesis, modified futalosine pathway	K11782 K18285 K18284 K11784 K11785
+M00932	KEGG	Phylloquinone biosynthesis, chorismate (+ phytyl-PP) => phylloquinol	(K02552 K02551 K08680 K02549,K14759) (K01911,K14760) K01661 (K19222,K12073) K23094 K17872 K23095
+M00933	KEGG	Plastoquinone biosynthesis, homogentisate + solanesyl-PP => plastoquinol	K12501 K12502
+M00934	KEGG	Mycinamicin biosynthesis, malonyl-CoA + methylmalonyl-CoA => protomycinolide IV => mycinamicin II	K24528+K24559+K24560+K24561+K24562 K24529 K24292+K24530 K24531 K21540 K21539 K24390
+M00935	KEGG	Methanofuran biosynthesis	K09733 K19793 K07144
+M00936	KEGG	Melatonin biosynthesis, plants, tryptophan => serotonin => melatonin	K01593 K24541 K22450 (K22588,K13066)
+M00937	KEGG	Aflatoxin biosynthesis, malonyl-CoA => aflatoxin B1	K15316 K17643 K17644 K17645 K17652 K17646 K24440 K24855 K17648 K24439 K24856+K24438+K24857+K24858 K17649 K17650 K17651
+M00938	KEGG	Pyrimidine deoxyribonucleotide biosynthesis, UDP => dTTP	(K00525+K00526,K10807+K10808) (K00940,K18533) K01520 (K00560,K13998,K03465) K00943
+M00939	KEGG	Pyrimidine degradation, uracil => 3-hydroxypropanoate	K09018+K09024 K09020 K09021 K09023 (K09019,K16066)
+M00940	KEGG	Flavanone biosynthesis, p-coumaroyl-CoA => liquiritigenin	K00660+K08243 K01859
+M00941	KEGG	Isoflavone biosynthesis, liquiritigenin/naringenin => daidzein/genistein	K13257 K13258
+M00942	KEGG	Pterocarpan biosynthesis, daidzein => medicarpin	K13259 K13260 K05281 K13265 K25075
+M00943	KEGG	Reticuline biosynthesis, dopamine + 4HPAA => (S)-reticuline	K13382 K13383 K13384 K13385 K13386
+M00944	KEGG	Morphine biosynthesis, (S)-reticuline => morphine	K22093 K13391 K13392 K13393 K01742 K14975 K14976 K13394
+M00945	KEGG	Sanguinarine biosynthesis, (S)-reticuline => sanguinarine	K00307 K21070 K13395 K13396 K21692 K21693 K22089
+M00946	KEGG	Noscapine biosynthesis, (S)-reticuline => noscapine	K00307 K13397 K13395 K13396 K20621 K22094 K22095 K22096 K23157+K23158 K22097 K22098
+M00947	KEGG	D-Arginine racemization, D-arginine => L-arginine	K19746 K19744
+M00948	KEGG	Hydroxyproline degradation, trans-4-hydroxy-L-proline => 2-oxoglutarate	K12658 (K21060,K22549+K21061+K22550) K21062 K13877
+M00949	KEGG	Staphylopine biosynthesis, L-histidine => staphylopine	K01780 K23120 K23122
+M00950	KEGG	Biotin biosynthesis, BioU pathway, pimeloyl-ACP/CoA => biotin	K00652 K25570 K01935 K01012
+M00951	KEGG	Cremeomycin biosynthesis, aspartate/3,4-AHBA => cremeomycin	K25562 K25597
+M00952	KEGG	Benzoxazinoid biosynthesis, indoleglycerol phosphate => DIMBOA-glucoside	K13222 K13223 K13224 K13225 K13226 K13227 K13229 K13230
+M00953	KEGG	Mugineic acid biosynthesis, methionine => 3-epihydroxymugineic acid	K00789 K05953 K14271 K22374 K18054
+M00956	KEGG	Lysine degradation, bacteria, L-lysine => succinate	K01582 K09251 K00137 K07250 K00135 K15737 K15736
+M00957	KEGG	Lysine degradation, bacteria, L-lysine => glutarate => succinate/acetyl-CoA	K00468 K01506 (K14268,K07250) K00135 ((K15737 K15736),(K01041 K00252 (K01692,K01825,K01782) (K01825,K01782) K00626))
+M00958	KEGG	Adenine ribonucleotide degradation, AMP => Urate	((K01490 (K01081,K19970,K03787,K18550)),((K01081,K19970,K11751,K03787,K02566,K08693) (K01488,K19572,K05810))) (K03783,K03784,K09913,K05810) (K00106,K00087+K13479+K13480,K13481+K13482,K11177+K11178+K13483)
+M00959	KEGG	Guanine ribonucleotide degradation, GMP => Urate	(K01081,K19970,K11751,K03787,K02566,K08693,K20881) (K03783,K03784,K09913,K05810) K01487 (K00106,K00087+K13479+K13480,K13481+K13482,K11177+K11178+K13483)
+M00960	KEGG	Lysine degradation, bacteria, L-lysine => D-lysine => succinate	(K25316,K25317) K26064 K13609 K26065 K26061 K26062 K25986 K26063 K15737
+M00961	KEGG	Betacyanin biosynthesis, L-tyrosine => amaranthin	K26037 K15777
+M00962	KEGG	Psilocybin biosynthesis, tryptophan => psilocybin	K22433 K22434 K22435 K22436
+M00963	KEGG	Chanoclavine aldehyde biosynthesis, tryptophan => chanoclavine-I aldehyde	K14130 K18884 K17746
+M00964	KEGG	Fumigaclavine biosynthesis, chanoclavine-I aldehyde => fumigaclavine C	K19182 K19183 -- K19184 K14135
+M00965	KEGG	Vindoline biosynthesis, tabersonine => vindoline	K12696 K21895 K22365 K22323 K21896 K12697 K12698
+M00966	KEGG	Equol biosynthesis, daidzein => equol	K26069 K26175 K26070 K26071
+M00967	KEGG	Flavone degradation, luteolin/apigenin => DHCA/phloretate	K26176 K26178 K22906
+M00968	KEGG	Pentose bisphosphate pathway (nucleoside degradation), archaea, nucleoside/NMP => 3-PGA/glycerone phosphate	(((K00757,K26211,K26212) (K21056,K26208)),K18931) K18237 (K01601,(K26210 K01636))
+MF0001	GMM	ethanol production (formate pathway)	K00656 (K00132,K04072,K04073) (K00001,K00121,K04072,K11440,K13953,K13954) 
+MF0002	GMM	ethanol production (CO2 pathway) 	K01568 (K00001,K00121,K04072,K11440,K13953,K13954) 
+MF0003	GMM	acetylglucosamine degradation	((K02802+K02803+K02804),K00884) (K01443,K02079) (K02564,K01504) 
+MF0004	GMM	putrescine degradation	((K00137+K09251),(K00137+K12256),(K00137+K03343),(K09470+K09471+K09472+K09473)) 
+MF0005	GMM	acetylneuraminate and acetylmannosamine degradation	K01639 ((K00885+K01788),K13967) 
+MF0006	GMM	urea degradation	((K01941+K01457),(K01428+K01429+K01430),K14048) 
+MF0007	GMM	phenylalanine degradation	(K00832,K00812,K00813,K11358,K00817) (K00146,K00129) 
+MF0008	GMM	tyrosine degradation (hydroxyphenylacetaldehyde pathway)	(K00832,K00812,K00813,K11358,K00817) (K00129,K00055) 
+MF0009	GMM	tryptophan degradation	K01667 
+MF0010	GMM	tyrosine degradation (phenol pathway)	K01668 
+MF0011	GMM	aspartate degradation (oxaloacetate pathway)	(K00812,K00813,K11358) 
+MF0012	GMM	aspartate degradation (fumarate pathway)	K01744 
+MF0013	GMM	glutamate degradation (crotonyl-CoA pathway)	(K00260,K15371,K00261,K00262) K00109 ((K01039+K01040)) K01726 K01615 
+MF0014	GMM	glutamate degradation (4-aminobutanoate pathway)	K01580 
+MF0015	GMM	glutamate degradation (methylaspartate pathway)	K01846 K04835 
+MF0016	GMM	glycine degradation	(K00281,(K00282+K00283)) K00605 K00382 
+MF0017	GMM	alanine degradation (racemase pathway)	K01775 K00285 
+MF0018	GMM	proline degradation (glutamate pathway)	((K00318+K00294),K13821) 
+MF0019	GMM	proline degradation (aminopentanoate pathway)	K01777 ((K10793+K10794+K10795+K10796)) 
+MF0020	GMM	valine degradation	K00826 ((K00186+K00187+K00188+K00189),(K00166+K00167+K09699+K00382),(K11381+K09699+K00382)) (K00248,K00249,K09478,K11410) (K01692,K01782,K01825) (K00020,K01782,K01825,(K07547+K07548),K15016) ((K00140+K00822),(K00140+K13524),(K00140+K07250)) 
+MF0021	GMM	leucine degradation	K00826 ((K00186+K00187+K00188+K00189),(K00166+K00167+K09699+K00382),(K11381+K09699+K00382)) (K00249,K00253) ((K01968+K01969)) K13766 K01640 
+MF0022	GMM	isoleucine degradation	K00826 ((K00186+K00187+K00188+K00189),(K00166+K00167+K09699+K00382),(K11381+K09699+K00382)) (K00248,K00249,K09478,K11410) (K01692,K01782,K01825) (K01782,K01825,(K07547+K07548),K15016) (K00626,K00632,K07508) 
+MF0023	GMM	methionine degradation (cysteine pathway)	K00789 K00558 K01251 
+MF0024	GMM	methionine degradation (mercaptan pathway)	K01761 
+MF0025	GMM	alanine degradation (glutamate pathway)	K00814 K00259 
+MF0026	GMM	cysteine biosynthesis/homocysteine degradation	(K01697,K10150) K01758 
+MF0027	GMM	cysteine degradation	(K01758,K01760) 
+MF0028	GMM	serine degradation	(K01752,K01753) 
+MF0029	GMM	threonine degradation (glycine pathway)	((K00060+K00639),(K01620+K00132),(K01620+K04072),(K01620+K04073)) 
+MF0030	GMM	threonine degradation (formate pathway)	K01754 K00656 
+MF0031	GMM	asparagine degradation	K01424 
+MF0032	GMM	glutamine degradation (ammonia pathway)	K01425 
+MF0033	GMM	cysteine degradation (mercaptopyruvate pathway)	((K00812+K01011),(K00813+K01011),(K11358+K01011)) 
+MF0034	GMM	glutamine degradation (oxoglutarate pathway)	((K00265+K00266)) 
+MF0035	GMM	arginine degradation (agmatine deiminase pathway)	(K01583,K01584,K01585,K02626) ((K10536+K12251)) 
+MF0036	GMM	arginine degradation (ornithine decarboxylase pathway)	K01476 K01581 
+MF0037	GMM	arginine degradation (AST/succinyltransferase pathway)	K00673 K01484 K00840 K06447 K05526 
+MF0038	GMM	arginine degradation (arginine:pyruvate transaminase/4-aminobutyrate pathway)	K12252 K12253 K12254 K12255 
+MF0039	GMM	lysine fermentation to acetate and butyrate ((3,6)-diaminohexanoate pathway)	K01843 K01844 K00248 K01036 
+MF0040	GMM	lysine degradation (cadaverine pathway)	K01582 
+MF0041	GMM	histidine degradation	K01745 K01712 K01468 (K01479,(K05603+K01458),(K00603+K13990)) 
+MF0042	GMM	4-aminobutyrate degradation	(K00823,K07250,K13524) ((K00043+K14534),K00135) 
+MF0043	GMM	arginine degradation (agmatinase pathway)	(K01583,K01584,K01585,K02626) K01480 
+MF0044	GMM	glycocholate degradation	K01442 K00076 
+MF0045	GMM	trehalose degradation	(K03731,K01226,K01194,K05342) 
+MF0046	GMM	sucrose degradation	K01193 K00847 
+MF0047	GMM	lactose and galactose degradation (PTS)	((K02786+K02787+K02788)) K01220 K01819 K00917 (K08302,K01635) 
+MF0048	GMM	lactose degradation	(K12111,K01190,K12308) 
+MF0049	GMM	maltose degradation	K00691 K01838 
+MF0050	GMM	melibiose degradation	(K07406,K07407) 
+MF0051	GMM	sucrose degradation (Actinobacteria)	K00690 K00847 K01792 K01835 
+MF0052	GMM	chondroitin sulfate and dermatan sulfate degradation	K08961 
+MF0053	GMM	allose degradation	K00881 K01808 
+MF0054	GMM	arabinose degradation	K01804 
+MF0055	GMM	xylose degradation	K01805 K00854 
+MF0056	GMM	galactose degradation (Leloir pathway)	K01785 K00849 K00965 K01784 K01838 
+MF0057	GMM	alpha-D-glucose and alpha-D-glucose 1-phosphate degradation	K00117 K00845 K01053 K01085 K01792 K01835 
+MF0058	GMM	fructose degradation	K00882 
+MF0059	GMM	rhamnose degradation	K01813 K00848 K01629 K01803 
+MF0060	GMM	ribose degradation	K00852 
+MF0061	GMM	mannose degradation	K01809 
+MF0062	GMM	starch degradation	(K01176,K07405) (K01200,K01208) (K00688,K00705,K01187,K12047,K01178,K01182,K01214) 
+MF0063	GMM	fructan degradation	K03332 
+MF0064	GMM	pectin degradation	K01051 K01184 K01213 
+MF0065	GMM	pectin degradation - 5-dehydro-4-deoxy-D-glucuronate degradation	(K01728,K01731) K01730 K01815 K00874 K01625 
+MF0066	GMM	glycogen metabolism	K00975 K00703 K00700 K00688 K01187 (K01196,K00705) 
+MF0067	GMM	PHB production	K00023 K03821 
+MF0068	GMM	glucarate degradation	K01706 ((K01707+K13877),(K00042+K01630+K11529)) 
+MF0069	GMM	galactarate degradation	K01708 ((K01707+K13877),(K00042+K01630+K11529)) 
+MF0070	GMM	galactonate degradation	K01684 K00883 K01631 
+MF0071	GMM	D-galacturonate degradation	K01812 K00041 K01685 K00874 
+MF0072	GMM	ribitol degradation	K00039 K00875 K01783 
+MF0073	GMM	sorbitol degradation (dehydrogenase)	K00008 
+MF0074	GMM	mannitol degradation	K00009 
+MF0075	GMM	sorbitol degradation (phosphotransferase)/sorbose degradation	K00068 
+MF0076	GMM	arabitol degradation	K00007 K00854 
+MF0077	GMM	galactitol degradation	K00094 K00917 (K01635,K08302) K01803 
+MF0078	GMM	xylitol degradation	K05351 K00854 
+MF0079	GMM	bifidobacterium shunt	K01632 K00616 K00615 (K01807,K01808) K01783 K01621 
+MF0080	GMM	Glycolysis (preparatory phase)	(K00844,K00845) (K01810,K06859,K13810) K00850 (K01623,K01624) K01803 
+MF0081	GMM	Glycolysis (pay-off phase)	(K00134,K00150) K00927 (K01834,K01837) K01689 K00873 
+MF0082	GMM	pentose phosphate pathway (oxidative branch)	K00036 (K01057,K07404) K00033 
+MF0083	GMM	pyruvate dehydrogenase complex	((K00161+K00162),K00163) K00382 K00627 
+MF0084	GMM	pyruvate:ferredoxin oxidoreductase	((K00169+K00170+K00171+K00172)) 
+MF0085	GMM	pyruvate:formate lyase	K00656 
+MF0086	GMM	TCA cycle	K01647 (K01681,K01682) (K00031,K00030) ((K00164+K00658+K00382)) ((K01902+K01903)) ((K00239+K00240+K00241+K00242),(K00244+K00245+K00246+K00247)) (K01676,K01679,(K01677+K01678)) (K00024,K00116) 
+MF0087	GMM	TCA cycle (Mycobacterium pathway)	K01647 (K01681,K01682) (K00031,K00030) K01616 K01637 K01638 ((K00239+K00240+K00241+K00242),(K00244+K00245+K00246+K00247)) K00024 
+MF0088	GMM	TCA cycle (Helicobacter pathway)	K01647 (K01681,K01682) (K00031,K00030) ((K00174+K00175+K00176+K00177)) (K01027,(K01028+K01029)) (K01676,K01679,(K01677+K01678)) K00116 
+MF0089	GMM	Entner-Doudoroff pathway I	K01690 K01625 
+MF0090	GMM	pentose phosphate pathway (non-oxidative branch)	(K01807,K01808) K01783 K00615 (K00616,K13810) 
+MF0091	GMM	beta-D-glucuronide and D-glucuronate degradation	K00040 K00874 K01195 K01686 K01812 
+MF0092	GMM	kdo2-lipid A synthesis	K00677 K02535 K02536 K03269 K00748 K00912 K02527 K02517 K02560 
+MF0093	GMM	homoacetogenesis	((K05299+K15022)) K01938 K01491 K00297 K15023 (K00191,(K00192+K14138),(K00196+K14138),(K00198+K14138),(K03518+K03519+K03520+K14138)) 
+MF0094	GMM	hydrogen metabolism	(K00532,(K00533+K00534+K06441),K00436) 
+MF0095	GMM	NADH:ferredoxin oxidoreductase	K00529 
+MF0096	GMM	methane oxidation	((K16154+K16155+K16156),(K16157+K16158+K16159+K16160+K16161),K08684) 
+MF0097	GMM	Methanogenesis - methyl-coM	((K00399+K00400+K00401+K00402+K03421+K03422)) 
+MF0098	GMM	methanogenesis from carbon dioxide	((K00200+K00201+K00202+K00203+K00204+K00205+K11261+K11260)) K00672 K01499 K00319 K00320 ((K00440+K00441+K00443)) ((K00577+K00578+K00579+K00580+K00581+K00582+K00583+K00584)) 
+MF0099	GMM	methanol conversion	(K04480,K14080,K14081) 
+MF0100	GMM	Sulfate reduction (dissimilatory)	(K13811,K00958,K00955,(K00957+K00956)) ((K00394+K00395)) ((K11180+K11181)) 
+MF0101	GMM	Sulfate reduction (assimilatory)	(K13811,(K00958+K00860),(K00955+K00957),(K00956+K00957+K00860)) K00390 ((K00380+K00381),K00392) 
+MF0102	GMM	mucin degradation	K01186 K05970 (K01132,K01135,K01137,K01205) (K01207,K12373) (K01205,K01207,K12373,K01227,K13714) K01206 
+MF0103	GMM	nitrate reduction (assimilatory)	(K00366,K00360,K15875) (K00367,(K00362+K00363)) K01915 K00262 
+MF0104	GMM	nitrate reduction (dissimilatory)	(K03385,K05904) 
+MF0105	GMM	nitrate reduction (denitrification)	((K00370+K00371+K00374+K00373+K15878+K15879),(K08345+K08346+K08347+K08361),(K02567+K02568)) (K00368,K15864) ((K04561+K02305)) K00376 
+MF0106	GMM	anaerobic fatty acid beta-oxidation	K06076 K12507 K06445 ((K00632+K01782)) 
+MF0107	GMM	glycerol degradation (propanediol pathway)	((K06120+K06121+K06122)) K00086 
+MF0108	GMM	glycerol degradation (dihydroxyacetone pathway)	K00005 K00863 K01803 
+MF0109	GMM	glycerol degradation (glycerol kinase pathway)	K00864 K01126 (K00111,(K00112+K00113)) K01803 
+MF0110	GMM	glyoxylate bypass	K01647 (K01681,K01682) K01637 K00024 (K01596,K01610) 
+MF0111	GMM	triacylglycerol degradation	K01046 K01054 
+MF0112	GMM	acetate to acetyl-CoA	K01895 
+MF0113	GMM	acetyl-CoA to acetate	((K00625+K00925),K01905,K01067) 
+MF0114	GMM	acetyl-CoA to crotonyl-CoA	K00626 (K00023,K01782,K01825,K07516,(K07547+K07548),K15016) (K01715,K01692,K01782,K01825,K13767) 
+MF0115	GMM	Crotonyl-coA from succinate	((K01902+K01903)) K15038 K14465 K14466 K14534 
+MF0116	GMM	butyrate production via transferase	(K00248,K10783) ((K01034+K01035)) 
+MF0117	GMM	butyrate production via kinase	(K00248,K10783) K00634 K00929 
+MF0118	GMM	formate conversion	(K00122,(K00123+K00124+K00125+K00126+K00127),(K08348+K08349+K08350),K05299) 
+MF0119	GMM	lactate production	(K00016,K03777,K03778) 
+MF0120	GMM	lactate consumption	(K00101,K00102) 
+MF0121	GMM	propionate production (acrylate pathway)	K01026 (K00249,K00224) 
+MF0122	GMM	propionate production (succinate pathway)	((K01902+K01903)) (K01847,K01849,K01848,K11942) K05606 (K03416,K11264) 
+MF0123	GMM	propionate production (propanediol pathway)	(K00011,K00048) ((K01699+K13919+K13920)) ((K00086+K13922),(K13921+K13922)) 
+MF0124	GMM	Fucose degradation	K01818 K00879 K01628 K01803 
+MF0125	GMM	propionate production via kinase	(K13788,K13923) K00932 
+MF0126	GMM	propionate production via transferase	K01026 
+MF0127	GMM	Succinate production	(K01596,K01610,(K00873+K01958),(K00873+K01959+K01960)) (K00024,K00116,K00051) (K01676,(K01677+K01678),K01679) ((K00239+K00240+K00241+K00242),(K00244+K00245+K00246+K00247)) 
+MF0128	GMM	Propionate conversion to succinate	K01908 K01659 K01720 K01682 K03417 
+MF0129	GMM	catalase	(K00429,K03781,K03782) 
+MF0130	GMM	peroxidase	(K05910,K00428,K03782,K00432,K00433,K03386,K03564,K11065,K07223) 
+MF0131	GMM	superoxide dismutase	(K00518,K04564,K04565) 
+MF0132	GMM	superoxide reductase	K05919 
+MF0133	GMM	menaquinone production	((K01851+K02551+K08680+K02549+K01911+K01661+K12073),(K02361+K02551+K08680+K02549+K01911+K01661+K12073),(K02552+K02551+K08680+K02549+K01911+K01661+K12073),(K04781+K02551+K08680+K02549+K01911+K01661+K12073),(K11782+K11783+K11784+K11785)) (K02523,K00805) K02548 K03183 
+MGB001	GBM	Serotonin synthesis I	COG2509 (K01593,COG0076) 
+MGB002	GBM	Serotonin synthesis II	(K01593,COG0076) K00492 
+MGB003	GBM	Melatonin synthesis	(bactNOG26316,proNOG30191) (K00543,COG0500) 
+MGB004	GBM	Kynurenine synthesis	(K00453,K00463,bactNOG12453,COG3483) (K01432,K07130,COG1878) 
+MGB005	GBM	Tryptophan synthesis	((K01657+K01658),K13497,K13501,K13503) (K00766,K13497) (K01817,K13498,K13501) (K01609,K13498,K13501) ((K01695+K01696),(K01695+K06001)) 
+MGB006	GBM	Glutamate synthesis I	(K00261,K00262) 
+MGB007	GBM	Glutamate synthesis II	((K00265+K00266),K00284) 
+MGB008	GBM	Acetylcholine synthesis	(K00624,bactNOG82617,bactNOG02159) 
+MGB009	GBM	Histamine synthesis	(K01590,TIGR00541,bactNOG05829,bactNOG16627) 
+MGB010	GBM	Histamine degradation	(K00276,bactNOG08340,bactNOG01662) 
+MGB011	GBM	Cortisol degradation	COG3959 bactNOG01844 COG1063 bactNOG03269 
+MGB012	GBM	Dopamine synthesis	(K00505,TIGR01269,bactNOG14098,bactNOG20249) (K01593,K01592,TIGR03811,TIGR03812,COG0076) 
+MGB013	GBM	Noradrenaline synthesis	NOG132553 
+MGB014	GBM	Adrenaline synthesis	NOG133663 
+MGB015	GBM	p-Cresol synthesis	((K18427+K18428),(K15760+K15761+K15762+K15763+K15764),K03150,bactNOG28876) 
+MGB016	GBM	p-Cresol degradation	(K05797,K03380,(K00448+K00449),(TIGR02423+TIGR02422),(K00448+TIGR02422),(TIGR02423+K00449)) 
+MGB017	GBM	IPA synthesis (Clostridium sporogenes pathway)	firmNOG04290 ((firmNOG00626+bactNOG07881+bactNOG15341)) 
+MGB018	GBM	Kynurenine degradation	(K00486,bactNOG02592) 
+MGB019	GBM	GABA degradation	(K07250,K14268,K00823,K13524,K00613,K16871) 
+MGB020	GBM	GABA synthesis I	K09470 K09471 K09472 K09473 
+MGB021	GBM	GABA synthesis II	K09251 K00137 
+MGB022	GBM	GABA synthesis III	(K01580,bactNOG01793) 
+MGB023	GBM	Dopamine degradation	(K01014,K00545,K00274,K00276,(K13371+K13372),bactNOG08340) 
+MGB024	GBM	DOPAC synthesis	(K00274,K00276,(K13371+K13372),bactNOG08340) (K00128,K00129,COG1012) 
+MGB025	GBM	Nitric oxide synthesis I (NO synthase)	(K00491,bactNOG12836,bactNOG51678) 
+MGB026	GBM	Nitric oxide synthesis II (nitrite reductase)	(K00368,K15864,bactNOG10247,COG3303) 
+MGB027	GBM	Nitric oxide degradation I (NO dioxygenase)	(K05916,bactNOG05056,bactNOG36984) 
+MGB028	GBM	Nitric oxide degradation II (NO reductase)	((K04561+K02305),(bactNOG03766+bactNOG18192),(K04561+bactNOG18192),(bactNOG03766+K02305)) 
+MGB029	GBM	ClpB (ATP-dependent chaperone protein)	(K03695,TIGR03346,COG0542) 
+MGB030	GBM	Polysaccharide A	bactNOG00014 bactNOG18519 (bactNOG24711,bactNOG18630,bactNOG31116) 
+MGB031	GBM	17-beta-Estradiol degradation	(COG0300,K07124) 
+MGB032	GBM	Quinolinic acid synthesis	((K03517+K00278),(TIGR00550+TIGR00551),(bactNOG02239+COG0029),(K03517+TIGR00551),(K03517+COG0029),(TIGR00550+K00278),(TIGR00550+COG0029),(bactNOG02239+K00278),(bactNOG02239+TIGR00551)) 
+MGB033	GBM	Quinolinic acid degradation	(K00767,TIGR00078,bactNOG00441) (K00969,bactNOG30464,bactNOG69335) (K01916,K01950,TIGR00552,COG0171) 
+MGB034	GBM	Isovaleric acid synthesis I (KADH pathway)	(K00826,TIGR01122,TIGR01123,COG0115) ((K00166+K00167),K11381) K09699 (K00382,TIGR01350) (K01073,K10806,bactNOG27043) 
+MGB035	GBM	Isovaleric acid synthesis II (KADC pathway)	(K00826,TIGR01122,TIGR01123,COG0115) (K01568,COG3961) (K00128,bactNOG00852) 
+MGB036	GBM	S-Adenosylmethionine (SAM) synthesis	(K00789,TIGR01034,bactNOG02937) 
+MGB037	GBM	Inositol synthesis	(K01858,bactNOG06811) (K01092,K18649,COG0483) 
+MGB038	GBM	Inositol degradation	(K00010,TIGR04380,bactNOG07153) 
+MGB039	GBM	g-Hydroxybutyric acid (GHB) degradation	(K00043,K08318,K18120,bactNOG10565) 
+MGB040	GBM	Menaquinone synthesis (vitamin K2) I	(K01851,K02361,K02552,K04781) K02551 K08680 K02549 K01911 K01661 (K12073,K19222) (K02523,K00805) K02548 K03183 
+MGB041	GBM	Menaquinone synthesis (vitamin K2) II (alternative pathway: futalosine pathway)	K11782 K11783 K11784 K11785 K02548 K03183 
+MGB042	GBM	PUFAs synthesis (AA, EPA, DHA)	((bactNOG04578+bactNOG62245+bactNOG02194+bactNOG48307),(COG3321+bactNOG02194+bactNOG48307)) 
+MGB043	GBM	Acetate synthesis I	(K00656,(K00169+K00170+K00171+K00172),K03737) (K00625,K13788,K15024) K00925 
+MGB044	GBM	Acetate synthesis II	(K00656,(K00169+K00170+K00171+K00172),K03737) K01905 
+MGB045	GBM	Acetate synthesis III	(K00656,(K00169+K00170+K00171+K00172),K03737) K18118 
+MGB046	GBM	Acetate synthesis IV	K01568 K14519 
+MGB047	GBM	Acetate degradation	(K01895,bactNOG00947,bactNOG01259) 
+MGB048	GBM	Propionate synthesis I	K13923 (K00932,K19697) 
+MGB049	GBM	Tryptophan degradation	(K01667,TIGR02617,bactNOG02881) 
+MGB050	GBM	Glutamate degradation I	(K00260,K15371,K00261) K00109 ((K01039+K01040)) K01615 
+MGB051	GBM	Glutamate degradation II	((K01846+K19268)) K04835 
+MGB052	GBM	Butyrate synthesis I	K00248 K00634 K00929 
+MGB053	GBM	Butyrate synthesis II	K00248 ((K01034+K01035),K19709) 
+MGB054	GBM	Propionate synthesis II	K01026 
+MGB055	GBM	Propionate synthesis III	(K01847,(K01849+K01848),K11942) K05606 ((K03416+K17489+K17490)) 
+MGB056	GBM	Propionate degradation I	K01908 K01659 K01720 K01682 K03417 

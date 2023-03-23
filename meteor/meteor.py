@@ -108,10 +108,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
     # Mappping commands
     download_parser = subparsers.add_parser("download", help="Download catalog")
     download_parser.add_argument("-i", dest="user_choice", type=str, required=True,
-                                 choices=["chicken", "pig", "human_gut"],
+                                 choices=["chicken_caecal", "human_oral", "human_gut", "mouse_gut",
+                                          "rabbit_gut", "rat_gut", "pig_gut"],
                                  help="Select the catalogue to download.")
     download_parser.add_argument("-c", dest="check_md5", action="store_true",
                                  help="Check the md5sum of the catalogue.")
+    download_parser.add_argument("-t", dest="taxonomy", action="store_true",
+                                 help="Select the shorten catalogue for taxonomical analysis.")
     download_parser.add_argument("-o", dest="ref_dir", type=isdir, required=True,
                                  help="Output directory.")
     reference_parser = subparsers.add_parser("build", help="Index reference")
@@ -164,8 +167,12 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Counting type (Default end-to-end)")
     mapping_parser.add_argument("-trim", dest="trim", type=int, default=80,
                                 help="Trim reads for mapping (default 80. If 0, no trim)")
+    mapping_parser.add_argument("-id", dest="identity_threshold", type=float, default=0.95,
+                                help="Aligned reads should have an identity to reference > 0.95 (default). If 0, no filtering)")
     mapping_parser.add_argument("-align", dest="alignment_number", type=int, default=10000,
                                 help="Number alignments considered for each read (default 10000)")
+    mapping_parser.add_argument("-k", dest="keep_bam", action="store_true",
+                                help="Save the bam files")
     mapping_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
                                 help="Path to the directory where temporary files (e.g. sam) are stored")
     mapping_parser.add_argument("-m", dest="mapping_only", action="store_true",
@@ -214,12 +221,14 @@ def main() -> None:  # pragma: no cover
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
         counter = Counter(meteor, args.counting_type, args.mapping_type,
-                          args.trim, args.alignment_number,
-                          args.counting_only, args.mapping_only, args.pysam_test)
+                          args.trim, args. identity_threshold, args.alignment_number,
+                          args.counting_only, args.mapping_only, args.keep_bam, args.pysam_test)
         counter.execute()
     elif args.command == "download":
         meteor.ref_name = args.user_choice
         meteor.ref_dir = args.ref_dir
+        if args.taxonomy:
+            args.user_choice += "_taxo"
         downloader = Downloader(meteor, args.user_choice, args.check_md5)
         downloader.execute()
     # Testing
@@ -237,7 +246,7 @@ def main() -> None:  # pragma: no cover
             fastq_importer = FastqImporter(meteor, meteor.tmp_dir, False, None, "test_project")
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
-            counter = Counter(meteor, "best", "end-to-end", 80, 1, False, False, True)
+            counter = Counter(meteor, "best", "end-to-end", 80, 1, False, False, False, True)
             counter.execute()
     # Close logging
     logger.handlers[0].close()

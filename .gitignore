@@ -9,3 +9,5 @@ build
 dist
 doc
 test
+*.code-workspace
+*.log

@@ -82,29 +82,32 @@ class Downloader(Session):
 
         :param catalogue: (Path) A path object to the given catalog
         """
-        logging.info("Extracting catalogue")
+        logging.info("Extracting %s catalogue", self.choice)
         with tarfile.open(catalogue) as tar:
             tar.extractall(path=self.meteor.ref_dir)
+        catalogue.unlink(missing_ok=True)
 
     def execute(self) -> bool:
         try:
             # for choice in self.user_choice:
             logging.info("Download %s microbiome reference catalogue", self.choice)
             url = self.catalogues_config[self.choice]["catalogue"]
-            print(url)
             md5_expect = self.catalogues_config[self.choice]["md5"]
             catalogue = self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
+            print(flush=True)
             if self.choice == "test":
                 logging.info("Download test fastq file")
                 url_fastq = self.catalogues_config[self.choice]["fastq"]
                 fastq_test = self.meteor.tmp_dir / self.catalogues_config[self.choice]["fastqfilename"]
                 md5fastq_expect = self.catalogues_config[self.choice]["md5fastq"]
                 urlretrieve(url_fastq, filename=fastq_test, reporthook=self.show_progress)
+                print(flush=True)
                 assert md5fastq_expect == self.getmd5(fastq_test)
             if self.check_md5:
                 assert md5_expect == self.getmd5(catalogue)
             self.extract_tar(catalogue)
+            logging.info("Catalogue %s is now ready to be used.", self.choice)
         except AssertionError:
             logging.error("MD5sum of %s has a different value than expected", catalogue)
         return True

@@ -97,6 +97,7 @@ class Mapper2(Session):
 
     # @profile(stream=fp)
     def execute(self) -> bool:
+        """Map reads"""
         bam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.bam"
         bowtie_index = (self.meteor.ref_dir / self.census["reference"]["reference_info"]["reference_name"] /
                         self.census["reference"]["reference_file"]["fasta_dir"] /
@@ -108,7 +109,7 @@ class Mapper2(Session):
             parameters = f"-p {self.meteor.threads} --end-to-end --sensitive "
         if self.trim > 0:
             parameters += f"--trim-to {self.trim} "
-        if self.alignment_number > 0 and self.counting_type != "unique_reads":
+        if self.alignment_number > 1 and self.counting_type != "best":
             parameters += f"-k {self.alignment_number} "
         # Start mapping
         with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_sam_file:
@@ -117,9 +118,8 @@ class Mapper2(Session):
             check_call(["bowtie2", parameters, "--mm --no-unal",
                         "-x", bowtie_index, "-U", ",".join(self.fastq_list),
                         "-S", temp_sam_file.name])
-            logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
+            logging.info("Completed mapping in %f seconds", perf_counter() - start)
             start = perf_counter()
-            # self.create_bam(temp_sam_file.name, bam_file.name)
             with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_bam_file:
                 self.create_bam(temp_sam_file.name, temp_bam_file.name)
                 self.sort_bam(temp_bam_file.name, str(bam_file.resolve()))

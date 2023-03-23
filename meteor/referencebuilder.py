@@ -48,7 +48,7 @@ class ReferenceBuilder(Session):
         self.database_dir.mkdir(exist_ok=True)
 
         # Read input fasta file and create new fasta file for each chromosome or contig
-        self.output_annotation_file = self.database_dir / f"{self.meteor.ref_name}_lite_annotation.tsv"
+        self.output_annotation_file = self.database_dir / f"{self.meteor.ref_name}_annotation.tsv"
         self.output_fasta_file = self.fasta_dir / f"{self.meteor.ref_name}.fasta"
 
         # Write configuration file

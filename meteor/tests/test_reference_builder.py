@@ -21,7 +21,7 @@ import pytest
 
 
 @pytest.fixture
-def builder_defec(tmp_path: Path, datadir: Path):
+def builder_defec(tmp_path: Path, datadir: Path) -> ReferenceBuilder:
     meteor = Component
     meteor.ref_dir = tmp_path
     meteor.ref_name = "defect"
@@ -29,7 +29,7 @@ def builder_defec(tmp_path: Path, datadir: Path):
 
 
 @pytest.fixture
-def builder(tmp_path: Path, datadir: Path):
+def builder(tmp_path: Path, datadir: Path) -> ReferenceBuilder:
     meteor = Component
     meteor.ref_dir = tmp_path
     meteor.ref_name = "test"

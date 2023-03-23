@@ -87,7 +87,7 @@ setup(name="meteor",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
     ],
     package_data = {
-        "meteor": ["*.ini"]
+        "meteor": ["*.ini", "all_modules_definition_GMM_GBM_KEGG_107.tsv", "category_pcm.tsv"]
     },
     entry_points={
         "console_scripts": [

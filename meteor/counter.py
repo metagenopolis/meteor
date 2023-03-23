@@ -19,7 +19,7 @@ import lzma
 import logging
 import sys
 from dataclasses import dataclass, field
-from tempfile import mkdtemp, NamedTemporaryFile
+from tempfile import mkdtemp, mkstemp, NamedTemporaryFile
 import tempfile
 from configparser import ConfigParser
 from pathlib import Path
@@ -27,10 +27,10 @@ from subprocess import check_call
 from meteor.mapper import Mapper
 from meteor.mapper2 import Mapper2
 from meteor.session import Session, Component
-from typing import Type
+from typing import Type, Dict
 from collections import defaultdict
-import itertools
-from pysam import index, idxstats, AlignmentFile
+from itertools import chain
+from pysam import index, idxstats, AlignmentFile, sort
 from time import perf_counter
 
 
@@ -42,9 +42,11 @@ class Counter(Session):
     counting_type: str
     mapping_type: str
     trim: int
+    identity_threshold: float
     alignment_number: int
     counting_only: bool
     mapping_only: bool
+    keep_bam: bool = False
     pysam_test: bool = True
     ini_data: dict = field(default_factory=dict)
 
@@ -85,7 +87,7 @@ class Counter(Session):
         return read_count, base_count
 
     def set_workflow_config(self, ref_ini) -> ConfigParser:
-        """Write configuration file for reference genome
+        """Write configuration file for reference genes
 
         :return: (ConfigParser) A configparser object
         """
@@ -160,10 +162,10 @@ class Counter(Session):
                     "-p", str(self.meteor.ref_dir.parent.resolve()) + "/",
                     "-o", str(self.meteor.mapping_dir) + "/", "-w", workflow_ini,
                     "-c", self.counting_type, "-f"])
-        print(f"Meteor counter completed Execution in {perf_counter() - start} seconds")
+        logging.info(f"Meteor counter completed Execution in %f seconds", perf_counter() - start)
 
     def launch_mapping2(self) -> None:
-        """Create temporary indexed files and map aga
+        """Create temporary indexed files and map against
         """
         logging.info("Launch mapping")
         list_fastq_path = []
@@ -181,46 +183,53 @@ class Counter(Session):
             if not mapping_process.execute():
                 raise ValueError("Error, TaskMainMapping failed")
 
-    def write_table(self, bamfile: str, outfile: Path) -> None:
+    def write_table(self, bamfile: Path, outfile: Path) -> None:
         """Function that create a count table using pysam. First index the BAM file,
         then count reads using the function idxstats from pysam, and output a count
         table.
 
         :param bamfile: (Path) BAM file to count
-        :outfile: (str) count table name
+        :param outfile: (Path) count table
         """
-        # index the bam file
-        index(bamfile)
+        if not bamfile.with_suffix(".bam.bai").exists():
+            # index the bam file
+            index(str(bamfile.resolve()))
         # create count table
-        table = idxstats(bamfile)
+        table = idxstats(str(bamfile.resolve()))
         # write the count table
         with outfile.open("wt", encoding="UTF-8") as out:
-            for line in table:
-                out.write(line)
+            out.write(f"gene_id\tgene_size\t{self.counting_type}_count\n")
+            for line in table.split("\n"):
+                s = "\t".join(line.split("\t")[0:3])
+                out.write(f"{s}\n")
 
-    def filter_bam(self, bamdesc):
-        """Function that count reads from a BAM file, using the given methods in count:
-        "total" or "shared". If bam is set to 'True', a BAM file containing only
-        the used alignment for the counting is generated.
+    def filter_bam(self, bamdesc: AlignmentFile) -> tuple[defaultdict, defaultdict]:
+        """Filter read according to their identity with reference and reads with multiple
+        alignments with different score. We keep the best scoring reads when total count is
+        applied.
+        Shared count keeps multiple alignments when score are equal
 
-        :param bamfile [STR] = BAM file to count
-
-        Returns:
-            if count = total : new_filename [STR] = BAM file
-            if count = shared :
-                    database [DICT] = contains length of reference genomes.
-                                        key : reference genome
-                                        value : size
-                    tmp_genomes [DICT] =
+        :param bamdesc [STR] = BAM file to count
+        :return: A tuple with database [DICT] = contains length of reference genes.
+                                        key :
+                                        value : reference gene
+                And  genes [DICT] = contains the set of reference genes.
+                                    key : read_id
         """
-        tmp_score = {}
-        genomes = defaultdict(list)
+        tmp_score: Dict[defaultdict] = dict()
+        genes = defaultdict(list)
         # contains a list a alignment of each read
         reads = defaultdict(list)
         for element in bamdesc:
+            identity = (element.query_length - element.get_tag("NM")) / element.query_length
+            # if lower than the identity threshold
+            # we ignore the read
+            if identity < self.identity_threshold:
+                continue
             # if not element.is_unmapped: # if read mapped
             if not element.has_tag("AS"):
                 raise ValueError("Missing 'AS' field.")
+            # if not paired all reads are _2
             if element.is_read1:
                 # get read orientation
                 read_id = f"{element.qname}_1"
@@ -230,202 +239,228 @@ class Counter(Session):
             score = element.get_tag("AS")
             # get previous score for the read
             prev_score = tmp_score.get(read_id, score)
-
+            # higher = more similar
+            # https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#scores-higher-more-similar
+            # With 1.0 identity, score is 0
+            # With 0.975 identity, score is -16...
             # if same score
             if prev_score == score:
                 tmp_score[read_id] = score
-                # add the genome to the list if it doesn't exist
-                if element.reference_name not in genomes[read_id]:
-                    genomes[read_id].append(element.reference_name)
-                    if self.counting_type == "total_reads":
-                        # append line for filtered BAM file
-                        reads[read_id].append(element)
-            # if previous score is lower
-            elif prev_score < score:
+                # add the genes to the list if it doesn't exist
+                if element.reference_name not in genes[read_id]:
+                    genes[read_id].append(element.reference_name)
+                    # if self.counting_type == "total" or self.counting_type == "best":
+                    # append line for filtered BAM file
+                    reads[read_id].append(element)
+            # elif prev_score < score:
+            # case new score is higher
+            elif prev_score > score:
                 # set the new score
                 tmp_score[read_id] = score
-                # reinitialise all
-                genomes[read_id] = [element.reference_name]
-                if self.counting_type == "total_reads":
+                # In best counting, it cannot happen because one aligment was selected by bowtie
+                if self.counting_type == "best":
+                    raise ValueError("Bam file contains read aligned against multiple genes. It should be aligned with bowtie2 -k 1 option. ")
+                # In smart_shared and unique case, we reinitialise all
+                elif self.counting_type == "smart_shared" or self.counting_type == "unique":
                     reads[read_id] = [element]
-        return reads, genomes
+                    genes[read_id] = [element.reference_name]
+                # In total count, we keep all
+                # Case total
+                else:
+                    reads[read_id].append(element)
+                    genes[read_id].append(element.reference_name)
+        if self.counting_type == "smart_shared":
+            # We keep a unique reference per read
+            # genes dict is only used for smart shared counting
+            for read_id, reference_names in genes.items():
+                genes[read_id] = list(set(reference_names))
+        return reads, genes
 
-    def uniq_from_mult(self, genome_dict, database):
+    def uniq_from_mult(self, reads:defaultdict, genes: defaultdict, database: dict) -> tuple[defaultdict, defaultdict, dict]:
         """
         Function that filter unique reads from all reads. Multiple reads are
-        reads that map to more than one genome. And Unique reads are reads that map
-        only on one genome.
-
-        Args:
-            genome_dict [DICT] = dictionary containing reads as key and a list of
-                                genome where read mapped as value
-            unique_dict [DICT] = contains for each reference genome the number of
+        reads that map to more than one genes. And Unique reads are reads that map
+        only on one genes.
+        :params reads: [DICT] = dictionary containing reads as key and pysam alignment as value
+        :params genes: [DICT] = dictionary containing reads as key and a list of
+                                genes where read mapped as value
+        :params database: [DICT] = contains for each reference genes the number of
                                 unique reads
 
-        Returns:
-            genome_dict [DICT] = the dictionary without unique reads
-            unique_dict [DICT] = nb of unique read of each reference genome
+        :return: A tuple with:
+            genes [DICT] = the dictionary without unique reads
+            unique [DICT] = nb of unique read of each reference genes
         """
-        unique_reads = []
-        unique_dict = dict.fromkeys(database, 0)
-        for key in genome_dict:
-            # if read mapp with best score to only one genome:
-            if len(genome_dict[key]) != 1:
+        unique_reads = defaultdict(list)
+        unique_reads_list = []
+        # dict[str]:int
+        # gene : 0
+        unique_on_gene = dict.fromkeys(database, 0)
+        for read_id in genes:
+            # if read map to several gene
+            if len(genes[read_id]) != 1:
                 continue
-            # get genome id
-            genome = "".join(genome_dict[key])
+            # otherwise read map with best score against only one genes
+            # we keep read
+            unique_reads[read_id] = reads[read_id]
+            # get genes id
+            gene = genes[read_id][0]
             # add to unique read dictionnary
-            unique_dict[genome] += 1
-            unique_reads.append(key)
+            unique_on_gene[gene] += 1
+            unique_reads_list.append(read_id)
+        # delete unique reads
+        for read_id in unique_reads_list:
+            # delete the read_id from TMP dictionnary
+            del genes[read_id]
+        return unique_reads, genes, unique_on_gene
 
-        for key in unique_reads:
-            # delete the key from TMP dictionnary
-            del genome_dict[key]
+    def compute_co(self, genes_mult: defaultdict, unique_on_gene: dict) -> tuple[Dict, Dict]:
+        """Compute genes specific coefficient "Co" for each multiple read.
 
-        return genome_dict, unique_dict
+        :param genes_mult: [DICT] = Contains for each multiple read, all the reference
+                                genes name where it mapped
+        :param unique_on_gene: [DICT] = nb of unique read of each reference genes
 
-    def compute_co(self, genome_dict, unique_dict):
-        """
-        Compute genome specific coefficient "Co" for each multiple read.
-
-        Args:
-            genome_dict [DICT] = Contains for each multiple read, all the reference
-                                genomes name where he mapped
-            unique_dict [DICT] = nb of unique read of each reference genome
-
-        Returns:
-            Co [DICT] = contains coefficient values for each couple (read, genome)
-            read_dict [DICT] = contains all the multiple reads of a genome
-                                key : genome
+        :return: Co [DICT] = contains coefficient values for each couple (read, genes)
+                read_dict [DICT] = contains all the multiple reads of a genes
+                                read_id : genes
                                 value : list a multiple reads
         """
-        co = {}
+        co_dict = {}
         read_dict = {}
 
-        for key in genome_dict:
-            # for a multiple read, gets nb of unique reads from each genome
-            s = [unique_dict[genome] for genome in genome_dict[key]]
+        for read_id in genes_mult:
+            # for a multiple read, gets nb of unique reads from each genes
+            s = [unique_on_gene[genes] for genes in genes_mult[read_id]]
             # total number of unique reads
             som = reduce(lambda x, y: x+y, s)
+            # No unique counts on these genes
             if som == 0:
                 continue
-            for genome in genome_dict[key]:
+            # otherwise
+            for genes in genes_mult[read_id]:
                 # get the nb of unique reads
-                nb_unique = unique_dict[genome]
+                nb_unique = unique_on_gene[genes]
                 if nb_unique == 0:
                     continue
-                # calculate Co of multiple read for the given genome
-                co[(key, genome)] = nb_unique / float(som)
+                # calculate Co of multiple read for the given genes
+                co_dict[(read_id, genes)] = nb_unique / (nb_unique + float(som))
                 # append to the dict
-                read_dict.setdefault(genome, []).append(key)
+                read_dict.setdefault(genes, []).append(read_id)
+        # get all the multiple reads of a genes
+        for genes, reads in read_dict.items():
+            read_dict[genes] = list(set(reads))
 
-        # get all the multiple reads of a genome
-        for genome, reads in read_dict.items():
-            read_dict[genome] = list(set(reads))
+        return read_dict, co_dict
 
-        return read_dict, co
+    def get_co_coefficient(self, gene, read_dict, co_dict):
+        """
+        Compute genes specific coefficient "Co" for each multiple read.
 
-    def get_co_coefficient(self, genome, read_dict, co_dict):
-        for read in read_dict[genome]:
-            yield co_dict[(read, genome)]
+        :param gene: [str] = A gene name
+        :param read_dict: [DICT] = contains all the multiple reads of a genes
+        :param co_dict: [DICT] = contains coefficient values for each couple (read, genes)
+        """
+        for read in read_dict[gene]:
+            yield co_dict[(read, gene)]
 
     def compute_abm(self, read_dict, co_dict, database):
-        """
-        Compute multiple reads abundance for each genome.
-        Multiple reads abundance of a genome is equal to the sum of all Co
+        """Compute multiple reads abundance for each genes.
+        Multiple reads abundance of a genes is equal to the sum of all Co
         coefficient
 
-        Args:
-            read_dict [DICT] = list of multiple read for each reference genome
-            co_dict [DICT] = contains coefficient values for each couple
-                            (read, genome)
-            multiple_dict [DICT] = abundance of multiple reads for each genome
-
-        Returns:
-            multiple_dict [DICT] = abundance of multiple reads for each genome
+        :param read_dict: [DICT] = list of multiple read for each reference genes
+        :param co_dict: [DICT] = contains coefficient values for each couple (read, genes)
+        :param multiple_dict: [DICT] = abundance of multiple reads for each genes
+        :return: multiple_dict [DICT] = abundance of multiple reads for each genes
         """
         multiple_dict = dict.fromkeys(database, 0)
-        for genome in read_dict:
-            # get a list of all the Co coefficient for each reference genome
+        for gene in read_dict:
+            # get a list of all the Co coefficient for each reference genes
             # sum them, (we obtain the abundance)
-            multiple_dict[genome] = sum(self.get_co_coefficient(genome, read_dict, co_dict))
+            multiple_dict[gene] = sum(self.get_co_coefficient(gene, read_dict, co_dict))
         return multiple_dict
 
     def compute_abs(self, unique_dict, multiple_dict):
-        """
-        Compute the abundance of a each genome.
+        """Compute the abundance of a each genes.
             Abundance = Abundance unique reads + Abundance multiple reads
 
-        Args:
-            unique_dict [DICT] = nb of unique read of each reference genome
-            multiple_dict [DICT] = abundance of multiple reads for each genome
-
-        Returns:
-            abundance_dict [DICT] = contains abundance of each reference genome
+        :param unique_dict: [DICT] = nb of unique read of each reference genes
+        :param multiple_dict: [DICT] = abundance of multiple reads for each genes
+        :return: abundance_dict [DICT] = contains abundance of each reference genes
         """
-        return {genome: unique_dict[genome] + multiple_dict[genome] for genome in unique_dict}
+        return {genes: unique_dict[genes] + multiple_dict[genes] for genes in unique_dict}
 
     def write_stat(self, output: Path, abundance_dict: dict, database):
-        """
-        Write count table.
+        """Write count table.
 
-        Args:
-            output [STRING] = output filename
-            abundance_dict [DICT] = contains abundance of each reference genome
-            database [DICT] = contrains length of each reference genome
-
-        No Returns
+        :param output: [STRING] = output filename
+        :param abundance_dict: [DICT] = contains abundance of each reference genes
+        :param database: [DICT] = contrains length of each reference genes
         """
         with open(output, "wt", encoding="UTF-8") as out:
-            for genome, abundance in abundance_dict.items():
-                out.write(f"{genome}\t{database[genome]}\t{abundance}\n")
+            out.write(f"genes_id\tgene_size\t{self.counting_type}_count\n")
+            for genes, abundance in abundance_dict.items():
+                out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
         return True
 
+    def save_bam(self, outbamfile: Path, bamdesc: AlignmentFile, read_list):
+        """writing the filtered BAM file.
+
+        :param outbamfile:
+        :param bamdesc:
+        :param read_list:
+        """
+        with AlignmentFile(str(outbamfile.resolve()), "wb", template=bamdesc) as total_reads:
+            for element in read_list:
+                total_reads.write(element)
+
     def launch_counting2(self, bam_file: Path, count_file: Path) -> None:
-        """Launch meteor counter
+        """Function that count reads from a BAM file, using the given methods in count:
+        "total" or "shared" or "unique".
 
         :param bam_file: (Path) A path to the input bam file
         :param count_file: (Path) A path to the output count file
         """
         logging.info("Launch counting")
         # "-t", str(self.meteor.tmp_dir) + "/"
-        if self.counting_type == "best":
-            return self.write_table(str(bam_file.resolve()), count_file)
+        # if self.counting_type == "best":
+        #     return self.write_table(bam_file, count_file)
         # open the BAM file
         with AlignmentFile(str(bam_file.resolve()), "rb") as bamdesc:
-            if self.mapping_type == "total":
-                # name of the filtered BAM file
-                new_filename = bam_file.parent / f"unsorted_filtered_{bam_file.name}"
-                reads, genomes = self.filter_bam(bamdesc)
-                read_list = list(itertools.chain(reads.values()))
-                merged_list = list(itertools.chain.from_iterable(read_list))
-                # writing the filtered BAM file
-                with AlignmentFile(str(new_filename.resolve()), "wb", template=bamdesc) as total_reads:
-                    for element in merged_list:
-                        total_reads.write(element)
-                return self.write_table(str(new_filename.resolve()), count_file)
-            elif self.counting_type == "smart_shared":
-                # create a dictionary containing the length of reference genomes
-                # get name of reference sequence
-                references = bamdesc.references
-                # get reference length
-                lengths = bamdesc.lengths
-                database = dict(zip(references, lengths))
-                reads, genomes = self.filter_bam(bamdesc)
-                # writing a bam file for total_reads counting and if a bam=True
-                # returns reads and alignements informations if shared counting
-                for key, values in genomes.items():
-                    genomes[key] = list(set(values))
-                # Filter unique reads from multiple reads
-                genomes, unique = self.uniq_from_mult(genomes, database)
+            # create a dictionary containing the length of reference genes
+            # get name of reference sequence
+            references = bamdesc.references
+            # get reference length
+            lengths = bamdesc.lengths
+            # All references with their length
+            database = dict(zip(references, lengths))
+            # Filter reads according to quality and score
+            reads, genes = self.filter_bam(bamdesc)
+            # Filter reads according to quality, score and counting
+            # genes mapped by multiple reads
+            unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(reads, genes, database)
+            if self.counting_type == "smart_shared":
                 # For multiple reads compute Co
-                reads, coef_read = self.compute_co(genomes, unique)
+                reads, coef_read = self.compute_co(genes_mult, unique_on_gene)
                 # calculate abundance
                 # TODO unique reads ignored here
                 multiple = self.compute_abm(reads, coef_read, database)
                 # Calculate reference abundance & write count table
-                abundance = self.compute_abs(unique, multiple)
+                abundance = self.compute_abs(unique_on_gene, multiple)
                 return self.write_stat(count_file, abundance, database)
+            else:
+                if self.counting_type == "unique":
+                    reads = unique_reads
+                # read_list = list(map(int, chain.from_iterable(reads.values())))
+                read_list = list(chain(reads.values()))
+                merged_list = list(chain.from_iterable(read_list))
+                bamfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                bamfile_sorted =  Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                self.save_bam(bamfile, bamdesc, merged_list)
+                sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
+                     "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
+                return self.write_table(bamfile_sorted, count_file)
 
     def execute(self) -> bool:
         """Compute the mapping"""
@@ -492,11 +527,14 @@ class Counter(Session):
                     if self.pysam_test:
                         start = perf_counter()
                         self.launch_counting2(bam_file, count_file)
-                        logging.info("Completed counting creation in %f seconds", perf_counter() - start)
+                        logging.info("Completed counting in %f seconds", perf_counter() - start)
                     else:
                         self.launch_counting(workflow_ini)
+                    if not self.keep_bam:
+                        bam_file.unlink(missing_ok=True)
+                        bam_file.with_suffix(".bam.bai").unlink(missing_ok=True)
             logging.info("Done ! Job finished without errors ...")
-            self.meteor.tmp_dir.rmdir()
+            # self.meteor.tmp_dir.rmdir()
         except AssertionError:
             logging.error("Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir)
             sys.exit()

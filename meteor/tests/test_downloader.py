@@ -20,7 +20,7 @@ import pytest
 
 
 @pytest.fixture
-def downer(tmp_path: Path):
+def downer(tmp_path: Path) -> Downloader:
     meteor = Component
     meteor.fastq_dir = tmp_path
     meteor.ref_dir = tmp_path
@@ -30,18 +30,18 @@ def downer(tmp_path: Path):
     return Downloader(meteor, choice="test", check_md5=True)
 
 
-def test_check_md5(downer: Downloader, datadir: Path):
+def test_check_md5(downer: Downloader, datadir: Path) -> None:
     catalogue_file = datadir / "test.tar.xz"
     assert downer.getmd5(catalogue_file) == "ccd7327b5badc2b612452851e8a67ec1"
 
 
-def test_extract_tar(downer: Downloader, datadir: Path):
+def test_extract_tar(downer: Downloader, datadir: Path) -> None:
     catalogue_file = datadir / "test.tar.xz"
     downer.extract_tar(catalogue_file)
     assert Path(downer.meteor.ref_dir / "test").exists()
 
 
-def test_execute(downer: Downloader):
+def test_execute(downer: Downloader) -> None:
     downer.execute()
     assert Path(downer.meteor.ref_dir / "mock").exists()
     assert Path(downer.meteor.ref_dir / "test.fastq.gz").exists()
