@@ -22,7 +22,7 @@ requirements:
     host:
         - python>=3.11
     run:
-        - python
+        - python>=3.11
         - bowtie2
         - pysam
         - pandas
