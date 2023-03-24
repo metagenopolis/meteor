@@ -16,9 +16,9 @@ build:
 #     - {{ compiler('cxx') }}
 
 requirements:
-    # build:
-        # - {{ compiler('cxx') }}
-    #     - make
+    build:
+        - {{ compiler('cxx') }}
+        - make
     host:
         - python>=3.10
     run:
@@ -29,8 +29,8 @@ requirements:
 test:
     commands:
         - meteor -h
-        # - meteor-counter -h
-        # - meteor-profiler -h
+        - meteor-counter -h
+        - meteor-profiler -h
     imports:
         - pysam
         - pandas
