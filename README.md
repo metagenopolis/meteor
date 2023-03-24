@@ -70,7 +70,7 @@ meteor download -i <name> -c -o <refdir>
 ```
 We also created smaller catalogue designed exclusively for taxonomical profiling. They are available with the tag (-t) :
 ```
-meteor download -i <name> -c -t -o <refdir>
+meteor download -i <name> -c -fast -o <refdir>
 ```
 
 Users can also import custom gene catalogue with the command:

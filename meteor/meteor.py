@@ -113,8 +113,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                  help="Select the catalogue to download.")
     download_parser.add_argument("-c", dest="check_md5", action="store_true",
                                  help="Check the md5sum of the catalogue.")
-    download_parser.add_argument("-t", dest="taxonomy", action="store_true",
-                                 help="Select the shorten catalogue for taxonomical analysis.")
+    download_parser.add_argument("-fast", dest="taxonomy", action="store_true",
+                                 help="Select the short catalogue version for taxonomical analysis.")
     download_parser.add_argument("-o", dest="ref_dir", type=isdir, required=True,
                                  help="Output directory.")
     reference_parser = subparsers.add_parser("build", help="Index reference")
