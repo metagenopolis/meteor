@@ -4,7 +4,7 @@ package:
 
 source:
     - git_url: https://forgemia.inra.fr/metagenopolis/meteor.git
-      git_tag: origin/dev
+      git_tag: v3.3dev
 
 build:
   noarch: python
@@ -12,8 +12,8 @@ build:
   # always_include_files:
   #   - meteor-counter
   #   - meteor-profiler
-  ignore_run_exports_from:
-    - {{ compiler('cxx') }}
+#   ignore_run_exports_from:
+#     - {{ compiler('cxx') }}
 
 requirements:
     # build:
