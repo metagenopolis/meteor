@@ -20,9 +20,9 @@ requirements:
         # - {{ compiler('cxx') }}
     #     - make
     host:
-        - python>=3.11
+        - python>=3.10
     run:
-        - python>=3.11
+        - python>=3.10
         - bowtie2
         - pysam
         - pandas
