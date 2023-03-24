@@ -56,7 +56,7 @@ Meteor requires to download locally a microbial gene catalogue. Several catalogu
 |  Microbial gene catalogue | \<name\> | Genes count (M) | Metagenomic Species Pan-genomes (MSPs) |Size (GB) | Taxonomy catalogue size (MB)  | Description  |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
 |  *Gallus gallus domesticus* | chicken_caecal  | 13.6  | 2420 | 15.5 | 628 |[link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/FHPJH5)
-| *Homo sapiens oral*  |  human_oral | 8.4  | 853 | 10.1 | |[link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/WQ4UTV)
+| *Homo sapiens oral*  |  human_oral | 8.4  | 853 | 10.1 | 179 |[link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/WQ4UTV)
 | *Homo sapiens gut* |  human_gut | 10.4  | 1990 | 9.3 | 391 |[link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/FLANUP)
 |  *Mus musculus*  | mouse_gut  | 5.0  | 1252 | 5.5 | 347 |[link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/L11MXM)
 |  *Oryctolagus cuniculus* | rabbit_gut  | 5.7 | 1053 | 5.9 | 199 |[link](https://entrepot.recherche.data.gouv.fr/dataset.xhtml?persistentId=doi:10.15454/5EJKAS)

@@ -1,10 +1,10 @@
 package:
     name: meteor
-    version: {{ environ.get('GIT_DESCRIBE_TAG', '') }}
-
+    #version: {{ environ.get('GIT_DESCRIBE_TAG', '') }}
+    version: v3.3dev
 source:
     - git_url: https://forgemia.inra.fr/metagenopolis/meteor.git
-      git_tag: v3.3dev
+      git_rev: v3.3dev
 
 build:
   noarch: python
