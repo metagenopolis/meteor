@@ -16,13 +16,13 @@ build:
     - {{ compiler('cxx') }}
 
 requirements:
-    build:
-        - {{ compiler('cxx') }}
+    # build:
+        # - {{ compiler('cxx') }}
     #     - make
     host:
-        - python>=3.10
+        - python>=3.11
     run:
-        - python>=3.10
+        - python>=3.11
         - bowtie2
         - pysam
         - pandas
