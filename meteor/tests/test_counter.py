@@ -111,7 +111,7 @@ def test_write_table(counter_best: Counter, datadir: Path, tmp_path: Path) -> No
     counter_best.write_table(bamfile, output)
     assert output.exists()
     with output.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "ee62cfb1d37b5c4716e717c46a2782f9"
+        assert md5(out.read()).hexdigest() == "b8b640ba131d9f84483f22571b50aa0b"
 
 
 # detail of the mapping
@@ -298,7 +298,7 @@ def test_launch_counting2_unique(counter_unique: Counter, datadir: Path, tmp_pat
     countfile = tmp_path / "count.tsv"
     counter_unique.launch_counting2(bamfile, countfile)
     with countfile.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "3a95761d33d45f2dbc3e6a3a03cc6c86"
+        assert md5(out.read()).hexdigest() == "9e0d47640c24f5c31fa49eed171a04e3"
 
 
 def test_launch_counting2_best(counter_best: Counter, datadir: Path, tmp_path: Path):
@@ -306,7 +306,7 @@ def test_launch_counting2_best(counter_best: Counter, datadir: Path, tmp_path: P
     countfile = tmp_path / "count.tsv"
     counter_best.launch_counting2(bamfile, countfile)
     with countfile.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "5a974f0dec7064cdb021693f54183edb"
+        assert md5(out.read()).hexdigest() == "8539ee3303d283bd74af3d11a6c284bb"
 
 
 def test_launch_counting2_total(counter_total: Counter, datadir: Path, tmp_path: Path):
@@ -314,7 +314,7 @@ def test_launch_counting2_total(counter_total: Counter, datadir: Path, tmp_path:
     countfile = tmp_path / "count.tsv"
     counter_total.launch_counting2(bamfile, countfile)
     with countfile.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "9cd2b11ced8718c9588c85c30b763ccf"
+        assert md5(out.read()).hexdigest() == "d6d0840a27e4782828edde0dcff78f9a"
 
 
 def test_launch_counting2_smart_shared(counter_smart_shared: Counter, datadir: Path, tmp_path: Path):

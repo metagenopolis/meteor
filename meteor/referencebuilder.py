@@ -36,6 +36,7 @@ class ReferenceBuilder(Session):
     database_dir: Path = field(default_factory=Path)
     output_annotation_file: Path = field(default_factory=Path)
     output_fasta_file: Path = field(default_factory=Path)
+    pysam_test: bool = True
 
     def __post_init__(self) -> None:
         # Create reference genome directory if it does not already exist
@@ -121,10 +122,14 @@ class ReferenceBuilder(Session):
         and file giving the correspondance between each gene.
         """
         with self.output_annotation_file.open("wt", encoding="UTF-8") as output_annotation:
-            output_annotation.write("gene_id\tgene_name\tgene_length\n")
+            if self.pysam_test:
+                output_annotation.write("gene_id\tgene_name\tgene_length\n")
             with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
                 for gene_id, (header, len_seq, seq) in enumerate(self.read_reference(), start=1):
-                    output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
+                    if self.pysam_test:
+                        output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
+                    else:
+                        output_annotation.write(f"{gene_id}\t{len_seq}\n")
                     output_fasta.write(f">{gene_id}\n{seq}\n")
 
     def execute(self) -> bool:

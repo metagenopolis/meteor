@@ -89,7 +89,7 @@ const std::string C_CENSUS_RESULT_TABLE_NAME = "census";
 const std::string FD_FRAGMENT_ID = "id_fragment";
 
 // const std::string C_REFERENCE_ANNOTATION_TABLE_NAME = "annotation";
-const std::string C_REFERENCE_LITE_ANNOTATION_TABLE_NAME = "lite_annotation";
+const std::string C_REFERENCE_LITE_ANNOTATION_TABLE_NAME = "annotation.tsv";
 
 const std::string C_DEFAULT_CONDITION_NAME = "NA";
 

@@ -161,7 +161,7 @@ class Counter(Session):
         check_call(["meteor-counter", "-i", str(self.meteor.fastq_dir) + "/",
                     "-p", str(self.meteor.ref_dir.parent.resolve()) + "/",
                     "-o", str(self.meteor.mapping_dir) + "/", "-w", workflow_ini,
-                    "-c", self.counting_type, "-f"])
+                    "-c", self.counting_type + "_reads", "-f"])
         logging.info("Meteor counter completed Execution in %f seconds", perf_counter() - start)
 
     def launch_mapping2(self) -> None:
@@ -199,7 +199,7 @@ class Counter(Session):
         # write the count table
         with outfile.open("wt", encoding="UTF-8") as out:
             out.write(f"gene_id\tgene_size\t{self.counting_type}_count\n")
-            for line in table.split("\n"):
+            for line in table.split("\n")[:-2]:
                 s = "\t".join(line.split("\t")[0:3])
                 out.write(f"{s}\n")
 

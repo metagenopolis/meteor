@@ -127,6 +127,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                   help="Name of the reference (ansi-string without space).")
     reference_parser.add_argument("-t", dest="threads", default=1, type=int,
                                   help="Threads count.")
+    reference_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
+                                help="Execute original meteor")
     fastq_parser = subparsers.add_parser("fastq", help="Import fastq files")
     fastq_parser.add_argument("-i", dest="input_fastq_dir", type=isdir, required=True,
                               help="""Path to a directory containing all input fastq files.
@@ -212,7 +214,8 @@ def main() -> None:  # pragma: no cover
         meteor.ref_name = args.ref_name
         meteor.ref_dir = args.ref_dir
         meteor.threads = args.threads
-        reference_builder = ReferenceBuilder(meteor, args.input_fasta_file)
+        reference_builder = ReferenceBuilder(meteor=meteor, input_fasta=args.input_fasta_file,
+                                             pysam_test=args.pysam_test)
         reference_builder.execute()
     # Run mapping
     elif args.command == "mapping":
