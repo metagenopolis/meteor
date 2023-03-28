@@ -3,11 +3,10 @@ __py_cache__
 .DS_Store
 .coverage
 *.egg-info/
-doc/build/
+doc/_build/
 meteor.egg-info
 build
 dist
-doc
 test
 *.code-workspace
 *.log

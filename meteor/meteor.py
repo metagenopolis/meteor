@@ -128,7 +128,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     reference_parser.add_argument("-t", dest="threads", default=1, type=int,
                                   help="Threads count.")
     reference_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
-                                help="Execute original meteor")
+                                  help="Execute original meteor")
     fastq_parser = subparsers.add_parser("fastq", help="Import fastq files")
     fastq_parser.add_argument("-i", dest="input_fastq_dir", type=isdir, required=True,
                               help="""Path to a directory containing all input fastq files.

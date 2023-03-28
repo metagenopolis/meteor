@@ -78,7 +78,7 @@ class Mapper(Session):
             parameters = f"-p {self.meteor.threads} --end-to-end --sensitive "
         if self.trim > 0:
             parameters += f"--trim-to {self.trim} "
-        if self.alignment_number > 0:
+        if self.alignment_number > 1:
             parameters += f"-k {self.alignment_number} "
         sam_file = self.census["directory"] / f"{self.census['census']['sample_info']['full_sample_name']}_1.sam"
         # execute command

@@ -13,57 +13,57 @@
 """Setup meteor"""
 # pylint: disable=deprecated-module
 # pylint: disable=redefined-builtin
-# import os
+import os
 from setuptools import setup, find_packages
-# from setuptools.command.install import install
-# from distutils.command.build import build
-# from subprocess import call
+from setuptools.command.install import install
+from distutils.command.build import build
+from subprocess import call
 
-# METEOR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "meteor", "src")
+METEOR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "meteor", "src")
 
-# class MeteorBuild(build):
-#     """Compile for meteor binaries"""
-#     def run(self):
-#         # run original build code
-#         build.run(self)
-#         # build meteor
-#         build_path = os.path.abspath(self.build_temp)
-#         cmd = [
-#             "make",
-#             "OUT=" + build_path
-#         ]
+class MeteorBuild(build):
+    """Compile for meteor binaries"""
+    def run(self):
+        # run original build code
+        build.run(self)
+        # build meteor
+        build_path = os.path.abspath(self.build_temp)
+        cmd = [
+            "make",
+            "OUT=" + build_path
+        ]
 
-#         target_files = [os.path.join(build_path, "meteor-counter"),
-#                         os.path.join(build_path, "meteor-profiler")]
+        target_files = [os.path.join(build_path, "meteor-counter"),
+                        os.path.join(build_path, "meteor-profiler")]
 
-#         def compile():
-#             call(cmd, cwd=METEOR_PATH)
+        def compile():
+            call(cmd, cwd=METEOR_PATH)
 
-#         self.execute(compile, [], "Compiling meteor")
+        self.execute(compile, [], "Compiling meteor")
 
-#         # copy resulting tool to library build folder
-#         self.mkpath(self.build_scripts)
+        # copy resulting tool to library build folder
+        self.mkpath(self.build_scripts)
 
-#         if not self.dry_run:
-#             for target in target_files:
-#                 self.copy_file(target, self.build_scripts)
+        if not self.dry_run:
+            for target in target_files:
+                self.copy_file(target, self.build_scripts)
 
 
-# class MeteorInstall(install):
-#     """Install process for meteor binaries"""
-#     def initialize_options(self):
-#         install.initialize_options(self)
-#         self.build_scripts = None
+class MeteorInstall(install):
+    """Install process for meteor binaries"""
+    def initialize_options(self):
+        install.initialize_options(self)
+        self.build_scripts = None
 
-#     def finalize_options(self):
-#         install.finalize_options(self)
-#         self.set_undefined_options("build", ("build_scripts", "build_scripts"))
+    def finalize_options(self):
+        install.finalize_options(self)
+        self.set_undefined_options("build", ("build_scripts", "build_scripts"))
 
-#     def run(self):
-#         # run original install code
-#         install.run(self)
-#         # install Meteor executables
-#         self.copy_tree(self.build_scripts, self.install_scripts)
+    def run(self):
+        # run original install code
+        install.run(self)
+        # install Meteor executables
+        self.copy_tree(self.build_scripts, self.install_scripts)
 
 
 
@@ -94,8 +94,8 @@ setup(name="meteor",
            "meteor=meteor.meteor:main",
         ]
     },
-    # cmdclass={
-    #     "build": MeteorBuild,
-    #     "install": MeteorInstall,
-    # }
+    cmdclass={
+        "build": MeteorBuild,
+        "install": MeteorInstall,
+    }
 )

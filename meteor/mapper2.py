@@ -19,7 +19,7 @@ from configparser import ConfigParser
 from datetime import datetime
 from typing import Type
 from meteor.session import Session, Component
-from pysam import view, sort, index
+from pysam import view, sort, index  # type: ignore[attr-defined]
 from tempfile import NamedTemporaryFile
 # from memory_profiler import profile
 from time import perf_counter

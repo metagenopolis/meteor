@@ -62,7 +62,7 @@ mypy:
   stage: test
   before_script:
   #pysam-stubs
-    - pip install mypy pytest pysam
+    - pip install mypy pytest pysam pandas
   script:
     - mypy meteor
   only:
@@ -121,16 +121,16 @@ build_conda:
     - tags
 
 
-# pages:
-#   stage: deploy
-#   before_script:
-#      - pip install sphinx sphinx-rtd-theme
-#   script:
-#     - cd doc
-#     - make html
-#     - mv build/html/ ../public/
-#   artifacts:
-#     paths:
-#       - public
-#   only:
-#     - dev
+pages:
+  stage: deploy
+  before_script:
+     - pip install sphinx sphinx-rtd-theme myst_parser pysam pandas
+  script:
+    - cd doc
+    - make html
+    - mv build/html/ ../public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - dev

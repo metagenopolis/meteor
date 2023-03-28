@@ -84,7 +84,7 @@ class ReferenceBuilder(Session):
         #   "dna_space_bowtie_index_prefix_name_1": "mock_dnaspace_index"
         # }
         config["bowtie2_index"] = {
-            "is_large_reference": "0",  # WTF
+            "is_large_reference": "0",  # Useless
             "is_DNA_space_indexed": "1",
             "dna_space_bowtie_index_prefix_name_1": self.meteor.ref_name
         }
