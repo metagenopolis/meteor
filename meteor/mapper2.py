@@ -99,7 +99,7 @@ class Mapper2(Session):
     def execute(self) -> bool:
         """Map reads"""
         bam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.bam"
-        bowtie_index = (self.meteor.ref_dir / self.census["reference"]["reference_info"]["reference_name"] /
+        bowtie_index = (self.meteor.ref_dir /
                         self.census["reference"]["reference_file"]["fasta_dir"] /
                         self.census["reference"]["bowtie2_index"]["dna_space_bowtie_index_prefix_name_1"])
         # bowtie2 parameters

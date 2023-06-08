@@ -129,7 +129,6 @@ class FastqImporter(Session):
             logging.error("No fastq file detected in %s", self.input_fastq_dir)
             raise ValueError("No fastq file detected")
         for fastq_file in self.get_fastq_file():
-            logging.info("Import %s", fastq_file)
             # Get rid of all possible extension
             full_sample_name = self.replace_ext(fastq_file.name)
             if self.ispaired:
@@ -142,9 +141,9 @@ class FastqImporter(Session):
                 # to extract sample_name according to regex mask
                 full_sample_name_array = re.search(self.mask_sample_name, full_sample_name)
                 if full_sample_name_array:
+                    logging.info("Import %s", fastq_file)
                     sample_name = full_sample_name_array[0]
                 else:
-                    logging.info("File %s do not match the mask", fastq_file)
                     # sample do not match the mask
                     continue
             else:
