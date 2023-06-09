@@ -26,6 +26,7 @@ from meteor.fastqimporter import FastqImporter
 from meteor.referencebuilder import ReferenceBuilder
 from meteor.counter import Counter
 from meteor.downloader import Downloader
+from meteor.profiler import Profiler
 from tempfile import TemporaryDirectory
 
 
@@ -186,6 +187,22 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Threads count.")
     mapping_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
                                 help="Execute original meteor")
+    profiling_parser = subparsers.add_parser("profile", help="Performs profiling")
+    profiling_parser.add_argument("-i", dest="mapping_dir", type=isdir, required=True,
+                                help="""Path to project directory, containing mapping
+                                        and profile data (e.g. /projects/project_dir)""")
+    profiling_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
+                                help="Path to reference directory (Path containing *_reference.ini)")
+    # profiling_parser.add_argument("-o", dest="profiling_dir", type=isdir, required=True,
+    #                             help="""Path to project directory, containing mapping
+    #                                     and profile data (e.g. /projects/project_dir)""")
+    profiling_parser.add_argument("-n", dest="normalization", type=str, choices=["coverage", "rarefaction", "rpkm", "weighted_non_null_normalization"],
+                                 help="Normalization techniques applied to gene abundances.")
+    profiling_parser.add_argument("-l", dest="rarefaction_level", type=int, help="It's ugly, it's mgps. (Otherwise rarefaction level is lowest depth)")
+    profiling_parser.add_argument("-s", dest="statistics", type=str, choices=["specie", "ard", "kegg"], default="specie",
+                                 help="""Group gene abundances into one given abundances (Default specie).""")
+    profiling_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
+                                help="Path to the directory where temporary files (e.g. sam) are stored")
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
@@ -228,6 +245,7 @@ def main() -> None:  # pragma: no cover
                           args.trim, args. identity_threshold, args.alignment_number,
                           args.counting_only, args.mapping_only, args.keep_bam, args.pysam_test)
         counter.execute()
+    # Run download catalogues
     elif args.command == "download":
         meteor.ref_name = args.user_choice
         meteor.ref_dir = args.ref_dir
@@ -235,6 +253,12 @@ def main() -> None:  # pragma: no cover
             args.user_choice += "_taxo"
         downloader = Downloader(meteor, args.user_choice, args.check_md5)
         downloader.execute()
+    elif args.command == "profile":
+        meteor.mapping_dir = args.mapping_dir
+        meteor.ref_dir = args.ref_dir
+        meteor.tmp_path = args.tmp_path
+        profiler = Profiler(meteor, args.normalization, args.rarefaction_level, args.statistics)
+        profiler.execute()
     # Testing
     else:
         with TemporaryDirectory() as tmpdirname:

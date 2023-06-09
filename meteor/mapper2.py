@@ -68,7 +68,7 @@ class Mapper2(Session):
         config["mapping_file"] = {
             "mapping_file_count": "1",
             "bowtie_file_1": bam_file.name,
-            "mapping_file_format": "sam"
+            "mapping_file_format": "bam",
         }
         return config
 

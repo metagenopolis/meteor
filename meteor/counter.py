@@ -224,23 +224,20 @@ class Counter(Session):
         reads: defaultdict[str, List[str]] = defaultdict(list)
         for element in bamdesc:
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
-            identity = (element.query_length - element.get_tag("NM")) / element.query_alignment_length
+            identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
             # if lower than the identity threshold
             # we ignore the read
             if identity < self.identity_threshold:
                 continue
-            # if not element.is_unmapped: # if read mapped
-            if not element.has_tag("AS"):
-                raise ValueError("Missing 'AS' field.")
-            # if not paired all reads are _2
-            if element.is_read1:
-                # get read orientation
-                read_id = f"{element.qname}_1"
-            else:
-                read_id = f"{element.qname}_2"
+            # Only if we use score
+            # if not element.has_tag("AS"):
+            #     raise ValueError("Missing 'AS' field.")
+            read_id = element.query_name
+
+            # print(read_id, element.query_alignment_length)
             # get alignment score
-            # Meteor do not take in account of the alignement score
-            # But on the identity
+            # Meteor do not take in account the alignement score
+            # But the identity
             score = identity
             # score = element.get_tag("AS")
             # get previous score for the read
@@ -254,21 +251,23 @@ class Counter(Session):
                 tmp_score[read_id] = score
                 # add the genes to the list if it doesn't exist
                 # Meteor uncomment if we don't want two counts for the same gene
-                # if element.reference_name not in set(genes[read_id]):
-                genes[read_id].append(int(element.reference_name))
+                # if int(element.reference_name) not in set(genes[read_id]):
+                # if int(element.reference_name) == 182 and int(element.reference_name) in set(genes[read_id]):
+                #     print("gene mapped several time")
                 reads[read_id].append(element)
+                genes[read_id].append(int(element.reference_name))
                 # else:
                 #     print(reads[read_id])
             # case new score is higher
             elif prev_score < score:
                 # set the new score
                 tmp_score[read_id] = score
-                # In best counting, it cannot happen because one aligment was selected by bowtie
-                if self.counting_type == "best":
-                    raise ValueError("Bam file contains read aligned against multiple genes. "
-                                     "It should not, we aligned with the bowtie2 -k 1 option.")
+                # In best counting, it happens because several alignment can be selected by bowtie
+                # if self.counting_type == "best":
+                #     raise ValueError("Bam file contains read aligned against multiple genes. "
+                #                      "It should not, we aligned with the bowtie2 -k 1 option.")
                 # In smart_shared and unique case, we reinitialise all
-                # We keep the new score and forget the pr
+                # We keep the new score and forget the previous one
                 # elif self.counting_type in ("unique", "smart_shared"):
                 reads[read_id] = [element]
                 genes[read_id] = [int(element.reference_name)]
@@ -306,16 +305,22 @@ class Counter(Session):
         unique_reads_list = []
         # dict[str]:int
         # gene : 0
+        # count = 0
         unique_on_gene: Dict[int, int] = dict.fromkeys(database, 0)
         for read_id in genes:
             # if read map to several gene
             if len(genes[read_id]) != 1:
                 continue
+            # print(genes[read_id])
             # otherwise read map with best score against only one genes
             # we keep read
             unique_reads[read_id] = reads[read_id]
             # get genes id
             gene = genes[read_id][0]
+            # if gene == 182:
+            #     count +=1
+            #     print(f"I have unique {count}")
+            #     print(read_id)
             # add to unique read dictionnary
             unique_on_gene[gene] += 1
             unique_reads_list.append(read_id)
@@ -352,8 +357,10 @@ class Counter(Session):
                     read_dict.setdefault(genes, []).append(read_id)
                 # Normally we continue here
                 # continue
+            duplicated_genes = set([genes for genes in genes_mult[read_id] if genes_mult[read_id].count(genes) > 1])
             # otherwise
             for genes in genes_mult[read_id]:
+                genes_mult[read_id]
                 # get the nb of unique reads
                 nb_unique = unique_on_gene[genes]
                 if nb_unique == 0:
@@ -362,13 +369,20 @@ class Counter(Session):
                     continue
                 # else:
                 # calculate Co of multiple read for the given genes
-                co_dict[(read_id, genes)] = nb_unique / (nb_unique + float(som))
+                if genes in duplicated_genes:
+                    # print("here")
+                    # print(genes)
+                    if (read_id, genes) in co_dict:
+                        co_dict[(read_id, genes)] += nb_unique / (nb_unique + float(som) + (unique_on_gene[genes] * (len(list(duplicated_genes)))))
+                    else:
+                        co_dict[(read_id, genes)] = nb_unique / (nb_unique + float(som) + (unique_on_gene[genes] * (len(list(duplicated_genes)))))
+                else:
+                    co_dict[(read_id, genes)] = nb_unique / (nb_unique + float(som))
                 # append to the dict
                 read_dict.setdefault(genes, []).append(read_id)
         # get all the multiple reads of a genes
         for genes, reads in read_dict.items():
             read_dict[genes] = list(set(reads))
-
         return read_dict, co_dict
 
     def get_co_coefficient(self, gene, read_dict: dict, co_dict: dict) -> Generator:
@@ -453,8 +467,8 @@ class Counter(Session):
         """
         logging.info("Launch counting")
         # "-t", str(self.meteor.tmp_dir) + "/"
-        # if self.counting_type == "best":
-        #     return self.write_table(bam_file, count_file)
+        if self.counting_type == "best":
+            return self.write_table(bam_file, count_file)
         # open the BAM file
         with AlignmentFile(str(bam_file.resolve()), "rb") as bamdesc:
             # create a dictionary containing the length of reference genes
@@ -481,12 +495,9 @@ class Counter(Session):
             else:
                 if self.counting_type == "unique":
                     reads = unique_reads
-                # read_list = list(map(int, chain.from_iterable(reads.values())))
-                read_list = list(chain(reads.values()))
-                merged_list = list(chain.from_iterable(read_list))
                 bamfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                 bamfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                self.save_bam(bamfile, bamdesc, merged_list)
+                self.save_bam(bamfile, bamdesc, list(chain(*reads.values())))
                 sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
                      "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
                 return self.write_table(bamfile_sorted, count_file)
@@ -527,12 +538,20 @@ class Counter(Session):
                         )
                     # sample_info["full_sample_name"]
                     stage1_dir.mkdir(exist_ok=True, parents=True)
-                    self.ini_data[library] = {
-                        "census": census_ini,
-                        "directory": stage1_dir,
-                        "Stage1FileName": stage1_dir / library.name.replace("stage_0", "stage_1"),
-                        "reference": ref_ini
-                    }
+                    if self.pysam_test:
+                        self.ini_data[library] = {
+                            "census": census_ini,
+                            "directory": stage1_dir,
+                            "Stage1FileName": stage1_dir / f"{sample_info['sample_name']}_census_stage_1.ini",
+                            "reference": ref_ini
+                        }
+                    else:
+                        self.ini_data[library] = {
+                            "census": census_ini,
+                            "directory": stage1_dir,
+                            "Stage1FileName": stage1_dir / library.name.replace("stage_0", "stage_1"),
+                            "reference": ref_ini
+                        }
                 if not self.ini_data[library]["Stage1FileName"].exists():
                     mapping_done = False
             else:
@@ -562,6 +581,7 @@ class Counter(Session):
                     if not self.keep_bam:
                         bam_file.unlink(missing_ok=True)
                         bam_file.with_suffix(".bam.bai").unlink(missing_ok=True)
+                        # self.ini_data[library]["Stage1FileName"].unlink(missing_ok=True)
             logging.info("Done ! Job finished without errors ...")
             # self.meteor.tmp_dir.rmdir()
         except AssertionError:
