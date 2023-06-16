@@ -195,7 +195,7 @@ void TMappingDataFile::CountFragmentFromSAMFile(TCountedFragmentList & aCountedF
 //						if (aCurrentReadID == C_READ_ID){ //// DEBUG (other read to test 1954315)
 //							cerr <<"Read 5059252 ; aReadMatchInfoList.Count : "<< aReadMatchInfoList.Count() << endl;
 //						}
-						cout << aSAMMatch.RName << endl;
+						// cout << aSAMMatch.RName << endl;
 						// Fill MappingIntersectionArray for statistics on aCurrentReadID (aReadID's changed)
 						SetMappingIntersectionArray(aReadMatchInfoList);
 						// and now count...
