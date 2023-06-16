@@ -43,12 +43,12 @@ class Profiler(Session):
         assert len(census_ini_files) > 0
         # Load counts
         for library in census_ini_files:
-                census_ini = ConfigParser()
-                with open(library, "rt", encoding="UTF-8") as cens:
-                    census_ini.read_file(cens)
-                    # Normalize by gene length
-                    print(census_ini)
-                    # Rarefy
-                    # Combine counts per specie
+            census_ini = ConfigParser()
+            with open(library, "rt", encoding="UTF-8") as cens:
+                census_ini.read_file(cens)
+                # Normalize by gene length
+                print(census_ini)
+                # Rarefy
+                # Combine counts per specie
                 # create a matrix
 

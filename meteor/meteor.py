@@ -196,9 +196,11 @@ def get_arguments() -> Namespace:  # pragma: no cover
     # profiling_parser.add_argument("-o", dest="profiling_dir", type=isdir, required=True,
     #                             help="""Path to project directory, containing mapping
     #                                     and profile data (e.g. /projects/project_dir)""")
-    profiling_parser.add_argument("-n", dest="normalization", type=str, choices=["coverage", "rarefaction", "rpkm", "weighted_non_null_normalization"],
+    profiling_parser.add_argument("-n", dest="normalization", type=str,
+                                  choices=["coverage", "rarefaction", "rpkm", "weighted_non_null_normalization"],
                                  help="Normalization techniques applied to gene abundances.")
-    profiling_parser.add_argument("-l", dest="rarefaction_level", type=int, help="It's ugly, it's mgps. (Otherwise rarefaction level is lowest depth)")
+    profiling_parser.add_argument("-l", dest="rarefaction_level", type=int,
+                                  help="Rarefy according to a given level")
     profiling_parser.add_argument("-s", dest="statistics", type=str, choices=["specie", "ard", "kegg"], default="specie",
                                  help="""Group gene abundances into one given abundances (Default specie).""")
     profiling_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
@@ -274,6 +276,7 @@ def main() -> None:  # pragma: no cover
             fastq_importer = FastqImporter(meteor, meteor.tmp_dir, False, None, "test_project")
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
+            meteor.ref_dir = meteor.ref_dir / "mock"
             counter = Counter(meteor, "best", "end-to-end", 80, 1, False, False, False, True)
             counter.execute()
     # Close logging

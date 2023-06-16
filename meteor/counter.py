@@ -97,7 +97,7 @@ class Counter(Session):
             "meteor.reference.dir": self.meteor.ref_dir.name,
             "meteor.db.type": "binary",
             "meteor.mapping.program": "bowtie2",
-            "meteor.mapping.file.format": "sam",
+            "meteor.mapping.file.format": "bam",
             "meteor.is.cpu.percentage": "0",
             "meteor.cpu.count": str(self.meteor.threads),
             "meteor.excluded.reference.count": "0"
@@ -360,7 +360,6 @@ class Counter(Session):
             duplicated_genes = set([genes for genes in genes_mult[read_id] if genes_mult[read_id].count(genes) > 1])
             # otherwise
             for genes in genes_mult[read_id]:
-                genes_mult[read_id]
                 # get the nb of unique reads
                 nb_unique = unique_on_gene[genes]
                 if nb_unique == 0:
@@ -373,9 +372,15 @@ class Counter(Session):
                     # print("here")
                     # print(genes)
                     if (read_id, genes) in co_dict:
-                        co_dict[(read_id, genes)] += nb_unique / (nb_unique + float(som) + (unique_on_gene[genes] * (len(list(duplicated_genes)))))
+                        co_dict[(read_id, genes)] += (
+                            nb_unique / (nb_unique + float(som) +
+                                         (unique_on_gene[genes] * (len(list(duplicated_genes)))))
+                        )
                     else:
-                        co_dict[(read_id, genes)] = nb_unique / (nb_unique + float(som) + (unique_on_gene[genes] * (len(list(duplicated_genes)))))
+                        co_dict[(read_id, genes)] = (
+                            nb_unique / (nb_unique + float(som) +
+                                         (unique_on_gene[genes] * (len(list(duplicated_genes)))))
+                        )
                 else:
                     co_dict[(read_id, genes)] = nb_unique / (nb_unique + float(som))
                 # append to the dict
