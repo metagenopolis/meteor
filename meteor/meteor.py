@@ -276,7 +276,6 @@ def main() -> None:  # pragma: no cover
             fastq_importer = FastqImporter(meteor, meteor.tmp_dir, False, None, "test_project")
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
-            meteor.ref_dir = meteor.ref_dir / "mock"
             counter = Counter(meteor, "best", "end-to-end", 80, 1, False, False, False, True)
             counter.execute()
     # Close logging
