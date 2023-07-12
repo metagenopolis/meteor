@@ -203,36 +203,28 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Execute original meteor")
     # Define profiler argument parsing
     profiling_parser = subparsers.add_parser("profile", help="Performs profiling")
-    profiling_parser.add_argument("-i", dest="input_profile_file",
-                                  type=isfile, required=True,
+    profiling_parser.add_argument("-i", dest="input_profile", type=isfile, required=True,
                                   help="Path to the count table."),
-    profiling_parser.add_argument("-o", dest="output_dir",
-                                  type=isdir, required=True,
+    profiling_parser.add_argument("-o", dest="output_dir", type=isdir, required=True,
                                   help="Path to the profile output directory.")
     profiling_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
                                 help="Path to reference directory (containing *_reference.ini)")
-    profiling_parser.add_argument("-p", dest="input_ini_file",
-                                  type=isfile,
+    profiling_parser.add_argument("-p", dest="input_ini", type=isfile,
                                   help="""Ini file associated with the count table. 
                                           If omitted, use the path to the count table with ini extension.""")
-    profiling_parser.add_argument("-s", dest="profile_suffix",
-                                  default="", type=str, 
+    profiling_parser.add_argument("-s", dest="profile_suffix", default="", type=str, 
                                   help="Suffix used to generate filenames.")
-    profiling_parser.add_argument("-l", dest="rarefaction_level",
-                                  type=int, default=-1,
+    profiling_parser.add_argument("-l", dest="rarefaction_level", type=int, default=-1,
                                   help="""Rarefaction level. If negative: no rarefation is performed.
                                           Default to -1""")
-    profiling_parser.add_argument("-n", dest="normalization", type=str,
-                                  choices=["coverage", "rpkm", "none"],
+    profiling_parser.add_argument("-n", dest="normalization", type=str, choices=["coverage", "rpkm", "none"],
                                   default="none",
                                   help="Normalization applied to gene abundance. Default to none.")
     profiling_parser.add_argument("--no_mgs", dest="compute_mgs", action="store_false",
                                   help="Should MGS computation be omitted?")
-    profiling_parser.add_argument("--core_size", dest="core_size", type=int,
-                                  default=100,
+    profiling_parser.add_argument("--core_size", dest="core_size", type=int, default=100,
                                   help="Number of core genes to be used for MGS computation. Default to 100.")
-    profiling_parser.add_argument("--mgs_filter", dest="mgs_filter", type=isborned01,
-                                  default=0.1,
+    profiling_parser.add_argument("--mgs_filter", dest="mgs_filter", type=isborned01, default=0.1,
                                   help="""Ratio of MGS core genes detected in a sample, under which
                                           the MGS abundance is set to 0. Default to 0.1""")
     profiling_parser.add_argument("--no_functional", dest="compute_functions", action="store_false",
@@ -305,10 +297,13 @@ def main() -> None:  # pragma: no cover
         downloader = Downloader(meteor, args.user_choice, args.check_md5)
         downloader.execute()
     elif args.command == "profile":
-        meteor.mapping_dir = args.mapping_dir
+        meteor.mapping_dir = args.output_dir
         meteor.ref_dir = args.ref_dir
-        meteor.tmp_path = args.tmp_path
-        profiler = Profiler(meteor, args.normalization, args.rarefaction_level, args.statistics)
+        profiler = Profiler(meteor, args.input_profile, args.input_ini, args.profile_suffix,
+                            args.rarefaction_level, args.normalization,
+                            args.compute_mgs, args.core_size, args.mgs_filter, 
+                            args.compute_functions, args.annot_db, args.by_mgs,
+                            args.compute_modules, args.module_path, args.module_db, args.completude)
         profiler.execute()
     # Testing
     else:
