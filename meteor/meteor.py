@@ -92,6 +92,20 @@ def isdir(path: str) -> Path:  # pragma: no cover
         #     msg = f"{mydir.name} does not exist."
     return mydir
 
+def isborned01(x: float) -> float:
+    """Check if a float is comprised between 0 and 1.
+
+    :param x: float number to check
+
+    :raises ArgumentTypeError: If x is > 1 or < 0
+
+    :return: (float) float number
+    """
+    if (x < 0 | x > 1):
+        msg = "Should be comprised between 0 and 1."
+        raise ArgumentTypeError(msg)
+    return x
+
 
 def get_arguments() -> Namespace:  # pragma: no cover
     """
@@ -187,24 +201,59 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Threads count.")
     mapping_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
                                 help="Execute original meteor")
+    # Define profiler argument parsing
     profiling_parser = subparsers.add_parser("profile", help="Performs profiling")
-    profiling_parser.add_argument("-i", dest="mapping_dir", type=isdir, required=True,
-                                help="""Path to project directory, containing mapping
-                                        and profile data (e.g. /projects/project_dir)""")
+    profiling_parser.add_argument("-i", dest="input_profile_file",
+                                  type=isfile, required=True,
+                                  help="Path to the count table."),
+    profiling_parser.add_argument("-o", dest="output_dir",
+                                  type=isdir, required=True,
+                                  help="Path to the profile output directory.")
     profiling_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
-                                help="Path to reference directory (Path containing *_reference.ini)")
-    # profiling_parser.add_argument("-o", dest="profiling_dir", type=isdir, required=True,
-    #                             help="""Path to project directory, containing mapping
-    #                                     and profile data (e.g. /projects/project_dir)""")
+                                help="Path to reference directory (containing *_reference.ini)")
+    profiling_parser.add_argument("-p", dest="input_ini_file",
+                                  type=isfile,
+                                  help="""Ini file associated with the count table. 
+                                          If omitted, use the path to the count table with ini extension.""")
+    profiling_parser.add_argument("-s", dest="profile_suffix",
+                                  default="", type=str, 
+                                  help="Suffix used to generate filenames.")
+    profiling_parser.add_argument("-l", dest="rarefaction_level",
+                                  type=int, default=-1,
+                                  help="""Rarefaction level. If negative: no rarefation is performed.
+                                          Default to -1""")
     profiling_parser.add_argument("-n", dest="normalization", type=str,
-                                  choices=["coverage", "rarefaction", "rpkm", "weighted_non_null_normalization"],
-                                 help="Normalization techniques applied to gene abundances.")
-    profiling_parser.add_argument("-l", dest="rarefaction_level", type=int,
-                                  help="Rarefy according to a given level")
-    profiling_parser.add_argument("-s", dest="statistics", type=str, choices=["specie", "ard", "kegg"], default="specie",
-                                 help="""Group gene abundances into one given abundances (Default specie).""")
-    profiling_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
-                                help="Path to the directory where temporary files (e.g. sam) are stored")
+                                  choices=["coverage", "rpkm", "none"],
+                                  default="none",
+                                  help="Normalization applied to gene abundance. Default to none.")
+    profiling_parser.add_argument("--no_mgs", dest="compute_mgs", action="store_false",
+                                  help="Should MGS computation be omitted?")
+    profiling_parser.add_argument("--core_size", dest="core_size", type=int,
+                                  default=100,
+                                  help="Number of core genes to be used for MGS computation. Default to 100.")
+    profiling_parser.add_argument("--mgs_filter", dest="mgs_filter", type=isborned01,
+                                  default=0.1,
+                                  help="""Ratio of MGS core genes detected in a sample, under which
+                                          the MGS abundance is set to 0. Default to 0.1""")
+    profiling_parser.add_argument("--no_functional", dest="compute_functions", action="store_false",
+                                  help="Should the functional computation be omitted?")
+    profiling_parser.add_argument("--annot_db", type=str, default="mustard,kegg",
+                                  help="""Comma separated functional annotation database.
+                                          Default to mustard,kegg.""")
+    profiling_parser.add_argument("--by_mgs", dest="by_mgs", action="store_true",
+                                  help="""Should functional potential be computed across MGS?""")
+    profiling_parser.add_argument("--no_module", dest="compute_modules", action="store_false",
+                                  help="Should the functional modules computation be omitted?")
+    profiling_parser.add_argument("--module", dest="module_path", type=isfile,
+                                  help="""Path to personalized module definition file. 
+                                          Default to provided module definition file.""")
+    profiling_parser.add_argument("--module_db", type=str, default="kegg",
+                                  help="""Comma separated functional annotation database,
+                                          as specified in the *_reference_ini file.
+                                          Default to kegg.""")
+    profiling_parser.add_argument("--completude", type=isborned01, default=0.9,
+                                  help="""Threshold above which a module is considered as present
+                                          in an MGS. Comprised in [0,1]. Default to 0.9.""")
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
