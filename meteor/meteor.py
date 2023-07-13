@@ -217,7 +217,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     profiling_parser.add_argument("-l", dest="rarefaction_level", type=int, default=-1,
                                   help="""Rarefaction level. If negative: no rarefation is performed.
                                           Default to -1""")
-    profiling_parser.add_argument("-n", dest="normalization", type=str, choices=["coverage", "rpkm", "none"],
+    profiling_parser.add_argument("-n", dest="normalization", type=str, choices=["coverage", "fpkm", "none"],
                                   default="none",
                                   help="Normalization applied to gene abundance. Default to none.")
     profiling_parser.add_argument("--no_mgs", dest="compute_mgs", action="store_false",
