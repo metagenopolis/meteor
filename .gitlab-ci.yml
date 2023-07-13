@@ -62,7 +62,7 @@ mypy:
   stage: test
   before_script:
   #pysam-stubs
-    - pip install mypy pytest pysam pandas
+    - pip install mypy pytest pysam pandas pandas-stubs
   script:
     - mypy meteor
   only:
