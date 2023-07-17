@@ -13,14 +13,13 @@
 """Profile the abundance of genes"""
 
 from meteor.session import Session, Component
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Type
-from configparser import ConfigParser
 import pandas as pd
 from pathlib import Path
 import numpy as np
 import logging
-from os import sys, getlogin
+from os import getlogin
 from datetime import date
 
 @dataclass
@@ -54,7 +53,7 @@ class Profiler(Session):
         if self.input_ini is None:
             self.input_ini = Path(self.input_count_table).with_suffix(".ini")
         self.sample_config = self.read_ini(self.input_ini)
-            
+
         # Initialize the unmapped_count
         try:
             self.unmapped_reads = int(self.sample_config["mapping"]["unmapped_reads"])
@@ -71,7 +70,10 @@ class Profiler(Session):
         # Define output names
         gene_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_norm.tsv"
         mgs_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_mgs.tsv"
-        functions_table_output = {db: self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_{db}_functions.tsv" for db in self.annot_db_list}
+        functions_table_output = {db: self.meteor.mapping_dir /
+                                  f"{self.sample_name}_{self.suffix_file}_{db}_functions.tsv"
+                                  for db
+                                  in self.annot_db_list}
         modules_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_modules.tsv"
         self.output_filenames = {}
         self.output_filenames["gene_table_norm"] = gene_table_output
@@ -85,28 +87,28 @@ class Profiler(Session):
 
     def rarefy(self, count_column: str, rarefaction_level: int, unmapped_reads: int) -> None:
         # Add the unmapped count
-        self.gene_count.loc[len(self.gene_count)] = {'genes_id': -1, 
-                                                     'gene_size': 1000, 
+        self.gene_count.loc[len(self.gene_count)] = {"genes_id": -1,
+                                                     "gene_size": 1000, 
                                                      count_column: unmapped_reads}
-        
+
         # Check if rarefaction is possible
-        if (self.gene_count[count_column].sum() > rarefaction_level):
+        if self.gene_count[count_column].sum() > rarefaction_level:
             # Transform into a long array of gene_id according to gene occurence
             array_to_rarefy = np.repeat(self.gene_count["genes_id"],
                                         self.gene_count[count_column])
             # Randomly choose among the long array the selected reads
             rng = np.random.default_rng()
-            array_rarefied = rng.choice(array_to_rarefy, 
-                                        size = rarefaction_level, 
+            array_rarefied = rng.choice(array_to_rarefy,
+                                        size = rarefaction_level,
                                         replace = False)
             # Count gene_id occurence to get back to short gene_id list
             unique, counts = np.unique(array_rarefied, return_counts=True)
-            self.gene_count[count_column] = np.zeros(self.gene_count.shape[0], dtype = 'int')
-            self.gene_count.loc[np.in1d(self.gene_count['genes_id'], unique), count_column] = counts
-            
+            self.gene_count[count_column] = np.zeros(self.gene_count.shape[0], dtype = "int")
+            self.gene_count.loc[np.in1d(self.gene_count["genes_id"], unique), count_column] = counts
+
         # Remove the counts for the gene "-1" (unmapped_reads)
         self.gene_count = self.gene_count[self.gene_count.genes_id != -1]
-        
+
     def normalize_coverage(self, count_column: str) -> None:
         self.gene_count[count_column] = self.gene_count[count_column] / self.gene_count["gene_size"] * 1000
 
@@ -117,8 +119,8 @@ class Profiler(Session):
         else:
             unmapped_reads_after_rf = unmapped_reads
         ### Add the unmapped reads after rf to the gene count table as a pseudo gene
-        self.gene_count.loc[len(self.gene_count)] = {'genes_id': -1, 
-                                                     'gene_size': 1000, 
+        self.gene_count.loc[len(self.gene_count)] = {"genes_id": -1, 
+                                                     "gene_size": 1000, 
                                                      count_column: unmapped_reads_after_rf}
         ### Normalize
         self.gene_count[count_column] = self.gene_count[count_column] / self.gene_count["gene_size"]
@@ -127,45 +129,52 @@ class Profiler(Session):
 
 
 
-    def compute_mgs(self, count_column: str, mgs_dict: dict[str, set[str]], filter: int) -> None:
+    def compute_mgs(self, count_column: str, mgs_dict: dict[str, set[str]], filter_pc: float) -> None:
         # Compute how many genes are seen for a given mgs
         # Restrict to gene table to core genes
-        all_core_genes = set([item for sublist in mgs_dict.values() for item in sublist])
+        all_core_genes = {item for sublist in mgs_dict.values() for item in sublist}
         gene_count_core = self.gene_count.loc[self.gene_count["genes_id"].isin(all_core_genes)]
-        mgs_filter = {mgs:(gene_count_core.loc[gene_count_core["genes_id"].isin(set_genes), count_column] > 0).sum() / len(set_genes) for (mgs, set_genes) in mgs_dict.items()}
+        mgs_filter = {mgs:(gene_count_core.loc[gene_count_core["genes_id"].isin(set_genes), count_column] > 0).sum() /
+                      len(set_genes)
+                      for (mgs, set_genes)
+                      in mgs_dict.items()}
         # Compute mean abundance if gene count is above filter threshold, otherwise 0
-        mgs_table_dict = {mgs:(gene_count_core.loc[gene_count_core["genes_id"].isin(set_genes), count_column].mean() if mgs_filter[mgs] >= filter else 0) for (mgs, set_genes) in mgs_dict.items()}
+        mgs_table_dict = {mgs:(gene_count_core.loc[gene_count_core["genes_id"].isin(set_genes), count_column].mean() 
+                          if mgs_filter[mgs] >= filter_pc else 0)
+                          for (mgs, set_genes)
+                          in mgs_dict.items()}
         self.mgs_table = pd.DataFrame.from_dict(mgs_table_dict, orient = "index", columns = ["value"]).reset_index()
 
     def get_mgs_core(self, mgs_def_filename: Path, core_size: int) -> dict:
         # Load mgs file
         mgs_df = pd.read_table(mgs_def_filename)
         # Restrict to core
-        mgs_df_selection = mgs_df.loc[mgs_df["gene_category"] == "core",]
+        mgs_df_selection = mgs_df.loc[mgs_df["gene_category"] == "core"]
         # Restrict to more connected genes
         mgs_df_selection = mgs_df_selection.groupby("msp_name").head(core_size)
         # Return the df as a dict of set
-        return mgs_df_selection.groupby(["msp_name"])["gene_id"].apply(lambda grp: set(grp.value_counts().index)).to_dict()
-    
+        return mgs_df_selection.groupby(["msp_name"])["gene_id"].apply(lambda x: set(x.value_counts().index)).to_dict()
+
     def compute_mgs_stats(self, count_column: str, mgs_def_filename: Path) -> float:
         # Load mgs file
         mgs_df = pd.read_table(mgs_def_filename)
         # Get the ensemble of genes used in MGS
         all_mgs_genes = mgs_df["gene_id"].unique()
         # Get the percentage of reads that map on an MGS
-        mgs_reads_pc = self.gene_count.loc[self.gene_count["genes_id"].isin(all_mgs_genes), count_column].sum() / self.gene_count[count_column].sum()
+        mgs_reads_pc = (self.gene_count.loc[self.gene_count["genes_id"].isin(all_mgs_genes), count_column].sum() /
+                        self.gene_count[count_column].sum())
         return round(mgs_reads_pc, 2)
-    
+
     def compute_ko_abundance(self, count_column: str, annot_file: Path) -> None:
         # Load annotation file
         annot_df = pd.read_table(annot_file)
         # Merge count table and gene annotation
-        merged_df = pd.merge(annot_df, self.gene_count, left_on='gene_id', right_on="genes_id")
+        merged_df = pd.merge(annot_df, self.gene_count, left_on="gene_id", right_on="genes_id")
         # Compute sum of KO
-        aggregated_count = merged_df.groupby('annotation')[count_column].sum()
+        aggregated_count = merged_df.groupby("annotation")[count_column].sum()
         self.functions = aggregated_count
 
-    
+
 
     def execute(self) -> bool:
         "Normalize the samples and compute MGS and functions abundances."
@@ -182,8 +191,8 @@ class Profiler(Session):
             self.normalize_coverage(count_column=self.count_column)
         elif self.normalization == "fpkm":
             logging.info("Run fpkm normalization.")
-            self.normalize_fpkm(count_column=self.count_column, 
-                                rarefaction_level=self.rarefaction_level, 
+            self.normalize_fpkm(count_column=self.count_column,
+                                rarefaction_level=self.rarefaction_level,
                                 unmapped_reads=self.unmapped_reads)
         else:
             logging.info("No normalization.")
@@ -193,22 +202,24 @@ class Profiler(Session):
         # Update config file
         config_norm = {}
         config_norm["user"] = getlogin()
-        config_norm["date"] = date.today()
+        config_norm["date"] = str(date.today())
         config_norm["normalization"] = self.normalization
-        config_norm["rarefaction_level"] = self.rarefaction_level
+        config_norm["rarefaction_level"] = str(self.rarefaction_level)
         self.sample_config = self.update_ini(self.sample_config, "normalization", config_norm)
         self.save_config(self.sample_config, Path(self.output_filenames["gene_table_norm"]).with_suffix(".ini"))
-        
+
         # Compute MGS
         if self.compute_mgs_bool:
             # Get MGS filename
-            mgs_filename = self.meteor.ref_dir / self.ref_config["reference_file"]["database_dir"] / self.ref_config["annotation"]["msp"]
+            mgs_filename = (self.meteor.ref_dir /
+                            self.ref_config["reference_file"]["database_dir"] /
+                            self.ref_config["annotation"]["msp"])
             # Restrict to MGS of interest
             logging.info("Get MGS core genes.")
             mgs_set = self.get_mgs_core(mgs_filename, self.core_size)
             # Compute MGS
             logging.info("Compute MGS profiles.")
-            self.compute_mgs(count_column=self.count_column, mgs_dict=mgs_set, filter=self.mgs_filter)
+            self.compute_mgs(count_column=self.count_column, mgs_dict=mgs_set, filter_pc=self.mgs_filter)
             # Write the MGS table
             logging.info("Save MGS profiles.")
             self.mgs_table.to_csv(self.output_filenames["mgs_table"], sep = "\t", index = False)
@@ -218,33 +229,36 @@ class Profiler(Session):
             # Update and save config file
             config_mgs = {}
             config_mgs["user"] = getlogin()
-            config_mgs["date"] = date.today()
-            config_mgs["mgs_signal"] = mgs_stats
-            config_mgs["core_size"] = self.core_size
-            config_mgs["filter"] = self.mgs_filter
+            config_mgs["date"] = str(date.today())
+            config_mgs["mgs_signal"] = str(mgs_stats)
+            config_mgs["core_size"] = str(self.core_size)
+            config_mgs["filter"] = str(self.mgs_filter)
             self.sample_config = self.update_ini(self.sample_config, "mgs", config_mgs)
             self.save_config(self.sample_config, Path(self.output_filenames["mgs_table"]).with_suffix(".ini"))
 
         if self.compute_functions_bool:
             # Get functions to use
             for db in self.annot_db_list:
-                logging.info(f"Compute {db} abundances.")
-                annot_file = self.meteor.ref_dir / self.ref_config["reference_file"]["database_dir"] / self.ref_config["annotation"][db]
+                logging.info("Compute %s abundances.", db)
+                annot_file = (self.meteor.ref_dir /
+                              self.ref_config["reference_file"]["database_dir"] /
+                              self.ref_config["annotation"][db])
                 self.compute_ko_abundance(count_column=self.count_column, annot_file=annot_file)
                 logging.info("Save annotation file.")
                 self.functions.to_csv(self.output_filenames["functions_table"][db], sep = "\t")
                 # Update config file
                 config_db = {}
                 config_db["user"] = getlogin()
-                config_db["date"] = date.today()
+                config_db["date"] = str(date.today())
                 config_db["db"] = db
                 config_db["filename"] = annot_file
                 config_db["by_mgs"] = "no"
                 self.sample_config = self.update_ini(self.sample_config, "annotation", config_db)
-                self.save_config(self.sample_config, Path(self.output_filenames["functions_table"][db]).with_suffix(".ini"))
+                self.save_config(self.sample_config, 
+                                 Path(self.output_filenames["functions_table"][db]).with_suffix(".ini"))
 
 
 
         logging.info("Process ended without errors.")
-        
+
         return True

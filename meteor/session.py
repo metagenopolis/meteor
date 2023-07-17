@@ -17,7 +17,7 @@ from configparser import ConfigParser
 from dataclasses import dataclass, field
 from typing import Protocol
 import logging
-from os import sys
+import sys
 
 
 @dataclass(kw_only=True)
@@ -59,7 +59,7 @@ class Session(Protocol):
             logging.error(msg)
             sys.exit()
         return config
-    
+
     def get_reference_info(self, ref_dir: Path) -> ConfigParser:
         # Get the ini ref
         try:
@@ -68,11 +68,11 @@ class Session(Protocol):
             ref_ini_file = ref_ini_file_list[0]
             ref_ini = self.read_ini(ref_ini_file)
         except AssertionError:
-             logging.error("Error, no *_reference.ini file found in %s. "
+            logging.error("Error, no *_reference.ini file found in %s. "
                           "One *_reference.ini is expected", ref_dir)
-             sys.exit()
+            sys.exit()
         return ref_ini
-    
+
     def update_ini(self, config: ConfigParser, section: str, new_fields: dict[str, str]) -> ConfigParser:
         section_suffix = 1
         while section in config.sections():

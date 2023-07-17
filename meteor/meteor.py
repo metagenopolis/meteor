@@ -92,7 +92,7 @@ def isdir(path: str) -> Path:  # pragma: no cover
         #     msg = f"{mydir.name} does not exist."
     return mydir
 
-def isborned01(x: float) -> float:
+def isborned01(x: str) -> float:
     """Check if a float is comprised between 0 and 1.
 
     :param x: float number to check
@@ -101,10 +101,11 @@ def isborned01(x: float) -> float:
 
     :return: (float) float number
     """
-    if (x < 0 | x > 1):
+    x_float = float(x)
+    if x_float < 0.0 or x_float > 1.0:
         msg = "Should be comprised between 0 and 1."
         raise ArgumentTypeError(msg)
-    return x
+    return x_float
 
 
 def get_arguments() -> Namespace:  # pragma: no cover
@@ -204,15 +205,15 @@ def get_arguments() -> Namespace:  # pragma: no cover
     # Define profiler argument parsing
     profiling_parser = subparsers.add_parser("profile", help="Performs profiling")
     profiling_parser.add_argument("-i", dest="input_profile", type=isfile, required=True,
-                                  help="Path to the count table."),
+                                  help="Path to the count table.")
     profiling_parser.add_argument("-o", dest="output_dir", type=isdir, required=True,
                                   help="Path to the profile output directory.")
     profiling_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
                                 help="Path to reference directory (containing *_reference.ini)")
     profiling_parser.add_argument("-p", dest="input_ini", type=isfile,
-                                  help="""Ini file associated with the count table. 
+                                  help="""Ini file associated with the count table.
                                           If omitted, use the path to the count table with ini extension.""")
-    profiling_parser.add_argument("-s", dest="profile_suffix", default="", type=str, 
+    profiling_parser.add_argument("-s", dest="profile_suffix", default="", type=str,
                                   help="Suffix used to generate filenames.")
     profiling_parser.add_argument("-l", dest="rarefaction_level", type=int, default=-1,
                                   help="""Rarefaction level. If negative: no rarefation is performed.
@@ -237,7 +238,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     profiling_parser.add_argument("--no_module", dest="compute_modules", action="store_false",
                                   help="Should the functional modules computation be omitted?")
     profiling_parser.add_argument("--module", dest="module_path", type=isfile,
-                                  help="""Path to personalized module definition file. 
+                                  help="""Path to personalized module definition file.
                                           Default to provided module definition file.""")
     profiling_parser.add_argument("--module_db", type=str, default="kegg",
                                   help="""Comma separated functional annotation database,
@@ -301,7 +302,7 @@ def main() -> None:  # pragma: no cover
         meteor.ref_dir = args.ref_dir
         profiler = Profiler(meteor, args.input_profile, args.input_ini, args.profile_suffix,
                             args.rarefaction_level, args.normalization,
-                            args.compute_mgs, args.core_size, args.mgs_filter, 
+                            args.compute_mgs, args.core_size, args.mgs_filter,
                             args.compute_functions, args.annot_db, args.by_mgs,
                             args.compute_modules, args.module_path, args.module_db, args.completude)
         profiler.execute()
