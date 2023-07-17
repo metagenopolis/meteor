@@ -174,6 +174,42 @@ class Profiler(Session):
         aggregated_count = merged_df.groupby("annotation")[count_column].sum()
         self.functions = aggregated_count
 
+    def compute_ko_abundance_by_mgs(self, annot_file: Path, mgs_def_filename: Path) -> None:
+        # Load annotation file
+        annot_df = pd.read_table(annot_file)
+        # Load MGS file
+        mgs_df = pd.read_table(mgs_def_filename)
+        # Merge both data frames
+        mgs_df_annotated = pd.merge(mgs_df, annot_df)
+        # Create a dict ko: {mgs1, mgs2}
+        ko_dict = mgs_df_annotated.groupby(["annotation"]).apply(lambda x: set(x["msp_name"])).to_dict()
+        # Compute abundance based on MGS abundance
+        ko_dict_ab = {ko: self.mgs_table.loc[self.mgs_table["index"].isin(mgs_set), "value"].sum() 
+                      for (ko, mgs_set) 
+                      in ko_dict.items()}
+        self.functions = pd.DataFrame.from_dict(ko_dict_ab, orient = "index", columns = ["value"]).reset_index()
+        
+    def compute_ko_stats(self, annot_file: Path, count_column: str, by_mgs: bool, mgs_def_filename: Path) -> None:
+        # Load annotation file
+        annot_df = pd.read_table(annot_file)
+        if by_mgs:
+            # Load MGS file
+            mgs_df = pd.read_table(mgs_def_filename)
+            # Merge both data frames
+            annot_df = pd.merge(mgs_df, annot_df)
+        # Get the genes in MGS AND annotated
+        all_mgs_genes = annot_df["gene_id"].unique()
+        # Get the percentage of reads that map on these genes
+        annot_reads_pc = (self.gene_count.loc[self.gene_count["genes_id"].isin(all_mgs_genes), count_column].sum() /
+                          self.gene_count[count_column].sum())
+        return round(annot_reads_pc, 2)
+
+        
+
+
+
+
+
 
 
     def execute(self) -> bool:
@@ -208,12 +244,15 @@ class Profiler(Session):
         self.sample_config = self.update_ini(self.sample_config, "normalization", config_norm)
         self.save_config(self.sample_config, Path(self.output_filenames["gene_table_norm"]).with_suffix(".ini"))
 
+        
+        # Get MGS filename
+        mgs_filename = (self.meteor.ref_dir /
+                        self.ref_config["reference_file"]["database_dir"] /
+                        self.ref_config["annotation"]["msp"])
         # Compute MGS
-        if self.compute_mgs_bool:
-            # Get MGS filename
-            mgs_filename = (self.meteor.ref_dir /
-                            self.ref_config["reference_file"]["database_dir"] /
-                            self.ref_config["annotation"]["msp"])
+        if self.compute_mgs_bool or self.by_mgs:
+            if not self.compute_mgs_bool:
+                logging.info("MGS abundances will be computed since you requested to compute functions via MGS.")
             # Restrict to MGS of interest
             logging.info("Get MGS core genes.")
             mgs_set = self.get_mgs_core(mgs_filename, self.core_size)
@@ -243,18 +282,27 @@ class Profiler(Session):
                 annot_file = (self.meteor.ref_dir /
                               self.ref_config["reference_file"]["database_dir"] /
                               self.ref_config["annotation"][db])
-                self.compute_ko_abundance(count_column=self.count_column, annot_file=annot_file)
+                if self.by_mgs:
+                    logging.info("Use MGS abundances. Remove --by mgs not to use them.")
+                    self.compute_ko_abundance_by_mgs(annot_file=annot_file, mgs_def_filename=mgs_filename)
+                else:
+                    logging.info("MGS abundance are not used. Add --by_mgs to use them for computations.")
+                    self.compute_ko_abundance(count_column=self.count_column, annot_file=annot_file)
                 logging.info("Save annotation file.")
-                self.functions.to_csv(self.output_filenames["functions_table"][db], sep = "\t")
+                self.functions.to_csv(self.output_filenames["functions_table"][db], sep = "\t", index=False)
+                # Compute functinal statistics
+                functional_stats = self.compute_ko_stats(annot_file=annot_file, count_column=self.count_column, 
+                                                         by_mgs=self.by_mgs, mgs_def_filename=mgs_filename)
                 # Update config file
                 config_db = {}
                 config_db["user"] = getlogin()
                 config_db["date"] = str(date.today())
                 config_db["db"] = db
                 config_db["filename"] = annot_file
-                config_db["by_mgs"] = "no"
-                self.sample_config = self.update_ini(self.sample_config, "annotation", config_db)
-                self.save_config(self.sample_config, 
+                config_db["by_mgs"] = str(self.by_mgs)
+                config_db["function_signal"] = str(functional_stats)
+                update_config = self.update_ini(self.sample_config, "annotation", config_db)
+                self.save_config(update_config, 
                                  Path(self.output_filenames["functions_table"][db]).with_suffix(".ini"))
 
 

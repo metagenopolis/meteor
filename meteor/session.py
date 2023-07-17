@@ -74,12 +74,13 @@ class Session(Protocol):
         return ref_ini
 
     def update_ini(self, config: ConfigParser, section: str, new_fields: dict[str, str]) -> ConfigParser:
+        new_config = config
         section_suffix = 1
-        while section in config.sections():
+        while section in new_config.sections():
             section = section + str(section_suffix)
             section_suffix += 1
-        config[section] = new_fields
-        return config
+        new_config[section] = new_fields
+        return new_config
 
     def execute(self) -> bool:
         ...
