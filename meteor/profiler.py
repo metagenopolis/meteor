@@ -13,14 +13,16 @@
 """Profile the abundance of genes"""
 
 from meteor.session import Session, Component
+from meteor.parser import Parser
 from dataclasses import dataclass
 from typing import Type
 import pandas as pd
 from pathlib import Path
 import numpy as np
 import logging
-from os import getlogin
+import os
 from datetime import date
+
 
 @dataclass
 class Profiler(Session):
@@ -64,8 +66,22 @@ class Profiler(Session):
         # Initialize the sample name
         self.sample_name = self.sample_config["sample_info"]["sample_name"]
 
-        # List the annot_db
+        # Initialize the ini ref config parser:
+        self.ref_config = self.get_reference_info(self.meteor.ref_dir)
+
+        # List the functional db
         self.annot_db_list = self.annot_db.split(",")
+        self.module_db_list = self.module_db.split(",")
+        self.annot_db_dict = {db: Path(self.meteor.ref_dir /
+                                       self.ref_config["reference_file"]["database_dir"] /
+                                       self.ref_config["annotation"][db])
+                              for db 
+                              in self.annot_db_list}
+        self.module_db_dict = {db: Path(self.meteor.ref_dir /
+                                        self.ref_config["reference_file"]["database_dir"] /
+                                        self.ref_config["annotation"][db])
+                               for db 
+                               in self.module_db_list}
 
         # Define output names
         gene_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_norm.tsv"
@@ -81,8 +97,11 @@ class Profiler(Session):
         self.output_filenames["functions_table"] = functions_table_output
         self.output_filenames["modules_table"] = modules_table_output
 
-        # Initialize the ini ref config parser:
-        self.ref_config = self.get_reference_info(self.meteor.ref_dir)
+        
+
+        # Initialize the module definition file
+        if self.module_path is None:
+            self.module_path = os.path.join(os.path.dirname(__file__), "all_modules_definition_GMM_GBM_KEGG_107.tsv")
 
 
     def rarefy(self, count_column: str, rarefaction_level: int, unmapped_reads: int) -> None:
@@ -151,9 +170,10 @@ class Profiler(Session):
         # Restrict to core
         mgs_df_selection = mgs_df.loc[mgs_df["gene_category"] == "core"]
         # Restrict to more connected genes
-        mgs_df_selection = mgs_df_selection.groupby("msp_name").head(core_size)
+        #mgs_df_selection = mgs_df_selection.groupby("msp_name").head(core_size)
         # Return the df as a dict of set
-        return mgs_df_selection.groupby(["msp_name"])["gene_id"].apply(lambda x: set(x.value_counts().index)).to_dict()
+        mgs_dict = mgs_df_selection.groupby("msp_name")["gene_id"].apply(lambda x: set(x.head(core_size))).to_dict()
+        return mgs_dict
 
     def compute_mgs_stats(self, count_column: str, mgs_def_filename: Path) -> float:
         # Load mgs file
@@ -171,7 +191,7 @@ class Profiler(Session):
         # Merge count table and gene annotation
         merged_df = pd.merge(annot_df, self.gene_count, left_on="gene_id", right_on="genes_id")
         # Compute sum of KO
-        aggregated_count = merged_df.groupby("annotation")[count_column].sum()
+        aggregated_count = merged_df.groupby("annotation")[count_column].sum().reset_index()
         self.functions = aggregated_count
 
     def compute_ko_abundance_by_mgs(self, annot_file: Path, mgs_def_filename: Path) -> None:
@@ -182,14 +202,15 @@ class Profiler(Session):
         # Merge both data frames
         mgs_df_annotated = pd.merge(mgs_df, annot_df)
         # Create a dict ko: {mgs1, mgs2}
-        ko_dict = mgs_df_annotated.groupby(["annotation"]).apply(lambda x: set(x["msp_name"])).to_dict()
+        ko_dict = mgs_df_annotated.groupby("annotation")["msp_name"].apply(set).to_dict()
+        #ko_dict = mgs_df_annotated.groupby(["annotation"]).apply(lambda x: set(x["msp_name"])).to_dict()
         # Compute abundance based on MGS abundance
-        ko_dict_ab = {ko: self.mgs_table.loc[self.mgs_table["index"].isin(mgs_set), "value"].sum() 
-                      for (ko, mgs_set) 
+        ko_dict_ab = {ko: self.mgs_table.loc[self.mgs_table["index"].isin(mgs_set), "value"].sum()
+                      for (ko, mgs_set)
                       in ko_dict.items()}
         self.functions = pd.DataFrame.from_dict(ko_dict_ab, orient = "index", columns = ["value"]).reset_index()
-        
-    def compute_ko_stats(self, annot_file: Path, count_column: str, by_mgs: bool, mgs_def_filename: Path) -> None:
+
+    def compute_ko_stats(self, annot_file: Path, count_column: str, by_mgs: bool, mgs_def_filename: Path) -> float:
         # Load annotation file
         annot_df = pd.read_table(annot_file)
         if by_mgs:
@@ -204,9 +225,55 @@ class Profiler(Session):
                           self.gene_count[count_column].sum())
         return round(annot_reads_pc, 2)
 
-        
+    def merge_catalogue_info(self, mgs_file: Path, annot_file: dict[str, Path], count_column: str) -> pd.DataFrame:
+        # Load files
+        mgs_df = pd.read_table(mgs_file)
+        # Restrict df to detected genes
+        detected_genes = self.gene_count.loc[self.gene_count[count_column] > 0, "genes_id"]
+        mgs_df = mgs_df.loc[mgs_df["gene_id"].isin(detected_genes)]
+        # Restrict df to detected mgs
+        mgs_df = mgs_df.loc[mgs_df["msp_name"].isin(self.mgs_table.loc[self.mgs_table["value"] > 0, "index"])]
+        # Merge each provided db
+        annot_df = pd.concat([pd.read_table(db)[["gene_id", "annotation"]]
+                              for db
+                              in annot_file.values()],
+                             ignore_index = True)
+        annot_df = annot_df.loc[annot_df["gene_id"].isin(detected_genes)]
+        annotated_mgs_df = mgs_df.merge(annot_df)
+        return annotated_mgs_df
 
+    def compute_completeness(self, mod: list[set[str]], annotated_mgs: pd.DataFrame) -> dict[str, float]:
+        "Compute completeness of a given module in all available MSP."
+        return annotated_mgs.groupby("msp_name")["annotation"].apply(lambda x: self.compute_max(mod, set(x))).to_dict()
 
+    def compute_max(self, mod: list[set[str]], ko: set) -> float:
+        "Compute maximum completeness of a module across all its alternative according to a set of KO."
+        return max([len(alt.intersection(ko)) / len(alt) for alt in mod])
+
+    def compute_completeness_all(self,
+                                 all_mod: dict[str, list[set[str]]],
+                                 annotated_mgs: pd.DataFrame) -> dict[str, dict[str, float]]:
+        "Compute completeness of all modules in all MSP."
+        return {mod: self.compute_completeness(alt, annotated_mgs) for (mod, alt) in all_mod.items()}
+
+    def compute_module_abundance(self, mgs_file: Path, annot_file: dict[str, Path],
+                                 all_mod: dict[str, list[set[str]]],
+                                 count_column: str,
+                                 completude: float) -> None:
+        "Compute all modules abundance in the sample."
+        # Merge the data
+        annotated_mgs = self.merge_catalogue_info(mgs_file=mgs_file, annot_file=annot_file, count_column=count_column)
+        # Compute all completeness for all modules and all MSP
+        completeness = self.compute_completeness_all(all_mod=all_mod, annotated_mgs=annotated_mgs)
+        # Restrict to mgs whose completeness is above threshold
+        mod_dict = {mod: {mgs for (mgs, cmpltd) in mgs_dict.items() if cmpltd >= completude}
+                    for (mod, mgs_dict)
+                    in completeness.items()}
+        # Compute module abundance
+        module_abundance = {mod: self.mgs_table.loc[self.mgs_table["index"].isin(mgs_set), "value"].sum()
+                            for (mod, mgs_set)
+                            in mod_dict.items()}
+        self.mod_table = pd.DataFrame.from_dict(module_abundance, orient = "index", columns = ["value"]).reset_index()
 
 
 
@@ -214,7 +281,8 @@ class Profiler(Session):
 
     def execute(self) -> bool:
         "Normalize the samples and compute MGS and functions abundances."
-        # Normalize the samples
+        # Part 1: NORMALIZATION
+        print(self.module_path)
         if self.rarefaction_level > 0:
             logging.info("Run rarefaction.")
             self.rarefy(count_column=self.count_column,
@@ -237,20 +305,19 @@ class Profiler(Session):
         self.gene_count.to_csv(self.output_filenames["gene_table_norm"], sep = "\t", index = False)
         # Update config file
         config_norm = {}
-        config_norm["user"] = getlogin()
+        config_norm["user"] = os.getlogin()
         config_norm["date"] = str(date.today())
         config_norm["normalization"] = self.normalization
         config_norm["rarefaction_level"] = str(self.rarefaction_level)
         self.sample_config = self.update_ini(self.sample_config, "normalization", config_norm)
         self.save_config(self.sample_config, Path(self.output_filenames["gene_table_norm"]).with_suffix(".ini"))
 
-        
-        # Get MGS filename
-        mgs_filename = (self.meteor.ref_dir /
-                        self.ref_config["reference_file"]["database_dir"] /
-                        self.ref_config["annotation"]["msp"])
-        # Compute MGS
+        # Part 2: TAXONOMIC PROFILING
         if self.compute_mgs_bool or self.by_mgs:
+            # Get MGS filename
+            mgs_filename = (self.meteor.ref_dir /
+                            self.ref_config["reference_file"]["database_dir"] /
+                            self.ref_config["annotation"]["msp"])
             if not self.compute_mgs_bool:
                 logging.info("MGS abundances will be computed since you requested to compute functions via MGS.")
             # Restrict to MGS of interest
@@ -267,7 +334,7 @@ class Profiler(Session):
             mgs_stats = self.compute_mgs_stats(self.count_column, mgs_filename)
             # Update and save config file
             config_mgs = {}
-            config_mgs["user"] = getlogin()
+            config_mgs["user"] = os.getlogin()
             config_mgs["date"] = str(date.today())
             config_mgs["mgs_signal"] = str(mgs_stats)
             config_mgs["core_size"] = str(self.core_size)
@@ -275,14 +342,16 @@ class Profiler(Session):
             self.sample_config = self.update_ini(self.sample_config, "mgs", config_mgs)
             self.save_config(self.sample_config, Path(self.output_filenames["mgs_table"]).with_suffix(".ini"))
 
+        # Part 3: FUNCTIONAL PROFILING
         if self.compute_functions_bool:
             # Get functions to use
-            for db in self.annot_db_list:
+            for (db, annot_file) in self.annot_db_dict.items():
                 logging.info("Compute %s abundances.", db)
-                annot_file = (self.meteor.ref_dir /
-                              self.ref_config["reference_file"]["database_dir"] /
-                              self.ref_config["annotation"][db])
                 if self.by_mgs:
+                    # Get MGS filename
+                    mgs_filename = (self.meteor.ref_dir /
+                                    self.ref_config["reference_file"]["database_dir"] /
+                                    self.ref_config["annotation"]["msp"])
                     logging.info("Use MGS abundances. Remove --by mgs not to use them.")
                     self.compute_ko_abundance_by_mgs(annot_file=annot_file, mgs_def_filename=mgs_filename)
                 else:
@@ -295,7 +364,7 @@ class Profiler(Session):
                                                          by_mgs=self.by_mgs, mgs_def_filename=mgs_filename)
                 # Update config file
                 config_db = {}
-                config_db["user"] = getlogin()
+                config_db["user"] = os.getlogin()
                 config_db["date"] = str(date.today())
                 config_db["db"] = db
                 config_db["filename"] = annot_file
@@ -304,8 +373,23 @@ class Profiler(Session):
                 update_config = self.update_ini(self.sample_config, "annotation", config_db)
                 self.save_config(update_config, 
                                  Path(self.output_filenames["functions_table"][db]).with_suffix(".ini"))
-
-
+                
+        # Part 4 Module computation
+        if self.compute_modules_bool:
+            logging.info("Compute module abundances using the file %s", self.module_path)
+            logging.info("Parse module definition file.")
+            module_dict = Parser(self.module_path)
+            module_dict.execute()
+            logging.info("Compute modules.")
+            mgs_filename = (self.meteor.ref_dir /
+                            self.ref_config["reference_file"]["database_dir"] /
+                            self.ref_config["annotation"]["msp"])
+            self.compute_module_abundance(mgs_file=mgs_filename,
+                                          annot_file=self.module_db_dict,
+                                          all_mod=module_dict.module_dict_alt,
+                                          count_column=self.count_column,
+                                          completude=self.completude)
+            self.mod_table.to_csv(self.output_filenames["modules_table"], sep = "\t", index = False)
 
         logging.info("Process ended without errors.")
 

@@ -74,7 +74,8 @@ class Session(Protocol):
         return ref_ini
 
     def update_ini(self, config: ConfigParser, section: str, new_fields: dict[str, str]) -> ConfigParser:
-        new_config = config
+        new_config = ConfigParser()
+        new_config.read_dict(config)
         section_suffix = 1
         while section in new_config.sections():
             section = section + str(section_suffix)
