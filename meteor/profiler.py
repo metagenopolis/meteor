@@ -21,7 +21,9 @@ from pathlib import Path
 import numpy as np
 import logging
 import os
+import sys
 from datetime import date
+
 
 
 @dataclass
@@ -33,17 +35,18 @@ class Profiler(Session):
     input_ini: Path
     suffix_file: str
     rarefaction_level: int
+    seed: int
     normalization: str
-    compute_mgs_bool: bool
+    compute_msp_bool: bool
     core_size: int
-    mgs_filter: float
+    msp_filter: float
     compute_functions_bool: bool
     annot_db: str
-    by_mgs: bool
+    by_msp: bool
     compute_modules_bool: bool
     module_path: Path
     module_db: str
-    completude: float
+    completeness: float
 
     def __post_init__(self):
         # Load the count table
@@ -55,6 +58,12 @@ class Profiler(Session):
         if self.input_ini is None:
             self.input_ini = Path(self.input_count_table).with_suffix(".ini")
         self.sample_config = self.read_ini(self.input_ini)
+
+        # Add session info
+        config_session = {}
+        config_session["user"] = os.getlogin()
+        config_session["date"] = str(date.today())
+        self.sample_config = self.update_ini(self.sample_config, "profiling_session", config_session)
 
         # Initialize the unmapped_count
         try:
@@ -69,23 +78,49 @@ class Profiler(Session):
         # Initialize the ini ref config parser:
         self.ref_config = self.get_reference_info(self.meteor.ref_dir)
 
+        # Define MSP filename
+        if self.by_msp or self.compute_msp_bool:
+            try:
+                self.msp_filename = (self.meteor.ref_dir /
+                                     self.ref_config["reference_file"]["database_dir"] /
+                                     self.ref_config["annotation"]["msp"])
+                self.msp_filename = Path(self.msp_filename)
+                assert self.msp_filename.is_file()
+            except KeyError:
+                logging.error("No MSP file provided in the reference ini file.")
+                sys.exit()
+            except AssertionError:
+                logging.error("The MSP file %s does not exist.", self.msp_filename)
+                sys.exit()
+        else:
+            self.msp_filename = None
+
         # List the functional db
         self.annot_db_list = self.annot_db.split(",")
         self.module_db_list = self.module_db.split(",")
-        self.annot_db_dict = {db: Path(self.meteor.ref_dir /
-                                       self.ref_config["reference_file"]["database_dir"] /
-                                       self.ref_config["annotation"][db])
-                              for db 
-                              in self.annot_db_list}
-        self.module_db_dict = {db: Path(self.meteor.ref_dir /
+        try:
+            self.annot_db_dict = {db: Path(self.meteor.ref_dir /
                                         self.ref_config["reference_file"]["database_dir"] /
                                         self.ref_config["annotation"][db])
-                               for db 
-                               in self.module_db_list}
+                                for db
+                                in self.annot_db_list}
+            self.module_db_dict = {db: Path(self.meteor.ref_dir /
+                                            self.ref_config["reference_file"]["database_dir"] /
+                                            self.ref_config["annotation"][db])
+                                for db
+                                in self.module_db_list}
+            assert all(x.is_file() for x in self.annot_db_dict.values())
+            assert all(x.is_file() for x in self.module_db_dict.values())
+        except KeyError:
+            logging.error("Missing annotation databases in the reference ini file.")
+            sys.exit()
+        except AssertionError:
+            logging.error("The annotation files does not exist.")
+            sys.exit()
 
         # Define output names
         gene_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_norm.tsv"
-        mgs_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_mgs.tsv"
+        msp_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_msp.tsv"
         functions_table_output = {db: self.meteor.mapping_dir /
                                   f"{self.sample_name}_{self.suffix_file}_{db}_functions.tsv"
                                   for db
@@ -93,18 +128,19 @@ class Profiler(Session):
         modules_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_modules.tsv"
         self.output_filenames = {}
         self.output_filenames["gene_table_norm"] = gene_table_output
-        self.output_filenames["mgs_table"] = mgs_table_output
+        self.output_filenames["msp_table"] = msp_table_output
         self.output_filenames["functions_table"] = functions_table_output
         self.output_filenames["modules_table"] = modules_table_output
 
-        
+
 
         # Initialize the module definition file
         if self.module_path is None:
-            self.module_path = os.path.join(os.path.dirname(__file__), "all_modules_definition_GMM_GBM_KEGG_107.tsv")
+            self.module_path = Path(os.path.join(os.path.dirname(__file__),
+                                                 "all_modules_definition_GMM_GBM_KEGG_107.tsv"))
 
 
-    def rarefy(self, count_column: str, rarefaction_level: int, unmapped_reads: int) -> None:
+    def rarefy(self, count_column: str, rarefaction_level: int, unmapped_reads: int, seed: int) -> None:
         # Add the unmapped count
         self.gene_count.loc[len(self.gene_count)] = {"genes_id": -1,
                                                      "gene_size": 1000, 
@@ -116,7 +152,7 @@ class Profiler(Session):
             array_to_rarefy = np.repeat(self.gene_count["genes_id"],
                                         self.gene_count[count_column])
             # Randomly choose among the long array the selected reads
-            rng = np.random.default_rng()
+            rng = np.random.default_rng(seed = seed)
             array_rarefied = rng.choice(array_to_rarefy,
                                         size = rarefaction_level,
                                         replace = False)
@@ -138,7 +174,7 @@ class Profiler(Session):
         else:
             unmapped_reads_after_rf = unmapped_reads
         ### Add the unmapped reads after rf to the gene count table as a pseudo gene
-        self.gene_count.loc[len(self.gene_count)] = {"genes_id": -1, 
+        self.gene_count.loc[len(self.gene_count)] = {"genes_id": -1,
                                                      "gene_size": 1000, 
                                                      count_column: unmapped_reads_after_rf}
         ### Normalize
@@ -148,42 +184,40 @@ class Profiler(Session):
 
 
 
-    def compute_mgs(self, count_column: str, mgs_dict: dict[str, set[str]], filter_pc: float) -> None:
-        # Compute how many genes are seen for a given mgs
+    def compute_msp(self, count_column: str, msp_dict: dict[str, set[str]], filter_pc: float) -> None:
+        # Compute how many genes are seen for a given msp
         # Restrict to gene table to core genes
-        all_core_genes = {item for sublist in mgs_dict.values() for item in sublist}
+        all_core_genes = {item for sublist in msp_dict.values() for item in sublist}
         gene_count_core = self.gene_count.loc[self.gene_count["genes_id"].isin(all_core_genes)]
-        mgs_filter = {mgs:(gene_count_core.loc[gene_count_core["genes_id"].isin(set_genes), count_column] > 0).sum() /
+        msp_filter = {msp:(gene_count_core.loc[gene_count_core["genes_id"].isin(set_genes), count_column] > 0).sum() /
                       len(set_genes)
-                      for (mgs, set_genes)
-                      in mgs_dict.items()}
+                      for (msp, set_genes)
+                      in msp_dict.items()}
         # Compute mean abundance if gene count is above filter threshold, otherwise 0
-        mgs_table_dict = {mgs:(gene_count_core.loc[gene_count_core["genes_id"].isin(set_genes), count_column].mean() 
-                          if mgs_filter[mgs] >= filter_pc else 0)
-                          for (mgs, set_genes)
-                          in mgs_dict.items()}
-        self.mgs_table = pd.DataFrame.from_dict(mgs_table_dict, orient = "index", columns = ["value"]).reset_index()
+        msp_table_dict = {msp:(gene_count_core.loc[gene_count_core["genes_id"].isin(set_genes), count_column].mean()
+                          if msp_filter[msp] >= filter_pc else 0)
+                          for (msp, set_genes)
+                          in msp_dict.items()}
+        self.msp_table = pd.DataFrame.from_dict(msp_table_dict, orient = "index", columns = ["value"]).reset_index()
 
-    def get_mgs_core(self, mgs_def_filename: Path, core_size: int) -> dict:
-        # Load mgs file
-        mgs_df = pd.read_table(mgs_def_filename)
+    def get_msp_core(self, msp_def_filename: Path, core_size: int) -> dict:
+        # Load msp file
+        msp_df = pd.read_table(msp_def_filename)
         # Restrict to core
-        mgs_df_selection = mgs_df.loc[mgs_df["gene_category"] == "core"]
-        # Restrict to more connected genes
-        #mgs_df_selection = mgs_df_selection.groupby("msp_name").head(core_size)
+        msp_df_selection = msp_df.loc[msp_df["gene_category"] == "core"]
         # Return the df as a dict of set
-        mgs_dict = mgs_df_selection.groupby("msp_name")["gene_id"].apply(lambda x: set(x.head(core_size))).to_dict()
-        return mgs_dict
+        msp_dict = msp_df_selection.groupby("msp_name")["gene_id"].apply(lambda x: set(x.head(core_size))).to_dict()
+        return msp_dict
 
-    def compute_mgs_stats(self, count_column: str, mgs_def_filename: Path) -> float:
-        # Load mgs file
-        mgs_df = pd.read_table(mgs_def_filename)
-        # Get the ensemble of genes used in MGS
-        all_mgs_genes = mgs_df["gene_id"].unique()
-        # Get the percentage of reads that map on an MGS
-        mgs_reads_pc = (self.gene_count.loc[self.gene_count["genes_id"].isin(all_mgs_genes), count_column].sum() /
+    def compute_msp_stats(self, count_column: str, msp_def_filename: Path) -> float:
+        # Load msp file
+        msp_df = pd.read_table(msp_def_filename)
+        # Get the ensemble of genes used in MSP
+        all_msp_genes = msp_df["gene_id"].unique()
+        # Get the percentage of reads that map on an MSP
+        msp_reads_pc = (self.gene_count.loc[self.gene_count["genes_id"].isin(all_msp_genes), count_column].sum() /
                         self.gene_count[count_column].sum())
-        return round(mgs_reads_pc, 2)
+        return round(msp_reads_pc, 2)
 
     def compute_ko_abundance(self, count_column: str, annot_file: Path) -> None:
         # Load annotation file
@@ -194,84 +228,83 @@ class Profiler(Session):
         aggregated_count = merged_df.groupby("annotation")[count_column].sum().reset_index()
         self.functions = aggregated_count
 
-    def compute_ko_abundance_by_mgs(self, annot_file: Path, mgs_def_filename: Path) -> None:
+    def compute_ko_abundance_by_msp(self, annot_file: Path, msp_def_filename: Path) -> None:
         # Load annotation file
         annot_df = pd.read_table(annot_file)
-        # Load MGS file
-        mgs_df = pd.read_table(mgs_def_filename)
+        # Load MSP file
+        msp_df = pd.read_table(msp_def_filename)
         # Merge both data frames
-        mgs_df_annotated = pd.merge(mgs_df, annot_df)
-        # Create a dict ko: {mgs1, mgs2}
-        ko_dict = mgs_df_annotated.groupby("annotation")["msp_name"].apply(set).to_dict()
-        #ko_dict = mgs_df_annotated.groupby(["annotation"]).apply(lambda x: set(x["msp_name"])).to_dict()
-        # Compute abundance based on MGS abundance
-        ko_dict_ab = {ko: self.mgs_table.loc[self.mgs_table["index"].isin(mgs_set), "value"].sum()
-                      for (ko, mgs_set)
+        msp_df_annotated = pd.merge(msp_df, annot_df)
+        # Create a dict ko: {msp1, msp2}
+        ko_dict = msp_df_annotated.groupby("annotation")["msp_name"].apply(set).to_dict()
+        # Compute abundance based on MSP abundance
+        ko_dict_ab = {ko: self.msp_table.loc[self.msp_table["index"].isin(msp_set), "value"].sum()
+                      for (ko, msp_set)
                       in ko_dict.items()}
         self.functions = pd.DataFrame.from_dict(ko_dict_ab, orient = "index", columns = ["value"]).reset_index()
 
-    def compute_ko_stats(self, annot_file: Path, count_column: str, by_mgs: bool, mgs_def_filename: Path) -> float:
+    def compute_ko_stats(self, annot_file: Path, count_column: str, by_msp: bool, msp_def_filename: Path) -> float:
         # Load annotation file
         annot_df = pd.read_table(annot_file)
-        if by_mgs:
-            # Load MGS file
-            mgs_df = pd.read_table(mgs_def_filename)
+        if by_msp:
+            # Load MSP file
+            msp_df = pd.read_table(msp_def_filename)
             # Merge both data frames
-            annot_df = pd.merge(mgs_df, annot_df)
-        # Get the genes in MGS AND annotated
-        all_mgs_genes = annot_df["gene_id"].unique()
+            annot_df = pd.merge(msp_df, annot_df)
+        # Get the genes in MSP AND annotated
+        all_msp_genes = annot_df["gene_id"].unique()
         # Get the percentage of reads that map on these genes
-        annot_reads_pc = (self.gene_count.loc[self.gene_count["genes_id"].isin(all_mgs_genes), count_column].sum() /
+        annot_reads_pc = (self.gene_count.loc[self.gene_count["genes_id"].isin(all_msp_genes), count_column].sum() /
                           self.gene_count[count_column].sum())
         return round(annot_reads_pc, 2)
 
-    def merge_catalogue_info(self, mgs_file: Path, annot_file: dict[str, Path], count_column: str) -> pd.DataFrame:
+    def merge_catalogue_info(self, msp_file: Path, annot_file: dict[str, Path], count_column: str) -> pd.DataFrame:
         # Load files
-        mgs_df = pd.read_table(mgs_file)
+        msp_df = pd.read_table(msp_file)
         # Restrict df to detected genes
         detected_genes = self.gene_count.loc[self.gene_count[count_column] > 0, "genes_id"]
-        mgs_df = mgs_df.loc[mgs_df["gene_id"].isin(detected_genes)]
-        # Restrict df to detected mgs
-        mgs_df = mgs_df.loc[mgs_df["msp_name"].isin(self.mgs_table.loc[self.mgs_table["value"] > 0, "index"])]
+        msp_df = msp_df.loc[msp_df["gene_id"].isin(detected_genes)]
+        # Restrict df to detected msp
+        msp_df = msp_df.loc[msp_df["msp_name"].isin(self.msp_table.loc[self.msp_table["value"] > 0, "index"])]
         # Merge each provided db
         annot_df = pd.concat([pd.read_table(db)[["gene_id", "annotation"]]
                               for db
                               in annot_file.values()],
                              ignore_index = True)
         annot_df = annot_df.loc[annot_df["gene_id"].isin(detected_genes)]
-        annotated_mgs_df = mgs_df.merge(annot_df)
-        return annotated_mgs_df
+        annotated_msp_df = msp_df.merge(annot_df)
+        return annotated_msp_df
 
-    def compute_completeness(self, mod: list[set[str]], annotated_mgs: pd.DataFrame) -> dict[str, float]:
+    def compute_completeness(self, mod: list[set[str]], annotated_msp: pd.DataFrame) -> dict[str, float]:
         "Compute completeness of a given module in all available MSP."
-        return annotated_mgs.groupby("msp_name")["annotation"].apply(lambda x: self.compute_max(mod, set(x))).to_dict()
+        return annotated_msp.groupby("msp_name")["annotation"].apply(lambda x: self.compute_max(mod, set(x))).to_dict()
 
     def compute_max(self, mod: list[set[str]], ko: set) -> float:
         "Compute maximum completeness of a module across all its alternative according to a set of KO."
-        return max([len(alt.intersection(ko)) / len(alt) for alt in mod])
+        return max((len(alt.intersection(ko)) / len(alt) for alt in mod))
 
     def compute_completeness_all(self,
                                  all_mod: dict[str, list[set[str]]],
-                                 annotated_mgs: pd.DataFrame) -> dict[str, dict[str, float]]:
+                                 annotated_msp: pd.DataFrame) -> dict[str, dict[str, float]]:
         "Compute completeness of all modules in all MSP."
-        return {mod: self.compute_completeness(alt, annotated_mgs) for (mod, alt) in all_mod.items()}
+        return {mod: self.compute_completeness(alt, annotated_msp) for (mod, alt) in all_mod.items()}
 
-    def compute_module_abundance(self, mgs_file: Path, annot_file: dict[str, Path],
+    def compute_module_abundance(self, msp_file: Path, annot_file: dict[str, Path],
                                  all_mod: dict[str, list[set[str]]],
                                  count_column: str,
-                                 completude: float) -> None:
+                                 completeness: float) -> None:
         "Compute all modules abundance in the sample."
         # Merge the data
-        annotated_mgs = self.merge_catalogue_info(mgs_file=mgs_file, annot_file=annot_file, count_column=count_column)
+        annotated_msp = self.merge_catalogue_info(msp_file=msp_file, annot_file=annot_file, count_column=count_column)
         # Compute all completeness for all modules and all MSP
-        completeness = self.compute_completeness_all(all_mod=all_mod, annotated_mgs=annotated_mgs)
-        # Restrict to mgs whose completeness is above threshold
-        mod_dict = {mod: {mgs for (mgs, cmpltd) in mgs_dict.items() if cmpltd >= completude}
-                    for (mod, mgs_dict)
-                    in completeness.items()}
+        cpltd_dict = self.compute_completeness_all(all_mod=all_mod, annotated_msp=annotated_msp)
+        # Restrict to msp whose completeness is above threshold
+        mod_dict = {mod: {msp for (msp, cmpltd) in msp_dict.items() if cmpltd >= completeness}
+                    for (mod, msp_dict)
+                    in cpltd_dict.items()}
         # Compute module abundance
-        module_abundance = {mod: self.mgs_table.loc[self.mgs_table["index"].isin(mgs_set), "value"].sum()
-                            for (mod, mgs_set)
+        module_abundance = {mod: self.msp_table.loc[self.msp_table["index"].isin(msp_set), "value"].sum()
+                            for (mod, msp_set)
                             in mod_dict.items()}
         self.mod_table = pd.DataFrame.from_dict(module_abundance, orient = "index", columns = ["value"]).reset_index()
 
@@ -280,14 +313,14 @@ class Profiler(Session):
 
 
     def execute(self) -> bool:
-        "Normalize the samples and compute MGS and functions abundances."
+        "Normalize the samples and compute MSP and functions abundances."
         # Part 1: NORMALIZATION
-        print(self.module_path)
         if self.rarefaction_level > 0:
             logging.info("Run rarefaction.")
             self.rarefy(count_column=self.count_column,
                         rarefaction_level=self.rarefaction_level,
-                        unmapped_reads=self.unmapped_reads)
+                        unmapped_reads=self.unmapped_reads,
+                        seed=self.seed)
         else:
             logging.info("No rarefaction.")
         if self.normalization == "coverage":
@@ -305,91 +338,88 @@ class Profiler(Session):
         self.gene_count.to_csv(self.output_filenames["gene_table_norm"], sep = "\t", index = False)
         # Update config file
         config_norm = {}
-        config_norm["user"] = os.getlogin()
-        config_norm["date"] = str(date.today())
         config_norm["normalization"] = self.normalization
         config_norm["rarefaction_level"] = str(self.rarefaction_level)
-        self.sample_config = self.update_ini(self.sample_config, "normalization", config_norm)
+        config_norm["seed"] = str(self.seed)
+        self.sample_config = self.update_ini(self.sample_config, "profiling_parameters", config_norm)
         self.save_config(self.sample_config, Path(self.output_filenames["gene_table_norm"]).with_suffix(".ini"))
 
         # Part 2: TAXONOMIC PROFILING
-        if self.compute_mgs_bool or self.by_mgs:
-            # Get MGS filename
-            mgs_filename = (self.meteor.ref_dir /
-                            self.ref_config["reference_file"]["database_dir"] /
-                            self.ref_config["annotation"]["msp"])
-            if not self.compute_mgs_bool:
-                logging.info("MGS abundances will be computed since you requested to compute functions via MGS.")
-            # Restrict to MGS of interest
-            logging.info("Get MGS core genes.")
-            mgs_set = self.get_mgs_core(mgs_filename, self.core_size)
-            # Compute MGS
-            logging.info("Compute MGS profiles.")
-            self.compute_mgs(count_column=self.count_column, mgs_dict=mgs_set, filter_pc=self.mgs_filter)
-            # Write the MGS table
-            logging.info("Save MGS profiles.")
-            self.mgs_table.to_csv(self.output_filenames["mgs_table"], sep = "\t", index = False)
-            # Compute MGS stats
-            logging.info("Compute MGS stats.")
-            mgs_stats = self.compute_mgs_stats(self.count_column, mgs_filename)
+        if self.compute_msp_bool or self.by_msp:
+            if not self.compute_msp_bool:
+                logging.info("MSP abundances will be computed since you requested to compute functions via MSP.")
+            # Restrict to MSP of interest
+            logging.info("Get MSP core genes.")
+            msp_set = self.get_msp_core(self.msp_filename, self.core_size)
+            # Compute MSP
+            logging.info("Compute MSP profiles.")
+            self.compute_msp(count_column=self.count_column, msp_dict=msp_set, filter_pc=self.msp_filter)
+            # Write the MSP table
+            logging.info("Save MSP profiles.")
+            self.msp_table.to_csv(self.output_filenames["msp_table"], sep = "\t", index = False)
+            # Compute MSP stats
+            logging.info("Compute MSP stats.")
+            msp_stats = self.compute_msp_stats(self.count_column, self.msp_filename)
             # Update and save config file
-            config_mgs = {}
-            config_mgs["user"] = os.getlogin()
-            config_mgs["date"] = str(date.today())
-            config_mgs["mgs_signal"] = str(mgs_stats)
-            config_mgs["core_size"] = str(self.core_size)
-            config_mgs["filter"] = str(self.mgs_filter)
-            self.sample_config = self.update_ini(self.sample_config, "mgs", config_mgs)
-            self.save_config(self.sample_config, Path(self.output_filenames["mgs_table"]).with_suffix(".ini"))
+            config_param_msp = {}
+            config_param_msp["msp_core_size"] = str(self.core_size)
+            config_param_msp["msp_filter"] = str(self.msp_filter)
+            config_param_msp["msp_def"] = self.msp_filename.name
+            config_stats_msp = {}
+            config_stats_msp["msp_count"] = len(self.msp_table.loc[self.msp_table["value"] > 0, "index"])
+            config_stats_msp["msp_signal"] = str(msp_stats)
+            self.sample_config = self.update_ini(self.sample_config, "profiling_parameters", config_param_msp)
+            self.sample_config = self.update_ini(self.sample_config, "profiling_stats", config_stats_msp)
+            self.save_config(self.sample_config, Path(self.output_filenames["msp_table"]).with_suffix(".ini"))
 
         # Part 3: FUNCTIONAL PROFILING
         if self.compute_functions_bool:
             # Get functions to use
             for (db, annot_file) in self.annot_db_dict.items():
                 logging.info("Compute %s abundances.", db)
-                if self.by_mgs:
-                    # Get MGS filename
-                    mgs_filename = (self.meteor.ref_dir /
-                                    self.ref_config["reference_file"]["database_dir"] /
-                                    self.ref_config["annotation"]["msp"])
-                    logging.info("Use MGS abundances. Remove --by mgs not to use them.")
-                    self.compute_ko_abundance_by_mgs(annot_file=annot_file, mgs_def_filename=mgs_filename)
+                if self.by_msp:
+                    logging.info("Use MSP abundances. Remove --by_msp not to use them.")
+                    self.compute_ko_abundance_by_msp(annot_file=annot_file, msp_def_filename=self.msp_filename)
                 else:
-                    logging.info("MGS abundance are not used. Add --by_mgs to use them for computations.")
+                    logging.info("MSP abundance are not used. Add --by_msp to use them for computations.")
                     self.compute_ko_abundance(count_column=self.count_column, annot_file=annot_file)
                 logging.info("Save annotation file.")
                 self.functions.to_csv(self.output_filenames["functions_table"][db], sep = "\t", index=False)
                 # Compute functinal statistics
-                functional_stats = self.compute_ko_stats(annot_file=annot_file, count_column=self.count_column, 
-                                                         by_mgs=self.by_mgs, mgs_def_filename=mgs_filename)
+                functional_stats = self.compute_ko_stats(annot_file=annot_file, count_column=self.count_column,
+                                                         by_msp=self.by_msp, msp_def_filename=self.msp_filename)
                 # Update config file
-                config_db = {}
-                config_db["user"] = os.getlogin()
-                config_db["date"] = str(date.today())
-                config_db["db"] = db
-                config_db["filename"] = annot_file
-                config_db["by_mgs"] = str(self.by_mgs)
-                config_db["function_signal"] = str(functional_stats)
-                update_config = self.update_ini(self.sample_config, "annotation", config_db)
-                self.save_config(update_config, 
+                config_param_db = {}
+                config_param_db["function_db"] = db
+                config_param_db["function_filename"] = annot_file.name
+                config_param_db["function_by_msp"] = str(self.by_msp)
+                config_stats_db = {}
+                config_stats_db["function_signal"] = str(functional_stats)
+                update_config = self.update_ini(self.sample_config, "profiling_parameters", config_param_db)
+                update_config = self.update_ini(update_config, "profiling_stats", config_stats_db)
+                self.save_config(update_config,
                                  Path(self.output_filenames["functions_table"][db]).with_suffix(".ini"))
-                
+
         # Part 4 Module computation
         if self.compute_modules_bool:
-            logging.info("Compute module abundances using the file %s", self.module_path)
+            logging.info("Compute module abundances using the file %s", self.module_path.name)
             logging.info("Parse module definition file.")
             module_dict = Parser(self.module_path)
             module_dict.execute()
             logging.info("Compute modules.")
-            mgs_filename = (self.meteor.ref_dir /
-                            self.ref_config["reference_file"]["database_dir"] /
-                            self.ref_config["annotation"]["msp"])
-            self.compute_module_abundance(mgs_file=mgs_filename,
+            self.compute_module_abundance(msp_file=self.msp_filename,
                                           annot_file=self.module_db_dict,
                                           all_mod=module_dict.module_dict_alt,
                                           count_column=self.count_column,
-                                          completude=self.completude)
+                                          completeness=self.completeness)
             self.mod_table.to_csv(self.output_filenames["modules_table"], sep = "\t", index = False)
+            # Update config files
+            config_param_modules = {}
+            config_param_modules["modules_def"] = self.module_path.name
+            config_param_modules["module_completeness"] = str(self.completeness)
+            update_config = self.update_ini(self.sample_config, "profiling_parameters", config_param_modules)
+            self.save_config(update_config,
+                                 Path(self.output_filenames["modules_table"]).with_suffix(".ini"))
 
         logging.info("Process ended without errors.")
 

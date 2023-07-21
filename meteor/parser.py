@@ -49,12 +49,12 @@ class Parser(Session):
             else:
                 mod_def = mod_def_new
         return mod_def
-    
+
     def replace_submod(self, mod_def: str, mod_dict: dict[str, str]) -> str:
         "Replace submodules from mod_def that are in mod_dict"
         mod_def = re.sub(r"\w+", lambda x: mod_dict[x.group()] if x.group() in mod_dict else x.group(), mod_def)
         return mod_def
-    
+
     def find_all_alt(self, mod_def: str, mod_dict: dict[str, str]) -> list[set[str]]:
         "Return the list of all alternatives for a module definition"
         ### Define an alternative
@@ -79,7 +79,7 @@ class Parser(Session):
                     new_list_alt.append(my_def)
             list_alt = new_list_alt
         ### Transform each alternative into set of KOs : module_dict_alt['M000x'] = [set(KO1, KO2), set(KO1, KO3), etc]
-        return [set(k.split('+')) for k in set(list_alt)]
+        return [set(k.split("+")) for k in set(list_alt)]
 
     def execute(self) -> bool:
         ### Load file

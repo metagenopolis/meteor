@@ -12,7 +12,6 @@
 #    http://www.gnu.org/licenses/gpl-3.0.html
 
 """Meteor - A plateform for quantitative metagenomic profiling of complex ecosystems"""
-
 __version__ = "3.3"
 __copyright__ = "GPLv3"
 __date__ = "2023"
@@ -218,23 +217,25 @@ def get_arguments() -> Namespace:  # pragma: no cover
     profiling_parser.add_argument("-l", dest="rarefaction_level", type=int, default=-1,
                                   help="""Rarefaction level. If negative: no rarefation is performed.
                                           Default to -1""")
+    profiling_parser.add_argument("--seed", dest="seed", type=int,
+                                  help="Seed for reads randomly selection during rarefaction. Default to None.")
     profiling_parser.add_argument("-n", dest="normalization", type=str, choices=["coverage", "fpkm", "none"],
                                   default="none",
                                   help="Normalization applied to gene abundance. Default to none.")
-    profiling_parser.add_argument("--no_mgs", dest="compute_mgs", action="store_false",
-                                  help="Should MGS computation be omitted?")
+    profiling_parser.add_argument("--no_msp", dest="compute_msp", action="store_false",
+                                  help="Should MSP computation be omitted?")
     profiling_parser.add_argument("--core_size", dest="core_size", type=int, default=100,
-                                  help="Number of core genes to be used for MGS computation. Default to 100.")
-    profiling_parser.add_argument("--mgs_filter", dest="mgs_filter", type=isborned01, default=0.1,
-                                  help="""Ratio of MGS core genes detected in a sample, under which
-                                          the MGS abundance is set to 0. Default to 0.1""")
+                                  help="Number of core genes to be used for MSP computation. Default to 100.")
+    profiling_parser.add_argument("--msp_filter", dest="msp_filter", type=isborned01, default=0.1,
+                                  help="""Ratio of MSP core genes detected in a sample, under which
+                                          the MSP abundance is set to 0. Default to 0.1""")
     profiling_parser.add_argument("--no_functional", dest="compute_functions", action="store_false",
                                   help="Should the functional computation be omitted?")
     profiling_parser.add_argument("--annot_db", type=str, default="mustard,kegg",
                                   help="""Comma separated functional annotation database.
                                           Default to mustard,kegg.""")
-    profiling_parser.add_argument("--by_mgs", dest="by_mgs", action="store_true",
-                                  help="""Should functional potential be computed across MGS?""")
+    profiling_parser.add_argument("--by_msp", dest="by_msp", action="store_true",
+                                  help="""Should functional potential be computed across MSP?""")
     profiling_parser.add_argument("--no_module", dest="compute_modules", action="store_false",
                                   help="Should the functional modules computation be omitted?")
     profiling_parser.add_argument("--module", dest="module_path", type=isfile,
@@ -244,9 +245,9 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                   help="""Comma separated functional annotation database,
                                           as specified in the *_reference_ini file.
                                           Default to kegg.""")
-    profiling_parser.add_argument("--completude", type=isborned01, default=0.9,
+    profiling_parser.add_argument("--completeness", type=isborned01, default=0.9,
                                   help="""Threshold above which a module is considered as present
-                                          in an MGS. Comprised in [0,1]. Default to 0.9.""")
+                                          in an MSP. Comprised in [0,1]. Default to 0.9.""")
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
@@ -301,10 +302,10 @@ def main() -> None:  # pragma: no cover
         meteor.mapping_dir = args.output_dir
         meteor.ref_dir = args.ref_dir
         profiler = Profiler(meteor, args.input_profile, args.input_ini, args.profile_suffix,
-                            args.rarefaction_level, args.normalization,
-                            args.compute_mgs, args.core_size, args.mgs_filter,
-                            args.compute_functions, args.annot_db, args.by_mgs,
-                            args.compute_modules, args.module_path, args.module_db, args.completude)
+                            args.rarefaction_level, args.seed, args.normalization,
+                            args.compute_msp, args.core_size, args.msp_filter,
+                            args.compute_functions, args.annot_db, args.by_msp,
+                            args.compute_modules, args.module_path, args.module_db, args.completeness)
         profiler.execute()
     # Testing
     else:

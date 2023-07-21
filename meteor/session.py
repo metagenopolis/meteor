@@ -76,11 +76,15 @@ class Session(Protocol):
     def update_ini(self, config: ConfigParser, section: str, new_fields: dict[str, str]) -> ConfigParser:
         new_config = ConfigParser()
         new_config.read_dict(config)
-        section_suffix = 1
-        while section in new_config.sections():
-            section = section + str(section_suffix)
-            section_suffix += 1
-        new_config[section] = new_fields
+        if section in new_config.sections():
+            for my_field, my_value in new_fields.items():
+                if my_field in new_config[section]:
+                    logging.error("The field %s is already present in the ini file.", my_field)
+                    sys.exit()
+                else:
+                    new_config[section][my_field] = my_value
+        else:
+            new_config[section] = new_fields
         return new_config
 
     def execute(self) -> bool:
