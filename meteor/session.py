@@ -35,10 +35,30 @@ class Component:
     sequence: tuple = ("_R", ".R", "_", ".", "")
     extension: tuple = (".fq", ".fastq")
     compression: tuple = (".gz", ".bz2", ".xz", "")
+    gene_column: str = "gene_id"
+    msp_column: str = "msp_name"
+    ko_column: str = "annotation"
+    module_column: str = "mod_id"
+    module_def_column: str = "mod_def"
+    gene_length_column: str = "gene_length"
+    value_column: str = "value"
+    gene_class_column: str = "gene_category"
+
 
 
 class Session(Protocol):
     """Class inheritating from Protocol that present shared function."""
+    def check_file(self, filename: Path, expected_colnames: set[str]) -> bool:
+        "Check that the expected colnames are in the file."
+        with open(filename) as f:
+            real_colnames = set(f.readline().strip('\n').split("\t"))
+        try:
+            assert len(expected_colnames - real_colnames) == 0
+        except AssertionError:
+            msg = f"Missing columns in {filename}: {', '.join(expected_colnames - real_colnames)}"
+            logging.error(msg)
+            sys.exit()
+        return True
 
     def save_config(self, config: ConfigParser, config_path: Path) -> None:
         """Save a configuration file

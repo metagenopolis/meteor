@@ -199,7 +199,7 @@ class Counter(Session):
         table = idxstats(str(bamfile.resolve()))
         # write the count table
         with outfile.open("wt", encoding="UTF-8") as out:
-            out.write(f"gene_id\tgene_size\t{self.counting_type}_count\n")
+            out.write(f"{self.meteor.gene_column}\t{self.meteor.gene_length_column}\t{self.meteor.value_column}\n")
             for line in table.split("\n")[:-2]:
                 s = "\t".join(line.split("\t")[0:3])
                 out.write(f"{s}\n")
@@ -447,7 +447,7 @@ class Counter(Session):
         :param database: [DICT] = contrains length of each reference genes
         """
         with open(output, "wt", encoding="UTF-8") as out:
-            out.write(f"genes_id\tgene_size\t{self.counting_type}_count\n")
+            out.write(f"{self.meteor.gene_column}\t{self.meteor.gene_length_column}\t{self.meteor.value_column}\n")
             for genes, abundance in sorted(abundance_dict.items()):
                 out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
         return True
