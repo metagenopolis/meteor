@@ -26,6 +26,7 @@ from meteor.referencebuilder import ReferenceBuilder
 from meteor.counter import Counter
 from meteor.downloader import Downloader
 from meteor.profiler import Profiler
+from meteor.merging import Merging
 from tempfile import TemporaryDirectory
 
 
@@ -248,6 +249,16 @@ def get_arguments() -> Namespace:  # pragma: no cover
     profiling_parser.add_argument("--completeness", type=isborned01, default=0.9,
                                   help="""Threshold above which a module is considered as present
                                           in an MSP. Comprised in [0,1]. Default to 0.9.""")
+    # Define merging argument parsing
+    merging_parser = subparsers.add_parser("merge", help="Performs merging")
+    merging_parser.add_argument("-i", dest="input_dir", required=True, type=isdir,
+                                help="Directory containing files that should be merged.")
+    merging_parser.add_argument("-o", dest="output", required=True,
+                                help="Path to the output file.")
+    merging_parser.add_argument("-p", dest="pattern", required=True,
+                                help="Pattern to select files that should be merged (e.g, _suffix_norm.tsv)")
+    merging_parser.add_argument("--no_check", dest="check_param", action="store_false",
+                                help="Should the ini files be checked for parameters matching?")
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
@@ -298,6 +309,7 @@ def main() -> None:  # pragma: no cover
             args.user_choice += "_taxo"
         downloader = Downloader(meteor, args.user_choice, args.check_md5)
         downloader.execute()
+    # Run profiling
     elif args.command == "profile":
         meteor.mapping_dir = args.output_dir
         meteor.ref_dir = args.ref_dir
@@ -307,6 +319,11 @@ def main() -> None:  # pragma: no cover
                             args.compute_functions, args.annot_db, args.by_msp,
                             args.compute_modules, args.module_path, args.module_db, args.completeness)
         profiler.execute()
+    # Run merging
+    elif args.command == "merge":
+        meteor.mapping_dir = args.input_dir
+        merging = Merging(meteor, args.pattern, args.check_param, args.output)
+        merging.execute()
     # Testing
     else:
         with TemporaryDirectory() as tmpdirname:
