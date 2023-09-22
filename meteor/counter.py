@@ -33,6 +33,7 @@ from collections import defaultdict
 from itertools import chain
 from pysam import index, idxstats, AlignmentFile, sort  # type: ignore[attr-defined]
 from time import perf_counter
+from shutil import rmtree
 
 
 @dataclass
@@ -633,4 +634,6 @@ class Counter(Session):
         except AssertionError:
             logging.error("Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir)
             sys.exit()
+        finally:
+            rmtree(self.meteor.tmp_dir)
         return True
