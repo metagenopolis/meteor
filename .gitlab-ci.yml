@@ -36,7 +36,7 @@ pytest:
     # - apt-get update && apt-get install -y bowtie2
     - wget https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.5.1/bowtie2-2.5.1-linux-x86_64.zip/download -P tools
     - unzip -d tools/ tools/download
-    - export PATH=$HOME/tools/bowtie2-2.5.1-linux-x86_64:$PATH
+    - export PATH=$(pwd)/tools/bowtie2-2.5.1-linux-x86_64:$PATH
     - pip install pytest pytest-cov pytest-datadir pysam
   script:
   # --mypy --pylint --pylint-rcfile=.pylintrc --pylint-jobs=4
