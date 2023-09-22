@@ -13,17 +13,13 @@
 """Profile the abundance of genes"""
 
 from meteor.session import Session, Component
-from meteor.parser import Parser
 from configparser import ConfigParser
 from dataclasses import dataclass
 from typing import Type
 import pandas as pd
 from pathlib import Path
-import numpy as np
 import logging
-import os
 import sys
-from datetime import date
 from functools import reduce
 
 
@@ -40,13 +36,13 @@ class Merging(Session):
     def find_files_to_merge(self, input_dir: Path, pattern: str) -> list[Path]:
         files_to_merge = list(input_dir.glob("*" + pattern))
         return files_to_merge
-    
+
     def find_associated_ini(self, list_files: list[Path]) -> dict[Path, ConfigParser]:
         return {x: self.read_ini(x.with_suffix(".ini")) for x in list_files}
-    
+
     def get_sample_name(self, dict_config: dict[Path, ConfigParser]) -> dict[str, Path]:
         return {my_config["sample_info"]["sample_name"]: my_path for my_path, my_config in dict_config.items()}
-    
+
     def extract_ini_info(self, list_config: dict[Path, ConfigParser], section: str) -> dict[Path, dict[str, str]]:
         "Get all information from the required section"
         try:
@@ -55,7 +51,7 @@ class Merging(Session):
             logging.error("Missing the section %s in one of the ini file.", section)
             sys.exit()
         return {my_path: dict(my_config[section]) for (my_path, my_config) in list_config.items()}
-    
+
     def compare_section_info(self, all_sections_info: dict[Path, dict[str, str]]) -> bool:
         "Check that all dictionnary are equal"
         # Define an ini file of reference
@@ -72,7 +68,7 @@ class Merging(Session):
         else:
             logging.info("All files have the same parameters.")
             return True
-        
+
     def merge_df(self, dict_path: dict[str, Path], key_merging: str) -> pd.DataFrame:
         "Merge many data frames contained in a list"
         # Load the data frames
@@ -97,7 +93,7 @@ class Merging(Session):
         # Guess the key that should be used
         logging.info("Look for the common key for merging.")
         with open(files_to_merge[0]) as ref:
-            real_colnames = set(ref.readline().strip('\n').split("\t"))
+            real_colnames = set(ref.readline().strip("\n").split("\t"))
         possible_keys = [self.meteor.msp_column, self.meteor.gene_column, self.meteor.ko_column, self.meteor.module_column]
         key_merging_set = set(real_colnames).intersection(possible_keys)
         try:
@@ -118,5 +114,5 @@ class Merging(Session):
         merged_df.to_csv(self.output, sep = "\t", index = False)
 
 
-        
+
 

@@ -45,18 +45,20 @@ class Component:
     gene_class_column: str = "gene_category"
 
 
-
 class Session(Protocol):
     """Class inheritating from Protocol that present shared function."""
     def check_file(self, filename: Path, expected_colnames: set[str]) -> bool:
-        "Check that the expected colnames are in the file."
-        with open(filename) as f:
-            real_colnames = set(f.readline().strip('\n').split("\t"))
+        """Check that the expected colnames are in the file.
+
+        :param config: A configparser object
+        :param config_path: (Path) An output path object
+        """
         try:
+            with open(filename, "rt", encoding="UTF-8") as header:
+                real_colnames = set(header.readline().strip("\n").split("\t"))
             assert len(expected_colnames - real_colnames) == 0
         except AssertionError:
-            msg = f"Missing columns in {filename}: {', '.join(expected_colnames - real_colnames)}"
-            logging.error(msg)
+            logging.error("Missing columns in %s: %s", filename, ", ".join(expected_colnames - real_colnames))
             sys.exit()
         return True
 
@@ -75,8 +77,7 @@ class Session(Protocol):
             with open(input_ini, "rt", encoding="UTF-8") as ini:
                 config.read_file(ini)
         except FileNotFoundError:
-            msg = f"The file {input_ini} does not exist."
-            logging.error(msg)
+            logging.error("The file %s does not exist.", input_ini)
             sys.exit()
         return config
 

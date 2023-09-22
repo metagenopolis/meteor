@@ -165,7 +165,7 @@ class Profiler(Session):
         count_column = self.meteor.value_column
         # Add the unmapped count
         self.gene_count.loc[len(self.gene_count)] = {self.meteor.gene_column: -1,
-                                                     self.meteor.gene_length_column: 1000, 
+                                                     self.meteor.gene_length_column: 1000,
                                                      count_column: unmapped_reads}
 
         # Check if rarefaction is possible
@@ -187,10 +187,18 @@ class Profiler(Session):
         self.gene_count = self.gene_count[self.gene_count[self.meteor.gene_column] != -1]
 
     def normalize_coverage(self) -> None:
+        """
+        """
         count_column = self.meteor.value_column
-        self.gene_count[count_column] = self.gene_count[count_column] / self.gene_count[self.meteor.gene_length_column] * 1000
+        self.gene_count[count_column] = (self.gene_count[count_column] /
+                                         self.gene_count[self.meteor.gene_length_column] * 1000.)
 
     def normalize_fpkm(self, rarefaction_level: int, unmapped_reads: int) -> None:
+        """Normalize matrix using fpkm method
+
+        :param rarefaction_level: Value of rarefaction level
+        :param unmapped_reads: Value of the unmapped reads
+        """
         count_column = self.meteor.value_column
         # Compute the unmapped reads after rarefaction
         if rarefaction_level > 0:
@@ -199,7 +207,7 @@ class Profiler(Session):
             unmapped_reads_after_rf = unmapped_reads
         ### Add the unmapped reads after rf to the gene count table as a pseudo gene
         self.gene_count.loc[len(self.gene_count)] = {self.meteor.gene_column: -1,
-                                                     self.meteor.gene_length_column: 1000, 
+                                                     self.meteor.gene_length_column: 1000,
                                                      count_column: unmapped_reads_after_rf}
         ### Normalize
         self.gene_count[count_column] = self.gene_count[count_column] / self.gene_count[self.meteor.gene_length_column]
@@ -219,12 +227,12 @@ class Profiler(Session):
                       for (msp, set_genes)
                       in msp_dict.items()}
         # Compute mean abundance if gene count is above filter threshold, otherwise 0
-        msp_table_dict = {msp:(gene_count_core.loc[gene_count_core[self.meteor.gene_column].isin(set_genes), count_column].mean()
-                          if msp_filter[msp] >= filter_pc else 0)
-                          for (msp, set_genes)
-                          in msp_dict.items()}
-        self.msp_table = pd.DataFrame.from_dict(msp_table_dict, 
-                                                orient = "index", 
+        msp_table_dict = {
+            msp:(gene_count_core.loc[gene_count_core[self.meteor.gene_column].isin(set_genes), count_column].mean()
+                 if msp_filter[msp] >= filter_pc else 0)
+                 for (msp, set_genes) in msp_dict.items()}
+        self.msp_table = pd.DataFrame.from_dict(msp_table_dict,
+                                                orient = "index",
                                                 columns = [self.meteor.value_column]).reset_index().rename(columns={"index": self.meteor.msp_column})
 
     def get_msp_core(self, msp_def_filename: Path, core_size: int) -> dict:

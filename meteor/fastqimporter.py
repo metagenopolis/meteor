@@ -151,6 +151,7 @@ class FastqImporter(Session):
                     sample_name = self.get_paired_dirname(fastq_file.name, tag)
                 else:
                     sample_name = full_sample_name
+                logging.info("Import %s", fastq_file)
             # Create directory for the sample and symlink fastq file into
             sample_dir = self.meteor.fastq_dir / sample_name
             sample_dir.mkdir(exist_ok=True, parents=True)

@@ -238,9 +238,9 @@ void TMappingDataFile::CountFragmentFromSAMFile(TCountedFragmentList & aCountedF
 					aReadMatchInfoItem.ReadSAMOpt = aSAMMatch.Opt;
 
 					aReadMatchInfoItem.ReadDistance = (double)aSAMMatch.EditDistance + aLocalMatchInfo.SupplementaryMismatchesCount;
-					cout << aCurrentReadID << aSAMMatch.EditDistance << aSAMMatch.AlignmentLength << endl;
-					if (aLocalMatchInfo.SupplementaryMismatchesCount != 0)
-						cout << aLocalMatchInfo.SupplementaryMismatchesCount<< endl;
+					// cout << aCurrentReadID << aSAMMatch.EditDistance << aSAMMatch.AlignmentLength << endl;
+					//if (aLocalMatchInfo.SupplementaryMismatchesCount != 0)
+					//	cout << aLocalMatchInfo.SupplementaryMismatchesCount<< endl;
 					if (FIsRelativeDistance) aReadMatchInfoItem.ReadDistance /= (double)(aSAMMatch.AlignmentLength + aLocalMatchInfo.SupplementaryMismatchesCount);
 		        }
 			}

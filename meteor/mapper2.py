@@ -19,11 +19,12 @@ from configparser import ConfigParser
 from datetime import datetime
 from typing import Type
 from meteor.session import Session, Component
-from pysam import view, sort, index  # type: ignore[attr-defined]
-from tempfile import NamedTemporaryFile
+# from pysam import view, sort, index  # type: ignore[attr-defined]
+# from tempfile import NamedTemporaryFile
 # from memory_profiler import profile
 from time import perf_counter
 import logging
+# import os
 # fp=open('memory_profiler.log','w+')
 
 
@@ -38,7 +39,7 @@ class Mapper2(Session):
     alignment_number: int
     counting_type: str
 
-    def set_mapping_config(self, cmd: str, bam_file: Path) -> ConfigParser:  # pragma: no cover
+    def set_mapping_config(self, cmd: str, sam_file: Path) -> ConfigParser:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
@@ -67,39 +68,42 @@ class Mapper2(Session):
         }
         config["mapping_file"] = {
             "mapping_file_count": "1",
-            "bowtie_file_1": bam_file.name,
-            "mapping_file_format": "bam",
+            "bowtie_file_1": sam_file.name,
+            "mapping_file_format": "sam",
+            # "mapping_file_format": "bam",
         }
         return config
 
-    # @profile(stream=fp)
-    def create_bam(self, samfile: str, bam_file: str) -> None:
-        """Function that create a BAM file from a SAM file.
+    # # @profile(stream=fp)
+    # def create_bam(self, samfile: str, bam_file: str) -> None:
+    #     """Function that create a BAM file from a SAM file.
 
-        :param samfile: (str) SAM filename
-        """
-        # convert sam to bam using pysam
-        view("-@", str(self.meteor.threads), "-1", "-u", "-S", "-b", "-o",
-             bam_file, samfile, catch_stdout=False)
+    #     :param samfile: (str) SAM filename
+    #     """
+    #     # convert sam to bam using pysam
+    #     view("-@", str(self.meteor.threads), "-1", "-u", "-S", "-b", "-o",
+    #          bam_file, samfile, catch_stdout=False)
 
-    # @profile(stream=fp)
-    def sort_bam(self, bamfile: str, sorted_bamfile: str) -> None:
-        """Function that sort a BAM file using pysam
+    # # @profile(stream=fp)
+    # def sort_bam(self, bamfile: str, sorted_bamfile: str) -> None:
+    #     """Function that sort a BAM file using pysam
 
-        :param bamfile: (str) BAM filename
-        :return: bamfile (str) BAM filename
-        """
-        # sort the bam file
-        sort("-o", sorted_bamfile, "-@", str(self.meteor.threads),
-             "-O", "bam", bamfile, catch_stdout=False)
-        # index the bam file
-        index(sorted_bamfile)
+    #     :param bamfile: (str) BAM filename
+    #     :return: bamfile (str) BAM filename
+    #     """
+    #     # sort the bam file
+    #     sort("-o", sorted_bamfile, "-@", str(self.meteor.threads),
+    #          "-O", "bam", bamfile, catch_stdout=False)
+    #     # index the bam file
+    #     index(sorted_bamfile)
 
     # @profile(stream=fp)
     def execute(self) -> bool:
         """Map reads"""
-        bam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.bam"
-        bowtie_index = (self.meteor.ref_dir / 
+        # bam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.bam"
+        # test
+        sam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.sam"
+        bowtie_index = (self.meteor.ref_dir /
                         self.census["reference"]["reference_file"]["fasta_dir"] /
                         self.census["reference"]["bowtie2_index"]["dna_space_bowtie_index_prefix_name_1"])
         # bowtie2 parameters
@@ -109,23 +113,33 @@ class Mapper2(Session):
             parameters = f"-p {self.meteor.threads} --end-to-end --sensitive "
         if self.trim > 0:
             parameters += f"--trim-to {self.trim} "
-        if self.alignment_number > 1 and self.counting_type != "best":
+        if self.alignment_number > 1:
+            # and self.counting_type != "best"
             parameters += f"-k {self.alignment_number} "
         # Start mapping
-        with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_sam_file:
-            # execute command
-            start = perf_counter()
-            check_call(["bowtie2", parameters, "--mm --no-unal",
-                        "-x", bowtie_index, "-U", ",".join(self.fastq_list),
-                        "-S", temp_sam_file.name])
-            logging.info("Completed mapping in %f seconds", perf_counter() - start)
-            start = perf_counter()
-            with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_bam_file:
-                self.create_bam(temp_sam_file.name, temp_bam_file.name)
-                self.sort_bam(temp_bam_file.name, str(bam_file.resolve()))
-            if not bam_file.exists():
-                raise ValueError("Failed to create the bam")
-            logging.info("Completed bam creation in %f seconds", perf_counter() - start)
-        config = self.set_mapping_config(parameters, bam_file)
+        start = perf_counter()
+        check_call(["bowtie2", parameters, "--mm --no-unal",
+                    "-x", str(bowtie_index.resolve()), "-U", ",".join(self.fastq_list),
+                    "-S", str(sam_file.resolve())])
+        logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
+        # with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_sam_file:
+        #     # execute command
+        #     start = perf_counter()
+        #     print(" ".join(["bowtie2", parameters, "--mm --no-unal",
+        #                 "-x", str(bowtie_index.resolve()), "-U", ",".join(self.fastq_list),
+        #                 "-S", temp_sam_file.name]))
+        #     check_call(["bowtie2", parameters, "--mm --no-unal",
+        #                 "-x", bowtie_index, "-U", ",".join(self.fastq_list),
+        #                 "-S", temp_sam_file.name])
+        #     logging.info("Completed mapping in %f seconds", perf_counter() - start)
+        #     start = perf_counter()
+        #     with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_bam_file:
+        #         self.create_bam(temp_sam_file.name, temp_bam_file.name)
+        #         self.sort_bam(temp_bam_file.name, str(bam_file.resolve()))
+        #     if not bam_file.exists():
+        #         raise ValueError("Failed to create the bam")
+        #     logging.info("Completed bam creation in %f seconds", perf_counter() - start)
+        # config = self.set_mapping_config(parameters, bam_file)
+        config = self.set_mapping_config(parameters, sam_file)
         self.save_config(config, self.census["Stage1FileName"])
         return True

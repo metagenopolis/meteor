@@ -178,7 +178,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     mapping_parser.add_argument("-c", dest="counting_type", type=str,
                                 default="smart_shared",
                                 # "shared_reads",
-                                choices=["total", "smart_shared", "unique", "best"],
+                                choices=["total", "smart_shared", "unique"],
                                 help="Counting type string (default smart_shared_reads).")
     mapping_parser.add_argument("-p", dest="mapping_type", type=str,
                                 choices=["local", "end-to-end"], default="end-to-end",
@@ -190,8 +190,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 "If 0, no filtering)")
     mapping_parser.add_argument("-align", dest="alignment_number", type=int, default=10000,
                                 help="Number alignments considered for each read (default 10000)")
-    mapping_parser.add_argument("-k", dest="keep_bam", action="store_true",
-                                help="Save the bam files")
+    mapping_parser.add_argument("-k", dest="keep_sam", action="store_true",
+                                help="Save the sam files")
     mapping_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
                                 help="Path to the directory where temporary files (e.g. sam) are stored")
     mapping_parser.add_argument("-m", dest="mapping_only", action="store_true",
@@ -299,7 +299,7 @@ def main() -> None:  # pragma: no cover
         meteor.threads = args.threads
         counter = Counter(meteor, args.counting_type, args.mapping_type,
                           args.trim, args. identity_threshold, args.alignment_number,
-                          args.counting_only, args.mapping_only, args.keep_bam, args.pysam_test)
+                          args.counting_only, args.mapping_only, args.keep_sam, args.pysam_test)
         counter.execute()
     # Run download catalogues
     elif args.command == "download":
@@ -339,7 +339,8 @@ def main() -> None:  # pragma: no cover
             fastq_importer = FastqImporter(meteor, meteor.tmp_dir, False, None, "test_project")
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
-            counter = Counter(meteor, "best", "end-to-end", 80, 1, False, False, False, True)
+            meteor.ref_dir = meteor.ref_dir / "mock"
+            counter = Counter(meteor, "smart_shared", "end-to-end", 80, 1, False, False, False, True)
             counter.execute()
     # Close logging
     logger.handlers[0].close()

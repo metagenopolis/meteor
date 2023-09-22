@@ -47,7 +47,7 @@ class Counter(Session):
     alignment_number: int
     counting_only: bool
     mapping_only: bool
-    keep_bam: bool = False
+    keep_sam: bool = False
     pysam_test: bool = True
     ini_data: dict = field(default_factory=dict)
 
@@ -131,25 +131,25 @@ class Counter(Session):
 
             # reindexing this library reads and fill FLibraryIndexerReport
             fastq_path = self.meteor.fastq_dir / sample_file["fastq_file"]
-            try:
-                with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as output_desc:
-                    read_count, base_count = self.count_index_fastq(fastq_path, output_desc)
-                    census.set("sample_info", "census_status",  str(1))
-                    census.set("sample_info", "indexed_read_length", str(1))
-                    census.set("sample_info", "sequenced_read_count",  str(read_count))
-                    census.set("sample_info", "indexed_sequenced_read_count",  str(read_count))
-                    census.set("sample_info", "indexed_sequenced_base_count", str(base_count))
-                    census.set("sample_info", "is_data_prefixed", str(0))
-                    dict_data["census"] = census
-                    # mapping this library on the reference
-                    mapping_process = Mapper(self.meteor, dict_data,
-                                             Path(output_desc.name),
-                                             self.mapping_type, self.trim,
-                                             self.alignment_number)
-                    if not mapping_process.execute():
-                        raise ValueError(f"Error, TaskMainMapping failed: {library}")
-            except IOError:
-                logging.error("Cannot create temporary files in %s", self.meteor.tmp_dir.name)
+            # try:
+            with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as output_desc:
+                read_count, base_count = self.count_index_fastq(fastq_path, output_desc)
+                census.set("sample_info", "census_status",  str(1))
+                census.set("sample_info", "indexed_read_length", str(1))
+                census.set("sample_info", "sequenced_read_count",  str(read_count))
+                census.set("sample_info", "indexed_sequenced_read_count",  str(read_count))
+                census.set("sample_info", "indexed_sequenced_base_count", str(base_count))
+                census.set("sample_info", "is_data_prefixed", str(0))
+                dict_data["census"] = census
+                # mapping this library on the reference
+                mapping_process = Mapper(self.meteor, dict_data,
+                                         Path(output_desc.name),
+                                         self.mapping_type, self.trim,
+                                         self.alignment_number)
+                if not mapping_process.execute():
+                    raise ValueError(f"Error, TaskMainMapping failed: {library}")
+            # except IOError:
+            #     logging.error("Cannot create temporary files in %s", self.meteor.tmp_dir.name)
 
     def launch_counting(self, workflow_ini: Path) -> None:
         """Launch meteor counter
@@ -195,6 +195,8 @@ class Counter(Session):
         if not bamfile.with_suffix(".bam.bai").exists():
             # index the bam file
             index(str(bamfile.resolve()))
+        # indStats = pd.read_csv(StringIO(pysam.idxstats(bamfile)), sep = '\t',
+        # header = None, names = ['contig', 'length', 'mapped', 'unmapped'])
         # create count table
         table = idxstats(str(bamfile.resolve()))
         # write the count table
@@ -205,13 +207,23 @@ class Counter(Session):
                 out.write(f"{s}\n")
         return True
 
-    def filter_bam(self, bamdesc: AlignmentFile) -> tuple[defaultdict, defaultdict]:
+    def get_aligned_nucleotides(self, element):
+        """Select aligned nucleotides
+        :param element: Alignment object
+        :return: Aligned item
+        """
+        for item in element.cigartuples:
+            # I don't know this cigar yet
+            if item[0] < 3:
+                yield item[1]
+
+    def filter_alignments(self, samdesc: AlignmentFile) -> tuple[defaultdict, defaultdict]:
         """Filter read according to their identity with reference and reads with multiple
         alignments with different score. We keep the best scoring reads when total count is
         applied.
         Shared count keeps multiple alignments when score are equal
 
-        :param bamdesc [STR] = BAM file to count
+        :param samdesc [STR] = SAM file to count
         :return: A tuple with database [DICT] = contains length of reference genes.
                                         key :
                                         value : reference gene
@@ -222,13 +234,36 @@ class Counter(Session):
         genes: defaultdict[str, List[int]] = defaultdict(list)
         # contains a list of alignment of each read
         reads: defaultdict[str, List[str]] = defaultdict(list)
-        for element in bamdesc:
+        for element in samdesc:
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
-            identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
+            # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
+            ali = sum(list(self.get_aligned_nucleotides(element)))
+            # identity = (element.query_length - element.get_tag("NM")) / element.query_length
+            identity = (ali - element.get_tag("NM")) / ali
+            # print(identity)
+            # print(self.identity_threshold)
+            # print("Ali:")
+            # if element.query_name == "568":
+            #     print("read", element.query_name)
+            #     print(identity)
+            #     print("ref", element.reference_name)
+            # if element.query_name == "1599501":
+            #     print(ali)
+            #     print(element.query_name)
+            #     print(identity)
+            #     print(element.query_sequence)
+            #     print(element.get_tag("NM"))
+            #     print(element.query_alignment_length)
+            #     print(element.query_alignment_sequence)
+            #     print(element.query_qualities)
+            #     print(element.reference_name)
+            #     print(element.get_reference_sequence())
             # if lower than the identity threshold
             # we ignore the read
             if identity < self.identity_threshold:
                 continue
+            # if element.query_name == "568":
+            #     print("On passe")
             # Only if we use score
             # if not element.has_tag("AS"):
             #     raise ValueError("Missing 'AS' field.")
@@ -307,7 +342,10 @@ class Counter(Session):
         # gene : 0
         # count = 0
         unique_on_gene: Dict[int, int] = dict.fromkeys(database, 0)
+        # print("ici")
+        # print(genes['1791'])
         for read_id in genes:
+            # gene = genes[read_id][0]
             # if read map to several gene
             if len(genes[read_id]) != 1:
                 continue
@@ -317,10 +355,10 @@ class Counter(Session):
             unique_reads[read_id] = reads[read_id]
             # get genes id
             gene = genes[read_id][0]
-            # if gene == 182:
+            # if gene == 11208:
+            #     print(read_id)
             #     count +=1
             #     print(f"I have unique {count}")
-            #     print(read_id)
             # add to unique read dictionnary
             unique_on_gene[gene] += 1
             unique_reads_list.append(read_id)
@@ -343,21 +381,25 @@ class Counter(Session):
         """
         co_dict: Dict[Tuple[str, int], float] = {}
         read_dict: Dict[str, List[str]] = {}
-
         for read_id in genes_mult:
             # for a multiple read, gets nb of unique reads from each genes
             s = [unique_on_gene[genes] for genes in genes_mult[read_id]]
             # total number of unique reads
             som = reduce(lambda x, y: x+y, s)
             # No unique counts on these genes
+            # If no unique counts:
             if som == 0:
                 # Specific count of Meteor
+                # 1 / nb genes aligned by the read
                 for genes in genes_mult[read_id]:
                     co_dict[(read_id, genes)] = 1.0 / len(genes_mult[read_id])
                     read_dict.setdefault(genes, []).append(read_id)
                 # Normally we continue here
-                # continue
-            duplicated_genes = set([genes for genes in genes_mult[read_id] if genes_mult[read_id].count(genes) > 1])
+                continue
+            # We get the unique set of duplicated genes
+            # These genes are mapped several time
+            # duplicated_genes = set([genes for genes in genes_mult[read_id] if genes_mult[read_id].count(genes) > 1])
+            duplicated_genes = {genes for genes in genes_mult[read_id] if genes_mult[read_id].count(genes) > 1}
             # otherwise
             for genes in genes_mult[read_id]:
                 # get the nb of unique reads
@@ -369,23 +411,19 @@ class Counter(Session):
                 # else:
                 # calculate Co of multiple read for the given genes
                 if genes in duplicated_genes:
-                    # print("here")
-                    # print(genes)
                     if (read_id, genes) in co_dict:
                         co_dict[(read_id, genes)] += (
-                            nb_unique / (nb_unique + float(som) +
-                                         (unique_on_gene[genes] * (len(list(duplicated_genes)))))
+                            nb_unique / float(som)
                         )
                     else:
                         co_dict[(read_id, genes)] = (
-                            nb_unique / (nb_unique + float(som) +
-                                         (unique_on_gene[genes] * (len(list(duplicated_genes)))))
+                            nb_unique / float(som)
                         )
                 else:
-                    co_dict[(read_id, genes)] = nb_unique / (nb_unique + float(som))
+                    co_dict[(read_id, genes)] = nb_unique / float(som)
                 # append to the dict
                 read_dict.setdefault(genes, []).append(read_id)
-        # get all the multiple reads of a genes
+        # get all the multiple reads of a genes and uniquify
         for genes, reads in read_dict.items():
             read_dict[genes] = list(set(reads))
         return read_dict, co_dict
@@ -452,39 +490,39 @@ class Counter(Session):
                 out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
         return True
 
-    def save_bam(self, outbamfile: Path, bamdesc: AlignmentFile, read_list: list):
-        """writing the filtered BAM file.
+    def save_bam(self, outbamfile: Path, samdesc: AlignmentFile, read_list: list):
+        """Writing the filtered SAM file.
 
-        :param outbamfile: [Path] Temporary bam file
-        :param bamdesc: Pysam bam descriptor
+        :param outsamfile: [Path] Temporary bam file
+        :param samdesc: Pysam sam descriptor
         :param read_list: [List] List of pysam reads objects
         """
-        with AlignmentFile(str(outbamfile.resolve()), "wb", template=bamdesc) as total_reads:
+        with AlignmentFile(str(outbamfile.resolve()), "wb", template=samdesc) as total_reads:
             for element in read_list:
                 total_reads.write(element)
 
-    def launch_counting2(self, bam_file: Path, count_file: Path) -> bool:
+    # def launch_counting2(self, bam_file: Path, count_file: Path) -> bool:
+    def launch_counting2(self, sam_file: Path, count_file: Path) -> bool:
         """Function that count reads from a BAM file, using the given methods in count:
         "total" or "shared" or "unique".
 
-        :param bam_file: (Path) A path to the input bam file
+        :param sam_file: (Path) A path to the input bam file
         :param count_file: (Path) A path to the output count file
         """
         logging.info("Launch counting")
         # "-t", str(self.meteor.tmp_dir) + "/"
-        if self.counting_type == "best":
-            return self.write_table(bam_file, count_file)
         # open the BAM file
-        with AlignmentFile(str(bam_file.resolve()), "rb") as bamdesc:
+        # with AlignmentFile(str(bam_file.resolve()), "rb") as bamdesc:
+        with AlignmentFile(str(sam_file.resolve())) as samdesc:
             # create a dictionary containing the length of reference genes
             # get name of reference sequence
-            references = [int(ref) for ref in bamdesc.references]
+            references = [int(ref) for ref in samdesc.references]
             # get reference length
-            lengths = bamdesc.lengths
+            lengths = samdesc.lengths
             # All references with their length
             database = dict(zip(references, lengths))
             # Filter reads according to quality and score
-            reads, genes = self.filter_bam(bamdesc)
+            reads, genes = self.filter_alignments(samdesc)
             # Filter reads according to quality, score and counting
             # genes mapped by multiple reads
             unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(reads, genes, database)
@@ -502,7 +540,7 @@ class Counter(Session):
                     reads = unique_reads
                 bamfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                 bamfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                self.save_bam(bamfile, bamdesc, list(chain(*reads.values())))
+                self.save_bam(bamfile, samdesc, list(chain(*reads.values())))
                 sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
                      "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
                 return self.write_table(bamfile_sorted, count_file)
@@ -575,17 +613,20 @@ class Counter(Session):
                     config = self.set_workflow_config(ref_ini)
                     workflow_ini = self.meteor.mapping_dir / "workflow.ini"
                     self.save_config(config, workflow_ini)
-                    bam_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.bam"
+                    # bam_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.bam"
+                    # test
+                    sam_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.sam"
                     count_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.tsv"
                     if self.pysam_test:
                         start = perf_counter()
-                        self.launch_counting2(bam_file, count_file)
+                        # self.launch_counting2(bam_file, count_file)
+                        self.launch_counting2(sam_file, count_file)
                         logging.info("Completed counting in %f seconds", perf_counter() - start)
                     else:
                         self.launch_counting(workflow_ini)
-                    if not self.keep_bam:
-                        bam_file.unlink(missing_ok=True)
-                        bam_file.with_suffix(".bam.bai").unlink(missing_ok=True)
+                    if not self.keep_sam:
+                        sam_file.unlink(missing_ok=True)
+                        # bam_file.with_suffix(".bam.bai").unlink(missing_ok=True)
                         # self.ini_data[library]["Stage1FileName"].unlink(missing_ok=True)
             logging.info("Done ! Job finished without errors ...")
             # self.meteor.tmp_dir.rmdir()
