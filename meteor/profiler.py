@@ -25,7 +25,6 @@ import sys
 from datetime import date
 
 
-
 @dataclass
 class Profiler(Session):
     """Profile session for abundance and annotation
@@ -147,8 +146,6 @@ class Profiler(Session):
         self.output_filenames["functions_table"] = functions_table_output
         self.output_filenames["modules_table"] = modules_table_output
 
-
-
         # Initialize the module definition file
         if self.compute_modules_bool:
             if self.module_path is None:
@@ -159,7 +156,6 @@ class Profiler(Session):
             except AssertionError:
                 logging.error("The file %s does not exist.", self.module_path)
             # Do not check columns here because no header
-
 
     def rarefy(self, rarefaction_level: int, unmapped_reads: int, seed: int) -> None:
         count_column = self.meteor.value_column
@@ -187,7 +183,7 @@ class Profiler(Session):
         self.gene_count = self.gene_count[self.gene_count[self.meteor.gene_column] != -1]
 
     def normalize_coverage(self) -> None:
-        """
+        """Normalize by coverage
         """
         count_column = self.meteor.value_column
         self.gene_count[count_column] = (self.gene_count[count_column] /
@@ -212,9 +208,6 @@ class Profiler(Session):
         ### Normalize
         self.gene_count[count_column] = self.gene_count[count_column] / self.gene_count[self.meteor.gene_length_column]
         self.gene_count[count_column] = self.gene_count[count_column].div(self.gene_count[count_column].sum())
-
-
-
 
     def compute_msp(self, msp_dict: dict[str, set[str]], filter_pc: float) -> None:
         count_column = self.meteor.value_column
@@ -346,9 +339,6 @@ class Profiler(Session):
                             for (mod, msp_set)
                             in mod_dict.items()}
         self.mod_table = pd.DataFrame.from_dict(module_abundance, orient = "index", columns = [self.meteor.value_column]).reset_index().rename(columns={"index": self.meteor.module_column})
-
-
-
 
 
     def execute(self) -> bool:

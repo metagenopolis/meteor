@@ -33,7 +33,7 @@ pytest:
   stage: test
   before_script:
   # pytest-mypy types-setuptools pytest-pylint
-    - apt update && apt install -y bowtie2
+    - apt-get update && apt-get install -y bowtie2
     - pip install pytest pytest-cov pytest-datadir pysam
   script:
   # --mypy --pylint --pylint-rcfile=.pylintrc --pylint-jobs=4
