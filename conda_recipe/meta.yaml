@@ -17,9 +17,9 @@ build:
 #     - {{ compiler('cxx') }}
 
 requirements:
-    # build:
-        # - {{ compiler('cxx') }}
-        # - make
+    build:
+        - {{ compiler('cxx') }}
+        - make
         # - gxx
     host:
         - python>=3.10
