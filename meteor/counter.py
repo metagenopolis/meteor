@@ -49,6 +49,7 @@ class Counter(Session):
     counting_only: bool
     mapping_only: bool
     keep_sam: bool = False
+    keep_bam: bool = False
     pysam_test: bool = True
     ini_data: dict = field(default_factory=dict)
 
@@ -535,6 +536,13 @@ class Counter(Session):
                 # Calculate reference abundance & write count table
                 abundance = self.compute_abs_meteor(database, unique_on_gene, multiple)
                 # abundance = self.compute_abs(unique_on_gene, multiple)
+                if self.keep_bam:
+                    bamfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                    bamfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                    self.save_bam(bamfile, samdesc, list(chain(*reads.values())))
+                    sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
+                         "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
+                    bamfile_sorted.replace(sam_file.resolve().with_suffix(".bam"))
                 return self.write_stat(count_file, abundance, database)
             else:
                 if self.counting_type == "unique":
@@ -544,6 +552,8 @@ class Counter(Session):
                 self.save_bam(bamfile, samdesc, list(chain(*reads.values())))
                 sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
                      "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
+                if self.keep_bam:
+                    bamfile_sorted.replace(sam_file.resolve().with_suffix(".bam"))
                 return self.write_table(bamfile_sorted, count_file)
 
     def execute(self) -> bool:

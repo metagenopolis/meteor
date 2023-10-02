@@ -12,7 +12,7 @@
 #    http://www.gnu.org/licenses/gpl-3.0.html
 
 """Meteor - A plateform for quantitative metagenomic profiling of complex ecosystems"""
-__version__ = "3.3"
+__version__ = "3.4"
 __copyright__ = "GPLv3"
 __date__ = "2023"
 
@@ -190,8 +190,10 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 "If 0, no filtering)")
     mapping_parser.add_argument("-align", dest="alignment_number", type=int, default=10000,
                                 help="Number alignments considered for each read (default 10000)")
-    mapping_parser.add_argument("-k", dest="keep_sam", action="store_true",
+    mapping_parser.add_argument("-ks", dest="keep_sam", action="store_true",
                                 help="Save the sam files")
+    mapping_parser.add_argument("-kb", dest="keep_bam", action="store_true",
+                                help="Save the bam files")
     mapping_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
                                 help="Path to the directory where temporary files (e.g. sam) are stored")
     mapping_parser.add_argument("-m", dest="mapping_only", action="store_true",
@@ -299,7 +301,8 @@ def main() -> None:  # pragma: no cover
         meteor.threads = args.threads
         counter = Counter(meteor, args.counting_type, args.mapping_type,
                           args.trim, args. identity_threshold, args.alignment_number,
-                          args.counting_only, args.mapping_only, args.keep_sam, args.pysam_test)
+                          args.counting_only, args.mapping_only, args.keep_sam, args.keep_bam,
+                          args.pysam_test)
         counter.execute()
     # Run download catalogues
     elif args.command == "download":
