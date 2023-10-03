@@ -542,7 +542,8 @@ class Counter(Session):
                     self.save_bam(bamfile, samdesc, list(chain(*reads.values())))
                     sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
                          "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
-                    bamfile_sorted.replace(sam_file.resolve().with_suffix(".bam"))
+                    bamfile_sorted = bamfile_sorted.replace(str(sam_file.resolve().with_suffix(".bam")))
+                    index(str(bamfile_sorted.resolve()))
                 return self.write_stat(count_file, abundance, database)
             else:
                 if self.counting_type == "unique":
@@ -553,7 +554,7 @@ class Counter(Session):
                 sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
                      "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
                 if self.keep_bam:
-                    bamfile_sorted.replace(sam_file.resolve().with_suffix(".bam"))
+                    bamfile_sorted = bamfile_sorted.replace(str(sam_file.resolve().with_suffix(".bam")))
                 return self.write_table(bamfile_sorted, count_file)
 
     def execute(self) -> bool:
