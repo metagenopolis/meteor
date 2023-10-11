@@ -114,13 +114,11 @@ class Profiler(Session):
             self.annot_db_dict = {db: Path(self.meteor.ref_dir /
                                         self.ref_config["reference_file"]["database_dir"] /
                                         self.ref_config[self.meteor.ko_column][db])
-                                for db
-                                in self.annot_db_list}
+                                for db in self.annot_db_list}
             self.module_db_dict = {db: Path(self.meteor.ref_dir /
                                             self.ref_config["reference_file"]["database_dir"] /
                                             self.ref_config[self.meteor.ko_column][db])
-                                for db
-                                in self.module_db_list}
+                                for db in self.module_db_list}
             assert all(x.is_file() for x in self.annot_db_dict.values())
             assert all(x.is_file() for x in self.module_db_dict.values())
         except KeyError:
@@ -140,6 +138,7 @@ class Profiler(Session):
                                   for db
                                   in self.annot_db_list}
         modules_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_modules.tsv"
+        # TODO What is this ?
         self.output_filenames = {}
         self.output_filenames["gene_table_norm"] = gene_table_output
         self.output_filenames["msp_table"] = msp_table_output
@@ -149,8 +148,8 @@ class Profiler(Session):
         # Initialize the module definition file
         if self.compute_modules_bool:
             if self.module_path is None:
-                self.module_path = Path(os.path.join(os.path.dirname(__file__),
-                                                    "all_modules_definition_GMM_GBM_KEGG_107.tsv"))
+                # TODO correction os.path.join
+                self.module_path = Path(__file__).parent / "all_modules_definition_GMM_GBM_KEGG_107.tsv"
             try:
                 assert self.module_path.is_file()
             except AssertionError:
@@ -238,6 +237,8 @@ class Profiler(Session):
         return msp_dict
 
     def compute_msp_stats(self, msp_def_filename: Path) -> float:
+        """
+        """
         count_column = self.meteor.value_column
         # Load msp file
         msp_df = pd.read_table(msp_def_filename)
@@ -249,6 +250,8 @@ class Profiler(Session):
         return round(msp_reads_pc, 2)
 
     def compute_ko_abundance(self, annot_file: Path) -> None:
+        """
+        """
         count_column = self.meteor.value_column
         # Load annotation file
         annot_df = pd.read_table(annot_file)
@@ -259,6 +262,8 @@ class Profiler(Session):
         self.functions = aggregated_count
 
     def compute_ko_abundance_by_msp(self, annot_file: Path, msp_def_filename: Path) -> None:
+        """
+        """
         # Load annotation file
         annot_df = pd.read_table(annot_file)
         # Load MSP file
@@ -338,7 +343,8 @@ class Profiler(Session):
         module_abundance = {mod: self.msp_table.loc[self.msp_table[self.meteor.msp_column].isin(msp_set), self.meteor.value_column].sum()
                             for (mod, msp_set)
                             in mod_dict.items()}
-        self.mod_table = pd.DataFrame.from_dict(module_abundance, orient = "index", columns = [self.meteor.value_column]).reset_index().rename(columns={"index": self.meteor.module_column})
+        self.mod_table = pd.DataFrame.from_dict(module_abundance, orient = "index",
+                                                columns = [self.meteor.value_column]).reset_index().rename(columns={"index": self.meteor.module_column})
 
 
     def execute(self) -> bool:

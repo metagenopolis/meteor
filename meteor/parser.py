@@ -61,9 +61,9 @@ class Parser(Session):
         alternative = re.compile(r"(.*)(\(([\w+]+,{1})+[\w+]+\))(.*)")
         list_alt = [mod_def]
         ### Flag to know if some alternatives remain to be solved
-        flag = 0
-        while flag == 0: ### While alternatives remain
-            flag = 1 ### At the beginning of each loop we suppose there are no more alternative
+        flag = True
+        while flag: ### While alternatives remain
+            flag = False ### At the beginning of each loop we suppose there are no more alternative
             new_list_alt = [] ### Initialize a new list to keep alternatives that will be solved in the next loop
             for my_def in list_alt:
                 my_def = self.clean_module(mod_def=my_def)
@@ -71,7 +71,7 @@ class Parser(Session):
                 ### Look for simple parenthesis (simple parenthesis = alternatives that should be solved)
                 res = alternative.match(my_def)
                 if res:
-                    flag = 0 ### Alternatives were found so we suppose other may remain
+                    flag = True ### Alternatives were found so we suppose other may remain
                     # list of alternatives after resolving simple parenthesis
                     new_def = [res.group(1) + k +  res.group(4) for k in res.group(2).strip("()").split(",")]
                     new_list_alt += new_def

@@ -74,7 +74,6 @@ class FastqImporter(Session):
         :return: (str) A string without the expected extension in the name
         """
         for e in tuple(self.extension(tag)):
-            print(e)
             fastq_filename = fastq_filename.replace(e, "")
         return fastq_filename
 

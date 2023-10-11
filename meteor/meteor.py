@@ -27,6 +27,7 @@ from meteor.counter import Counter
 from meteor.downloader import Downloader
 from meteor.profiler import Profiler
 from meteor.merging import Merging
+from meteor.strain import Strain
 from tempfile import TemporaryDirectory
 
 
@@ -96,9 +97,7 @@ def isborned01(x: str) -> float:
     """Check if a float is comprised between 0 and 1.
 
     :param x: float number to check
-
     :raises ArgumentTypeError: If x is > 1 or < 0
-
     :return: (float) float number
     """
     x_float = float(x)
@@ -183,7 +182,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     mapping_parser.add_argument("-p", dest="mapping_type", type=str,
                                 choices=["local", "end-to-end"], default="end-to-end",
                                 help="Counting type (Default end-to-end)")
-    mapping_parser.add_argument("-trim", dest="trim", type=int, default=80,
+    mapping_parser.add_argument("--trim", dest="trim", type=int, default=80,
                                 help="Trim reads for mapping (default 80. If 0, no trim)")
     mapping_parser.add_argument("-id", dest="identity_threshold", type=float, default=0.95,
                                 help="Aligned reads should have an identity to reference > 0.95 (default)."
@@ -194,7 +193,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Save the sam files")
     mapping_parser.add_argument("-kb", dest="keep_bam", action="store_true",
                                 help="Save the bam files")
-    mapping_parser.add_argument("-tmp", dest="tmp_path", type=isdir,
+    mapping_parser.add_argument("--tmp", dest="tmp_path", type=isdir,
                                 help="Path to the directory where temporary files (e.g. sam) are stored")
     mapping_parser.add_argument("-m", dest="mapping_only", action="store_true",
                                 help="Execute mapping only")
@@ -205,7 +204,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     mapping_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
                                 help="Execute original meteor")
     # Define profiler argument parsing
-    profiling_parser = subparsers.add_parser("profile", help="Performs profiling")
+    profiling_parser = subparsers.add_parser("profile", help="Compute species and functional abundance tables")
     profiling_parser.add_argument("-i", dest="input_profile", type=isfile, required=True,
                                   help="Path to the count table.")
     profiling_parser.add_argument("-o", dest="output_dir", type=isdir, required=True,
@@ -220,20 +219,20 @@ def get_arguments() -> Namespace:  # pragma: no cover
     profiling_parser.add_argument("-l", dest="rarefaction_level", type=int, default=-1,
                                   help="""Rarefaction level. If negative: no rarefation is performed.
                                           Default to -1""")
-    profiling_parser.add_argument("--seed", dest="seed", type=int,
-                                  help="Seed for reads randomly selection during rarefaction. Default to None.")
-    profiling_parser.add_argument("-n", dest="normalization", type=str, choices=["coverage", "fpkm", "none"],
-                                  default="none",
-                                  help="Normalization applied to gene abundance. Default to none.")
+    profiling_parser.add_argument("--seed", dest="seed", type=int, default=1234,
+                                  help="Seed for reads randomly selection during rarefaction (Default 1234).")
+    profiling_parser.add_argument("-n", dest="normalization", type=str, choices=["coverage", "fpkm"],
+                                  help="Normalization applied to gene abundance.")
     profiling_parser.add_argument("--no_msp", dest="compute_msp", action="store_false",
                                   help="Should MSP computation be omitted?")
     profiling_parser.add_argument("--core_size", dest="core_size", type=int, default=100,
-                                  help="Number of core genes to be used for MSP computation. Default to 100.")
+                                  help="Number of core genes to be used for MSP computation (Default 100).")
     profiling_parser.add_argument("--msp_filter", dest="msp_filter", type=isborned01, default=0.1,
-                                  help="""Ratio of MSP core genes detected in a sample, under which
-                                          the MSP abundance is set to 0. Default to 0.1""")
+                                  help="Ratio of MSP core genes detected in a sample, under which "
+                                        "the MSP abundance is set to 0. Default to 0.1")
     profiling_parser.add_argument("--no_functional", dest="compute_functions", action="store_false",
                                   help="Should the functional computation be omitted?")
+    # TODO What is this ?
     profiling_parser.add_argument("--annot_db", type=str, default="mustard,kegg",
                                   help="""Comma separated functional annotation database.
                                           Default to mustard,kegg.""")
@@ -241,26 +240,39 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                   help="""Should functional potential be computed across MSP?""")
     profiling_parser.add_argument("--no_module", dest="compute_modules", action="store_false",
                                   help="Should the functional modules computation be omitted?")
+    # TODO module are provided by each database
+    # This is not necessary
     profiling_parser.add_argument("--module", dest="module_path", type=isfile,
                                   help="""Path to personalized module definition file.
                                           Default to provided module definition file.""")
+    # TODO module are provided by each database
+    # This is not necessary
     profiling_parser.add_argument("--module_db", type=str, default="kegg",
                                   help="""Comma separated functional annotation database,
                                           as specified in the *_reference_ini file.
                                           Default to kegg.""")
     profiling_parser.add_argument("--completeness", type=isborned01, default=0.9,
                                   help="""Threshold above which a module is considered as present
-                                          in an MSP. Comprised in [0,1]. Default to 0.9.""")
+                                          in an MSP. Comprised in [0,1] (Default 0.9).""")
     # Define merging argument parsing
-    merging_parser = subparsers.add_parser("merge", help="Performs merging")
+    merging_parser = subparsers.add_parser("merge", help="Merge the individual sample count table")
     merging_parser.add_argument("-i", dest="input_dir", required=True, type=isdir,
                                 help="Directory containing files that should be merged.")
     merging_parser.add_argument("-o", dest="output", required=True,
                                 help="Path to the output file.")
     merging_parser.add_argument("-p", dest="pattern", required=True,
                                 help="Pattern to select files that should be merged (e.g, _suffix_norm.tsv)")
+    # TODO to remove
     merging_parser.add_argument("--no_check", dest="check_param", action="store_false",
                                 help="Should the ini files be checked for parameters matching?")
+    strain_parser = subparsers.add_parser("strain", help="Identifies strain from metagenomic samples")
+    strain_parser.add_argument("-i", dest="mapped_sample_dir", required=True, type=isdir, help="Bam file ?")
+    strain_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
+                               help="Path to reference directory (Path containing *_reference.ini)")
+    strain_parser.add_argument("-d", dest="depth", default=250, type=int, help="Maximum depth taken in account.")
+    strain_parser.add_argument("-t", dest="threads", default=1, type=int, help="Threads count.")
+    strain_parser.add_argument("-o", dest="output_dir", type=isdir, required=True, help="Path to the output file.")
+    strain_parser.add_argument("--tmp", dest="tmp_path", type=isdir, help="Path to the directory where temporary files (e.g. sam) are stored")
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
@@ -304,6 +316,16 @@ def main() -> None:  # pragma: no cover
                           args.counting_only, args.mapping_only, args.keep_sam, args.keep_bam,
                           args.pysam_test)
         counter.execute()
+    # Run strain
+    elif args.command == "strain":
+        meteor.mapped_sample_dir = args.mapped_sample_dir
+        meteor.ref_dir = args.ref_dir
+        meteor.tmp_path = args.tmp_path
+        meteor.threads = args.threads
+        meteor.strain_dir = args.output_dir
+        meteor.depth = args.depth
+        strain_id = Strain(meteor)
+        strain_id.execute()
     # Run download catalogues
     elif args.command == "download":
         meteor.ref_name = args.user_choice

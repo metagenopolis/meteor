@@ -543,7 +543,7 @@ class Counter(Session):
                     sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
                          "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
                     bamfile_sorted = bamfile_sorted.replace(str(sam_file.resolve().with_suffix(".bam")))
-                    index(str(bamfile_sorted.resolve()))
+                    # index(str(bamfile_sorted.resolve()))
                 return self.write_stat(count_file, abundance, database)
             else:
                 if self.counting_type == "unique":

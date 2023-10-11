@@ -25,7 +25,7 @@ from textwrap import fill
 from typing import Type
 from meteor.session import Session, Component
 from typing import Generator
-
+from hashlib import md5
 
 @dataclass
 class ReferenceBuilder(Session):
@@ -51,6 +51,7 @@ class ReferenceBuilder(Session):
         # Read input fasta file and create new fasta file for each chromosome or contig
         self.output_annotation_file = self.database_dir / f"{self.meteor.ref_name}_annotation.tsv"
         self.output_fasta_file = self.fasta_dir / f"{self.meteor.ref_name}.fasta"
+        self.output_index_file = self.fasta_dir / f"{self.meteor.ref_name}.dict"
 
         # Write configuration file
         config_ref = self.set_reference_config()
@@ -125,19 +126,28 @@ class ReferenceBuilder(Session):
             if self.pysam_test:
                 output_annotation.write("gene_id\tgene_name\tgene_length\n")
             with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
+                # with self.output_index_file.open("wt", encoding="UTF-8") as output_index:
+                    # I don't know what it means
+                    # output_index.write(f"@HD\tVN:1.6\n")
                 for gene_id, (header, len_seq, seq) in enumerate(self.read_reference(), start=1):
                     if self.pysam_test:
                         output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
                     else:
                         output_annotation.write(f"{gene_id}\t{len_seq}\n")
                     output_fasta.write(f">{gene_id}\n{seq}\n")
+                        # print(seq.replace("\n",""))
+                        # seq = seq.replace("\n", "")
+                        # output_index.write(f"@SQ\tSN:{gene_id}\tLN:{len_seq}\tM5:{md5(seq.encode('ascii')).hexdigest()}\tUR:file:{str(self.output_fasta_file.resolve())}\n")
+
 
     def execute(self) -> bool:
         """Build the database"""
         logging.info("Import %s", self.meteor.ref_name)
         # Prepare the reference for meteor
         self.create_reference()
-        # Build the index with bowtie
-        check_call(["bowtie2-build", "-f", "-t", str(self.meteor.threads),
+        # Build the index with bowtie2
+        check_call(["bowtie2-build", "-f", "--threads", str(self.meteor.threads),
                     self.output_fasta_file, self.fasta_dir / self.meteor.ref_name])
+        # Build the index with gatk
+        # check_call(["gatk", "CreateSequenceDictionary", "-R", self.output_fasta_file])
         return True
