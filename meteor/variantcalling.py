@@ -70,7 +70,7 @@ class VariantCalling(Session):
         """Call variants reads"""
         # Start mapping
         bam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.bam"
-        bcf_file = self.meteor.strain_dir / f"{self.census['census']['sample_info']['sample_name']}.bcf"
+        bcf_file = self.meteor.strain_dir / f"{self.census['census']['sample_info']['sample_name']}.vcf.gz"
         reference = (self.meteor.ref_dir /
                     self.census["reference"]["reference_file"]["fasta_dir"] /
                     self.census["reference"]["reference_file"]["fasta_filename_1"])
@@ -80,7 +80,7 @@ class VariantCalling(Session):
             check_call(["bcftools", "mpileup", "-d", str(self.meteor.depth), "-Ob", "-f", str(reference.resolve()),
                         str(bam_file.resolve()),  "--threads", str(self.meteor.threads),
                         "-o", temp_bcf_file.name])
-            check_call(["bcftools", "call", "-c",  "--threads", str(self.meteor.threads), "-Ob", "-o",
+            check_call(["bcftools", "call", "-c",  "--threads", str(self.meteor.threads), "-Oz", "-o",
                         str(bcf_file.resolve()), temp_bcf_file.name])
         # gatk AddOrReplaceReadGroups -I Zymo_6300.bam -O test_grp.bam -RGID 4 -RGLB lib1 -RGPL illumina -RGPU unit1 -RGSM 20
         # gatk SplitNCigarReads -R ../../catalogue/mock/fasta/mock.fasta -I test_grp.bam -O test.bam
