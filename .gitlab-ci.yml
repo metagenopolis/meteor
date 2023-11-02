@@ -41,7 +41,7 @@ pytest:3.11:
     - wget https://github.com/samtools/bcftools/releases/download/1.18/bcftools-1.18.tar.bz2 --quiet
     - cd bcftools-1.18/htslib-1.18/ && ./configure && make && make install
     - cd .. && ./configure && make && make install && cd 
-    - pip install pytest pytest-datadir pysam
+    - pip install pytest pytest-cov pytest-datadir pysam
   script:
   # --mypy --pylint --pylint-rcfile=.pylintrc --pylint-jobs=4
     - pytest --cov=meteor --cov-report xml
