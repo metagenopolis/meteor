@@ -19,7 +19,7 @@ from setuptools import setup, find_packages
 # from distutils.command.build import build
 # from subprocess import call
 
-METEOR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "meteor", "src")
+# METEOR_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "meteor", "src")
 
 # class MeteorBuild(build):
 #     """Compile for meteor binaries"""

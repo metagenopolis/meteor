@@ -19,7 +19,7 @@ If you use meteor , please cite:
 ## Dependencies
 
 Meteor requires:
-- python>3.11.0
+- python>=3.10.0
 - [bowtie2](https://github.com/BenLangmead/bowtie2)
 - [pysam](https://pysam.readthedocs.io/en/latest/installation.html)
 - [pandas](https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html)
@@ -31,7 +31,7 @@ Meteor is available with bioconda which includes all its dependencies:
 conda install -c bioconda meteor
 ```
 
-And with pip with a recent Python >= 3.11:
+And with pip with a recent Python>=3.10:
 ```
 pip install meteor
 ```

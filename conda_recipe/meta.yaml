@@ -28,6 +28,7 @@ requirements:
         - bowtie2
         - pysam
         - pandas
+        - bcftools
 test:
     commands:
         - meteor -h
