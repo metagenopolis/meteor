@@ -68,7 +68,7 @@ class Strain(Session):
                 # Get the variant calling
                 # Variant calling this library on the reference
                 variant_calling_process = VariantCalling(self.meteor, self.ini_data)
-                bcf_file = self.ini_data["directory"] / f"{sample_info['sample_name']}.bcf"
+                vcf_file = self.ini_data["directory"] / f"{sample_info['sample_name']}.vcf.gz"
                 # fasta_file = self.get_strain(bcf_file)
             if not variant_calling_process.execute():
                 raise ValueError(f"Error, TaskMainMapping failed: {census_ini_file}")

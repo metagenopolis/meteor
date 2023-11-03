@@ -18,6 +18,7 @@ from pathlib import Path
 from configparser import ConfigParser
 from datetime import datetime
 from typing import Type
+from distutils.version import LooseVersion
 from meteor.session import Session, Component
 # from pysam import view, sort, index  # type: ignore[attr-defined]
 # from tempfile import NamedTemporaryFile
@@ -118,6 +119,7 @@ class Mapper2(Session):
             parameters += f"-k {self.alignment_number} "
         # Start mapping
         start = perf_counter()
+        # if LooseVersion(biom.__version__) < LooseVersion("2.0.0"):
         check_call(["bowtie2", parameters, "--mm --no-unal",
                     "-x", str(bowtie_index.resolve()), "-U", ",".join(self.fastq_list),
                     "-S", str(sam_file.resolve())])
