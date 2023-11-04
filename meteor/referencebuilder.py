@@ -16,16 +16,18 @@ import logging
 import gzip
 import bz2
 import lzma
-from subprocess import check_call
+import sys
+from subprocess import check_call, run
 from pathlib import Path
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 from datetime import datetime
+from distutils.version import LooseVersion
 from textwrap import fill
 from typing import Type
 from meteor.session import Session, Component
 from typing import Generator
-from hashlib import md5
+# from hashlib import md5
 
 @dataclass
 class ReferenceBuilder(Session):
@@ -36,7 +38,7 @@ class ReferenceBuilder(Session):
     database_dir: Path = field(default_factory=Path)
     output_annotation_file: Path = field(default_factory=Path)
     output_fasta_file: Path = field(default_factory=Path)
-    pysam_test: bool = True
+    # pysam_test: bool = True
 
     def __post_init__(self) -> None:
         # Create reference genome directory if it does not already exist
@@ -106,17 +108,17 @@ class ReferenceBuilder(Session):
         and file giving the correspondance between each gene.
         """
         with self.output_annotation_file.open("wt", encoding="UTF-8") as output_annotation:
-            if self.pysam_test:
-                output_annotation.write("gene_id\tgene_name\tgene_length\n")
+            # if self.pysam_test:
+            output_annotation.write("gene_id\tgene_name\tgene_length\n")
             with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
                 # with self.output_index_file.open("wt", encoding="UTF-8") as output_index:
                     # I don't know what it means
                     # output_index.write(f"@HD\tVN:1.6\n")
                 for gene_id, (header, len_seq, seq) in enumerate(self.read_reference(), start=1):
-                    if self.pysam_test:
-                        output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
-                    else:
-                        output_annotation.write(f"{gene_id}\t{len_seq}\n")
+                    # if self.pysam_test:
+                    output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
+                    # else:
+                    #   output_annotation.write(f"{gene_id}\t{len_seq}\n")
                     output_fasta.write(f">{gene_id}\n{seq}\n")
                         # print(seq.replace("\n",""))
                         # seq = seq.replace("\n", "")
@@ -128,6 +130,11 @@ class ReferenceBuilder(Session):
         logging.info("Import %s", self.meteor.ref_name)
         # Prepare the reference for meteor
         self.create_reference()
+        # Check the bowtie2 version
+        bowtie_version = str(run(["bowtie2","--version"], capture_output=True).stdout).split(" ")[2].split("\\n")[0]
+        if LooseVersion(bowtie_version) < LooseVersion("2.3.5"):
+            logging.error("Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.", bowtie_version)
+            sys.exit()
         # Build the index with bowtie2
         check_call(["bowtie2-build", "-f", "--threads", str(self.meteor.threads),
                     self.output_fasta_file, self.fasta_dir / self.meteor.ref_name])

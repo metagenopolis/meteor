@@ -12,7 +12,7 @@
 
 """Effective mapping"""
 
-from subprocess import check_call
+from subprocess import check_call, run
 from dataclasses import dataclass
 from pathlib import Path
 from configparser import ConfigParser
@@ -25,6 +25,7 @@ from meteor.session import Session, Component
 # from memory_profiler import profile
 from time import perf_counter
 import logging
+import sys
 # import os
 # fp=open('memory_profiler.log','w+')
 
@@ -117,9 +118,13 @@ class Mapper2(Session):
         if self.alignment_number > 1:
             # and self.counting_type != "best"
             parameters += f"-k {self.alignment_number} "
+        # Check the bowtie2 version
+        bowtie_version = str(run(["bowtie2","--version"], capture_output=True).stdout).split(" ")[2].split("\\n")[0]
+        if LooseVersion(bowtie_version) < LooseVersion("2.3.5"):
+            logging.error("Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.", bowtie_version)
+            sys.exit()
         # Start mapping
         start = perf_counter()
-        # if LooseVersion(biom.__version__) < LooseVersion("2.0.0"):
         check_call(["bowtie2", parameters, "--mm --no-unal",
                     "-x", str(bowtie_index.resolve()), "-U", ",".join(self.fastq_list),
                     "-S", str(sam_file.resolve())])

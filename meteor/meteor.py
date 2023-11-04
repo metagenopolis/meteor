@@ -142,8 +142,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                   help="Name of the reference (ansi-string without space).")
     reference_parser.add_argument("-t", dest="threads", default=1, type=int,
                                   help="Threads count.")
-    reference_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
-                                  help="Execute original meteor")
+    # reference_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
+    #                               help="Execute original meteor")
     fastq_parser = subparsers.add_parser("fastq", help="Import fastq files")
     fastq_parser.add_argument("-i", dest="input_fastq_dir", type=isdir, required=True,
                               help="""Path to a directory containing all input fastq files.
@@ -201,8 +201,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Execute counting only")
     mapping_parser.add_argument("-t", dest="threads", default=1, type=int,
                                 help="Threads count.")
-    mapping_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
-                                help="Execute original meteor")
+    # mapping_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
+    #                             help="Execute original meteor")
     # Define profiler argument parsing
     profiling_parser = subparsers.add_parser("profile", help="Compute species and functional abundance tables")
     profiling_parser.add_argument("-i", dest="input_profile", type=isfile, required=True,
@@ -301,8 +301,8 @@ def main() -> None:  # pragma: no cover
         meteor.ref_name = args.ref_name
         meteor.ref_dir = args.ref_dir
         meteor.threads = args.threads
-        reference_builder = ReferenceBuilder(meteor=meteor, input_fasta=args.input_fasta_file,
-                                             pysam_test=args.pysam_test)
+        # pysam_test=args.pysam_test
+        reference_builder = ReferenceBuilder(meteor=meteor, input_fasta=args.input_fasta_file)
         reference_builder.execute()
     # Run mapping
     elif args.command == "mapping":
@@ -311,10 +311,10 @@ def main() -> None:  # pragma: no cover
         meteor.ref_dir = args.ref_dir
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
+        # args.pysam_test
         counter = Counter(meteor, args.counting_type, args.mapping_type,
                           args.trim, args. identity_threshold, args.alignment_number,
-                          args.counting_only, args.mapping_only, args.keep_sam, args.keep_bam,
-                          args.pysam_test)
+                          args.counting_only, args.mapping_only, args.keep_sam, args.keep_bam)
         counter.execute()
     # Run strain
     elif args.command == "strain":

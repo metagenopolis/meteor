@@ -50,7 +50,7 @@ class Counter(Session):
     mapping_only: bool
     keep_sam: bool = False
     keep_bam: bool = False
-    pysam_test: bool = True
+    # pysam_test: bool = True
     ini_data: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -584,29 +584,29 @@ class Counter(Session):
                     sample_info = census_ini["sample_info"]
                     # sample_file = census_ini['sample_file'] # reference
                     #
-                    if self.pysam_test:
-                        stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"]
-                    else:
-                        stage1_dir = (
-                            self.meteor.mapping_dir / sample_info["sample_name"] /
-                            f"mapping_vs_{self.meteor.ref_name}_{census_ini['sample_info']['full_sample_name']}"
-                        )
+                    # if self.pysam_test:
+                    stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"]
+                    # else:
+                        # stage1_dir = (
+                        #     self.meteor.mapping_dir / sample_info["sample_name"] /
+                        #     f"mapping_vs_{self.meteor.ref_name}_{census_ini['sample_info']['full_sample_name']}"
+                        # )
                     # sample_info["full_sample_name"]
                     stage1_dir.mkdir(exist_ok=True, parents=True)
-                    if self.pysam_test:
-                        self.ini_data[library] = {
-                            "census": census_ini,
-                            "directory": stage1_dir,
-                            "Stage1FileName": stage1_dir / f"{sample_info['sample_name']}_census_stage_1.ini",
-                            "reference": ref_ini
-                        }
-                    else:
-                        self.ini_data[library] = {
-                            "census": census_ini,
-                            "directory": stage1_dir,
-                            "Stage1FileName": stage1_dir / library.name.replace("stage_0", "stage_1"),
-                            "reference": ref_ini
-                        }
+                    # if self.pysam_test:
+                    self.ini_data[library] = {
+                        "census": census_ini,
+                        "directory": stage1_dir,
+                        "Stage1FileName": stage1_dir / f"{sample_info['sample_name']}_census_stage_1.ini",
+                        "reference": ref_ini
+                    }
+                    # else:
+                        # self.ini_data[library] = {
+                        #     "census": census_ini,
+                        #     "directory": stage1_dir,
+                        #     "Stage1FileName": stage1_dir / library.name.replace("stage_0", "stage_1"),
+                        #     "reference": ref_ini
+                        # }
                 if not self.ini_data[library]["Stage1FileName"].exists():
                     mapping_done = False
             else:
@@ -616,10 +616,10 @@ class Counter(Session):
                         logging.info("Mapping already done for sample: %s", sample_info["sample_name"])
                         logging.info("Skipped !")
                     else:
-                        if self.pysam_test:
-                            self.launch_mapping2()
-                        else:
-                            self.launch_mapping()
+                        # if self.pysam_test:
+                        self.launch_mapping2()
+                        # else:
+                        # self.launch_mapping()
                 if not self.mapping_only:
                     logging.info("Launch mapping")
                     config = self.set_workflow_config(ref_ini)
@@ -629,13 +629,13 @@ class Counter(Session):
                     # test
                     sam_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.sam"
                     count_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.tsv"
-                    if self.pysam_test:
-                        start = perf_counter()
-                        # self.launch_counting2(bam_file, count_file)
-                        self.launch_counting2(sam_file, count_file)
-                        logging.info("Completed counting in %f seconds", perf_counter() - start)
-                    else:
-                        self.launch_counting(workflow_ini)
+                    # if self.pysam_test:
+                    start = perf_counter()
+                    # self.launch_counting2(bam_file, count_file)
+                    self.launch_counting2(sam_file, count_file)
+                    logging.info("Completed counting in %f seconds", perf_counter() - start)
+                    # else:
+                        # self.launch_counting(workflow_ini)
                     if not self.keep_sam:
                         sam_file.unlink(missing_ok=True)
                         # bam_file.with_suffix(".bam.bai").unlink(missing_ok=True)
