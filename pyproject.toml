@@ -1,0 +1,60 @@
+[tool.poetry]
+name = "meteor"
+version = "3.4.0"
+description = "Meteor - A plateform for quantitative metagenomic profiling of complex ecosystems"
+authors = ["Amine Ghozlane <amine.ghozlane@pasteur.fr>", "Florence Thirion <florence.thirion@inrae.fr>"]
+license = "GPL-3.0-or-later"
+readme = "README.md"
+keywords = ["Metagenomics"]
+homepage = "https://mgps.eu/"
+repository = "https://forgemia.inra.fr/metagenopolis/meteor"
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+packages = [
+    { include = "meteor" },
+    { include = "meteor/dataverse_inrae.ini" },
+    { include = "meteor/all_modules_definition_GMM_GBM_KEGG_107.tsv" },
+    { include = "meteor/category_pcm.tsv" },
+]
+
+
+[tool.poetry.scripts]
+meteor = "meteor.meteor:main"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.12"
+pandas = "^2.1.2"
+pysam = "^0.22.0"
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.3"
+pytest-datadir = "^1.5.0"
+pytest-cov = "^4.1.0"
+pysam = "^0.22.0"
+pandas = "^2.1.2"
+
+
+[tool.poetry.group.mypy.dependencies]
+mypy = "^1.6.1"
+pytest = "^7.4.3"
+pysam = "^0.22.0"
+pandas = "^2.1.2"
+pandas-stubs = "^2.1.1.230928"
+
+
+[tool.poetry.group.pylint.dependencies]
+pylint = "^3.0.2"
+anybadge = "^1.14.0"
+
+[flake8]
+max-line-length = 120
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
