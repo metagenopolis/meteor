@@ -106,7 +106,7 @@ class Mapper2(Session):
         sam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.sam"
         bowtie_index = (self.meteor.ref_dir /
                         self.census["reference"]["reference_file"]["fasta_dir"] /
-                        self.census["reference"]["bowtie2_index"]["dna_space_bowtie_index_prefix_name_1"])
+                        self.census["reference"]["reference_info"]["reference_name"])
         # bowtie2 parameters
         if self.mapping_type == "local":
             parameters = f"-p {self.meteor.threads} --local --sensitive-local "

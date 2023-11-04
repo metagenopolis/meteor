@@ -64,30 +64,13 @@ class ReferenceBuilder(Session):
         config = ConfigParser()
         config["reference_info"] = {
             "reference_name": self.meteor.ref_name,
-            "entry_type": "fragment",  # Why ?
             "reference_date": datetime.now().strftime("%Y-%m-%d"),
-            "database_type": "text",
-            "has_lite_info": "1"
+            "database_type": "complete"
         }
         config["reference_file"] = {
             "database_dir": "database",
             "fasta_dir": "fasta",
-            # is it possible to have several fasta
-            "fasta_file_count": "1",
             "fasta_filename_1": self.output_fasta_file.name
-        }
-        # useless
-        # config["bowtie_index"] = {
-        #   "is_large_reference": "1",
-        #   "is_color_space_indexed": "1",
-        #   "color_space_bowtie_index_prefix_name_1": "mock_colorspace_index",
-        #   "is_DNA_space_indexed": "1",
-        #   "dna_space_bowtie_index_prefix_name_1": "mock_dnaspace_index"
-        # }
-        config["bowtie2_index"] = {
-            "is_large_reference": "0",  # Useless
-            "is_DNA_space_indexed": "1",
-            "dna_space_bowtie_index_prefix_name_1": self.meteor.ref_name
         }
         return config
 
