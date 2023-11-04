@@ -9,7 +9,7 @@ source:
 
 build:
   noarch: python
-  script: {{ PYTHON }} -m poetry install --without test,mypy,pylint
+  script: {{ PYTHON }} -m poetry install --without test,mypy,pylint -C meteor
 
 requirements:
     build:

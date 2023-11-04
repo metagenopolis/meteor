@@ -45,7 +45,7 @@ pytest:3.11:
     - poetry install --only test -C meteor
   script:
   # --mypy --pylint --pylint-rcfile=.pylintrc --pylint-jobs=4
-    - poetry run pytest --cov=meteor --cov-report xml
+    - poetry run -C meteor pytest --cov=meteor --cov-report xml
     - coverage report
   coverage: '/TOTAL.+ ([0-9]{1,3}%)/'
   artifacts:
@@ -69,7 +69,7 @@ pytest:3.10:
     - pip install poetry
     - poetry install --only test -C meteor
   script:
-   - poetry run pytest
+   - poetry run -C meteor pytest
   only:
     - dev
 
@@ -87,7 +87,7 @@ pytest:3.12:
     - pip install poetry
     - poetry install --only test -C meteor
   script:
-    - poetry run pytest
+    - poetry run -C meteor pytest
   only:
     - dev
   allow_failure: true
@@ -135,7 +135,7 @@ run:
   stage: build
   script:
     - pip install poetry
-    - poetry build
+    - poetry build -C meteor
     - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --skip-existing --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
   artifacts:
     paths:
