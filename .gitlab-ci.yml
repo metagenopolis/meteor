@@ -21,7 +21,6 @@ variables:
 cache:
   paths:
     - .cache/pip
-    - venv/
 
 before_script:
   - python --version  # For debugging
@@ -62,8 +61,8 @@ pytest:3.10:
   only:
     - dev
 
-pytest:3.12:
-  image: python:3.12
+pytest:3.9:
+  image: python:3.9
   stage: test
   before_script:
     - apt-get update && apt-get install -y bowtie2 bcftools
