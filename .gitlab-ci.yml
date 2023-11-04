@@ -42,7 +42,7 @@ pytest:3.11:
     - cd bcftools-1.18/htslib-1.18/ && ./configure && make && make install
     - cd .. && ./configure && make && make install && cd
     - pip install poetry
-    - poetry install --only test
+    - poetry install --only test -C meteor
   script:
   # --mypy --pylint --pylint-rcfile=.pylintrc --pylint-jobs=4
     - poetry run pytest --cov=meteor --cov-report xml
@@ -67,7 +67,7 @@ pytest:3.10:
     - cd bcftools-1.18/htslib-1.18/ && ./configure && make && make install
     - cd .. && ./configure && make && make install && cd
     - pip install poetry
-    - poetry install --only test
+    - poetry install --only test -C meteor
   script:
    - poetry run pytest
   only:
@@ -81,10 +81,11 @@ pytest:3.12:
     - unzip -d tools/ tools/download
     - export PATH=$(pwd)/tools/bowtie2-2.5.1-linux-x86_64:$PATH
     - wget https://github.com/samtools/bcftools/releases/download/1.18/bcftools-1.18.tar.bz2 --quiet
+    - tar -jxf bcftools-1.18.tar.bz2
     - cd bcftools-1.18/htslib-1.18/ && ./configure && make && make install
     - cd .. && ./configure && make && make install && cd
     - pip install poetry
-    - poetry install --only test
+    - poetry install --only test -C meteor
   script:
     - poetry run pytest
   only:
@@ -106,7 +107,7 @@ mypy:
   before_script:
   #pysam-stubs
     - pip install poetry
-    - poetry install --only mypy
+    - poetry install --only mypy -C meteor
   script:
     - poetry run mypy meteor
   only:
@@ -117,7 +118,7 @@ pylint:
   stage: test
   before_script:
     - pip install poetry
-    - poetry install --only pylint
+    - poetry install --only pylint -C meteor
     - mkdir ./pylint
   script:
     - poetry run pylint --rcfile=.pylintrc --exit-zero --output-format=text meteor | tee ./pylint/pylint.log
