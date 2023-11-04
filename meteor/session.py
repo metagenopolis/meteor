@@ -19,8 +19,7 @@ from typing import Protocol
 import logging
 import sys
 
-#(kw_only=True)
-@dataclass
+@dataclass(kw_only=True)
 class Component:
     """Set of important constant for meteor"""
     threads: int | None

@@ -127,7 +127,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                  help="Select the catalogue to download.")
     download_parser.add_argument("-c", dest="check_md5", action="store_true",
                                  help="Check the md5sum of the catalogue.")
-    download_parser.add_argument("-fast", dest="taxonomy", action="store_true",
+    download_parser.add_argument("--fast", dest="taxonomy", action="store_true",
                                  help="Select the short catalogue version for taxonomical analysis.")
     download_parser.add_argument("-o", dest="ref_dir", type=isdir, required=True,
                                  help="Output directory.")
@@ -183,14 +183,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                 help="Counting type (Default end-to-end)")
     mapping_parser.add_argument("--trim", dest="trim", type=int, default=80,
                                 help="Trim reads for mapping (default 80. If 0, no trim)")
-    mapping_parser.add_argument("-id", dest="identity_threshold", type=float, default=0.95,
+    mapping_parser.add_argument("--id", dest="identity_threshold", type=float, default=0.95,
                                 help="Aligned reads should have an identity to reference > 0.95 (default)."
                                 "If 0, no filtering)")
-    mapping_parser.add_argument("-align", dest="alignment_number", type=int, default=10000,
+    mapping_parser.add_argument("--align", dest="alignment_number", type=int, default=10000,
                                 help="Number alignments considered for each read (default 10000)")
-    mapping_parser.add_argument("-ks", dest="keep_sam", action="store_true",
+    mapping_parser.add_argument("--ks", dest="keep_sam", action="store_true",
                                 help="Save the sam files")
-    mapping_parser.add_argument("-kb", dest="keep_bam", action="store_true",
+    mapping_parser.add_argument("--kb", dest="keep_bam", action="store_true",
                                 help="Save the bam files")
     mapping_parser.add_argument("--tmp", dest="tmp_path", type=isdir,
                                 help="Path to the directory where temporary files (e.g. sam) are stored")

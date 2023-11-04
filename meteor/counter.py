@@ -33,7 +33,7 @@ from collections import defaultdict
 from itertools import chain
 from pysam import index, idxstats, AlignmentFile, sort  # type: ignore[attr-defined]
 from time import perf_counter
-from shutil import rmtree
+from shutil import rmtree, copy
 
 
 @dataclass
@@ -54,6 +54,7 @@ class Counter(Session):
     ini_data: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        self.meteor.tmp_path.mkdir(exist_ok=True)
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.mapping_dir.mkdir(exist_ok=True)
 
@@ -542,7 +543,7 @@ class Counter(Session):
                     self.save_bam(bamfile, samdesc, list(chain(*reads.values())))
                     sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
                          "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
-                    bamfile_sorted = bamfile_sorted.replace(str(sam_file.resolve().with_suffix(".bam")))
+                    bamfile_sorted = Path(copy(str(bamfile_sorted.resolve()), str(sam_file.resolve().with_suffix(".bam"))))
                     # index(str(bamfile_sorted.resolve()))
                 return self.write_stat(count_file, abundance, database)
             else:
@@ -645,6 +646,6 @@ class Counter(Session):
         except AssertionError:
             logging.error("Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir)
             sys.exit()
-        finally:
-            rmtree(self.meteor.tmp_dir)
+        else:
+            rmtree(self.meteor.tmp_dir, ignore_errors=True)
         return True
