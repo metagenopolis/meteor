@@ -12,9 +12,7 @@
 #    http://www.gnu.org/licenses/gpl-3.0.html
 
 """Meteor - A plateform for quantitative metagenomic profiling of complex ecosystems"""
-__version__ = "3.4"
-__copyright__ = "GPLv3"
-__date__ = "2023"
+
 
 import sys
 import logging

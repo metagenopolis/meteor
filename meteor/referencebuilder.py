@@ -22,7 +22,7 @@ from pathlib import Path
 from configparser import ConfigParser
 from dataclasses import dataclass, field
 from datetime import datetime
-from distutils.version import LooseVersion
+from packaging.version import Version, parse
 from textwrap import fill
 from typing import Type
 from meteor.session import Session, Component
@@ -132,7 +132,7 @@ class ReferenceBuilder(Session):
         self.create_reference()
         # Check the bowtie2 version
         bowtie_version = str(run(["bowtie2","--version"], capture_output=True).stdout).split(" ")[2].split("\\n")[0]
-        if LooseVersion(bowtie_version) < LooseVersion("2.3.5"):
+        if parse(bowtie_version) < Version("2.3.5"):
             logging.error("Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.", bowtie_version)
             sys.exit()
         # Build the index with bowtie2

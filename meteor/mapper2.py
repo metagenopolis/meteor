@@ -18,7 +18,7 @@ from pathlib import Path
 from configparser import ConfigParser
 from datetime import datetime
 from typing import Type
-from distutils.version import LooseVersion
+from packaging.version import Version, parse
 from meteor.session import Session, Component
 # from pysam import view, sort, index  # type: ignore[attr-defined]
 # from tempfile import NamedTemporaryFile
@@ -41,7 +41,7 @@ class Mapper2(Session):
     alignment_number: int
     counting_type: str
 
-    def set_mapping_config(self, cmd: str, sam_file: Path) -> ConfigParser:  # pragma: no cover
+    def set_mapping_config(self, cmd: str, sam_file: Path, bowtie_version: str) -> ConfigParser:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
@@ -53,7 +53,7 @@ class Mapper2(Session):
         config["sample_file"] = self.census["census"]["sample_file"]
         config["mapping"] = {
             "mapping_tool": "bowtie2",
-            "mapping_tool_version": "NA",
+            "mapping_tool_version": bowtie_version,
             "mapping_date":  datetime.now().strftime("%Y-%m-%d"),
             "reference_name": self.census["reference"]["reference_info"]["reference_name"],
             "mapping_cmdline": cmd,
@@ -64,8 +64,6 @@ class Mapper2(Session):
             "is_mismatches_percentage": "1",
             "matches": "10000",
             "is_local_mapping": str(int(self.mapping_type == "local")),
-            "mapping_software": "Meteor",
-            "mapping_software_version": "3.3",
             # "processed_read_count": self.census["census"]["sample_info"]["sequenced_read_count"]
         }
         config["mapping_file"] = {
@@ -120,7 +118,7 @@ class Mapper2(Session):
             parameters += f"-k {self.alignment_number} "
         # Check the bowtie2 version
         bowtie_version = str(run(["bowtie2","--version"], capture_output=True).stdout).split(" ")[2].split("\\n")[0]
-        if LooseVersion(bowtie_version) < LooseVersion("2.3.5"):
+        if parse(bowtie_version) < Version("2.3.5"):
             logging.error("Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.", bowtie_version)
             sys.exit()
         # Start mapping
@@ -147,6 +145,6 @@ class Mapper2(Session):
         #         raise ValueError("Failed to create the bam")
         #     logging.info("Completed bam creation in %f seconds", perf_counter() - start)
         # config = self.set_mapping_config(parameters, bam_file)
-        config = self.set_mapping_config(parameters, sam_file)
+        config = self.set_mapping_config(parameters, sam_file, bowtie_version)
         self.save_config(config, self.census["Stage1FileName"])
         return True

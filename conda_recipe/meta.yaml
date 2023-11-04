@@ -9,31 +9,22 @@ source:
 
 build:
   noarch: python
-  script: {{ PYTHON }} -m pip install .
-  # always_include_files:
-  #   - meteor-counter
-  #   - meteor-profiler
-#   ignore_run_exports_from:
-#     - {{ compiler('cxx') }}
+  script: {{ PYTHON }} -m poetry install --without test,mypy,pylint
 
 requirements:
     build:
-        # - {{ compiler('cxx') }}
-        # - make
-        # - gxx
+        - poetry
     host:
-        - python>=3.10
+        - python>=3.9
     run:
-        - python>=3.10
-        - bowtie2
+        - python>=3.9
+        - bowtie2>=2.3.5
         - pysam
         - pandas
         - bcftools
 test:
     commands:
         - meteor -h
-        # - meteor-counter -h
-        # - meteor-profiler -h
     imports:
         - pysam
         - pandas
