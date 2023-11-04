@@ -34,7 +34,7 @@ pytest:3.11:
   # pytest-mypy types-setuptools pytest-pylint
     # - apt-get update && apt-get install -y bowtie2
   before_script:
-    - apt install bowtie2 bcftools
+    - apt-get update && apt-get install -y bowtie2 bcftools
     - pip install poetry
     - poetry install --only test -C meteor
   script:
@@ -54,7 +54,7 @@ pytest:3.10:
   image: python:3.10
   stage: test
   before_script:
-    - apt install bowtie2 bcftools
+    - apt-get update && apt-get install -y bowtie2 bcftools
     - pip install poetry
     - poetry install --only test -C meteor
   script:
@@ -66,7 +66,7 @@ pytest:3.12:
   image: python:3.12
   stage: test
   before_script:
-    - apt install bowtie2 bcftools
+    - apt-get update && apt-get install -y bowtie2 bcftools
     - pip install poetry
     - poetry install --only test -C meteor
   script:
