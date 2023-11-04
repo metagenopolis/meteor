@@ -25,9 +25,10 @@ cache:
 
 before_script:
   - python --version  # For debugging
-  - pip install virtualenv poetry
+  - pip install virtualenv
   - virtualenv venv
   - source venv/bin/activate
+  - pip install poetry
 
 pytest:3.11:
   stage: test
