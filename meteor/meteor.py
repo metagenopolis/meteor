@@ -13,6 +13,7 @@
 
 """Meteor - A plateform for quantitative metagenomic profiling of complex ecosystems"""
 
+__version__ = "3.4.0"
 
 import sys
 import logging

@@ -15,9 +15,9 @@ requirements:
     build:
         - poetry
     host:
-        - python>=3.9
+        - python>=3.10
     run:
-        - python>=3.9
+        - python>=3.10
         - bowtie2>=2.3.5
         - pysam
         - pandas

@@ -19,9 +19,9 @@ If you use meteor , please cite:
 ## Dependencies
 
 Meteor requires:
-- python>=3.9
+- python>=3.10
 - [bowtie2](https://github.com/BenLangmead/bowtie2)
-- [bfctools]()
+- [bfctools](https://samtools.github.io/bcftools/)
 - [pysam](https://pysam.readthedocs.io/en/latest/installation.html)
 - [pandas](https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html)
 
