@@ -54,7 +54,8 @@ class Counter(Session):
     ini_data: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        self.meteor.tmp_path.mkdir(exist_ok=True)
+        if self.meteor.tmp_path:
+            self.meteor.tmp_path.mkdir(exist_ok=True)
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.mapping_dir.mkdir(exist_ok=True)
 
