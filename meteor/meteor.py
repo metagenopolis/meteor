@@ -189,9 +189,9 @@ def get_arguments() -> Namespace:  # pragma: no cover
     mapping_parser.add_argument("--align", dest="alignment_number", type=int, default=10000,
                                 help="Number alignments considered for each read (default 10000)")
     mapping_parser.add_argument("--ks", dest="keep_sam", action="store_true",
-                                help="Save the sam files")
+                                help="Save the sam files.")
     mapping_parser.add_argument("--kb", dest="keep_bam", action="store_true",
-                                help="Save the bam files")
+                                help="Save the bam files. Required for strain analysis.")
     mapping_parser.add_argument("--tmp", dest="tmp_path", type=isdir,
                                 help="Path to the directory where temporary files (e.g. sam) are stored")
     mapping_parser.add_argument("-m", dest="mapping_only", action="store_true",
