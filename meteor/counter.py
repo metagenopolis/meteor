@@ -545,7 +545,7 @@ class Counter(Session):
                     sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
                          "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
                     bamfile_sorted = Path(copy(str(bamfile_sorted.resolve()), str(sam_file.resolve().with_suffix(".bam"))))
-                    # index(str(bamfile_sorted.resolve()))
+                    index(str(bamfile_sorted.resolve()))
                 return self.write_stat(count_file, abundance, database)
             else:
                 if self.counting_type == "unique":
@@ -556,7 +556,8 @@ class Counter(Session):
                 sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
                      "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
                 if self.keep_bam:
-                    bamfile_sorted = bamfile_sorted.replace(str(sam_file.resolve().with_suffix(".bam")))
+                    bamfile_sorted = Path(copy(str(bamfile_sorted.resolve()), str(sam_file.resolve().with_suffix(".bam"))))
+                    index(str(bamfile_sorted.resolve()))
                 return self.write_table(bamfile_sorted, count_file)
 
     def execute(self) -> bool:
@@ -643,10 +644,10 @@ class Counter(Session):
                         # bam_file.with_suffix(".bam.bai").unlink(missing_ok=True)
                         # self.ini_data[library]["Stage1FileName"].unlink(missing_ok=True)
             logging.info("Done ! Job finished without errors ...")
-            # self.meteor.tmp_dir.rmdir()
         except AssertionError:
             logging.error("Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir)
             sys.exit()
         else:
+            # Not sure if it's a good idea to delete a temporary file
             rmtree(self.meteor.tmp_dir, ignore_errors=True)
         return True
