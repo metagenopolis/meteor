@@ -204,15 +204,17 @@ def get_arguments() -> Namespace:  # pragma: no cover
     #                             help="Execute original meteor")
     # Define profiler argument parsing
     profiling_parser = subparsers.add_parser("profile", help="Compute species and functional abundance tables")
-    profiling_parser.add_argument("-i", dest="input_profile", type=isfile, required=True,
-                                  help="Path to the count table.")
+    #profiling_parser.add_argument("-i", dest="input_profile", type=isfile, required=True,
+    #                              help="Path to the count table.")
+    profiling_parser.add_argument("-i", dest="mapped_sample_dir", required=True, type=isdir,
+                                  help="Path to the mapped sample directory.")
     profiling_parser.add_argument("-o", dest="output_dir", type=isdir, required=True,
                                   help="Path to the profile output directory.")
     profiling_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
                                 help="Path to reference directory (containing *_reference.ini)")
-    profiling_parser.add_argument("-p", dest="input_ini", type=isfile,
-                                  help="""Ini file associated with the count table.
-                                          If omitted, use the path to the count table with ini extension.""")
+    #profiling_parser.add_argument("-p", dest="input_ini", type=isfile,
+    #                              help="""Ini file associated with the count table.
+    #                                      If omitted, use the path to the count table with ini extension.""")
     profiling_parser.add_argument("-s", dest="profile_suffix", default="", type=str,
                                   help="Suffix used to generate filenames.")
     profiling_parser.add_argument("-l", dest="rarefaction_level", type=int, default=-1,
@@ -268,10 +270,12 @@ def get_arguments() -> Namespace:  # pragma: no cover
     strain_parser.add_argument("-i", dest="mapped_sample_dir", required=True, type=isdir, help="Bam file ?")
     strain_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
                                help="Path to reference directory (Path containing *_reference.ini)")
-    strain_parser.add_argument("-d", dest="depth", default=10000, type=int, help="Maximum depth taken in account (default 10000).")
+    strain_parser.add_argument("-d", dest="depth", default=10000, type=int,
+                               help="Maximum depth taken in account (default 10000).")
     strain_parser.add_argument("-t", dest="threads", default=1, type=int, help="Threads count.")
     strain_parser.add_argument("-o", dest="output_dir", type=isdir, required=True, help="Path to the output file.")
-    strain_parser.add_argument("--tmp", dest="tmp_path", type=isdir, help="Path to the directory where temporary files (e.g. sam) are stored")
+    strain_parser.add_argument("--tmp", dest="tmp_path", type=isdir,
+                               help="Path to the directory where temporary files (e.g. sam) are stored")
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
@@ -335,9 +339,10 @@ def main() -> None:  # pragma: no cover
         downloader.execute()
     # Run profiling
     elif args.command == "profile":
-        meteor.mapping_dir = args.output_dir
+        meteor.mapping_dir = args.mapped_sample_dir
+        meteor.profile_dir = args.output_dir
         meteor.ref_dir = args.ref_dir
-        profiler = Profiler(meteor, args.input_profile, args.input_ini, args.profile_suffix,
+        profiler = Profiler(meteor, args.profile_suffix,
                             args.rarefaction_level, args.seed, args.normalization,
                             args.compute_msp, args.core_size, args.msp_filter,
                             args.compute_functions, args.annot_db, args.by_msp,

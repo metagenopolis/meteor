@@ -25,6 +25,7 @@ class Component:
     threads: int | None
     fastq_dir: Path = field(default_factory=Path)
     mapping_dir: Path = field(default_factory=Path)
+    profile_dir: Path = field(default_factory=Path)
     ref_dir: Path = field(default_factory=Path)
     ref_name: str = field(default_factory=str)
     # Path given by the user
@@ -92,6 +93,18 @@ class Session(Protocol):
                           "One *_reference.ini is expected", ref_dir)
             sys.exit()
         return ref_ini
+
+    def get_census_stage(self, mapping_dir: Path) -> ConfigParser:
+        try:
+            census_ini_file_list = list(mapping_dir.glob("**/*_census_stage_1.ini"))
+            assert len(census_ini_file_list) == 1
+            census_ini_file = census_ini_file_list[0]
+            census_ini = self.read_ini(census_ini_file)
+        except AssertionError:
+            logging.error("Error, no *_census_stage_1.ini file found in %s. "
+                          "One *_census_stage_1.ini is expected", mapping_dir)
+            sys.exit()
+        return census_ini
 
     def update_ini(self, config: ConfigParser, section: str, new_fields: dict[str, str]) -> ConfigParser:
         new_config = ConfigParser()

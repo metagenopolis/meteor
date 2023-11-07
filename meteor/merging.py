@@ -46,7 +46,7 @@ class Merging(Session):
     def extract_ini_info(self, list_config: dict[Path, ConfigParser], section: str) -> dict[Path, dict[str, str]]:
         "Get all information from the required section"
         try:
-            assert all([section in my_config for my_config in list_config.values()])
+            assert all((section in my_config for my_config in list_config.values()))
         except AssertionError:
             logging.error("Missing the section %s in one of the ini file.", section)
             sys.exit()
@@ -58,7 +58,8 @@ class Merging(Session):
         ref_config = list(all_sections_info.keys())[0]
         logging.info("Use the ini file associated to %s as a reference.", ref_config)
         # Compare all other entries to this reference
-        ref_comparison_bool = {my_path: my_config == all_sections_info[ref_config] for (my_path, my_config) in all_sections_info.items()}
+        ref_comparison_bool = {my_path: my_config == all_sections_info[ref_config]
+                               for (my_path, my_config) in all_sections_info.items()}
         # Get ini file for which this is not true
         problematic_config = {key: value for (key, value) in ref_comparison_bool.items() if value is False}
         if len(problematic_config) > 0:
@@ -72,7 +73,9 @@ class Merging(Session):
     def merge_df(self, dict_path: dict[str, Path], key_merging: str) -> pd.DataFrame:
         "Merge many data frames contained in a list"
         # Load the data frames
-        list_df = [pd.read_table(my_path).rename(columns={self.meteor.value_column: my_sample})[[key_merging, my_sample]] for (my_sample, my_path) in dict_path.items()]
+        list_df = [pd.read_table(my_path).rename(columns={
+            self.meteor.value_column: my_sample})[[key_merging, my_sample]]
+            for (my_sample, my_path) in dict_path.items()]
         merged_df = reduce(lambda left, right: pd.merge(left,right,on=key_merging,how="outer"), list_df)
         return merged_df
 
@@ -92,9 +95,10 @@ class Merging(Session):
             logging.info("Their parameters will not be checked prior to merging.")
         # Guess the key that should be used
         logging.info("Look for the common key for merging.")
-        with open(files_to_merge[0]) as ref:
+        with open(files_to_merge[0], encoding="UTF-8") as ref:
             real_colnames = set(ref.readline().strip("\n").split("\t"))
-        possible_keys = [self.meteor.msp_column, self.meteor.gene_column, self.meteor.ko_column, self.meteor.module_column]
+        possible_keys = [self.meteor.msp_column, self.meteor.gene_column,
+                         self.meteor.ko_column, self.meteor.module_column]
         key_merging_set = set(real_colnames).intersection(possible_keys)
         try:
             assert len(key_merging_set) == 1

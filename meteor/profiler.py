@@ -30,8 +30,6 @@ class Profiler(Session):
     """Profile session for abundance and annotation
     """
     meteor: Type[Component]
-    input_count_table: Path
-    input_ini: Path
     suffix_file: str
     rarefaction_level: int
     seed: int
@@ -48,19 +46,11 @@ class Profiler(Session):
     completeness: float
 
     def __post_init__(self):
-        # Check the input count table
-        self.check_file(self.input_count_table, {self.meteor.gene_column,
-                                                 self.meteor.value_column,
-                                                 self.meteor.gene_length_column})
-        # Load the count table
-        self.gene_count = pd.read_table(self.input_count_table)
-        self.count_column = self.gene_count.columns[2]
-        self.gene_count[self.meteor.value_column] = self.gene_count[self.meteor.value_column].round(0).astype("int")
+        # Prepare the profile directory
+        self.meteor.profile_dir.mkdir(exist_ok=True)
 
-        # Initialize the ini file
-        if self.input_ini is None:
-            self.input_ini = Path(self.input_count_table).with_suffix(".ini")
-        self.sample_config = self.read_ini(self.input_ini)
+        # Get the ini file
+        self.sample_config = self.get_census_stage(self.meteor.mapping_dir)
 
         # Add session info
         config_session = {}
@@ -80,6 +70,18 @@ class Profiler(Session):
 
         # Initialize the ini ref config parser:
         self.ref_config = self.get_reference_info(self.meteor.ref_dir)
+
+        # Get the associated count table
+        self.input_count_table = (self.meteor.mapping_dir / self.sample_name).with_suffix(".tsv")
+
+        # Check the input count table
+        self.check_file(self.input_count_table, {self.meteor.gene_column,
+                                                 self.meteor.value_column,
+                                                 self.meteor.gene_length_column})
+
+        # Load the count table
+        self.gene_count = pd.read_table(self.input_count_table)
+        self.gene_count[self.meteor.value_column] = self.gene_count[self.meteor.value_column].round(0).astype("int")
 
         # Define MSP filename
         if self.by_msp or self.compute_msp_bool:
@@ -101,49 +103,52 @@ class Profiler(Session):
         else:
             self.msp_filename = None
 
-        # List the functional db
-        if self.compute_functions_bool:
-            self.annot_db_list = self.annot_db.split(",")
-        else:
-            self.annot_db_list = []
-        if self.compute_modules_bool:
-            self.module_db_list = self.module_db.split(",")
-        else:
-            self.module_db_list = []
-        try:
-            self.annot_db_dict = {db: Path(self.meteor.ref_dir /
-                                        self.ref_config["reference_file"]["database_dir"] /
-                                        self.ref_config[self.meteor.ko_column][db])
-                                for db in self.annot_db_list}
-            self.module_db_dict = {db: Path(self.meteor.ref_dir /
-                                            self.ref_config["reference_file"]["database_dir"] /
-                                            self.ref_config[self.meteor.ko_column][db])
-                                for db in self.module_db_list}
-            assert all(x.is_file() for x in self.annot_db_dict.values())
-            assert all(x.is_file() for x in self.module_db_dict.values())
-        except KeyError:
-            logging.error("Missing annotation databases in the reference ini file.")
-            sys.exit()
-        except AssertionError:
-            logging.error("The annotation files does not exist.")
-            sys.exit()
-        for db in list(self.annot_db_dict.values()) + list(self.module_db_dict.values()):
-            self.check_file(db, {self.meteor.gene_column, self.meteor.ko_column})
-
         # Define output names
-        gene_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_norm.tsv"
-        msp_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_msp.tsv"
-        functions_table_output = {db: self.meteor.mapping_dir /
-                                  f"{self.sample_name}_{self.suffix_file}_{db}_functions.tsv"
-                                  for db
-                                  in self.annot_db_list}
-        modules_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_modules.tsv"
+        gene_table_output = self.meteor.profile_dir / f"{self.sample_name}_{self.suffix_file}_norm.tsv"
+        msp_table_output = self.meteor.profile_dir / f"{self.sample_name}_{self.suffix_file}_msp.tsv"
         # TODO What is this ?
         self.output_filenames = {}
         self.output_filenames["gene_table_norm"] = gene_table_output
         self.output_filenames["msp_table"] = msp_table_output
-        self.output_filenames["functions_table"] = functions_table_output
-        self.output_filenames["modules_table"] = modules_table_output
+
+        # List the functional db
+        if self.ref_config["reference_info"]["database_type"] == "complete":
+            if self.compute_functions_bool:
+                self.annot_db_list = self.annot_db.split(",")
+            else:
+                self.annot_db_list = []
+            if self.compute_modules_bool:
+                self.module_db_list = self.module_db.split(",")
+            else:
+                self.module_db_list = []
+            try:
+                self.annot_db_dict = {db: Path(self.meteor.ref_dir /
+                                            self.ref_config["reference_file"]["database_dir"] /
+                                            self.ref_config[self.meteor.ko_column][db])
+                                    for db in self.annot_db_list}
+                self.module_db_dict = {db: Path(self.meteor.ref_dir /
+                                                self.ref_config["reference_file"]["database_dir"] /
+                                                self.ref_config[self.meteor.ko_column][db])
+                                    for db in self.module_db_list}
+                assert all(x.is_file() for x in self.annot_db_dict.values())
+                assert all(x.is_file() for x in self.module_db_dict.values())
+            except KeyError:
+                logging.error("Missing annotation databases in the reference ini file.")
+                sys.exit()
+            except AssertionError:
+                logging.error("The annotation files does not exist.")
+                sys.exit()
+            for db in list(self.annot_db_dict.values()) + list(self.module_db_dict.values()):
+                self.check_file(db, {self.meteor.gene_column, self.meteor.ko_column})
+
+            functions_table_output = {db: self.meteor.profile_dir /
+                                    f"{self.sample_name}_{self.suffix_file}_{db}_functions.tsv"
+                                    for db
+                                    in self.annot_db_list}
+            modules_table_output = self.meteor.profile_dir / f"{self.sample_name}_{self.suffix_file}_modules.tsv"
+
+            self.output_filenames["functions_table"] = functions_table_output
+            self.output_filenames["modules_table"] = modules_table_output
 
         # Initialize the module definition file
         if self.compute_modules_bool:
@@ -197,7 +202,8 @@ class Profiler(Session):
         count_column = self.meteor.value_column
         # Compute the unmapped reads after rarefaction
         if rarefaction_level > 0:
-            unmapped_reads_after_rf = self.rarefaction_level - self.gene_count[count_column].sum()
+            # Force to 0 if the result is negative (ie, no rarefaction was performed)
+            unmapped_reads_after_rf = max(self.rarefaction_level - self.gene_count[count_column].sum(), 0)
         else:
             unmapped_reads_after_rf = unmapped_reads
         ### Add the unmapped reads after rf to the gene count table as a pseudo gene
@@ -206,7 +212,10 @@ class Profiler(Session):
                                                      count_column: unmapped_reads_after_rf}
         ### Normalize
         self.gene_count[count_column] = self.gene_count[count_column] / self.gene_count[self.meteor.gene_length_column]
-        self.gene_count[count_column] = self.gene_count[count_column].div(self.gene_count[count_column].sum())
+        self.gene_count[count_column] = self.gene_count[count_column] / self.gene_count[count_column].sum()
+
+        # Remove the counts for the gene "-1" (unmapped_reads)
+        self.gene_count = self.gene_count[self.gene_count[self.meteor.gene_column] != -1]
 
     def compute_msp(self, msp_dict: dict[str, set[str]], filter_pc: float) -> None:
         count_column = self.meteor.value_column
@@ -214,7 +223,8 @@ class Profiler(Session):
         # Restrict to gene table to core genes
         all_core_genes = {item for sublist in msp_dict.values() for item in sublist}
         gene_count_core = self.gene_count.loc[self.gene_count[self.meteor.gene_column].isin(all_core_genes)]
-        msp_filter = {msp:(gene_count_core.loc[gene_count_core[self.meteor.gene_column].isin(set_genes), count_column] > 0).sum() /
+        msp_filter = {msp:(gene_count_core.loc[gene_count_core[self.meteor.gene_column].isin(set_genes),
+                                               count_column] > 0).sum() /
                       len(set_genes)
                       for (msp, set_genes)
                       in msp_dict.items()}
@@ -225,7 +235,8 @@ class Profiler(Session):
                  for (msp, set_genes) in msp_dict.items()}
         self.msp_table = pd.DataFrame.from_dict(msp_table_dict,
                                                 orient = "index",
-                                                columns = [self.meteor.value_column]).reset_index().rename(columns={"index": self.meteor.msp_column})
+                                                columns = [self.meteor.value_column]).reset_index().rename(columns={
+                                                    "index": self.meteor.msp_column})
 
     def get_msp_core(self, msp_def_filename: Path, core_size: int) -> dict:
         # Load msp file
@@ -233,11 +244,14 @@ class Profiler(Session):
         # Restrict to core
         msp_df_selection = msp_df.loc[msp_df[self.meteor.gene_class_column] == "core"]
         # Return the df as a dict of set
-        msp_dict = msp_df_selection.groupby(self.meteor.msp_column)[self.meteor.gene_column].apply(lambda x: set(x.head(core_size))).to_dict()
+        msp_dict = msp_df_selection.groupby(self.meteor.msp_column)[self.meteor.gene_column].apply(
+            lambda x: set(x.head(core_size))).to_dict()
         return msp_dict
 
     def compute_msp_stats(self, msp_def_filename: Path) -> float:
-        """
+        """Compute percentage of reads that map on genes from MSP.
+
+        :param msp_def_filename: A path object pointing to an MSP definition file.
         """
         count_column = self.meteor.value_column
         # Load msp file
@@ -245,24 +259,31 @@ class Profiler(Session):
         # Get the ensemble of genes used in MSP
         all_msp_genes = msp_df[self.meteor.gene_column].unique()
         # Get the percentage of reads that map on an MSP
-        msp_reads_pc = (self.gene_count.loc[self.gene_count[self.meteor.gene_column].isin(all_msp_genes), count_column].sum() /
+        msp_reads_pc = (self.gene_count.loc[self.gene_count[self.meteor.gene_column].isin(all_msp_genes),
+                                            count_column].sum() /
                         self.gene_count[count_column].sum())
         return round(msp_reads_pc, 2)
 
     def compute_ko_abundance(self, annot_file: Path) -> None:
-        """
+        """Compute abundance of enzyme as sum of genes assigned to this enzyme.
+
+        :param annot_file: a path object pointing to the annotation gene_name -> enzyme file.
         """
         count_column = self.meteor.value_column
         # Load annotation file
         annot_df = pd.read_table(annot_file)
         # Merge count table and gene annotation
-        merged_df = pd.merge(annot_df, self.gene_count, left_on=self.meteor.gene_column, right_on=self.meteor.gene_column)
+        merged_df = pd.merge(annot_df, self.gene_count, left_on=self.meteor.gene_column,
+                             right_on=self.meteor.gene_column)
         # Compute sum of KO
         aggregated_count = merged_df.groupby(self.meteor.ko_column)[count_column].sum().reset_index()
         self.functions = aggregated_count
 
     def compute_ko_abundance_by_msp(self, annot_file: Path, msp_def_filename: Path) -> None:
-        """
+        """Compute abundance of enzyme as the sum of MSP carrying the enzyme.
+
+        :param annot_file: a path object pointing to the annotation gene_name -> enzyme file.
+        :param msp_def_filename: A path object pointing to an MSP definition file.
         """
         # Load annotation file
         annot_df = pd.read_table(annot_file)
@@ -273,10 +294,13 @@ class Profiler(Session):
         # Create a dict ko: {msp1, msp2}
         ko_dict = msp_df_annotated.groupby(self.meteor.ko_column)[self.meteor.msp_column].apply(set).to_dict()
         # Compute abundance based on MSP abundance
-        ko_dict_ab = {ko: self.msp_table.loc[self.msp_table[self.meteor.msp_column].isin(msp_set), self.meteor.value_column].sum()
+        ko_dict_ab = {ko: self.msp_table.loc[self.msp_table[self.meteor.msp_column].isin(msp_set),
+                                             self.meteor.value_column].sum()
                       for (ko, msp_set)
                       in ko_dict.items()}
-        self.functions = pd.DataFrame.from_dict(ko_dict_ab, orient = "index", columns = [self.meteor.value_column]).reset_index().rename(columns={"index": self.meteor.ko_column})
+        self.functions = pd.DataFrame.from_dict(ko_dict_ab, orient = "index",
+                                                columns = [self.meteor.value_column]).reset_index().rename(
+            columns={"index": self.meteor.ko_column})
 
     def compute_ko_stats(self, annot_file: Path, by_msp: bool, msp_def_filename: Path) -> float:
         count_column = self.meteor.value_column
@@ -290,7 +314,8 @@ class Profiler(Session):
         # Get the genes in MSP AND annotated
         all_msp_genes = annot_df[self.meteor.gene_column].unique()
         # Get the percentage of reads that map on these genes
-        annot_reads_pc = (self.gene_count.loc[self.gene_count[self.meteor.gene_column].isin(all_msp_genes), count_column].sum() /
+        annot_reads_pc = (self.gene_count.loc[self.gene_count[self.meteor.gene_column].isin(all_msp_genes),
+                                              count_column].sum() /
                           self.gene_count[count_column].sum())
         return round(annot_reads_pc, 2)
 
@@ -302,7 +327,8 @@ class Profiler(Session):
         detected_genes = self.gene_count.loc[self.gene_count[count_column] > 0, self.meteor.gene_column]
         msp_df = msp_df.loc[msp_df[self.meteor.gene_column].isin(detected_genes)]
         # Restrict df to detected msp
-        msp_df = msp_df.loc[msp_df[self.meteor.msp_column].isin(self.msp_table.loc[self.msp_table[self.meteor.value_column] > 0, self.meteor.msp_column])]
+        msp_df = msp_df.loc[msp_df[self.meteor.msp_column].isin(
+            self.msp_table.loc[self.msp_table[self.meteor.value_column] > 0, self.meteor.msp_column])]
         # Merge each provided db
         annot_df = pd.concat([pd.read_table(db)[[self.meteor.gene_column, self.meteor.ko_column]]
                               for db
@@ -314,7 +340,8 @@ class Profiler(Session):
 
     def compute_completeness(self, mod: list[set[str]], annotated_msp: pd.DataFrame) -> dict[str, float]:
         "Compute completeness of a given module in all available MSP."
-        return annotated_msp.groupby(self.meteor.msp_column)[self.meteor.ko_column].apply(lambda x: self.compute_max(mod, set(x))).to_dict()
+        return annotated_msp.groupby(self.meteor.msp_column)[self.meteor.ko_column].apply(
+            lambda x: self.compute_max(mod, set(x))).to_dict()
 
     def compute_max(self, mod: list[set[str]], ko: set) -> float:
         "Compute maximum completeness of a module across all its alternative according to a set of KO."
@@ -340,11 +367,13 @@ class Profiler(Session):
                     for (mod, msp_dict)
                     in cpltd_dict.items()}
         # Compute module abundance
-        module_abundance = {mod: self.msp_table.loc[self.msp_table[self.meteor.msp_column].isin(msp_set), self.meteor.value_column].sum()
+        module_abundance = {mod: self.msp_table.loc[self.msp_table[self.meteor.msp_column].isin(msp_set),
+                                                    count_column].sum()
                             for (mod, msp_set)
                             in mod_dict.items()}
         self.mod_table = pd.DataFrame.from_dict(module_abundance, orient = "index",
-                                                columns = [self.meteor.value_column]).reset_index().rename(columns={"index": self.meteor.module_column})
+                                                columns = [self.meteor.value_column]).reset_index().rename(
+            columns={"index": self.meteor.module_column})
 
 
     def execute(self) -> bool:
@@ -371,7 +400,7 @@ class Profiler(Session):
         self.gene_count.to_csv(self.output_filenames["gene_table_norm"], sep = "\t", index = False)
         # Update config file
         config_norm = {}
-        config_norm["normalization"] = self.normalization
+        config_norm["normalization"] = str(self.normalization)
         config_norm["rarefaction_level"] = str(self.rarefaction_level)
         config_norm["seed"] = str(self.seed)
         self.sample_config = self.update_ini(self.sample_config, "profiling_parameters", config_norm)
@@ -399,14 +428,16 @@ class Profiler(Session):
             config_param_msp["msp_filter"] = str(self.msp_filter)
             config_param_msp["msp_def"] = self.msp_filename.name
             config_stats_msp = {}
-            config_stats_msp["msp_count"] = str(len(self.msp_table.loc[self.msp_table[self.meteor.value_column] > 0, self.meteor.msp_column]))
+            config_stats_msp["msp_count"] = str(len(self.msp_table.loc[self.msp_table[self.meteor.value_column] > 0,
+                                                                       self.meteor.msp_column]))
             config_stats_msp["msp_signal"] = str(msp_stats)
             self.sample_config = self.update_ini(self.sample_config, "profiling_parameters", config_param_msp)
             self.sample_config = self.update_ini(self.sample_config, "profiling_stats", config_stats_msp)
             self.save_config(self.sample_config, Path(self.output_filenames["msp_table"]).with_suffix(".ini"))
 
         # Part 3: FUNCTIONAL PROFILING
-        if self.compute_functions_bool:
+        if self.ref_config["reference_info"]["database_type"] == "complete":
+        #if self.compute_functions_bool:
             # Get functions to use
             for (db, annot_file) in self.annot_db_dict.items():
                 logging.info("Compute %s abundances.", db)
@@ -434,7 +465,8 @@ class Profiler(Session):
                                  Path(self.output_filenames["functions_table"][db]).with_suffix(".ini"))
 
         # Part 4 Module computation
-        if self.compute_modules_bool:
+        if self.ref_config["reference_info"]["database_type"] == "complete":
+        #if self.compute_modules_bool:
             logging.info("Compute module abundances using the file %s", self.module_path.name)
             logging.info("Parse module definition file.")
             module_dict = Parser(self.module_path)
