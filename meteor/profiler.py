@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Type
 import pandas as pd
 from pathlib import Path
+from pkg_resources import resource_filename
 import numpy as np
 import logging
 import os
@@ -138,7 +139,7 @@ class Profiler(Session):
                                   for db
                                   in self.annot_db_list}
         modules_table_output = self.meteor.mapping_dir / f"{self.sample_name}_{self.suffix_file}_modules.tsv"
-        # TODO What is this ?
+        # TODO What is this ? TO REMOVE
         self.output_filenames = {}
         self.output_filenames["gene_table_norm"] = gene_table_output
         self.output_filenames["msp_table"] = msp_table_output
@@ -147,10 +148,8 @@ class Profiler(Session):
 
         # Initialize the module definition file
         if self.compute_modules_bool:
-            if self.module_path is None:
-                # TODO correction os.path.join
-                self.module_path = Path(__file__).parent / "all_modules_definition_GMM_GBM_KEGG_107.tsv"
             try:
+                self.module_path = Path(resource_filename("meteor", "data/all_modules_definition_GMM_GBM_KEGG_107.tsv"))
                 assert self.module_path.is_file()
             except AssertionError:
                 logging.error("The file %s does not exist.", self.module_path)

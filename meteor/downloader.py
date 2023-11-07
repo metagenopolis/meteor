@@ -13,6 +13,7 @@
 """Download and index reference"""
 
 import logging
+from pkg_resources import resource_filename
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
 from configparser import ConfigParser
@@ -36,7 +37,7 @@ class Downloader(Session):
 
     def __post_init__(self) -> None:
         try:
-            self.configuration_path = Path(__file__).parent / "dataverse_inrae.ini"
+            self.configuration_path = Path(resource_filename("meteor", "data/dataverse_inrae.ini"))
             assert self.configuration_path.exists()
         except AssertionError:
             logging.error("The file dataverse_inrae.ini is missing in meteor source")

@@ -34,6 +34,7 @@ class Component:
     sequence: tuple = ("_R", ".R", "_", ".", "")
     extension: tuple = (".fq", ".fastq")
     compression: tuple = (".gz", ".bz2", ".xz", "")
+    # TODO REMOVE this
     gene_column: str = "gene_id"
     msp_column: str = "msp_name"
     ko_column: str = "annotation"
