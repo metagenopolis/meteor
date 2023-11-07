@@ -204,17 +204,12 @@ def get_arguments() -> Namespace:  # pragma: no cover
     #                             help="Execute original meteor")
     # Define profiler argument parsing
     profiling_parser = subparsers.add_parser("profile", help="Compute species and functional abundance tables")
-    #profiling_parser.add_argument("-i", dest="input_profile", type=isfile, required=True,
-    #                              help="Path to the count table.")
     profiling_parser.add_argument("-i", dest="mapped_sample_dir", required=True, type=isdir,
                                   help="Path to the mapped sample directory.")
     profiling_parser.add_argument("-o", dest="output_dir", type=isdir, required=True,
                                   help="Path to the profile output directory.")
     profiling_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
                                 help="Path to reference directory (containing *_reference.ini)")
-    #profiling_parser.add_argument("-p", dest="input_ini", type=isfile,
-    #                              help="""Ini file associated with the count table.
-    #                                      If omitted, use the path to the count table with ini extension.""")
     profiling_parser.add_argument("-s", dest="profile_suffix", default="", type=str,
                                   help="Suffix used to generate filenames.")
     profiling_parser.add_argument("-l", dest="rarefaction_level", type=int, default=-1,
@@ -224,23 +219,20 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                   help="Seed for reads randomly selection during rarefaction (Default 1234).")
     profiling_parser.add_argument("-n", dest="normalization", type=str, choices=["coverage", "fpkm"],
                                   help="Normalization applied to gene abundance.")
-    profiling_parser.add_argument("--no_msp", dest="compute_msp", action="store_false",
-                                  help="Should MSP computation be omitted?")
     profiling_parser.add_argument("--core_size", dest="core_size", type=int, default=100,
                                   help="Number of core genes to be used for MSP computation (Default 100).")
     profiling_parser.add_argument("--msp_filter", dest="msp_filter", type=isborned01, default=0.1,
                                   help="Ratio of MSP core genes detected in a sample, under which "
                                         "the MSP abundance is set to 0. Default to 0.1")
-    profiling_parser.add_argument("--no_functional", dest="compute_functions", action="store_false",
-                                  help="Should the functional computation be omitted?")
     # TODO What is this ?
-    profiling_parser.add_argument("--annot_db", type=str, default="mustard,kegg",
-                                  help="""Comma separated functional annotation database.
-                                          Default to mustard,kegg.""")
-    profiling_parser.add_argument("--by_msp", dest="by_msp", action="store_true",
-                                  help="""Should functional potential be computed across MSP?""")
-    profiling_parser.add_argument("--no_module", dest="compute_modules", action="store_false",
-                                  help="Should the functional modules computation be omitted?")
+    profiling_parser.add_argument("--single_fun_db", choices=["mustard","kegg"],
+                                  default=["mustard"], nargs="+",
+                                  help="""List of databases for single functions profiling.
+                                          Default to mustard.""")
+    profiling_parser.add_argument("--single_fun_by_msp_db", choices=["mustard","kegg"],
+                                  nargs="+",
+                                  help="""List of databases for single functions profiling via MSP.
+                                          Default to none.""")
     # TODO module are provided by each database
     # This is not necessary
     profiling_parser.add_argument("--module", dest="module_path", type=isfile,
@@ -248,7 +240,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
                                           Default to provided module definition file.""")
     # TODO module are provided by each database
     # This is not necessary
-    profiling_parser.add_argument("--module_db", type=str, default="kegg",
+    profiling_parser.add_argument("--module_db", choices=["kegg", "mustard"],
+                                  default=["kegg"], nargs="+",
                                   help="""Comma separated functional annotation database,
                                           as specified in the *_reference_ini file.
                                           Default to kegg.""")
@@ -344,9 +337,9 @@ def main() -> None:  # pragma: no cover
         meteor.ref_dir = args.ref_dir
         profiler = Profiler(meteor, args.profile_suffix,
                             args.rarefaction_level, args.seed, args.normalization,
-                            args.compute_msp, args.core_size, args.msp_filter,
-                            args.compute_functions, args.annot_db, args.by_msp,
-                            args.compute_modules, args.module_path, args.module_db, args.completeness)
+                            args.core_size, args.msp_filter,
+                            args.single_fun_db, args.single_fun_by_msp_db,
+                            args.module_path, args.module_db, args.completeness)
         profiler.execute()
     # Run merging
     elif args.command == "merge":
