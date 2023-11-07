@@ -649,6 +649,17 @@ files = [
 ]
 
 [[package]]
+name = "types-setuptools"
+version = "68.2.0.0"
+description = "Typing stubs for setuptools"
+optional = false
+python-versions = "*"
+files = [
+    {file = "types-setuptools-68.2.0.0.tar.gz", hash = "sha256:a4216f1e2ef29d089877b3af3ab2acf489eb869ccaf905125c69d2dc3932fd85"},
+    {file = "types_setuptools-68.2.0.0-py3-none-any.whl", hash = "sha256:77edcc843e53f8fc83bb1a840684841f3dc804ec94562623bfa2ea70d5a2ba1b"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.8.0"
 description = "Backported and Experimental Type Hints for Python 3.8+"
@@ -673,4 +684,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "9cca5f47503e5b08491126ec71f44633c034fb4647169b8ee31ddbf469f1046f"
+content-hash = "4d88c99e4dc3d71a8de502e89bd95123df517d40713280f1597fd4b31e05be12"
