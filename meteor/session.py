@@ -25,6 +25,8 @@ class Component:
     threads: int | None
     fastq_dir: Path = field(default_factory=Path)
     mapping_dir: Path = field(default_factory=Path)
+    mapped_sample_dir: Path = field(default_factory=Path)
+    strain_dir: Path = field(default_factory=Path)
     ref_dir: Path = field(default_factory=Path)
     ref_name: str = field(default_factory=str)
     # Path given by the user

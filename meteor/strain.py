@@ -28,6 +28,7 @@ class Strain(Session):
     """Counter session map and count
     """
     meteor: Type[Component]
+    depth: int
     ini_data: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -67,7 +68,7 @@ class Strain(Session):
                 # Get the bam
                 # Get the variant calling
                 # Variant calling this library on the reference
-                variant_calling_process = VariantCalling(self.meteor, self.ini_data)
+                variant_calling_process = VariantCalling(self.meteor, self.ini_data, self.depth)
                 vcf_file = self.ini_data["directory"] / f"{sample_info['sample_name']}.vcf.gz"
                 # fasta_file = self.get_strain(bcf_file)
             if not variant_calling_process.execute():
@@ -76,3 +77,4 @@ class Strain(Session):
         except AssertionError:
             logging.error("Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir)
             sys.exit()
+        return True

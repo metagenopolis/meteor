@@ -322,8 +322,7 @@ def main() -> None:  # pragma: no cover
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
         meteor.strain_dir = args.output_dir
-        meteor.depth = args.depth
-        strain_id = Strain(meteor)
+        strain_id = Strain(meteor, args.depth)
         strain_id.execute()
     # Run download catalogues
     elif args.command == "download":

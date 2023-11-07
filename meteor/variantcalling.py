@@ -29,8 +29,9 @@ class VariantCalling(Session):
     """Run bcftools"""
     meteor: Type[Component]
     census: dict
+    depth: int
 
-    def set_mapping_config(self, cmd: str, sam_file: Path) -> ConfigParser:  # pragma: no cover
+    def set_variantcalling_config(self, cmd: str, sam_file: Path) -> ConfigParser:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
@@ -41,20 +42,10 @@ class VariantCalling(Session):
         config["sample_info"] = self.census["census"]["sample_info"]
         config["sample_file"] = self.census["census"]["sample_file"]
         config["mapping"] = {
-            "mapping_tool": "bowtie2",
-            "mapping_tool_version": "NA",
+            "variant_calling_tool": "bcftools",
+            "variant_calling_version": "NA",
             "mapping_date":  datetime.now().strftime("%Y-%m-%d"),
             "reference_name": self.census["reference"]["reference_info"]["reference_name"],
-            "mapping_cmdline": cmd,
-            "parameters": "l-1-m5",
-            "mapped_read_length": "-1",
-            "mapped_read_length_type": "overall",
-            "mismatches": "5",
-            "is_mismatches_percentage": "1",
-            "matches": "10000",
-            "is_local_mapping": str(int(self.mapping_type == "local")),
-            "mapping_software": "Meteor",
-            "mapping_software_version": "3.3",
             # "processed_read_count": self.census["census"]["sample_info"]["sequenced_read_count"]
         }
         config["mapping_file"] = {
@@ -77,7 +68,7 @@ class VariantCalling(Session):
         start = perf_counter()
         # "--skip-indels", ?
         with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_vcf_file:
-            check_call(["bcftools", "mpileup", "-d", str(self.meteor.depth), "-Ob", "-f", str(reference.resolve()),
+            check_call(["bcftools", "mpileup", "-d", str(self.depth), "-Ob", "-f", str(reference.resolve()),
                         str(bam_file.resolve()),  "--threads", str(self.meteor.threads),
                         "-o", temp_vcf_file.name])
             check_call(["bcftools", "call", "-v", "-c",  "--threads", str(self.meteor.threads), "-Oz", "-o",
@@ -86,6 +77,6 @@ class VariantCalling(Session):
         # gatk SplitNCigarReads -R ../../catalogue/mock/fasta/mock.fasta -I test_grp.bam -O test.bam
         # gatk --java-options "-Xmx8g" HaplotypeCaller -R ../../catalogue/mock/fasta/mock.fasta -I test.bam -O test.vcf.gz
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
-        # config = self.set_mapping_config(parameters, sam_file)
+        # config = self.set_variantcalling_config(parameters, sam_file)
         # self.save_config(config, self.census["Stage1FileName"])
         return True
