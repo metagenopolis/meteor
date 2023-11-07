@@ -26,6 +26,7 @@ import logging
 @dataclass
 class Mapper(Session):
     """Run the bowtie"""
+
     meteor: Type[Component]
     census: dict
     fastq_reindex: Path
@@ -46,8 +47,10 @@ class Mapper(Session):
         config["mapping"] = {
             "mapping_tool": "bowtie2",
             "mapping_tool_version": "NA",
-            "mapping_date":  datetime.now().strftime("%Y-%m-%d"),
-            "reference_name": self.census["reference"]["reference_info"]["reference_name"],
+            "mapping_date": datetime.now().strftime("%Y-%m-%d"),
+            "reference_name": self.census["reference"]["reference_info"][
+                "reference_name"
+            ],
             "mapping_cmdline": cmd,
             "parameters": "l-1-m5",
             "mapped_read_length": "-1",
@@ -58,19 +61,24 @@ class Mapper(Session):
             "is_local_mapping": str(int(self.mapping_type == "local")),
             "mapping_software": "Meteor",
             "mapping_software_version": "3.3",
-            "processed_read_count": self.census["census"]["sample_info"]["sequenced_read_count"]
+            "processed_read_count": self.census["census"]["sample_info"][
+                "sequenced_read_count"
+            ],
         }
         config["mapping_file"] = {
             "mapping_file_count": "1",
             "bowtie_file_1": sam_file.name,
-            "mapping_file_format": "sam"
+            "mapping_file_format": "sam",
         }
         return config
 
     def execute(self) -> bool:
-        bowtie_index = (self.meteor.ref_dir / self.census["reference"]["reference_info"]["reference_name"] /
-                        self.census["reference"]["reference_file"]["fasta_dir"] /
-                        self.census["reference"]["reference_info"]["reference_name"])
+        bowtie_index = (
+            self.meteor.ref_dir
+            / self.census["reference"]["reference_info"]["reference_name"]
+            / self.census["reference"]["reference_file"]["fasta_dir"]
+            / self.census["reference"]["reference_info"]["reference_name"]
+        )
         # bowtie2 parameters
         if self.mapping_type == "local":
             parameters = f"-p {self.meteor.threads} --local --sensitive-local "
@@ -80,11 +88,25 @@ class Mapper(Session):
             parameters += f"--trim-to {self.trim} "
         if self.alignment_number > 1:
             parameters += f"-k {self.alignment_number} "
-        sam_file = self.census["directory"] / f"{self.census['census']['sample_info']['full_sample_name']}_1.sam"
+        sam_file = (
+            self.census["directory"]
+            / f"{self.census['census']['sample_info']['full_sample_name']}_1.sam"
+        )
         # execute command
         start = perf_counter()
-        check_call(["bowtie2", parameters, "--mm --no-head --no-sq --no-unal --omit-sec-seq",
-                    "-x", bowtie_index, "-U", self.fastq_reindex, "-S", sam_file])
+        check_call(
+            [
+                "bowtie2",
+                parameters,
+                "--mm --no-head --no-sq --no-unal --omit-sec-seq",
+                "-x",
+                bowtie_index,
+                "-U",
+                self.fastq_reindex,
+                "-S",
+                sam_file,
+            ]
+        )
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
         config = self.set_mapping_config(parameters, sam_file)
         self.save_config(config, self.census["Stage1FileName"])

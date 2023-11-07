@@ -20,12 +20,14 @@ from datetime import datetime
 from typing import Type
 from packaging.version import Version, parse
 from meteor.session import Session, Component
+
 # from pysam import view, sort, index  # type: ignore[attr-defined]
 # from tempfile import NamedTemporaryFile
 # from memory_profiler import profile
 from time import perf_counter
 import logging
 import sys
+
 # import os
 # fp=open('memory_profiler.log','w+')
 
@@ -33,6 +35,7 @@ import sys
 @dataclass
 class Mapper2(Session):
     """Run the bowtie"""
+
     meteor: Type[Component]
     census: dict
     fastq_list: list[str]
@@ -41,7 +44,9 @@ class Mapper2(Session):
     alignment_number: int
     counting_type: str
 
-    def set_mapping_config(self, cmd: str, sam_file: Path, bowtie_version: str) -> ConfigParser:  # pragma: no cover
+    def set_mapping_config(
+        self, cmd: str, sam_file: Path, bowtie_version: str
+    ) -> ConfigParser:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
@@ -54,8 +59,10 @@ class Mapper2(Session):
         config["mapping"] = {
             "mapping_tool": "bowtie2",
             "mapping_tool_version": bowtie_version,
-            "mapping_date":  datetime.now().strftime("%Y-%m-%d"),
-            "reference_name": self.census["reference"]["reference_info"]["reference_name"],
+            "mapping_date": datetime.now().strftime("%Y-%m-%d"),
+            "reference_name": self.census["reference"]["reference_info"][
+                "reference_name"
+            ],
             "mapping_cmdline": cmd,
             "parameters": "l-1-m5",
             "mapped_read_length": "-1",
@@ -102,10 +109,15 @@ class Mapper2(Session):
         """Map reads"""
         # bam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.bam"
         # test
-        sam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.sam"
-        bowtie_index = (self.meteor.ref_dir /
-                        self.census["reference"]["reference_file"]["fasta_dir"] /
-                        self.census["reference"]["reference_info"]["reference_name"])
+        sam_file = (
+            self.census["directory"]
+            / f"{self.census['census']['sample_info']['sample_name']}.sam"
+        )
+        bowtie_index = (
+            self.meteor.ref_dir
+            / self.census["reference"]["reference_file"]["fasta_dir"]
+            / self.census["reference"]["reference_info"]["reference_name"]
+        )
         # bowtie2 parameters
         if self.mapping_type == "local":
             parameters = f"-p {self.meteor.threads} --local --sensitive-local "
@@ -117,15 +129,32 @@ class Mapper2(Session):
             # and self.counting_type != "best"
             parameters += f"-k {self.alignment_number} "
         # Check the bowtie2 version
-        bowtie_version = str(run(["bowtie2","--version"], capture_output=True).stdout).split(" ")[2].split("\\n")[0]
+        bowtie_version = (
+            str(run(["bowtie2", "--version"], capture_output=True).stdout)
+            .split(" ")[2]
+            .split("\\n")[0]
+        )
         if parse(bowtie_version) < Version("2.3.5"):
-            logging.error("Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.", bowtie_version)
+            logging.error(
+                "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.",
+                bowtie_version,
+            )
             sys.exit()
         # Start mapping
         start = perf_counter()
-        check_call(["bowtie2", parameters, "--mm --no-unal",
-                    "-x", str(bowtie_index.resolve()), "-U", ",".join(self.fastq_list),
-                    "-S", str(sam_file.resolve())])
+        check_call(
+            [
+                "bowtie2",
+                parameters,
+                "--mm --no-unal",
+                "-x",
+                str(bowtie_index.resolve()),
+                "-U",
+                ",".join(self.fastq_list),
+                "-S",
+                str(sam_file.resolve()),
+            ]
+        )
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
         # with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_sam_file:
         #     # execute command

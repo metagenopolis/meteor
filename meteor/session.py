@@ -19,9 +19,11 @@ from typing import Protocol
 import logging
 import sys
 
+
 @dataclass(kw_only=True)
 class Component:
     """Set of important constant for meteor"""
+
     threads: int | None
     fastq_dir: Path = field(default_factory=Path)
     mapping_dir: Path = field(default_factory=Path)
@@ -49,6 +51,7 @@ class Component:
 
 class Session(Protocol):
     """Class inheritating from Protocol that present shared function."""
+
     def check_file(self, filename: Path, expected_colnames: set[str]) -> bool:
         """Check that the expected colnames are in the file.
 
@@ -60,7 +63,11 @@ class Session(Protocol):
                 real_colnames = set(header.readline().strip("\n").split("\t"))
             assert len(expected_colnames - real_colnames) == 0
         except AssertionError:
-            logging.error("Missing columns in %s: %s", filename, ", ".join(expected_colnames - real_colnames))
+            logging.error(
+                "Missing columns in %s: %s",
+                filename,
+                ", ".join(expected_colnames - real_colnames),
+            )
             sys.exit()
         return True
 
@@ -91,18 +98,25 @@ class Session(Protocol):
             ref_ini_file = ref_ini_file_list[0]
             ref_ini = self.read_ini(ref_ini_file)
         except AssertionError:
-            logging.error("Error, no *_reference.ini file found in %s. "
-                          "One *_reference.ini is expected", ref_dir)
+            logging.error(
+                "Error, no *_reference.ini file found in %s. "
+                "One *_reference.ini is expected",
+                ref_dir,
+            )
             sys.exit()
         return ref_ini
 
-    def update_ini(self, config: ConfigParser, section: str, new_fields: dict[str, str]) -> ConfigParser:
+    def update_ini(
+        self, config: ConfigParser, section: str, new_fields: dict[str, str]
+    ) -> ConfigParser:
         new_config = ConfigParser()
         new_config.read_dict(config)
         if section in new_config.sections():
             for my_field, my_value in new_fields.items():
                 if my_field in new_config[section]:
-                    logging.error("The field %s is already present in the ini file.", my_field)
+                    logging.error(
+                        "The field %s is already present in the ini file.", my_field
+                    )
                     sys.exit()
                 else:
                     new_config[section][my_field] = my_value

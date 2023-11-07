@@ -92,6 +92,7 @@ def isdir(path: str) -> Path:  # pragma: no cover
         #     msg = f"{mydir.name} does not exist."
     return mydir
 
+
 def isborned01(x: str) -> float:
     """Check if a float is comprised between 0 and 1.
 
@@ -115,163 +116,409 @@ def get_arguments() -> Namespace:  # pragma: no cover
     Return : parser
     """
     parser = ArgumentParser(description=Color.BOLD + __doc__ + Color.END, prog="Meteor")
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    subparsers = parser.add_subparsers(title="positional arguments",
-                                       help="Select activity", dest="command",
-                                       required=True)
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
+    subparsers = parser.add_subparsers(
+        title="positional arguments",
+        help="Select activity",
+        dest="command",
+        required=True,
+    )
     # Mappping commands
     download_parser = subparsers.add_parser("download", help="Download catalog")
-    download_parser.add_argument("-i", dest="user_choice", type=str, required=True,
-                                 choices=["chicken_caecal", "human_oral", "human_gut", "mouse_gut",
-                                          "rabbit_gut", "rat_gut", "pig_gut"],
-                                 help="Select the catalogue to download.")
-    download_parser.add_argument("-c", dest="check_md5", action="store_true",
-                                 help="Check the md5sum of the catalogue.")
-    download_parser.add_argument("--fast", dest="taxonomy", action="store_true",
-                                 help="Select the short catalogue version for taxonomical analysis.")
-    download_parser.add_argument("-o", dest="ref_dir", type=isdir, required=True,
-                                 help="Output directory.")
+    download_parser.add_argument(
+        "-i",
+        dest="user_choice",
+        type=str,
+        required=True,
+        choices=[
+            "chicken_caecal",
+            "human_oral",
+            "human_gut",
+            "mouse_gut",
+            "rabbit_gut",
+            "rat_gut",
+            "pig_gut",
+        ],
+        help="Select the catalogue to download.",
+    )
+    download_parser.add_argument(
+        "-c",
+        dest="check_md5",
+        action="store_true",
+        help="Check the md5sum of the catalogue.",
+    )
+    download_parser.add_argument(
+        "--fast",
+        dest="taxonomy",
+        action="store_true",
+        help="Select the short catalogue version for taxonomical analysis.",
+    )
+    download_parser.add_argument(
+        "-o", dest="ref_dir", type=isdir, required=True, help="Output directory."
+    )
     reference_parser = subparsers.add_parser("build", help="Index reference")
-    reference_parser.add_argument("-i", dest="input_fasta_file", type=isfile,
-                                  required=True, help="Input fasta filename (compressed format accepted).")
-    reference_parser.add_argument("-o", dest="ref_dir", type=isdir, required=True,
-                                  help="Output path of the reference repository.")
-    reference_parser.add_argument("-n", dest="ref_name", metavar="REFERENCE_NAME",
-                                  type=str, required=True,
-                                  help="Name of the reference (ansi-string without space).")
-    reference_parser.add_argument("-t", dest="threads", default=1, type=int,
-                                  help="Threads count.")
+    reference_parser.add_argument(
+        "-i",
+        dest="input_fasta_file",
+        type=isfile,
+        required=True,
+        help="Input fasta filename (compressed format accepted).",
+    )
+    reference_parser.add_argument(
+        "-o",
+        dest="ref_dir",
+        type=isdir,
+        required=True,
+        help="Output path of the reference repository.",
+    )
+    reference_parser.add_argument(
+        "-n",
+        dest="ref_name",
+        metavar="REFERENCE_NAME",
+        type=str,
+        required=True,
+        help="Name of the reference (ansi-string without space).",
+    )
+    reference_parser.add_argument(
+        "-t", dest="threads", default=1, type=int, help="Threads count."
+    )
     # reference_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
     #                               help="Execute original meteor")
     fastq_parser = subparsers.add_parser("fastq", help="Import fastq files")
-    fastq_parser.add_argument("-i", dest="input_fastq_dir", type=isdir, required=True,
-                              help="""Path to a directory containing all input fastq files.
+    fastq_parser.add_argument(
+        "-i",
+        dest="input_fastq_dir",
+        type=isdir,
+        required=True,
+        help="""Path to a directory containing all input fastq files.
                                         FASTQ files must have the extension .fastq or .fq.
                                         For paired-ends files must be named :
                                             file_R1.[fastq/fq] & file_R2.[fastq/fq]
                                                             or
                                             file_1.[fastq/fq] & file_2.[fastq/fq].
-                                        If compressed, [gz,bz2,xz] are accepted.""")
-    fastq_parser.add_argument("-p", dest="ispaired", default=False, action="store_true",
-                              help="Fastq files are paired.")
-    fastq_parser.add_argument("-m", dest="mask_sample_name", type=str,
-                              help="Regular expression for extracting sample name.")
-    fastq_parser.add_argument("-n", dest="project_name", type=str, required=True,
-                              help="Project name (ansi-string without space).")
-    fastq_parser.add_argument("-o", dest="fastq_dir", type=isdir, required=True,
-                              help="Output path of the fastq repository.")
+                                        If compressed, [gz,bz2,xz] are accepted.""",
+    )
+    fastq_parser.add_argument(
+        "-p",
+        dest="ispaired",
+        default=False,
+        action="store_true",
+        help="Fastq files are paired.",
+    )
+    fastq_parser.add_argument(
+        "-m",
+        dest="mask_sample_name",
+        type=str,
+        help="Regular expression for extracting sample name.",
+    )
+    fastq_parser.add_argument(
+        "-n",
+        dest="project_name",
+        type=str,
+        required=True,
+        help="Project name (ansi-string without space).",
+    )
+    fastq_parser.add_argument(
+        "-o",
+        dest="fastq_dir",
+        type=isdir,
+        required=True,
+        help="Output path of the fastq repository.",
+    )
     # fastq_parser.add_argument("-c", dest="iscompressed", default=False,
     #     action="store_true", help = "Fastq files are compressed.")
     # fastq_parser.add_argument("-d", dest="isdispatched", default=False, action="store_true",
     #                           help="Fastq files are already dispatched in directories.")
-    mapping_parser = subparsers.add_parser("mapping", help="Map reads against a gene catalog")
-    mapping_parser.add_argument("-i", dest="fastq_dir", type=isdir, required=True,
-                                help="""Path to sample directory, containing the sample sequencing metadata
-                                        (files ending with _census_stage_0.ini)""")
-    mapping_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
-                                help="Path to reference directory (Path containing *_reference.ini)")
-    mapping_parser.add_argument("-o", dest="mapping_dir", type=isdir, required=True,
-                                help="""Path to project directory, containing mapping
-                                        and profile data (e.g. /projects/project_dir)""")
-    mapping_parser.add_argument("-c", dest="counting_type", type=str,
-                                default="smart_shared",
-                                # "shared_reads",
-                                choices=["total", "smart_shared", "unique"],
-                                help="Counting type string (default smart_shared_reads).")
-    mapping_parser.add_argument("-p", dest="mapping_type", type=str,
-                                choices=["local", "end-to-end"], default="end-to-end",
-                                help="Counting type (Default end-to-end)")
-    mapping_parser.add_argument("--trim", dest="trim", type=int, default=80,
-                                help="Trim reads for mapping (default 80. If 0, no trim)")
-    mapping_parser.add_argument("--id", dest="identity_threshold", type=float, default=0.95,
-                                help="Aligned reads should have an identity to reference > 0.95 (default)."
-                                "If 0, no filtering)")
-    mapping_parser.add_argument("--align", dest="alignment_number", type=int, default=10000,
-                                help="Number alignments considered for each read (default 10000)")
-    mapping_parser.add_argument("--ks", dest="keep_sam", action="store_true",
-                                help="Save the sam files.")
-    mapping_parser.add_argument("--kb", dest="keep_bam", action="store_true",
-                                help="Save the bam files. Required for strain analysis.")
-    mapping_parser.add_argument("--tmp", dest="tmp_path", type=isdir,
-                                help="Path to the directory where temporary files (e.g. sam) are stored")
-    mapping_parser.add_argument("-m", dest="mapping_only", action="store_true",
-                                help="Execute mapping only")
-    mapping_parser.add_argument("-n", dest="counting_only", action="store_true",
-                                help="Execute counting only")
-    mapping_parser.add_argument("-t", dest="threads", default=1, type=int,
-                                help="Threads count.")
+    mapping_parser = subparsers.add_parser(
+        "mapping", help="Map reads against a gene catalog"
+    )
+    mapping_parser.add_argument(
+        "-i",
+        dest="fastq_dir",
+        type=isdir,
+        required=True,
+        help="""Path to sample directory, containing the sample sequencing metadata
+                                        (files ending with _census_stage_0.ini)""",
+    )
+    mapping_parser.add_argument(
+        "-r",
+        dest="ref_dir",
+        type=isdir,
+        required=True,
+        help="Path to reference directory (Path containing *_reference.ini)",
+    )
+    mapping_parser.add_argument(
+        "-o",
+        dest="mapping_dir",
+        type=isdir,
+        required=True,
+        help="""Path to project directory, containing mapping
+                                        and profile data (e.g. /projects/project_dir)""",
+    )
+    mapping_parser.add_argument(
+        "-c",
+        dest="counting_type",
+        type=str,
+        default="smart_shared",
+        # "shared_reads",
+        choices=["total", "smart_shared", "unique"],
+        help="Counting type string (default smart_shared_reads).",
+    )
+    mapping_parser.add_argument(
+        "-p",
+        dest="mapping_type",
+        type=str,
+        choices=["local", "end-to-end"],
+        default="end-to-end",
+        help="Counting type (Default end-to-end)",
+    )
+    mapping_parser.add_argument(
+        "--trim",
+        dest="trim",
+        type=int,
+        default=80,
+        help="Trim reads for mapping (default 80. If 0, no trim)",
+    )
+    mapping_parser.add_argument(
+        "--id",
+        dest="identity_threshold",
+        type=float,
+        default=0.95,
+        help="Aligned reads should have an identity to reference > 0.95 (default)."
+        "If 0, no filtering)",
+    )
+    mapping_parser.add_argument(
+        "--align",
+        dest="alignment_number",
+        type=int,
+        default=10000,
+        help="Number alignments considered for each read (default 10000)",
+    )
+    mapping_parser.add_argument(
+        "--ks", dest="keep_sam", action="store_true", help="Save the sam files."
+    )
+    mapping_parser.add_argument(
+        "--kb",
+        dest="keep_bam",
+        action="store_true",
+        help="Save the bam files. Required for strain analysis.",
+    )
+    mapping_parser.add_argument(
+        "--tmp",
+        dest="tmp_path",
+        type=isdir,
+        help="Path to the directory where temporary files (e.g. sam) are stored",
+    )
+    mapping_parser.add_argument(
+        "-m", dest="mapping_only", action="store_true", help="Execute mapping only"
+    )
+    mapping_parser.add_argument(
+        "-n", dest="counting_only", action="store_true", help="Execute counting only"
+    )
+    mapping_parser.add_argument(
+        "-t", dest="threads", default=1, type=int, help="Threads count."
+    )
     # mapping_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
     #                             help="Execute original meteor")
     # Define profiler argument parsing
-    profiling_parser = subparsers.add_parser("profile", help="Compute species and functional abundance tables")
-    profiling_parser.add_argument("-i", dest="input_profile", type=isfile, required=True,
-                                  help="Path to the count table.")
-    profiling_parser.add_argument("-o", dest="output_dir", type=isdir, required=True,
-                                  help="Path to the profile output directory.")
-    profiling_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
-                                help="Path to reference directory (containing *_reference.ini)")
-    profiling_parser.add_argument("-p", dest="input_ini", type=isfile,
-                                  help="""Ini file associated with the count table.
-                                          If omitted, use the path to the count table with ini extension.""")
-    profiling_parser.add_argument("-s", dest="profile_suffix", default="", type=str,
-                                  help="Suffix used to generate filenames.")
-    profiling_parser.add_argument("-l", dest="rarefaction_level", type=int, default=-1,
-                                  help="""Rarefaction level. If negative: no rarefation is performed.
-                                          Default to -1""")
-    profiling_parser.add_argument("--seed", dest="seed", type=int, default=1234,
-                                  help="Seed for reads randomly selection during rarefaction (Default 1234).")
-    profiling_parser.add_argument("-n", dest="normalization", type=str, choices=["coverage", "fpkm"],
-                                  help="Normalization applied to gene abundance.")
-    profiling_parser.add_argument("--no_msp", dest="compute_msp", action="store_false",
-                                  help="Should MSP computation be omitted?")
-    profiling_parser.add_argument("--core_size", dest="core_size", type=int, default=100,
-                                  help="Number of core genes to be used for MSP computation (Default 100).")
-    profiling_parser.add_argument("--msp_filter", dest="msp_filter", type=isborned01, default=0.1,
-                                  help="Ratio of MSP core genes detected in a sample, under which "
-                                        "the MSP abundance is set to 0. Default to 0.1")
-    profiling_parser.add_argument("--no_functional", dest="compute_functions", action="store_false",
-                                  help="Should the functional computation be omitted?")
+    profiling_parser = subparsers.add_parser(
+        "profile", help="Compute species and functional abundance tables"
+    )
+    profiling_parser.add_argument(
+        "-i",
+        dest="input_profile",
+        type=isfile,
+        required=True,
+        help="Path to the count table.",
+    )
+    profiling_parser.add_argument(
+        "-o",
+        dest="output_dir",
+        type=isdir,
+        required=True,
+        help="Path to the profile output directory.",
+    )
+    profiling_parser.add_argument(
+        "-r",
+        dest="ref_dir",
+        type=isdir,
+        required=True,
+        help="Path to reference directory (containing *_reference.ini)",
+    )
+    profiling_parser.add_argument(
+        "-p",
+        dest="input_ini",
+        type=isfile,
+        help="""Ini file associated with the count table.
+                                          If omitted, use the path to the count table with ini extension.""",
+    )
+    profiling_parser.add_argument(
+        "-s",
+        dest="profile_suffix",
+        default="",
+        type=str,
+        help="Suffix used to generate filenames.",
+    )
+    profiling_parser.add_argument(
+        "-l",
+        dest="rarefaction_level",
+        type=int,
+        default=-1,
+        help="""Rarefaction level. If negative: no rarefation is performed.
+                                          Default to -1""",
+    )
+    profiling_parser.add_argument(
+        "--seed",
+        dest="seed",
+        type=int,
+        default=1234,
+        help="Seed for reads randomly selection during rarefaction (Default 1234).",
+    )
+    profiling_parser.add_argument(
+        "-n",
+        dest="normalization",
+        type=str,
+        choices=["coverage", "fpkm"],
+        help="Normalization applied to gene abundance.",
+    )
+    profiling_parser.add_argument(
+        "--no_msp",
+        dest="compute_msp",
+        action="store_false",
+        help="Should MSP computation be omitted?",
+    )
+    profiling_parser.add_argument(
+        "--core_size",
+        dest="core_size",
+        type=int,
+        default=100,
+        help="Number of core genes to be used for MSP computation (Default 100).",
+    )
+    profiling_parser.add_argument(
+        "--msp_filter",
+        dest="msp_filter",
+        type=isborned01,
+        default=0.1,
+        help="Ratio of MSP core genes detected in a sample, under which "
+        "the MSP abundance is set to 0. Default to 0.1",
+    )
+    profiling_parser.add_argument(
+        "--no_functional",
+        dest="compute_functions",
+        action="store_false",
+        help="Should the functional computation be omitted?",
+    )
     # TODO What is this ?
-    profiling_parser.add_argument("--annot_db", type=str, default="mustard,kegg",
-                                  help="""Comma separated functional annotation database.
-                                          Default to mustard,kegg.""")
-    profiling_parser.add_argument("--by_msp", dest="by_msp", action="store_true",
-                                  help="""Should functional potential be computed across MSP?""")
-    profiling_parser.add_argument("--no_module", dest="compute_modules", action="store_false",
-                                  help="Should the functional modules computation be omitted?")
+    profiling_parser.add_argument(
+        "--annot_db",
+        type=str,
+        default="mustard,kegg",
+        help="""Comma separated functional annotation database.
+                                          Default to mustard,kegg.""",
+    )
+    profiling_parser.add_argument(
+        "--by_msp",
+        dest="by_msp",
+        action="store_true",
+        help="""Should functional potential be computed across MSP?""",
+    )
+    profiling_parser.add_argument(
+        "--no_module",
+        dest="compute_modules",
+        action="store_false",
+        help="Should the functional modules computation be omitted?",
+    )
     # TODO module are provided by each database
     # This is not necessary
-    profiling_parser.add_argument("--module", dest="module_path", type=isfile,
-                                  help="""Path to personalized module definition file.
-                                          Default to provided module definition file.""")
+    profiling_parser.add_argument(
+        "--module",
+        dest="module_path",
+        type=isfile,
+        help="""Path to personalized module definition file.
+                                          Default to provided module definition file.""",
+    )
     # TODO module are provided by each database
     # This is not necessary
-    profiling_parser.add_argument("--module_db", type=str, default="kegg",
-                                  help="""Comma separated functional annotation database,
+    profiling_parser.add_argument(
+        "--module_db",
+        type=str,
+        default="kegg",
+        help="""Comma separated functional annotation database,
                                           as specified in the *_reference_ini file.
-                                          Default to kegg.""")
-    profiling_parser.add_argument("--completeness", type=isborned01, default=0.9,
-                                  help="""Threshold above which a module is considered as present
-                                          in an MSP. Comprised in [0,1] (Default 0.9).""")
+                                          Default to kegg.""",
+    )
+    profiling_parser.add_argument(
+        "--completeness",
+        type=isborned01,
+        default=0.9,
+        help="""Threshold above which a module is considered as present
+                                          in an MSP. Comprised in [0,1] (Default 0.9).""",
+    )
     # Define merging argument parsing
-    merging_parser = subparsers.add_parser("merge", help="Merge the individual sample count table")
-    merging_parser.add_argument("-i", dest="input_dir", required=True, type=isdir,
-                                help="Directory containing files that should be merged.")
-    merging_parser.add_argument("-o", dest="output", required=True,
-                                help="Path to the output file.")
-    merging_parser.add_argument("-p", dest="pattern", required=True,
-                                help="Pattern to select files that should be merged (e.g, _suffix_norm.tsv)")
+    merging_parser = subparsers.add_parser(
+        "merge", help="Merge the individual sample count table"
+    )
+    merging_parser.add_argument(
+        "-i",
+        dest="input_dir",
+        required=True,
+        type=isdir,
+        help="Directory containing files that should be merged.",
+    )
+    merging_parser.add_argument(
+        "-o", dest="output", required=True, help="Path to the output file."
+    )
+    merging_parser.add_argument(
+        "-p",
+        dest="pattern",
+        required=True,
+        help="Pattern to select files that should be merged (e.g, _suffix_norm.tsv)",
+    )
     # TODO to remove
-    merging_parser.add_argument("--no_check", dest="check_param", action="store_false",
-                                help="Should the ini files be checked for parameters matching?")
-    strain_parser = subparsers.add_parser("strain", help="Identifies strain from metagenomic samples")
-    strain_parser.add_argument("-i", dest="mapped_sample_dir", required=True, type=isdir, help="Bam file ?")
-    strain_parser.add_argument("-r", dest="ref_dir", type=isdir, required=True,
-                               help="Path to reference directory (Path containing *_reference.ini)")
-    strain_parser.add_argument("-d", dest="depth", default=10000, type=int, help="Maximum depth taken in account (default 10000).")
-    strain_parser.add_argument("-t", dest="threads", default=1, type=int, help="Threads count.")
-    strain_parser.add_argument("-o", dest="output_dir", type=isdir, required=True, help="Path to the output file.")
-    strain_parser.add_argument("--tmp", dest="tmp_path", type=isdir, help="Path to the directory where temporary files (e.g. sam) are stored")
+    merging_parser.add_argument(
+        "--no_check",
+        dest="check_param",
+        action="store_false",
+        help="Should the ini files be checked for parameters matching?",
+    )
+    strain_parser = subparsers.add_parser(
+        "strain", help="Identifies strain from metagenomic samples"
+    )
+    strain_parser.add_argument(
+        "-i", dest="mapped_sample_dir", required=True, type=isdir, help="Bam file ?"
+    )
+    strain_parser.add_argument(
+        "-r",
+        dest="ref_dir",
+        type=isdir,
+        required=True,
+        help="Path to reference directory (Path containing *_reference.ini)",
+    )
+    strain_parser.add_argument(
+        "-d",
+        dest="depth",
+        default=10000,
+        type=int,
+        help="Maximum depth taken in account (default 10000).",
+    )
+    strain_parser.add_argument(
+        "-t", dest="threads", default=1, type=int, help="Threads count."
+    )
+    strain_parser.add_argument(
+        "-o",
+        dest="output_dir",
+        type=isdir,
+        required=True,
+        help="Path to the output file.",
+    )
+    strain_parser.add_argument(
+        "--tmp",
+        dest="tmp_path",
+        type=isdir,
+        help="Path to the directory where temporary files (e.g. sam) are stored",
+    )
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
@@ -290,10 +537,13 @@ def main() -> None:  # pragma: no cover
     if args.command == "fastq":
         meteor.fastq_dir = args.fastq_dir
         # args.isdispatched,
-        fastq_importer = FastqImporter(meteor, args.input_fastq_dir,
-                                       args.ispaired,
-                                       args.mask_sample_name,
-                                       args.project_name)
+        fastq_importer = FastqImporter(
+            meteor,
+            args.input_fastq_dir,
+            args.ispaired,
+            args.mask_sample_name,
+            args.project_name,
+        )
         fastq_importer.execute()
     # Import reference
     elif args.command == "build":
@@ -301,7 +551,9 @@ def main() -> None:  # pragma: no cover
         meteor.ref_dir = args.ref_dir
         meteor.threads = args.threads
         # pysam_test=args.pysam_test
-        reference_builder = ReferenceBuilder(meteor=meteor, input_fasta=args.input_fasta_file)
+        reference_builder = ReferenceBuilder(
+            meteor=meteor, input_fasta=args.input_fasta_file
+        )
         reference_builder.execute()
     # Run mapping
     elif args.command == "mapping":
@@ -311,9 +563,18 @@ def main() -> None:  # pragma: no cover
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
         # args.pysam_test
-        counter = Counter(meteor, args.counting_type, args.mapping_type,
-                          args.trim, args. identity_threshold, args.alignment_number,
-                          args.counting_only, args.mapping_only, args.keep_sam, args.keep_bam)
+        counter = Counter(
+            meteor,
+            args.counting_type,
+            args.mapping_type,
+            args.trim,
+            args.identity_threshold,
+            args.alignment_number,
+            args.counting_only,
+            args.mapping_only,
+            args.keep_sam,
+            args.keep_bam,
+        )
         counter.execute()
     # Run strain
     elif args.command == "strain":
@@ -336,11 +597,25 @@ def main() -> None:  # pragma: no cover
     elif args.command == "profile":
         meteor.mapping_dir = args.output_dir
         meteor.ref_dir = args.ref_dir
-        profiler = Profiler(meteor, args.input_profile, args.input_ini, args.profile_suffix,
-                            args.rarefaction_level, args.seed, args.normalization,
-                            args.compute_msp, args.core_size, args.msp_filter,
-                            args.compute_functions, args.annot_db, args.by_msp,
-                            args.compute_modules, args.module_path, args.module_db, args.completeness)
+        profiler = Profiler(
+            meteor,
+            args.input_profile,
+            args.input_ini,
+            args.profile_suffix,
+            args.rarefaction_level,
+            args.seed,
+            args.normalization,
+            args.compute_msp,
+            args.core_size,
+            args.msp_filter,
+            args.compute_functions,
+            args.annot_db,
+            args.by_msp,
+            args.compute_modules,
+            args.module_path,
+            args.module_db,
+            args.completeness,
+        )
         profiler.execute()
     # Run merging
     elif args.command == "merge":
@@ -359,11 +634,15 @@ def main() -> None:  # pragma: no cover
             meteor.fastq_dir = Path(tmpdirname)
             downloader = Downloader(meteor, "test", True)
             downloader.execute()
-            fastq_importer = FastqImporter(meteor, meteor.tmp_dir, False, None, "test_project")
+            fastq_importer = FastqImporter(
+                meteor, meteor.tmp_dir, False, None, "test_project"
+            )
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
             meteor.ref_dir = meteor.ref_dir / "mock"
-            counter = Counter(meteor, "smart_shared", "end-to-end", 80, 1, False, False, False, True)
+            counter = Counter(
+                meteor, "smart_shared", "end-to-end", 80, 1, False, False, False, True
+            )
             counter.execute()
     # Close logging
     logger.handlers[0].close()

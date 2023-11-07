@@ -46,8 +46,16 @@ def counter_unique(datadir: Path, tmp_path: Path) -> Counter:
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.mapping_dir = tmp_path
-    return Counter(meteor, counting_type="unique", mapping_type="end-to-end", trim=80,
-                   identity_threshold=0.95, alignment_number=10000, counting_only=False, mapping_only=False)
+    return Counter(
+        meteor,
+        counting_type="unique",
+        mapping_type="end-to-end",
+        trim=80,
+        identity_threshold=0.95,
+        alignment_number=10000,
+        counting_only=False,
+        mapping_only=False,
+    )
 
 
 @pytest.fixture
@@ -59,8 +67,16 @@ def counter_smart_shared(datadir: Path, tmp_path: Path) -> Counter:
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.mapping_dir = tmp_path
-    return Counter(meteor, counting_type="smart_shared", mapping_type="end-to-end", trim=80,
-                   identity_threshold=0.95, alignment_number=10000, counting_only=False, mapping_only=False)
+    return Counter(
+        meteor,
+        counting_type="smart_shared",
+        mapping_type="end-to-end",
+        trim=80,
+        identity_threshold=0.95,
+        alignment_number=10000,
+        counting_only=False,
+        mapping_only=False,
+    )
 
 
 @pytest.fixture
@@ -72,8 +88,16 @@ def counter_total(datadir: Path, tmp_path: Path) -> Counter:
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.mapping_dir = tmp_path
-    return Counter(meteor, counting_type="total", mapping_type="end-to-end", trim=80,
-                   identity_threshold=0.95, alignment_number=10000, counting_only=False, mapping_only=False)
+    return Counter(
+        meteor,
+        counting_type="total",
+        mapping_type="end-to-end",
+        trim=80,
+        identity_threshold=0.95,
+        alignment_number=10000,
+        counting_only=False,
+        mapping_only=False,
+    )
 
 
 def test_launch_mapping2(counter_total: Counter):
@@ -91,8 +115,9 @@ def test_launch_mapping2(counter_total: Counter):
     counter_total.ini_data[census_ini_file] = {
         "census": census_ini,
         "directory": stage1_dir,
-        "Stage1FileName": stage1_dir / census_ini_file.name.replace("stage_0", "stage_1"),
-        "reference": ref_ini
+        "Stage1FileName": stage1_dir
+        / census_ini_file.name.replace("stage_0", "stage_1"),
+        "reference": ref_ini,
     }
     counter_total.launch_mapping2()
     assert counter_total.ini_data[census_ini_file]["Stage1FileName"].exists()
@@ -150,9 +175,9 @@ def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        (unique_reads,
-         genes_mult,
-         unique_on_gene) = counter_unique.uniq_from_mult(reads, genes, database)
+        (unique_reads, genes_mult, unique_on_gene) = counter_unique.uniq_from_mult(
+            reads, genes, database
+        )
         genes_list = list(set(map(int, chain.from_iterable(genes_mult.values()))))
         assert len(genes_list) == 126
         assert "382" in unique_reads
@@ -170,9 +195,11 @@ def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        (unique_reads, genes_mult,                             # pylint: disable=unused-variable
-         unique_on_gene) = counter_smart_shared.uniq_from_mult(reads, genes,
-                                                               database)
+        (
+            unique_reads,
+            genes_mult,  # pylint: disable=unused-variable
+            unique_on_gene,
+        ) = counter_smart_shared.uniq_from_mult(reads, genes, database)
         read_dict, co = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
         # We check genes with no unique counts, but multiple reads
         assert co[("1368", 26485)] == 0.25
@@ -191,10 +218,16 @@ def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> Non
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        (unique_reads, genes_mult,                   # pylint: disable=unused-variable
-         unique_on_gene) = counter_smart_shared.uniq_from_mult(reads, genes, database)
+        (
+            unique_reads,
+            genes_mult,  # pylint: disable=unused-variable
+            unique_on_gene,
+        ) = counter_smart_shared.uniq_from_mult(reads, genes, database)
         read_dict, co_dict = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
-        assert next(counter_smart_shared.get_co_coefficient(18783, read_dict, co_dict)) == 2/3
+        assert (
+            next(counter_smart_shared.get_co_coefficient(18783, read_dict, co_dict))
+            == 2 / 3
+        )
 
 
 def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
@@ -205,11 +238,16 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        (unique_reads, genes_mult,                 # pylint: disable=unused-variable
-         unique_on_gene) = counter_smart_shared.uniq_from_mult(reads, genes, database)
-        read_dict, coef_read = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
+        (
+            unique_reads,
+            genes_mult,  # pylint: disable=unused-variable
+            unique_on_gene,
+        ) = counter_smart_shared.uniq_from_mult(reads, genes, database)
+        read_dict, coef_read = counter_smart_shared.compute_co(
+            genes_mult, unique_on_gene
+        )
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
-        assert multiple_dict[18783] == 2/3
+        assert multiple_dict[18783] == 2 / 3
 
 
 def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
@@ -220,12 +258,17 @@ def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
         # get reference length
         lengths = bamdesc.lengths
         database = dict(zip(references, lengths))
-        (unique_reads, genes_mult,                # pylint: disable=unused-variable
-         unique_on_gene) = counter_smart_shared.uniq_from_mult(reads, genes, database)
-        read_dict, coef_read = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
+        (
+            unique_reads,
+            genes_mult,  # pylint: disable=unused-variable
+            unique_on_gene,
+        ) = counter_smart_shared.uniq_from_mult(reads, genes, database)
+        read_dict, coef_read = counter_smart_shared.compute_co(
+            genes_mult, unique_on_gene
+        )
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
         abundance = counter_smart_shared.compute_abs(unique_on_gene, multiple_dict)
-        assert abundance[18783] == 2 + 2/3
+        assert abundance[18783] == 2 + 2 / 3
 
 
 def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
@@ -240,7 +283,9 @@ def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
 def test_save_bam(counter_unique: Counter, datadir: Path, tmp_path: Path) -> None:
     bamfile = datadir / "total.bam"
     with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
-        reads, genes = counter_unique.filter_alignments(bamdesc)  # pylint: disable=unused-variable
+        reads, genes = counter_unique.filter_alignments(
+            bamdesc
+        )  # pylint: disable=unused-variable
         read_list = list(chain(reads.values()))
         merged_list = list(chain.from_iterable(read_list))
         tmpbamfile = tmp_path / "test"
@@ -251,12 +296,15 @@ def test_save_bam(counter_unique: Counter, datadir: Path, tmp_path: Path) -> Non
         #     assert md5(out.read()).hexdigest() == "7e9c1b3e89690624ca03882cb968fb09"
 
 
-def test_launch_counting2_unique(counter_unique: Counter, datadir: Path, tmp_path: Path):
+def test_launch_counting2_unique(
+    counter_unique: Counter, datadir: Path, tmp_path: Path
+):
     bamfile = datadir / "total.bam"
     countfile = tmp_path / "count.tsv"
     counter_unique.launch_counting2(bamfile, countfile)
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "4188e42b16ca23af21bb0b03c88089fe"
+
 
 # No best count
 # def test_launch_counting2_best(counter_best: Counter, datadir: Path, tmp_path: Path):
@@ -275,7 +323,9 @@ def test_launch_counting2_total(counter_total: Counter, datadir: Path, tmp_path:
         assert md5(out.read()).hexdigest() == "78216b228518d101983f39a92ac9bdb0"
 
 
-def test_launch_counting2_smart_shared(counter_smart_shared: Counter, datadir: Path, tmp_path: Path):
+def test_launch_counting2_smart_shared(
+    counter_smart_shared: Counter, datadir: Path, tmp_path: Path
+):
     bamfile = datadir / "total.bam"
     countfile = tmp_path / "count.tsv"
     counter_smart_shared.launch_counting2(bamfile, countfile)

@@ -25,6 +25,7 @@ from meteor.session import Session, Component
 @dataclass
 class FastqImporter(Session):
     """FastqImporter handle the fastq import"""
+
     meteor: Type[Component]
     input_fastq_dir: Path
     ispaired: bool
@@ -45,8 +46,9 @@ class FastqImporter(Session):
         :param pair: A string giving the strand
         :return: (Generator) A generator of a string from a given combination
         """
-        for ext in product(self.meteor.sequence, pair, self.meteor.extension,
-                           self.meteor.compression):
+        for ext in product(
+            self.meteor.sequence, pair, self.meteor.extension, self.meteor.compression
+        ):
             yield "".join(ext)
 
     def short_extension(self) -> Generator:  # pragma: no cover
@@ -93,8 +95,9 @@ class FastqImporter(Session):
             return "2"
         raise ValueError("Pairing tag (1 or 2) is not detect in the fastq name.")
 
-    def set_fastq_config(self, sample_name: str, tag: str, fastq_file: Path,
-                         full_sample_name: str) -> ConfigParser:  # pragma: no cover
+    def set_fastq_config(
+        self, sample_name: str, tag: str, fastq_file: Path, full_sample_name: str
+    ) -> ConfigParser:  # pragma: no cover
         """Set configuration for fastq
 
         :param sample_name: Sample name
@@ -113,12 +116,9 @@ class FastqImporter(Session):
             "census_status": "0",  # what is this ?
             "read_length": "-1",  # Then it is useless
             "tag": tag,
-            "full_sample_name": full_sample_name
+            "full_sample_name": full_sample_name,
         }
-        config["sample_file"] = {
-            "fastq_file": fastq_file.name,
-            "is_compressed": "1"
-        }
+        config["sample_file"] = {"fastq_file": fastq_file.name, "is_compressed": "1"}
         return config
 
     def execute(self) -> bool:
@@ -138,7 +138,9 @@ class FastqImporter(Session):
             # split full sample name (in fact library/run name) in order
             if self.mask_sample_name:
                 # to extract sample_name according to regex mask
-                full_sample_name_array = re.search(self.mask_sample_name, full_sample_name)
+                full_sample_name_array = re.search(
+                    self.mask_sample_name, full_sample_name
+                )
                 if full_sample_name_array:
                     logging.info("Import %s", fastq_file)
                     sample_name = full_sample_name_array[0]
@@ -158,8 +160,9 @@ class FastqImporter(Session):
             if not sym_fastq.is_symlink():
                 sym_fastq.symlink_to(fastq_file.resolve())
             # Create a configuration
-            config_fastq = self.set_fastq_config(sample_name, tag, sym_fastq,
-                                                 full_sample_name)
+            config_fastq = self.set_fastq_config(
+                sample_name, tag, sym_fastq, full_sample_name
+            )
             config_path = sample_dir / f"{full_sample_name}_census_stage_0.ini"
             self.save_config(config_fastq, config_path)
         return True

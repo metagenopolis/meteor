@@ -38,8 +38,8 @@ from shutil import rmtree, copy
 
 @dataclass
 class Counter(Session):
-    """Counter session map and count
-    """
+    """Counter session map and count"""
+
     meteor: Type[Component]
     counting_type: str
     mapping_type: str
@@ -59,7 +59,9 @@ class Counter(Session):
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.mapping_dir.mkdir(exist_ok=True)
 
-    def count_index_fastq(self, fastq_file: Path, output_desc: tempfile._TemporaryFileWrapper) -> tuple:
+    def count_index_fastq(
+        self, fastq_file: Path, output_desc: tempfile._TemporaryFileWrapper
+    ) -> tuple:
         """Count the number of bases
 
         :param fastq_file: Path object of the fastq_file
@@ -78,7 +80,9 @@ class Counter(Session):
             in_fq = open(fastq_file, "rt", encoding="UTF-8")
         # read input fastq line by line
         with in_fq:
-            for read_count, line in enumerate(in_fq, start=1):  # pylint: disable=unused-variable
+            for read_count, line in enumerate(
+                in_fq, start=1
+            ):  # pylint: disable=unused-variable
                 output_desc.write(f"@{read_count}\n")
                 # read the sequence
                 read = next(in_fq)
@@ -104,7 +108,7 @@ class Counter(Session):
             "meteor.mapping.file.format": "bam",
             "meteor.is.cpu.percentage": "0",
             "meteor.cpu.count": str(self.meteor.threads),
-            "meteor.excluded.reference.count": "0"
+            "meteor.excluded.reference.count": "0",
         }
         config["main_reference"] = {
             "meteor.reference.name": self.meteor.ref_name,
@@ -113,13 +117,12 @@ class Counter(Session):
             "meteor.is.perc.mismatches": "1",
             "meteor.bestalignment": "1",
             "meteor.mapping.prefix.name": f"mapping_vs_{ref_ini['reference_info']['reference_name']}",
-            "meteor.counting.prefix.name": f"vs_{ref_ini['reference_info']['reference_name']}"
+            "meteor.counting.prefix.name": f"vs_{ref_ini['reference_info']['reference_name']}",
         }
         return config
 
     def launch_mapping(self) -> None:
-        """Create temporary indexed files and map aga
-        """
+        """Create temporary indexed files and map aga"""
         logging.info("Launch mapping")
         # loop on each library
         for library, dict_data in self.ini_data.items():
@@ -127,7 +130,7 @@ class Counter(Session):
             sample_info = census["sample_info"]  # reference
             sample_file = census["sample_file"]
             logging.info("Meteor Mapping task description")
-            logging.info("Sample name = %s",  sample_info["sample_name"])
+            logging.info("Sample name = %s", sample_info["sample_name"])
             logging.info("Library name = %s", sample_info["full_sample_name"])
             logging.info("Project name = %s", sample_info["project_name"])
             logging.info("Sequencing device = %s", sample_info["sequencing_device"])
@@ -138,18 +141,26 @@ class Counter(Session):
             # try:
             with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as output_desc:
                 read_count, base_count = self.count_index_fastq(fastq_path, output_desc)
-                census.set("sample_info", "census_status",  str(1))
+                census.set("sample_info", "census_status", str(1))
                 census.set("sample_info", "indexed_read_length", str(1))
-                census.set("sample_info", "sequenced_read_count",  str(read_count))
-                census.set("sample_info", "indexed_sequenced_read_count",  str(read_count))
-                census.set("sample_info", "indexed_sequenced_base_count", str(base_count))
+                census.set("sample_info", "sequenced_read_count", str(read_count))
+                census.set(
+                    "sample_info", "indexed_sequenced_read_count", str(read_count)
+                )
+                census.set(
+                    "sample_info", "indexed_sequenced_base_count", str(base_count)
+                )
                 census.set("sample_info", "is_data_prefixed", str(0))
                 dict_data["census"] = census
                 # mapping this library on the reference
-                mapping_process = Mapper(self.meteor, dict_data,
-                                         Path(output_desc.name),
-                                         self.mapping_type, self.trim,
-                                         self.alignment_number)
+                mapping_process = Mapper(
+                    self.meteor,
+                    dict_data,
+                    Path(output_desc.name),
+                    self.mapping_type,
+                    self.trim,
+                    self.alignment_number,
+                )
                 if not mapping_process.execute():
                     raise ValueError(f"Error, TaskMainMapping failed: {library}")
             # except IOError:
@@ -163,28 +174,50 @@ class Counter(Session):
         logging.info("Launch counting")
         # "-t", str(self.meteor.tmp_dir) + "/"
         start = perf_counter()
-        check_call(["meteor-counter", "-i", str(self.meteor.fastq_dir) + "/",
-                    "-p", str(self.meteor.ref_dir.parent.resolve()) + "/",
-                    "-o", str(self.meteor.mapping_dir) + "/", "-w", workflow_ini,
-                    "-c", self.counting_type + "_reads", "-f"])
-        logging.info("Meteor counter completed Execution in %f seconds", perf_counter() - start)
+        check_call(
+            [
+                "meteor-counter",
+                "-i",
+                str(self.meteor.fastq_dir) + "/",
+                "-p",
+                str(self.meteor.ref_dir.parent.resolve()) + "/",
+                "-o",
+                str(self.meteor.mapping_dir) + "/",
+                "-w",
+                workflow_ini,
+                "-c",
+                self.counting_type + "_reads",
+                "-f",
+            ]
+        )
+        logging.info(
+            "Meteor counter completed Execution in %f seconds", perf_counter() - start
+        )
 
     def launch_mapping2(self) -> None:
-        """Create temporary indexed files and map against
-        """
+        """Create temporary indexed files and map against"""
         logging.info("Launch mapping")
         list_fastq_path = []
         # loop on each library
-        for library, dict_data in self.ini_data.items():  # pylint: disable=unused-variable
+        for (
+            library,
+            dict_data,
+        ) in self.ini_data.items():  # pylint: disable=unused-variable
             census = dict_data["census"]
             sample_file = census["sample_file"]
             # reindexing this library reads and fill FLibraryIndexerReport
             list_fastq_path += [str(self.meteor.fastq_dir / sample_file["fastq_file"])]
         else:
             # mapping this library on the reference
-            mapping_process = Mapper2(self.meteor, dict_data, list_fastq_path,
-                                      self.mapping_type, self.trim,
-                                      self.alignment_number, self.counting_type)
+            mapping_process = Mapper2(
+                self.meteor,
+                dict_data,
+                list_fastq_path,
+                self.mapping_type,
+                self.trim,
+                self.alignment_number,
+                self.counting_type,
+            )
             if not mapping_process.execute():
                 raise ValueError("Error, TaskMainMapping failed")
 
@@ -205,7 +238,9 @@ class Counter(Session):
         table = idxstats(str(bamfile.resolve()))
         # write the count table
         with outfile.open("wt", encoding="UTF-8") as out:
-            out.write(f"{self.meteor.gene_column}\t{self.meteor.gene_length_column}\t{self.meteor.value_column}\n")
+            out.write(
+                f"{self.meteor.gene_column}\t{self.meteor.gene_length_column}\t{self.meteor.value_column}\n"
+            )
             for line in table.split("\n")[:-2]:
                 s = "\t".join(line.split("\t")[0:3])
                 out.write(f"{s}\n")
@@ -221,7 +256,9 @@ class Counter(Session):
             if item[0] < 3:
                 yield item[1]
 
-    def filter_alignments(self, samdesc: AlignmentFile) -> tuple[defaultdict, defaultdict]:
+    def filter_alignments(
+        self, samdesc: AlignmentFile
+    ) -> tuple[defaultdict, defaultdict]:
         """Filter read according to their identity with reference and reads with multiple
         alignments with different score. We keep the best scoring reads when total count is
         applied.
@@ -324,8 +361,9 @@ class Counter(Session):
         #         genes[read_id] = list(set(reference_names))
         return reads, genes
 
-    def uniq_from_mult(self, reads: defaultdict, genes: defaultdict,
-                       database: dict) -> tuple[defaultdict, defaultdict, dict]:
+    def uniq_from_mult(
+        self, reads: defaultdict, genes: defaultdict, database: dict
+    ) -> tuple[defaultdict, defaultdict, dict]:
         """
         Function that filter unique reads from all reads. Multiple reads are
         reads that map to more than one genes. And Unique reads are reads that map
@@ -340,7 +378,9 @@ class Counter(Session):
             genes [DICT] = the dictionary without unique reads
             unique [DICT] = nb of unique read of each reference genes
         """
-        unique_reads: defaultdict[str, List[pysam.libcalignedsegment.AlignedSegment]] = defaultdict(list)
+        unique_reads: defaultdict[
+            str, List[pysam.libcalignedsegment.AlignedSegment]
+        ] = defaultdict(list)
         unique_reads_list = []
         # dict[str]:int
         # gene : 0
@@ -372,7 +412,9 @@ class Counter(Session):
             del genes[read_id]
         return unique_reads, genes, unique_on_gene
 
-    def compute_co(self, genes_mult: defaultdict, unique_on_gene: dict) -> tuple[Dict, Dict]:
+    def compute_co(
+        self, genes_mult: defaultdict, unique_on_gene: dict
+    ) -> tuple[Dict, Dict]:
         """Compute genes specific coefficient "Co" for each multiple read.
 
         :param genes_mult: [DICT] = Contains for each multiple read, all the reference
@@ -389,7 +431,7 @@ class Counter(Session):
             # for a multiple read, gets nb of unique reads from each genes
             s = [unique_on_gene[genes] for genes in genes_mult[read_id]]
             # total number of unique reads
-            som = reduce(lambda x, y: x+y, s)
+            som = reduce(lambda x, y: x + y, s)
             # No unique counts on these genes
             # If no unique counts:
             if som == 0:
@@ -403,7 +445,11 @@ class Counter(Session):
             # We get the unique set of duplicated genes
             # These genes are mapped several time
             # duplicated_genes = set([genes for genes in genes_mult[read_id] if genes_mult[read_id].count(genes) > 1])
-            duplicated_genes = {genes for genes in genes_mult[read_id] if genes_mult[read_id].count(genes) > 1}
+            duplicated_genes = {
+                genes
+                for genes in genes_mult[read_id]
+                if genes_mult[read_id].count(genes) > 1
+            }
             # otherwise
             for genes in genes_mult[read_id]:
                 # get the nb of unique reads
@@ -416,13 +462,9 @@ class Counter(Session):
                 # calculate Co of multiple read for the given genes
                 if genes in duplicated_genes:
                     if (read_id, genes) in co_dict:
-                        co_dict[(read_id, genes)] += (
-                            nb_unique / float(som)
-                        )
+                        co_dict[(read_id, genes)] += nb_unique / float(som)
                     else:
-                        co_dict[(read_id, genes)] = (
-                            nb_unique / float(som)
-                        )
+                        co_dict[(read_id, genes)] = nb_unique / float(som)
                 else:
                     co_dict[(read_id, genes)] = nb_unique / float(som)
                 # append to the dict
@@ -461,7 +503,9 @@ class Counter(Session):
             multiple_dict[gene] = sum(self.get_co_coefficient(gene, read_dict, co_dict))
         return multiple_dict
 
-    def compute_abs_meteor(self, database: dict, unique_dict: dict, multiple_dict: dict) -> dict:
+    def compute_abs_meteor(
+        self, database: dict, unique_dict: dict, multiple_dict: dict
+    ) -> dict:
         """Compute the abundance of a each genes.
             Abundance = Abundance unique reads + Abundance multiple reads
 
@@ -479,7 +523,9 @@ class Counter(Session):
         :param multiple_dict: [DICT] = abundance of multiple reads for each genes
         :return: abundance_dict [DICT] = contains abundance of each reference genes
         """
-        return {genes: unique_dict[genes] + multiple_dict[genes] for genes in unique_dict}
+        return {
+            genes: unique_dict[genes] + multiple_dict[genes] for genes in unique_dict
+        }
 
     def write_stat(self, output: Path, abundance_dict: dict, database: dict):
         """Write count table.
@@ -489,7 +535,9 @@ class Counter(Session):
         :param database: [DICT] = contrains length of each reference genes
         """
         with open(output, "wt", encoding="UTF-8") as out:
-            out.write(f"{self.meteor.gene_column}\t{self.meteor.gene_length_column}\t{self.meteor.value_column}\n")
+            out.write(
+                f"{self.meteor.gene_column}\t{self.meteor.gene_length_column}\t{self.meteor.value_column}\n"
+            )
             for genes, abundance in sorted(abundance_dict.items()):
                 out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
         return True
@@ -501,7 +549,9 @@ class Counter(Session):
         :param samdesc: Pysam sam descriptor
         :param read_list: [List] List of pysam reads objects
         """
-        with AlignmentFile(str(outbamfile.resolve()), "wb", template=samdesc) as total_reads:
+        with AlignmentFile(
+            str(outbamfile.resolve()), "wb", template=samdesc
+        ) as total_reads:
             for element in read_list:
                 total_reads.write(element)
 
@@ -529,7 +579,9 @@ class Counter(Session):
             reads, genes = self.filter_alignments(samdesc)
             # Filter reads according to quality, score and counting
             # genes mapped by multiple reads
-            unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(reads, genes, database)
+            unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(
+                reads, genes, database
+            )
             if self.counting_type == "smart_shared":
                 # For multiple reads compute Co
                 read_dict, coef_read = self.compute_co(genes_mult, unique_on_gene)
@@ -542,9 +594,22 @@ class Counter(Session):
                     bamfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                     bamfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                     self.save_bam(bamfile, samdesc, list(chain(*reads.values())))
-                    sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
-                         "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
-                    bamfile_sorted = Path(copy(str(bamfile_sorted.resolve()), str(sam_file.resolve().with_suffix(".bam"))))
+                    sort(
+                        "-o",
+                        str(bamfile_sorted.resolve()),
+                        "-@",
+                        str(self.meteor.threads),
+                        "-O",
+                        "bam",
+                        str(bamfile.resolve()),
+                        catch_stdout=False,
+                    )
+                    bamfile_sorted = Path(
+                        copy(
+                            str(bamfile_sorted.resolve()),
+                            str(sam_file.resolve().with_suffix(".bam")),
+                        )
+                    )
                     index(str(bamfile_sorted.resolve()))
                 return self.write_stat(count_file, abundance, database)
             else:
@@ -553,10 +618,23 @@ class Counter(Session):
                 bamfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                 bamfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                 self.save_bam(bamfile, samdesc, list(chain(*reads.values())))
-                sort("-o", str(bamfile_sorted.resolve()), "-@", str(self.meteor.threads),
-                     "-O", "bam", str(bamfile.resolve()), catch_stdout=False)
+                sort(
+                    "-o",
+                    str(bamfile_sorted.resolve()),
+                    "-@",
+                    str(self.meteor.threads),
+                    "-O",
+                    "bam",
+                    str(bamfile.resolve()),
+                    catch_stdout=False,
+                )
                 if self.keep_bam:
-                    bamfile_sorted = Path(copy(str(bamfile_sorted.resolve()), str(sam_file.resolve().with_suffix(".bam"))))
+                    bamfile_sorted = Path(
+                        copy(
+                            str(bamfile_sorted.resolve()),
+                            str(sam_file.resolve().with_suffix(".bam")),
+                        )
+                    )
                     index(str(bamfile_sorted.resolve()))
                 return self.write_table(bamfile_sorted, count_file)
 
@@ -573,8 +651,11 @@ class Counter(Session):
                 ref_ini.read_file(ref)
             self.meteor.ref_name = ref_ini["reference_info"]["reference_name"]
         except AssertionError:
-            logging.error("Error, no *_reference.ini file found in %s. "
-                          "One *_reference.ini is expected", self.meteor.ref_dir)
+            logging.error(
+                "Error, no *_reference.ini file found in %s. "
+                "One *_reference.ini is expected",
+                self.meteor.ref_dir,
+            )
             sys.exit()
         try:
             census_ini_files = list(self.meteor.fastq_dir.glob("*_census_stage_0.ini"))
@@ -590,33 +671,37 @@ class Counter(Session):
                     # if self.pysam_test:
                     stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"]
                     # else:
-                        # stage1_dir = (
-                        #     self.meteor.mapping_dir / sample_info["sample_name"] /
-                        #     f"mapping_vs_{self.meteor.ref_name}_{census_ini['sample_info']['full_sample_name']}"
-                        # )
+                    # stage1_dir = (
+                    #     self.meteor.mapping_dir / sample_info["sample_name"] /
+                    #     f"mapping_vs_{self.meteor.ref_name}_{census_ini['sample_info']['full_sample_name']}"
+                    # )
                     # sample_info["full_sample_name"]
                     stage1_dir.mkdir(exist_ok=True, parents=True)
                     # if self.pysam_test:
                     self.ini_data[library] = {
                         "census": census_ini,
                         "directory": stage1_dir,
-                        "Stage1FileName": stage1_dir / f"{sample_info['sample_name']}_census_stage_1.ini",
-                        "reference": ref_ini
+                        "Stage1FileName": stage1_dir
+                        / f"{sample_info['sample_name']}_census_stage_1.ini",
+                        "reference": ref_ini,
                     }
                     # else:
-                        # self.ini_data[library] = {
-                        #     "census": census_ini,
-                        #     "directory": stage1_dir,
-                        #     "Stage1FileName": stage1_dir / library.name.replace("stage_0", "stage_1"),
-                        #     "reference": ref_ini
-                        # }
+                    # self.ini_data[library] = {
+                    #     "census": census_ini,
+                    #     "directory": stage1_dir,
+                    #     "Stage1FileName": stage1_dir / library.name.replace("stage_0", "stage_1"),
+                    #     "reference": ref_ini
+                    # }
                 if not self.ini_data[library]["Stage1FileName"].exists():
                     mapping_done = False
             else:
                 if not self.counting_only:
                     # mapping already done and no overwriting
                     if mapping_done:
-                        logging.info("Mapping already done for sample: %s", sample_info["sample_name"])
+                        logging.info(
+                            "Mapping already done for sample: %s",
+                            sample_info["sample_name"],
+                        )
                         logging.info("Skipped !")
                     else:
                         # if self.pysam_test:
@@ -630,22 +715,32 @@ class Counter(Session):
                     self.save_config(config, workflow_ini)
                     # bam_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.bam"
                     # test
-                    sam_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.sam"
-                    count_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.tsv"
+                    sam_file = (
+                        self.ini_data[library]["directory"]
+                        / f"{sample_info['sample_name']}.sam"
+                    )
+                    count_file = (
+                        self.ini_data[library]["directory"]
+                        / f"{sample_info['sample_name']}.tsv"
+                    )
                     # if self.pysam_test:
                     start = perf_counter()
                     # self.launch_counting2(bam_file, count_file)
                     self.launch_counting2(sam_file, count_file)
-                    logging.info("Completed counting in %f seconds", perf_counter() - start)
+                    logging.info(
+                        "Completed counting in %f seconds", perf_counter() - start
+                    )
                     # else:
-                        # self.launch_counting(workflow_ini)
+                    # self.launch_counting(workflow_ini)
                     if not self.keep_sam:
                         sam_file.unlink(missing_ok=True)
                         # bam_file.with_suffix(".bam.bai").unlink(missing_ok=True)
                         # self.ini_data[library]["Stage1FileName"].unlink(missing_ok=True)
             logging.info("Done ! Job finished without errors ...")
         except AssertionError:
-            logging.error("Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir)
+            logging.error(
+                "Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir
+            )
             sys.exit()
         else:
             # Not sure if it's a good idea to delete a temporary file

@@ -27,11 +27,14 @@ from textwrap import fill
 from typing import Type
 from meteor.session import Session, Component
 from typing import Generator
+
 # from hashlib import md5
+
 
 @dataclass
 class ReferenceBuilder(Session):
     """Index the database with bowtie2 using meteor style"""
+
     meteor: Type[Component]
     input_fasta: Path
     fasta_dir: Path = field(default_factory=Path)
@@ -51,28 +54,33 @@ class ReferenceBuilder(Session):
         self.database_dir.mkdir(exist_ok=True)
 
         # Read input fasta file and create new fasta file for each chromosome or contig
-        self.output_annotation_file = self.database_dir / f"{self.meteor.ref_name}_annotation.tsv"
+        self.output_annotation_file = (
+            self.database_dir / f"{self.meteor.ref_name}_annotation.tsv"
+        )
         self.output_fasta_file = self.fasta_dir / f"{self.meteor.ref_name}.fasta"
         self.output_index_file = self.fasta_dir / f"{self.meteor.ref_name}.dict"
 
         # Write configuration file
         config_ref = self.set_reference_config()
-        config_path = self.meteor.ref_dir / self.meteor.ref_name / f"{self.meteor.ref_name}_reference.ini"
+        config_path = (
+            self.meteor.ref_dir
+            / self.meteor.ref_name
+            / f"{self.meteor.ref_name}_reference.ini"
+        )
         self.save_config(config_ref, config_path)
 
     def set_reference_config(self) -> ConfigParser:  # pragma: no cover
-        """Write configuration file for reference genome
-        """
+        """Write configuration file for reference genome"""
         config = ConfigParser()
         config["reference_info"] = {
             "reference_name": self.meteor.ref_name,
             "reference_date": datetime.now().strftime("%Y-%m-%d"),
-            "database_type": "complete"
+            "database_type": "complete",
         }
         config["reference_file"] = {
             "database_dir": "database",
             "fasta_dir": "fasta",
-            "fasta_filename_1": self.output_fasta_file.name
+            "fasta_filename_1": self.output_fasta_file.name,
         }
         return config
 
@@ -107,23 +115,26 @@ class ReferenceBuilder(Session):
         """Write a new reference file for meteor with numeroted genes
         and file giving the correspondance between each gene.
         """
-        with self.output_annotation_file.open("wt", encoding="UTF-8") as output_annotation:
+        with self.output_annotation_file.open(
+            "wt", encoding="UTF-8"
+        ) as output_annotation:
             # if self.pysam_test:
             output_annotation.write("gene_id\tgene_name\tgene_length\n")
             with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
                 # with self.output_index_file.open("wt", encoding="UTF-8") as output_index:
-                    # I don't know what it means
-                    # output_index.write(f"@HD\tVN:1.6\n")
-                for gene_id, (header, len_seq, seq) in enumerate(self.read_reference(), start=1):
+                # I don't know what it means
+                # output_index.write(f"@HD\tVN:1.6\n")
+                for gene_id, (header, len_seq, seq) in enumerate(
+                    self.read_reference(), start=1
+                ):
                     # if self.pysam_test:
                     output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
                     # else:
                     #   output_annotation.write(f"{gene_id}\t{len_seq}\n")
                     output_fasta.write(f">{gene_id}\n{seq}\n")
-                        # print(seq.replace("\n",""))
-                        # seq = seq.replace("\n", "")
-                        # output_index.write(f"@SQ\tSN:{gene_id}\tLN:{len_seq}\tM5:{md5(seq.encode('ascii')).hexdigest()}\tUR:file:{str(self.output_fasta_file.resolve())}\n")
-
+                    # print(seq.replace("\n",""))
+                    # seq = seq.replace("\n", "")
+                    # output_index.write(f"@SQ\tSN:{gene_id}\tLN:{len_seq}\tM5:{md5(seq.encode('ascii')).hexdigest()}\tUR:file:{str(self.output_fasta_file.resolve())}\n")
 
     def execute(self) -> bool:
         """Build the database"""
@@ -131,13 +142,28 @@ class ReferenceBuilder(Session):
         # Prepare the reference for meteor
         self.create_reference()
         # Check the bowtie2 version
-        bowtie_version = str(run(["bowtie2","--version"], capture_output=True).stdout).split(" ")[2].split("\\n")[0]
+        bowtie_version = (
+            str(run(["bowtie2", "--version"], capture_output=True).stdout)
+            .split(" ")[2]
+            .split("\\n")[0]
+        )
         if parse(bowtie_version) < Version("2.3.5"):
-            logging.error("Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.", bowtie_version)
+            logging.error(
+                "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.",
+                bowtie_version,
+            )
             sys.exit()
         # Build the index with bowtie2
-        check_call(["bowtie2-build", "-f", "--threads", str(self.meteor.threads),
-                    self.output_fasta_file, self.fasta_dir / self.meteor.ref_name])
+        check_call(
+            [
+                "bowtie2-build",
+                "-f",
+                "--threads",
+                str(self.meteor.threads),
+                self.output_fasta_file,
+                self.fasta_dir / self.meteor.ref_name,
+            ]
+        )
         # Build the index with gatk
         # check_call(["gatk", "CreateSequenceDictionary", "-R", self.output_fasta_file])
         return True

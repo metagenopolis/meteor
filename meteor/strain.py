@@ -23,10 +23,11 @@ from typing import Type, Dict, Generator, List, Tuple
 from tempfile import mkdtemp
 from pathlib import Path
 
+
 @dataclass
 class Strain(Session):
-    """Counter session map and count
-    """
+    """Counter session map and count"""
+
     meteor: Type[Component]
     depth: int
     ini_data: dict = field(default_factory=dict)
@@ -37,7 +38,6 @@ class Strain(Session):
 
     # def find_strain(self) -> None:
     #     """Compute strain ???"""
-
 
     def execute(self) -> bool:
         """Compute the mapping"""
@@ -51,11 +51,16 @@ class Strain(Session):
                 ref_ini.read_file(ref)
             self.meteor.ref_name = ref_ini["reference_info"]["reference_name"]
         except AssertionError:
-            logging.error("Error, no *_reference.ini file found in %s. "
-                          "One *_reference.ini is expected", self.meteor.ref_dir)
+            logging.error(
+                "Error, no *_reference.ini file found in %s. "
+                "One *_reference.ini is expected",
+                self.meteor.ref_dir,
+            )
             sys.exit()
         try:
-            census_ini_file_list = list(self.meteor.mapped_sample_dir.glob("*_census_stage_1.ini"))
+            census_ini_file_list = list(
+                self.meteor.mapped_sample_dir.glob("*_census_stage_1.ini")
+            )
             assert len(census_ini_file_list) == 1
             census_ini_file = census_ini_file_list[0]
             census_ini = ConfigParser()
@@ -68,13 +73,19 @@ class Strain(Session):
                 # Get the bam
                 # Get the variant calling
                 # Variant calling this library on the reference
-                variant_calling_process = VariantCalling(self.meteor, self.ini_data, self.depth)
-                vcf_file = self.ini_data["directory"] / f"{sample_info['sample_name']}.vcf.gz"
+                variant_calling_process = VariantCalling(
+                    self.meteor, self.ini_data, self.depth
+                )
+                vcf_file = (
+                    self.ini_data["directory"] / f"{sample_info['sample_name']}.vcf.gz"
+                )
                 # fasta_file = self.get_strain(bcf_file)
             if not variant_calling_process.execute():
                 raise ValueError(f"Error, TaskMainMapping failed: {census_ini_file}")
             # analyse the bcf file
         except AssertionError:
-            logging.error("Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir)
+            logging.error(
+                "Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir
+            )
             sys.exit()
         return True
