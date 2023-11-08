@@ -103,12 +103,9 @@ class Counter(Session):
         config = ConfigParser()
         config["worksession"] = {
             "meteor.reference.dir": self.meteor.ref_dir.name,
-            "meteor.db.type": "binary",
             "meteor.mapping.program": "bowtie2",
             "meteor.mapping.file.format": "bam",
-            "meteor.is.cpu.percentage": "0",
             "meteor.cpu.count": str(self.meteor.threads),
-            "meteor.excluded.reference.count": "0",
         }
         config["main_reference"] = {
             "meteor.reference.name": self.meteor.ref_name,

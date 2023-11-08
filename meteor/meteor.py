@@ -297,7 +297,10 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Number alignments considered for each read (default 10000)",
     )
     mapping_parser.add_argument(
-        "--ks", dest="keep_sam", action="store_true", help="Save the sam files."
+        "--ks",
+        dest="keep_sam",
+        action="store_true",
+        help="Save the sam files. Required for recounting.",
     )
     mapping_parser.add_argument(
         "--kb",

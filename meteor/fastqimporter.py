@@ -109,16 +109,11 @@ class FastqImporter(Session):
         config = ConfigParser()
         config["sample_info"] = {
             "sample_name": sample_name,
-            "condition_name": "NA",  # What is this ?
             "project_name": self.project_name,
-            "sequencing_date": "1900-01-01",  # Then it is useless
-            "sequencing_device": "proton",
-            "census_status": "0",  # what is this ?
-            "read_length": "-1",  # Then it is useless
             "tag": tag,
             "full_sample_name": full_sample_name,
         }
-        config["sample_file"] = {"fastq_file": fastq_file.name, "is_compressed": "1"}
+        config["sample_file"] = {"fastq_file": fastq_file.name}
         return config
 
     def execute(self) -> bool:
