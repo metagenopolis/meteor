@@ -68,12 +68,13 @@ class Mapper(Session):
             "reference_name": self.census["reference"]["reference_info"][
                 "reference_name"
             ],
-            "mapping_cmdline": cmd,
+            "mapping_options": cmd,
             "total_read_count": str(mapping_data[0]),
             "mapped_read_count": str(mapping_data[2] + mapping_data[3]),
             "overall_alignment_rate": str(
                 round((mapping_data[2] + mapping_data[3]) / mapping_data[0] * 100, 2)
             ),
+            "fastq_files": ",".join(self.fastq_list),
         }
         config["mapping_file"] = {
             "bowtie_file_1": sam_file.name,
@@ -164,9 +165,7 @@ class Mapper(Session):
             assert len(mapping_log) == 4
             mapping_data = [int(i) for i in mapping_log]
         except AssertionError:
-            print(mapping_result)
-            print(mapping_log)
-            logging.error("Error, could not cast the mapping result from bowtie2")
+            logging.error("Error, could not access the mapping result from bowtie2")
             sys.exit()
 
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
