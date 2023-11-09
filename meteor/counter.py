@@ -26,7 +26,6 @@ from configparser import ConfigParser
 from pathlib import Path
 from subprocess import check_call
 from meteor.mapper import Mapper
-from meteor.mapper2 import Mapper2
 from meteor.session import Session, Component
 from typing import Type, Dict, Generator, List, Tuple
 from collections import defaultdict
@@ -119,79 +118,6 @@ class Counter(Session):
         return config
 
     def launch_mapping(self) -> None:
-        """Create temporary indexed files and map aga"""
-        logging.info("Launch mapping")
-        # loop on each library
-        for library, dict_data in self.ini_data.items():
-            census = dict_data["census"]
-            sample_info = census["sample_info"]  # reference
-            sample_file = census["sample_file"]
-            logging.info("Meteor Mapping task description")
-            logging.info("Sample name = %s", sample_info["sample_name"])
-            logging.info("Library name = %s", sample_info["full_sample_name"])
-            logging.info("Project name = %s", sample_info["project_name"])
-            logging.info("Sequencing device = %s", sample_info["sequencing_device"])
-            logging.info("Workflow = %s", library.name)
-
-            # reindexing this library reads and fill FLibraryIndexerReport
-            fastq_path = self.meteor.fastq_dir / sample_file["fastq_file"]
-            # try:
-            with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as output_desc:
-                read_count, base_count = self.count_index_fastq(fastq_path, output_desc)
-                census.set("sample_info", "census_status", str(1))
-                census.set("sample_info", "indexed_read_length", str(1))
-                census.set("sample_info", "sequenced_read_count", str(read_count))
-                census.set(
-                    "sample_info", "indexed_sequenced_read_count", str(read_count)
-                )
-                census.set(
-                    "sample_info", "indexed_sequenced_base_count", str(base_count)
-                )
-                census.set("sample_info", "is_data_prefixed", str(0))
-                dict_data["census"] = census
-                # mapping this library on the reference
-                mapping_process = Mapper(
-                    self.meteor,
-                    dict_data,
-                    Path(output_desc.name),
-                    self.mapping_type,
-                    self.trim,
-                    self.alignment_number,
-                )
-                if not mapping_process.execute():
-                    raise ValueError(f"Error, TaskMainMapping failed: {library}")
-            # except IOError:
-            #     logging.error("Cannot create temporary files in %s", self.meteor.tmp_dir.name)
-
-    def launch_counting(self, workflow_ini: Path) -> None:
-        """Launch meteor counter
-
-        :param workflow_ini: A path object to workflow configuration
-        """
-        logging.info("Launch counting")
-        # "-t", str(self.meteor.tmp_dir) + "/"
-        start = perf_counter()
-        check_call(
-            [
-                "meteor-counter",
-                "-i",
-                str(self.meteor.fastq_dir) + "/",
-                "-p",
-                str(self.meteor.ref_dir.parent.resolve()) + "/",
-                "-o",
-                str(self.meteor.mapping_dir) + "/",
-                "-w",
-                workflow_ini,
-                "-c",
-                self.counting_type + "_reads",
-                "-f",
-            ]
-        )
-        logging.info(
-            "Meteor counter completed Execution in %f seconds", perf_counter() - start
-        )
-
-    def launch_mapping2(self) -> None:
         """Create temporary indexed files and map against"""
         logging.info("Launch mapping")
         list_fastq_path = []
@@ -206,7 +132,7 @@ class Counter(Session):
             list_fastq_path += [str(self.meteor.fastq_dir / sample_file["fastq_file"])]
         else:
             # mapping this library on the reference
-            mapping_process = Mapper2(
+            mapping_process = Mapper(
                 self.meteor,
                 dict_data,
                 list_fastq_path,
@@ -552,8 +478,8 @@ class Counter(Session):
             for element in read_list:
                 total_reads.write(element)
 
-    # def launch_counting2(self, bam_file: Path, count_file: Path) -> bool:
-    def launch_counting2(self, sam_file: Path, count_file: Path) -> bool:
+    # def launch_counting(self, bam_file: Path, count_file: Path) -> bool:
+    def launch_counting(self, sam_file: Path, count_file: Path) -> bool:
         """Function that count reads from a BAM file, using the given methods in count:
         "total" or "shared" or "unique".
 
@@ -701,10 +627,7 @@ class Counter(Session):
                         )
                         logging.info("Skipped !")
                     else:
-                        # if self.pysam_test:
-                        self.launch_mapping2()
-                        # else:
-                        # self.launch_mapping()
+                        self.launch_mapping()
                 if not self.mapping_only:
                     logging.info("Launch mapping")
                     config = self.set_workflow_config(ref_ini)
@@ -722,8 +645,8 @@ class Counter(Session):
                     )
                     # if self.pysam_test:
                     start = perf_counter()
-                    # self.launch_counting2(bam_file, count_file)
-                    self.launch_counting2(sam_file, count_file)
+                    # self.launch_counting(bam_file, count_file)
+                    self.launch_counting(sam_file, count_file)
                     logging.info(
                         "Completed counting in %f seconds", perf_counter() - start
                     )

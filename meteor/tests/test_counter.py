@@ -100,7 +100,7 @@ def counter_total(datadir: Path, tmp_path: Path) -> Counter:
     )
 
 
-def test_launch_mapping2(counter_total: Counter):
+def test_launch_mapping(counter_total: Counter):
     ref_ini_file = counter_total.meteor.ref_dir / "mock_reference.ini"
     ref_ini = ConfigParser()
     with open(ref_ini_file, "rt", encoding="UTF-8") as ref:
@@ -119,7 +119,7 @@ def test_launch_mapping2(counter_total: Counter):
         / census_ini_file.name.replace("stage_0", "stage_1"),
         "reference": ref_ini,
     }
-    counter_total.launch_mapping2()
+    counter_total.launch_mapping()
     assert counter_total.ini_data[census_ini_file]["Stage1FileName"].exists()
     # Fail with changing day
     # with counter_best.ini_data[census_ini_file]["Stage1FileName"].open("rb") as stage1:
@@ -296,39 +296,28 @@ def test_save_bam(counter_unique: Counter, datadir: Path, tmp_path: Path) -> Non
         #     assert md5(out.read()).hexdigest() == "7e9c1b3e89690624ca03882cb968fb09"
 
 
-def test_launch_counting2_unique(
-    counter_unique: Counter, datadir: Path, tmp_path: Path
-):
+def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path: Path):
     bamfile = datadir / "total.bam"
     countfile = tmp_path / "count.tsv"
-    counter_unique.launch_counting2(bamfile, countfile)
+    counter_unique.launch_counting(bamfile, countfile)
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "4188e42b16ca23af21bb0b03c88089fe"
 
 
-# No best count
-# def test_launch_counting2_best(counter_best: Counter, datadir: Path, tmp_path: Path):
-#     bamfile = datadir / "best.bam"
-#     countfile = tmp_path / "count.tsv"
-#     counter_best.launch_counting2(bamfile, countfile)
-#     with countfile.open("rb") as out:
-#         assert md5(out.read()).hexdigest() == "8947104d1a9474301741133eb4e98ea8"
-
-
-def test_launch_counting2_total(counter_total: Counter, datadir: Path, tmp_path: Path):
+def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: Path):
     bamfile = datadir / "total.bam"
     countfile = tmp_path / "count.tsv"
-    counter_total.launch_counting2(bamfile, countfile)
+    counter_total.launch_counting(bamfile, countfile)
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "78216b228518d101983f39a92ac9bdb0"
 
 
-def test_launch_counting2_smart_shared(
+def test_launch_counting_smart_shared(
     counter_smart_shared: Counter, datadir: Path, tmp_path: Path
 ):
     bamfile = datadir / "total.bam"
     countfile = tmp_path / "count.tsv"
-    counter_smart_shared.launch_counting2(bamfile, countfile)
+    counter_smart_shared.launch_counting(bamfile, countfile)
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "06383f066a83fe158f9d6eb98c9a41a3"
 
