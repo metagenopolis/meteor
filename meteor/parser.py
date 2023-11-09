@@ -18,14 +18,16 @@ import pandas as pd
 from pathlib import Path
 import re
 
+
 @dataclass
 class Parser(Session):
     """Parse functional modules."""
+
     module_file: Path
 
     def load_modules(self, module_file: Path) -> dict[str, str]:
         "Create the module dictionnary"
-        module = pd.read_table(module_file, names = ["id", "type", "name", "definition"])
+        module = pd.read_table(module_file, names=["id", "type", "name", "definition"])
         module_dict = dict(zip(module.id, module.definition))
         return module_dict
 
@@ -52,7 +54,11 @@ class Parser(Session):
 
     def replace_submod(self, mod_def: str, mod_dict: dict[str, str]) -> str:
         "Replace submodules from mod_def that are in mod_dict"
-        mod_def = re.sub(r"\w+", lambda x: mod_dict[x.group()] if x.group() in mod_dict else x.group(), mod_def)
+        mod_def = re.sub(
+            r"\w+",
+            lambda x: mod_dict[x.group()] if x.group() in mod_dict else x.group(),
+            mod_def,
+        )
         return mod_def
 
     def find_all_alt(self, mod_def: str, mod_dict: dict[str, str]) -> list[set[str]]:
@@ -62,20 +68,27 @@ class Parser(Session):
         list_alt = [mod_def]
         ### Flag to know if some alternatives remain to be solved
         flag = True
-        while flag: ### While alternatives remain
-            flag = False ### At the beginning of each loop we suppose there are no more alternative
-            new_list_alt = [] ### Initialize a new list to keep alternatives that will be solved in the next loop
+        while flag:  ### While alternatives remain
+            flag = False  ### At the beginning of each loop we suppose there are no more alternative
+            new_list_alt = (
+                []
+            )  ### Initialize a new list to keep alternatives that will be solved in the next loop
             for my_def in list_alt:
                 my_def = self.clean_module(mod_def=my_def)
                 my_def = self.replace_submod(mod_def=my_def, mod_dict=mod_dict)
                 ### Look for simple parenthesis (simple parenthesis = alternatives that should be solved)
                 res = alternative.match(my_def)
                 if res:
-                    flag = True ### Alternatives were found so we suppose other may remain
+                    flag = (
+                        True  ### Alternatives were found so we suppose other may remain
+                    )
                     # list of alternatives after resolving simple parenthesis
-                    new_def = [res.group(1) + k +  res.group(4) for k in res.group(2).strip("()").split(",")]
+                    new_def = [
+                        res.group(1) + k + res.group(4)
+                        for k in res.group(2).strip("()").split(",")
+                    ]
                     new_list_alt += new_def
-                else: ### If the def has already been simplified at maximum
+                else:  ### If the def has already been simplified at maximum
                     new_list_alt.append(my_def)
             list_alt = new_list_alt
         ### Transform each alternative into set of KOs : module_dict_alt['M000x'] = [set(KO1, KO2), set(KO1, KO3), etc]
@@ -85,7 +98,8 @@ class Parser(Session):
         ### Load file
         module_dict = self.load_modules(self.module_file)
         ### Get the list of alternatives for all modules
-        self.module_dict_alt = {mod: self.find_all_alt(mod_def=my_def, mod_dict=module_dict)
-                                for (mod, my_def)
-                                in module_dict.items()}
+        self.module_dict_alt = {
+            mod: self.find_all_alt(mod_def=my_def, mod_dict=module_dict)
+            for (mod, my_def) in module_dict.items()
+        }
         return True

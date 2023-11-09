@@ -17,9 +17,6 @@ classifiers = [
 ]
 packages = [
     { include = "meteor" },
-    { include = "meteor/dataverse_inrae.ini" },
-    { include = "meteor/all_modules_definition_GMM_GBM_KEGG_107.tsv" },
-    { include = "meteor/category_pcm.tsv" },
 ]
 
 
@@ -46,11 +43,13 @@ pytest = "^7.4.3"
 pysam = "^0.22.0"
 pandas = "^2.1.2"
 pandas-stubs = "^2.1.1.230928"
+types-setuptools = "^68.2.0.0"
 
 
 [tool.poetry.group.pylint.dependencies]
 pylint = "^3.0.2"
 anybadge = "^1.14.0"
+black = "^23.10.1"
 
 [flake8]
 max-line-length = 120

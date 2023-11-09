@@ -12,20 +12,23 @@
 
 """Effective mapping"""
 
-from subprocess import check_call, run
+from subprocess import run
 from dataclasses import dataclass
 from pathlib import Path
 from configparser import ConfigParser
 from datetime import datetime
-from typing import Type
+from typing import Type, List
 from packaging.version import Version, parse
+from re import findall
 from meteor.session import Session, Component
+
 # from pysam import view, sort, index  # type: ignore[attr-defined]
 # from tempfile import NamedTemporaryFile
 # from memory_profiler import profile
 from time import perf_counter
 import logging
 import sys
+
 # import os
 # fp=open('memory_profiler.log','w+')
 
@@ -33,6 +36,7 @@ import sys
 @dataclass
 class Mapper2(Session):
     """Run the bowtie"""
+
     meteor: Type[Component]
     census: dict
     fastq_list: list[str]
@@ -41,7 +45,13 @@ class Mapper2(Session):
     alignment_number: int
     counting_type: str
 
-    def set_mapping_config(self, cmd: str, sam_file: Path, bowtie_version: str) -> ConfigParser:  # pragma: no cover
+    def set_mapping_config(
+        self,
+        cmd: str,
+        sam_file: Path,
+        bowtie_version: str,
+        mapping_data: List[int],
+    ) -> ConfigParser:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
@@ -54,20 +64,18 @@ class Mapper2(Session):
         config["mapping"] = {
             "mapping_tool": "bowtie2",
             "mapping_tool_version": bowtie_version,
-            "mapping_date":  datetime.now().strftime("%Y-%m-%d"),
-            "reference_name": self.census["reference"]["reference_info"]["reference_name"],
+            "mapping_date": datetime.now().strftime("%Y-%m-%d"),
+            "reference_name": self.census["reference"]["reference_info"][
+                "reference_name"
+            ],
             "mapping_cmdline": cmd,
-            "parameters": "l-1-m5",
-            "mapped_read_length": "-1",
-            "mapped_read_length_type": "overall",
-            "mismatches": "5",
-            "is_mismatches_percentage": "1",
-            "matches": "10000",
-            "is_local_mapping": str(int(self.mapping_type == "local")),
-            # "processed_read_count": self.census["census"]["sample_info"]["sequenced_read_count"]
+            "total_read_count": str(mapping_data[0]),
+            "mapped_read_count": str(mapping_data[2] + mapping_data[3]),
+            "overall_alignment_rate": str(
+                round((mapping_data[2] + mapping_data[3]) / mapping_data[0] * 100, 2)
+            ),
         }
         config["mapping_file"] = {
-            "mapping_file_count": "1",
             "bowtie_file_1": sam_file.name,
             "mapping_file_format": "sam",
             # "mapping_file_format": "bam",
@@ -102,10 +110,15 @@ class Mapper2(Session):
         """Map reads"""
         # bam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.bam"
         # test
-        sam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.sam"
-        bowtie_index = (self.meteor.ref_dir /
-                        self.census["reference"]["reference_file"]["fasta_dir"] /
-                        self.census["reference"]["reference_info"]["reference_name"])
+        sam_file = (
+            self.census["directory"]
+            / f"{self.census['census']['sample_info']['sample_name']}.sam"
+        )
+        bowtie_index = (
+            self.meteor.ref_dir
+            / self.census["reference"]["reference_file"]["fasta_dir"]
+            / self.census["reference"]["reference_info"]["reference_name"]
+        )
         # bowtie2 parameters
         if self.mapping_type == "local":
             parameters = f"-p {self.meteor.threads} --local --sensitive-local "
@@ -117,15 +130,45 @@ class Mapper2(Session):
             # and self.counting_type != "best"
             parameters += f"-k {self.alignment_number} "
         # Check the bowtie2 version
-        bowtie_version = str(run(["bowtie2","--version"], capture_output=True).stdout).split(" ")[2].split("\\n")[0]
+        bowtie_version = (
+            str(run(["bowtie2", "--version"], capture_output=True).stdout)
+            .split(" ")[2]
+            .split("\\n")[0]
+        )
         if parse(bowtie_version) < Version("2.3.5"):
-            logging.error("Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.", bowtie_version)
+            logging.error(
+                "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.",
+                bowtie_version,
+            )
             sys.exit()
         # Start mapping
         start = perf_counter()
-        check_call(["bowtie2", parameters, "--mm --no-unal",
-                    "-x", str(bowtie_index.resolve()), "-U", ",".join(self.fastq_list),
-                    "-S", str(sam_file.resolve())])
+        mapping_result = str(
+            run(
+                [
+                    "bowtie2",
+                    parameters,
+                    "--mm --no-unal",
+                    "-x",
+                    str(bowtie_index.resolve()),
+                    "-U",
+                    ",".join(self.fastq_list),
+                    "-S",
+                    str(sam_file.resolve()),
+                ],
+                capture_output=True,
+            ).stderr
+        )
+        try:
+            mapping_log = findall(r"([0-9]+)\s+\(", mapping_result)
+            assert len(mapping_log) == 4
+            mapping_data = [int(i) for i in mapping_log]
+        except AssertionError:
+            print(mapping_result)
+            print(mapping_log)
+            logging.error("Error, could not cast the mapping result from bowtie2")
+            sys.exit()
+
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
         # with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_sam_file:
         #     # execute command
@@ -145,6 +188,8 @@ class Mapper2(Session):
         #         raise ValueError("Failed to create the bam")
         #     logging.info("Completed bam creation in %f seconds", perf_counter() - start)
         # config = self.set_mapping_config(parameters, bam_file)
-        config = self.set_mapping_config(parameters, sam_file, bowtie_version)
+        config = self.set_mapping_config(
+            parameters, sam_file, bowtie_version, mapping_data
+        )
         self.save_config(config, self.census["Stage1FileName"])
         return True

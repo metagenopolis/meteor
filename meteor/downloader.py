@@ -13,6 +13,7 @@
 """Download and index reference"""
 
 import logging
+from pkg_resources import resource_filename
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
 from configparser import ConfigParser
@@ -27,6 +28,7 @@ import tarfile
 @dataclass
 class Downloader(Session):
     """Download and prepare catalogues"""
+
     meteor: Type[Component]
     choice: str
     check_md5: bool
@@ -36,7 +38,9 @@ class Downloader(Session):
 
     def __post_init__(self) -> None:
         try:
-            self.configuration_path = Path(__file__).parent / "dataverse_inrae.ini"
+            self.configuration_path = Path(
+                resource_filename("meteor", "data/dataverse_inrae.ini")
+            )
             assert self.configuration_path.exists()
         except AssertionError:
             logging.error("The file dataverse_inrae.ini is missing in meteor source")
@@ -57,7 +61,9 @@ class Downloader(Session):
                 file_hash.update(chunk)
         return file_hash.hexdigest()
 
-    def show_progress(self, block_num: int, block_size: int, total_size: int) -> None:  # pragma: no cover
+    def show_progress(
+        self, block_num: int, block_size: int, total_size: int
+    ) -> None:  # pragma: no cover
         """Show download progress block per block
 
         :param block_num: Number of the block
@@ -73,9 +79,12 @@ class Downloader(Session):
         percent = block_num * block_size / total_size
         hours, rem = divmod(duration, 3600)
         minutes, seconds = divmod(rem, 60)
-        print(f"Download of {self.choice} catalogue : {percent:.1%}, {progress_size/ (1024 * 1024): 8.0f} MB, "
-              f"{speed: 6.0f} KB/s, {int(hours):0>2}:{int(minutes):0>2}:{int(seconds):0>2} elapsed time.",
-              end="\r", flush=True)
+        print(
+            f"Download of {self.choice} catalogue : {percent:.1%}, {progress_size/ (1024 * 1024): 8.0f} MB, "
+            f"{speed: 6.0f} KB/s, {int(hours):0>2}:{int(minutes):0>2}:{int(seconds):0>2} elapsed time.",
+            end="\r",
+            flush=True,
+        )
 
     def extract_tar(self, catalogue: Path) -> None:
         """Extract tar file
@@ -93,15 +102,22 @@ class Downloader(Session):
             logging.info("Download %s microbiome reference catalogue", self.choice)
             url = self.catalogues_config[self.choice]["catalogue"]
             md5_expect = self.catalogues_config[self.choice]["md5"]
-            catalogue = self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
+            catalogue = (
+                self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
+            )
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
             print(flush=True)
             if self.choice == "test":
                 logging.info("Download test fastq file")
                 url_fastq = self.catalogues_config[self.choice]["fastq"]
-                fastq_test = self.meteor.tmp_dir / self.catalogues_config[self.choice]["fastqfilename"]
+                fastq_test = (
+                    self.meteor.tmp_dir
+                    / self.catalogues_config[self.choice]["fastqfilename"]
+                )
                 md5fastq_expect = self.catalogues_config[self.choice]["md5fastq"]
-                urlretrieve(url_fastq, filename=fastq_test, reporthook=self.show_progress)
+                urlretrieve(
+                    url_fastq, filename=fastq_test, reporthook=self.show_progress
+                )
                 print(flush=True)
                 assert md5fastq_expect == self.getmd5(fastq_test)
             if self.check_md5:

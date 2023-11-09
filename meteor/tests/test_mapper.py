@@ -41,11 +41,19 @@ def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper2:
         data_dict = {
             "census": census_ini,
             "directory": stage1_dir,
-            "Stage1FileName": stage1_dir / census_ini_file.name.replace("stage_0", "stage_1"),
-            "reference": ref_ini
+            "Stage1FileName": stage1_dir
+            / census_ini_file.name.replace("stage_0", "stage_1"),
+            "reference": ref_ini,
         }
-    return Mapper2(meteor, data_dict, [str(datadir / "eva71_bench.fq.gz")],
-                   "end-to-end", 80, 10000, "smart_shared_reads")
+    return Mapper2(
+        meteor,
+        data_dict,
+        [str(datadir / "eva71_bench.fq.gz")],
+        "end-to-end",
+        80,
+        10000,
+        "smart_shared_reads",
+    )
 
 
 # def test_create_bam(mapping_builder: Mapper2,  datadir: Path, tmp_path: Path) -> None:
@@ -64,6 +72,8 @@ def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper2:
 
 def test_execute(mapping_builder: Mapper2) -> None:
     mapping_builder.execute()
-    output_sam = (mapping_builder.census["directory"] /
-                  f"{mapping_builder.census['census']['sample_info']['sample_name']}.sam")
+    output_sam = (
+        mapping_builder.census["directory"]
+        / f"{mapping_builder.census['census']['sample_info']['sample_name']}.sam"
+    )
     assert output_sam.exists()

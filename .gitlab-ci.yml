@@ -104,11 +104,12 @@ run:
   stage: build
   script:
     - pip install poetry
+    - poetry config repositories.gitlab ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi
+    - echo "Repository gitlab configured ..."
     - poetry build -C meteor
-    - TWINE_PASSWORD=${CI_JOB_TOKEN} TWINE_USERNAME=gitlab-ci-token python -m twine upload --skip-existing --repository-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi dist/*
-  artifacts:
-    paths:
-      - dist/*.whl
+    - echo "Build done ..."
+    - poetry publish -C meteor --repository gitlab -u gitlab-ci-token -p ${CI_JOB_TOKEN}
+    - echo "Publishing done!"
   only:
     - tags
 

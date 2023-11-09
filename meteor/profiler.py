@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Type
 import pandas as pd
 from pathlib import Path
+from pkg_resources import resource_filename
 import numpy as np
 import logging
 import os
@@ -27,8 +28,8 @@ from datetime import date
 
 @dataclass
 class Profiler(Session):
-    """Profile session for abundance and annotation
-    """
+    """Profile session for abundance and annotation"""
+
     meteor: Type[Component]
     suffix_file: str
     rarefaction_level: int
@@ -53,7 +54,9 @@ class Profiler(Session):
         config_session = {}
         config_session["user"] = os.getlogin()
         config_session["date"] = str(date.today())
-        self.sample_config = self.update_ini(self.sample_config, "profiling_session", config_session)
+        self.sample_config = self.update_ini(
+            self.sample_config, "profiling_session", config_session
+        )
 
         # Initialize the unmapped_count
         try:
@@ -131,48 +134,60 @@ class Profiler(Session):
             self.db_filenames[db] = db_filename
 
         # Initialize the module definition file
-        if self.module_path is None:
-            # TODO correction os.path.join
-            self.module_path = Path(__file__).parent / "all_modules_definition_GMM_GBM_KEGG_107.tsv"
-            # pkg_resources.resource_filename('integron_finder', "data")
-        try:
-            assert self.module_path.is_file()
-        except AssertionError:
-            logging.error("The file %s does not exist.", self.module_path)
-            self.module_path = None
-        # Do not check columns here because no header
+        if self.compute_modules_bool:
+            try:
+                self.module_path = Path(
+                    resource_filename(
+                        "meteor", "data/all_modules_definition_GMM_GBM_KEGG_107.tsv"
+                    )
+                )
+                assert self.module_path.is_file()
+            except AssertionError:
+                logging.error("The file %s does not exist.", self.module_path)
+            # Do not check columns here because no header
 
     def rarefy(self, rarefaction_level: int, unmapped_reads: int, seed: int) -> None:
         count_column = self.meteor.value_column
         # Add the unmapped count
-        self.gene_count.loc[len(self.gene_count)] = {self.meteor.gene_column: -1,
-                                                     self.meteor.gene_length_column: 1000,
-                                                     count_column: unmapped_reads}
+        self.gene_count.loc[len(self.gene_count)] = {
+            self.meteor.gene_column: -1,
+            self.meteor.gene_length_column: 1000,
+            count_column: unmapped_reads,
+        }
 
         # Check if rarefaction is possible
         if self.gene_count[count_column].sum() > rarefaction_level:
             # Transform into a long array of gene_id according to gene occurence
-            array_to_rarefy = np.repeat(self.gene_count[self.meteor.gene_column],
-                                        self.gene_count[count_column])
+            array_to_rarefy = np.repeat(
+                self.gene_count[self.meteor.gene_column], self.gene_count[count_column]
+            )
             # Randomly choose among the long array the selected reads
-            rng = np.random.default_rng(seed = seed)
-            array_rarefied = rng.choice(array_to_rarefy,
-                                        size = rarefaction_level,
-                                        replace = False)
+            rng = np.random.default_rng(seed=seed)
+            array_rarefied = rng.choice(
+                array_to_rarefy, size=rarefaction_level, replace=False
+            )
             # Count gene_id occurence to get back to short gene_id list
             unique, counts = np.unique(array_rarefied, return_counts=True)
-            self.gene_count[count_column] = np.zeros(self.gene_count.shape[0], dtype = "int")
-            self.gene_count.loc[np.in1d(self.gene_count[self.meteor.gene_column], unique), count_column] = counts
+            self.gene_count[count_column] = np.zeros(
+                self.gene_count.shape[0], dtype="int"
+            )
+            self.gene_count.loc[
+                np.in1d(self.gene_count[self.meteor.gene_column], unique), count_column
+            ] = counts
 
         # Remove the counts for the gene "-1" (unmapped_reads)
-        self.gene_count = self.gene_count[self.gene_count[self.meteor.gene_column] != -1]
+        self.gene_count = self.gene_count[
+            self.gene_count[self.meteor.gene_column] != -1
+        ]
 
     def normalize_coverage(self) -> None:
-        """Normalize by coverage
-        """
+        """Normalize by coverage"""
         count_column = self.meteor.value_column
-        self.gene_count[count_column] = (self.gene_count[count_column] /
-                                         self.gene_count[self.meteor.gene_length_column] * 1000.)
+        self.gene_count[count_column] = (
+            self.gene_count[count_column]
+            / self.gene_count[self.meteor.gene_length_column]
+            * 1000.0
+        )
 
     def normalize_fpkm(self, rarefaction_level: int, unmapped_reads: int) -> None:
         """Normalize matrix using fpkm method
@@ -188,9 +203,11 @@ class Profiler(Session):
         else:
             unmapped_reads_after_rf = unmapped_reads
         ### Add the unmapped reads after rf to the gene count table as a pseudo gene
-        self.gene_count.loc[len(self.gene_count)] = {self.meteor.gene_column: -1,
-                                                     self.meteor.gene_length_column: 1000,
-                                                     count_column: unmapped_reads_after_rf}
+        self.gene_count.loc[len(self.gene_count)] = {
+            self.meteor.gene_column: -1,
+            self.meteor.gene_length_column: 1000,
+            count_column: unmapped_reads_after_rf,
+        }
         ### Normalize
         self.gene_count[count_column] = self.gene_count[count_column] / self.gene_count[self.meteor.gene_length_column]
         self.gene_count[count_column] = self.gene_count[count_column] / self.gene_count[count_column].sum()
@@ -257,7 +274,9 @@ class Profiler(Session):
         merged_df = pd.merge(annot_df, self.gene_count, left_on=self.meteor.gene_column,
                              right_on=self.meteor.gene_column)
         # Compute sum of KO
-        aggregated_count = merged_df.groupby(self.meteor.ko_column)[count_column].sum().reset_index()
+        aggregated_count = (
+            merged_df.groupby(self.meteor.ko_column)[count_column].sum().reset_index()
+        )
         self.functions = aggregated_count
 
     def compute_ko_abundance_by_msp(self, annot_file: Path, msp_def_filename: Path) -> None:
@@ -273,7 +292,11 @@ class Profiler(Session):
         # Merge both data frames
         msp_df_annotated = pd.merge(msp_df, annot_df)
         # Create a dict ko: {msp1, msp2}
-        ko_dict = msp_df_annotated.groupby(self.meteor.ko_column)[self.meteor.msp_column].apply(set).to_dict()
+        ko_dict = (
+            msp_df_annotated.groupby(self.meteor.ko_column)[self.meteor.msp_column]
+            .apply(set)
+            .to_dict()
+        )
         # Compute abundance based on MSP abundance
         ko_dict_ab = {ko: self.msp_table.loc[self.msp_table[self.meteor.msp_column].isin(msp_set),
                                              self.meteor.value_column].sum()
@@ -283,7 +306,9 @@ class Profiler(Session):
                                                 columns = [self.meteor.value_column]).reset_index().rename(
             columns={"index": self.meteor.ko_column})
 
-    def compute_ko_stats(self, annot_file: Path, by_msp: bool, msp_def_filename: Path) -> float:
+    def compute_ko_stats(
+        self, annot_file: Path, by_msp: bool, msp_def_filename: Path
+    ) -> float:
         count_column = self.meteor.value_column
         # Load annotation file
         annot_df = pd.read_table(annot_file)
@@ -300,26 +325,35 @@ class Profiler(Session):
                           self.gene_count[count_column].sum())
         return round(annot_reads_pc, 2)
 
-    def merge_catalogue_info(self, msp_file: Path, annot_file: dict[str, Path]) -> pd.DataFrame:
+    def merge_catalogue_info(
+        self, msp_file: Path, annot_file: dict[str, Path]
+    ) -> pd.DataFrame:
         count_column = self.meteor.value_column
         # Load files
         msp_df = pd.read_table(msp_file)
         # Restrict df to detected genes
-        detected_genes = self.gene_count.loc[self.gene_count[count_column] > 0, self.meteor.gene_column]
+        detected_genes = self.gene_count.loc[
+            self.gene_count[count_column] > 0, self.meteor.gene_column
+        ]
         msp_df = msp_df.loc[msp_df[self.meteor.gene_column].isin(detected_genes)]
         # Restrict df to detected msp
         msp_df = msp_df.loc[msp_df[self.meteor.msp_column].isin(
             self.msp_table.loc[self.msp_table[self.meteor.value_column] > 0, self.meteor.msp_column])]
         # Merge each provided db
-        annot_df = pd.concat([pd.read_table(db)[[self.meteor.gene_column, self.meteor.ko_column]]
-                              for db
-                              in annot_file.values()],
-                             ignore_index = True)
+        annot_df = pd.concat(
+            [
+                pd.read_table(db)[[self.meteor.gene_column, self.meteor.ko_column]]
+                for db in annot_file.values()
+            ],
+            ignore_index=True,
+        )
         annot_df = annot_df.loc[annot_df[self.meteor.gene_column].isin(detected_genes)]
         annotated_msp_df = msp_df.merge(annot_df)
         return annotated_msp_df
 
-    def compute_completeness(self, mod: list[set[str]], annotated_msp: pd.DataFrame) -> dict[str, float]:
+    def compute_completeness(
+        self, mod: list[set[str]], annotated_msp: pd.DataFrame
+    ) -> dict[str, float]:
         "Compute completeness of a given module in all available MSP."
         return annotated_msp.groupby(self.meteor.msp_column)[self.meteor.ko_column].apply(
             lambda x: self.compute_max(mod, set(x))).to_dict()
@@ -328,25 +362,37 @@ class Profiler(Session):
         "Compute maximum completeness of a module across all its alternative according to a set of KO."
         return max((len(alt.intersection(ko)) / len(alt) for alt in mod))
 
-    def compute_completeness_all(self,
-                                 all_mod: dict[str, list[set[str]]],
-                                 annotated_msp: pd.DataFrame) -> dict[str, dict[str, float]]:
+    def compute_completeness_all(
+        self, all_mod: dict[str, list[set[str]]], annotated_msp: pd.DataFrame
+    ) -> dict[str, dict[str, float]]:
         "Compute completeness of all modules in all MSP."
-        return {mod: self.compute_completeness(alt, annotated_msp) for (mod, alt) in all_mod.items()}
+        return {
+            mod: self.compute_completeness(alt, annotated_msp)
+            for (mod, alt) in all_mod.items()
+        }
 
-    def compute_module_abundance(self, msp_file: Path, annot_file: dict[str, Path],
-                                 all_mod: dict[str, list[set[str]]],
-                                 completeness: float) -> None:
+    def compute_module_abundance(
+        self,
+        msp_file: Path,
+        annot_file: dict[str, Path],
+        all_mod: dict[str, list[set[str]]],
+        completeness: float,
+    ) -> None:
         "Compute all modules abundance in the sample."
         count_column = self.meteor.value_column
         # Merge the data
-        annotated_msp = self.merge_catalogue_info(msp_file=msp_file, annot_file=annot_file)
+        annotated_msp = self.merge_catalogue_info(
+            msp_file=msp_file, annot_file=annot_file
+        )
         # Compute all completeness for all modules and all MSP
-        cpltd_dict = self.compute_completeness_all(all_mod=all_mod, annotated_msp=annotated_msp)
+        cpltd_dict = self.compute_completeness_all(
+            all_mod=all_mod, annotated_msp=annotated_msp
+        )
         # Restrict to msp whose completeness is above threshold
-        mod_dict = {mod: {msp for (msp, cmpltd) in msp_dict.items() if cmpltd >= completeness}
-                    for (mod, msp_dict)
-                    in cpltd_dict.items()}
+        mod_dict = {
+            mod: {msp for (msp, cmpltd) in msp_dict.items() if cmpltd >= completeness}
+            for (mod, msp_dict) in cpltd_dict.items()
+        }
         # Compute module abundance
         module_abundance = {mod: self.msp_table.loc[self.msp_table[self.meteor.msp_column].isin(msp_set),
                                                     count_column].sum()
@@ -362,9 +408,11 @@ class Profiler(Session):
         # Part 1: NORMALIZATION
         if self.rarefaction_level > 0:
             logging.info("Run rarefaction.")
-            self.rarefy(rarefaction_level=self.rarefaction_level,
-                        unmapped_reads=self.unmapped_reads,
-                        seed=self.seed)
+            self.rarefy(
+                rarefaction_level=self.rarefaction_level,
+                unmapped_reads=self.unmapped_reads,
+                seed=self.seed,
+            )
         else:
             logging.info("No rarefaction.")
         if self.normalization == "coverage":
@@ -372,8 +420,10 @@ class Profiler(Session):
             self.normalize_coverage()
         elif self.normalization == "fpkm":
             logging.info("Run fpkm normalization.")
-            self.normalize_fpkm(rarefaction_level=self.rarefaction_level,
-                                unmapped_reads=self.unmapped_reads)
+            self.normalize_fpkm(
+                rarefaction_level=self.rarefaction_level,
+                unmapped_reads=self.unmapped_reads,
+            )
         else:
             logging.info("No normalization.")
         # Write the normalized count table

@@ -25,7 +25,7 @@ def builder_defec(tmp_path: Path, datadir: Path) -> ReferenceBuilder:
     meteor = Component
     meteor.ref_dir = tmp_path
     meteor.ref_name = "defect"
-    return ReferenceBuilder(meteor, input_fasta=datadir/"defect_catalogue.fasta.gz")
+    return ReferenceBuilder(meteor, input_fasta=datadir / "defect_catalogue.fasta.gz")
 
 
 @pytest.fixture
@@ -34,14 +34,22 @@ def builder(tmp_path: Path, datadir: Path) -> ReferenceBuilder:
     meteor.ref_dir = tmp_path
     meteor.ref_name = "test"
     meteor.threads = 1
-    return ReferenceBuilder(meteor, input_fasta=datadir/"test_catalogue.fasta.gz")
+    return ReferenceBuilder(meteor, input_fasta=datadir / "test_catalogue.fasta.gz")
 
 
 def test_read_reference(builder_defec: ReferenceBuilder):
     res = (
-        ("1", 80, "ATGAAAATGAACCTGCAAAAGGACATGTTTGATCGCAAATTGCGATACAAGATGTACAAAGATGGTAAAAAGTGGGTGTT"),
+        (
+            "1",
+            80,
+            "ATGAAAATGAACCTGCAAAAGGACATGTTTGATCGCAAATTGCGATACAAGATGTACAAAGATGGTAAAAAGTGGGTGTT",
+        ),
         ("2", 56, "TGCCAGCATGGCGACTTTGTCTTTGATTGGGGCTTTTTTGGGCGGTGGTAGCGCCC"),
-        ("4", 74, "ATGAAAATGAACCTGCAAAAGGACGATCGCAAATTGCGATACAAGATGTACAAAGATGGTAAAAAGTGGGTGTT"),
+        (
+            "4",
+            74,
+            "ATGAAAATGAACCTGCAAAAGGACGATCGCAAATTGCGATACAAGATGTACAAAGATGGTAAAAAGTGGGTGTT",
+        ),
     )
     for i, (header, length, sequence) in enumerate(builder_defec.read_reference()):
         assert header == res[i][0]
@@ -52,10 +60,16 @@ def test_read_reference(builder_defec: ReferenceBuilder):
 @pytest.mark.parametrize(
     ("annotation_md5", "fasta_md5"),
     (
-        pytest.param("be4ea162246d2f23ed8b33bdf9b209d8", "2912b682a8e7554025cc5feadd641570", id="Accurate output"),
-    )
+        pytest.param(
+            "be4ea162246d2f23ed8b33bdf9b209d8",
+            "2912b682a8e7554025cc5feadd641570",
+            id="Accurate output",
+        ),
+    ),
 )
-def test_create_reference(builder: ReferenceBuilder, annotation_md5: str, fasta_md5: str):
+def test_create_reference(
+    builder: ReferenceBuilder, annotation_md5: str, fasta_md5: str
+):
     builder.create_reference()
     with builder.output_annotation_file.open("rb") as output_annotation:
         assert md5(output_annotation.read()).hexdigest() == annotation_md5
