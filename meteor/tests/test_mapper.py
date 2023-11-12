@@ -14,14 +14,14 @@
 
 # pylint: disable=redefined-outer-name
 from ..session import Component
-from ..mapper2 import Mapper2
+from ..mapper import Mapper
 from pathlib import Path
 from configparser import ConfigParser
 import pytest
 
 
 @pytest.fixture
-def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper2:
+def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper:
     meteor = Component
     meteor.ref_dir = datadir / "eva71"
     meteor.ref_name = "test"
@@ -45,7 +45,7 @@ def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper2:
             / census_ini_file.name.replace("stage_0", "stage_1"),
             "reference": ref_ini,
         }
-    return Mapper2(
+    return Mapper(
         meteor,
         data_dict,
         [str(datadir / "eva71_bench.fq.gz")],
@@ -56,21 +56,21 @@ def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper2:
     )
 
 
-# def test_create_bam(mapping_builder: Mapper2,  datadir: Path, tmp_path: Path) -> None:
+# def test_create_bam(mapping_builder: Mapper,  datadir: Path, tmp_path: Path) -> None:
 #     input_sam = datadir / "eva71_bench.sam"
 #     output_bam = tmp_path / "eva71_bench.bam"
 #     mapping_builder.create_bam(str(input_sam.resolve()),  str(output_bam.resolve()))
 #     assert output_bam.exists()
 
 
-# def test_sort_bam(mapping_builder: Mapper2,  datadir: Path, tmp_path: Path) -> None:
+# def test_sort_bam(mapping_builder: Mapper,  datadir: Path, tmp_path: Path) -> None:
 #     input_bam = datadir / "eva71_bench.bam"
 #     output_bam = tmp_path / "eva71_bench_sorted.bam"
 #     mapping_builder.sort_bam(str(input_bam.resolve()), str(output_bam.resolve()))
 #     assert output_bam.exists()
 
 
-def test_execute(mapping_builder: Mapper2) -> None:
+def test_execute(mapping_builder: Mapper) -> None:
     mapping_builder.execute()
     output_sam = (
         mapping_builder.census["directory"]
