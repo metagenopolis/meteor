@@ -30,7 +30,7 @@ from meteor.session import Session, Component
 from typing import Type, Dict, Generator, List, Tuple
 from collections import defaultdict
 from itertools import chain
-from pysam import index, idxstats, AlignmentFile, sort  # type: ignore[attr-defined]
+from pysam import index, idxstats, AlignmentFile, sort, AlignedSegment  # type: ignore[attr-defined]
 from time import perf_counter
 from shutil import rmtree, copy
 
@@ -197,42 +197,23 @@ class Counter(Session):
         tmp_score: Dict[str, float] = {}
         genes: defaultdict[str, List[int]] = defaultdict(list)
         # contains a list of alignment of each read
-        reads: defaultdict[str, List[str]] = defaultdict(list)
+        reads: defaultdict[str, List[AlignedSegment]] = defaultdict(list)
         for element in samdesc:
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
             # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
             ali = sum(list(self.get_aligned_nucleotides(element)))
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
             identity = (ali - element.get_tag("NM")) / ali
-            # print(identity)
-            # print(self.identity_threshold)
-            # print("Ali:")
-            # if element.query_name == "568":
-            #     print("read", element.query_name)
-            #     print(identity)
-            #     print("ref", element.reference_name)
-            # if element.query_name == "1599501":
-            #     print(ali)
-            #     print(element.query_name)
-            #     print(identity)
-            #     print(element.query_sequence)
-            #     print(element.get_tag("NM"))
-            #     print(element.query_alignment_length)
-            #     print(element.query_alignment_sequence)
-            #     print(element.query_qualities)
-            #     print(element.reference_name)
-            #     print(element.get_reference_sequence())
             # if lower than the identity threshold
             # we ignore the read
             if identity < self.identity_threshold:
                 continue
-            # if element.query_name == "568":
-            #     print("On passe")
             # Only if we use score
             # if not element.has_tag("AS"):
             #     raise ValueError("Missing 'AS' field.")
-            read_id = element.query_name
-
+            read_id: str | None = element.query_name
+            if not read_id:
+                continue
             # print(read_id, element.query_alignment_length)
             # get alignment score
             # Meteor do not take in account the alignement score
@@ -253,6 +234,8 @@ class Counter(Session):
                 # if int(element.reference_name) not in set(genes[read_id]):
                 # if int(element.reference_name) == 182 and int(element.reference_name) in set(genes[read_id]):
                 #     print("gene mapped several time")
+                if not element.reference_name:
+                    continue
                 reads[read_id].append(element)
                 genes[read_id].append(int(element.reference_name))
                 # else:
@@ -268,6 +251,9 @@ class Counter(Session):
                 # In smart_shared and unique case, we reinitialise all
                 # We keep the new score and forget the previous one
                 # elif self.counting_type in ("unique", "smart_shared"):
+                if not element.reference_name:
+                    continue
+                print(element)
                 reads[read_id] = [element]
                 genes[read_id] = [int(element.reference_name)]
                 # In total count, we keep all but not meteor which performs an ex-aequo count
