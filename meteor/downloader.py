@@ -13,7 +13,7 @@
 """Download and index reference"""
 
 import logging
-from pkg_resources import resource_filename
+import importlib.resources
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
 from configparser import ConfigParser
@@ -32,20 +32,17 @@ class Downloader(Session):
     meteor: Type[Component]
     choice: str
     check_md5: bool
-    configuration_path: Path = field(default_factory=Path)
     catalogues_config: ConfigParser = field(default_factory=ConfigParser)
     start_time: float = field(default_factory=float)
 
     def __post_init__(self) -> None:
         try:
-            self.configuration_path = Path(
-                resource_filename("meteor", "data/dataverse_inrae.ini")
-            )
-            assert self.configuration_path.exists()
+            config_data = importlib.resources.files("meteor") / "data/dataverse_inrae.ini"
+            with importlib.resources.as_file(config_data)
+             as config:
+                self.catalogues_config.read_file(config)
         except AssertionError:
             logging.error("The file dataverse_inrae.ini is missing in meteor source")
-        with self.configuration_path.open("rt", encoding="UTF-8") as config:
-            self.catalogues_config.read_file(config)
         self.meteor.ref_dir.mkdir(exist_ok=True)
 
     def getmd5(self, catalog: Path) -> str:
