@@ -80,7 +80,7 @@ class ReferenceBuilder(Session):
         config["reference_file"] = {
             "database_dir": "database",
             "fasta_dir": "fasta",
-            "fasta_filename_1": self.output_fasta_file.name,
+            "fasta_filename": self.output_fasta_file.name,
         }
         return config
 
@@ -118,23 +118,13 @@ class ReferenceBuilder(Session):
         with self.output_annotation_file.open(
             "wt", encoding="UTF-8"
         ) as output_annotation:
-            # if self.pysam_test:
             output_annotation.write("gene_id\tgene_name\tgene_length\n")
             with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
-                # with self.output_index_file.open("wt", encoding="UTF-8") as output_index:
-                # I don't know what it means
-                # output_index.write(f"@HD\tVN:1.6\n")
                 for gene_id, (header, len_seq, seq) in enumerate(
                     self.read_reference(), start=1
                 ):
-                    # if self.pysam_test:
                     output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
-                    # else:
-                    #   output_annotation.write(f"{gene_id}\t{len_seq}\n")
                     output_fasta.write(f">{gene_id}\n{seq}\n")
-                    # print(seq.replace("\n",""))
-                    # seq = seq.replace("\n", "")
-                    # output_index.write(f"@SQ\tSN:{gene_id}\tLN:{len_seq}\tM5:{md5(seq.encode('ascii')).hexdigest()}\tUR:file:{str(self.output_fasta_file.resolve())}\n")
 
     def execute(self) -> bool:
         """Build the database"""

@@ -75,7 +75,7 @@ class VariantCalling(Session):
         reference = (
             self.meteor.ref_dir
             / self.census["reference"]["reference_file"]["fasta_dir"]
-            / self.census["reference"]["reference_file"]["fasta_filename_1"]
+            / self.census["reference"]["reference_file"]["fasta_filename"]
         )
         start = perf_counter()
         # "--skip-indels", ?
