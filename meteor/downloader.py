@@ -37,9 +37,10 @@ class Downloader(Session):
 
     def __post_init__(self) -> None:
         try:
-            config_data = importlib.resources.files("meteor") / "data/dataverse_inrae.ini"
-            with importlib.resources.as_file(config_data)
-             as config:
+            config_data = (
+                importlib.resources.files("meteor") / "data/dataverse_inrae.ini"
+            )
+            with importlib.resources.as_file(config_data) as config:
                 self.catalogues_config.read_file(config)
         except AssertionError:
             logging.error("The file dataverse_inrae.ini is missing in meteor source")
