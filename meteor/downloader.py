@@ -40,8 +40,9 @@ class Downloader(Session):
             config_data = (
                 importlib.resources.files("meteor") / "data/dataverse_inrae.ini"
             )
-            with importlib.resources.as_file(config_data) as config:
-                self.catalogues_config.read_file(config)
+            with importlib.resources.as_file(config_data) as configuration_path:
+                with configuration_path.open("rt", encoding="UTF-8") as config:
+                    self.catalogues_config.read_file(config)
         except AssertionError:
             logging.error("The file dataverse_inrae.ini is missing in meteor source")
         self.meteor.ref_dir.mkdir(exist_ok=True)
