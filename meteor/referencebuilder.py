@@ -26,7 +26,7 @@ from packaging.version import Version, parse
 from textwrap import fill
 from typing import Type
 from meteor.session import Session, Component
-from typing import Generator
+from typing import Iterator, Tuple
 
 # from hashlib import md5
 
@@ -84,7 +84,7 @@ class ReferenceBuilder(Session):
         }
         return config
 
-    def read_reference(self) -> Generator:
+    def read_reference(self) -> Iterator[Tuple]:
         """Read genes by genes the catalogue including different compression format.
 
         :return: A generator object that iterate over each gene

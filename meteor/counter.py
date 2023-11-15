@@ -27,7 +27,7 @@ from pathlib import Path
 from subprocess import check_call
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
-from typing import Type, Dict, Generator, List, Tuple
+from typing import Type, Dict, Generator, List, Tuple, Iterator
 from collections import defaultdict
 from itertools import chain
 from pysam import index, idxstats, AlignmentFile, sort, AlignedSegment  # type: ignore[attr-defined]
@@ -169,7 +169,7 @@ class Counter(Session):
                 out.write(f"{s}\n")
         return True
 
-    def get_aligned_nucleotides(self, element):
+    def get_aligned_nucleotides(self, element) -> Iterator[int]:
         """Select aligned nucleotides
         :param element: Alignment object
         :return: Aligned item
@@ -203,7 +203,7 @@ class Counter(Session):
             # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
             ali = sum(list(self.get_aligned_nucleotides(element)))
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
-            identity = (ali - element.get_tag("NM")) / ali
+            identity = (ali - int(element.get_tag("NM"))) / ali
             # if lower than the identity threshold
             # we ignore the read
             if identity < self.identity_threshold:

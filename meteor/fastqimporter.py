@@ -18,7 +18,7 @@ from itertools import product
 from pathlib import Path
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import Type, Generator
+from typing import Type, Iterator
 from meteor.session import Session, Component
 
 
@@ -40,7 +40,7 @@ class FastqImporter(Session):
         self.ext_r2 = tuple(self.extension("2"))
         self.ext = tuple(self.short_extension())
 
-    def extension(self, pair: str) -> Generator:  # pragma: no cover
+    def extension(self, pair: str) -> Iterator[str]:  # pragma: no cover
         """Get all possible extension for a given fastq including pairing info
 
         :param pair: A string giving the strand
@@ -51,7 +51,7 @@ class FastqImporter(Session):
         ):
             yield "".join(ext)
 
-    def short_extension(self) -> Generator:  # pragma: no cover
+    def short_extension(self) -> Iterator[str]:  # pragma: no cover
         """Get all possible extension for a given fastq
 
         :return: (Generator) A generator of a string from a given combination
