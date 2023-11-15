@@ -1,0 +1,8 @@
+msp_name	gene_id	gene_name	gene_category	annotation
+msp_01_standard	5	gene_5	core	K4
+msp_01_standard	17	gene_17	core	K2
+msp_01_standard	11	gene_11	core	K2
+msp_01_standard	4	gene_4	core	K3
+msp_01_standard	4	gene_4	core	ARD2
+msp_01_standard	20	gene_20	accessory	K8
+msp_03_small	13	gene_13	core	K8
