@@ -493,6 +493,18 @@ class Profiler(Session):
         cpltd_dict = self.compute_completeness_all(
             all_mod=all_mod, annotated_msp=annotated_msp
         )
+        # Reformat module completeness as dataframe
+        self.mod_completeness = (
+            pd.DataFrame.from_dict(cpltd_dict)
+            .melt(ignore_index=False)
+            .reset_index()
+            .rename(
+                columns={
+                    "index": self.meteor.msp_column,
+                    "variable": self.meteor.module_column,
+                }
+            )
+        )
         # Restrict to msp whose completeness is above threshold
         mod_dict = {
             mod: {msp for (msp, cmpltd) in msp_dict.items() if cmpltd >= completeness}
@@ -691,6 +703,13 @@ class Profiler(Session):
                 self.meteor.profile_dir / f"{self.output_base_filename}_modules.tsv"
             )
             self.mod_table.to_csv(module_table_file, sep="\t", index=False)
+            module_completeness_file = (
+                self.meteor.profile_dir
+                / f"{self.output_base_filename}_modules_completeness.tsv"
+            )
+            self.mod_completeness.to_csv(
+                module_completeness_file, sep="\t", index=False
+            )
             # Update config files
             config_param_modules = {}
             config_param_modules["modules_def"] = self.module_path.name

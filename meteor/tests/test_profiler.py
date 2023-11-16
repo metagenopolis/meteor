@@ -420,13 +420,21 @@ def test_compute_module_abundance(profiler_standard: Profiler, datadir: Path) ->
     profiler_standard.mod_table[
         profiler_standard.meteor.value_column
     ] = profiler_standard.mod_table[profiler_standard.meteor.value_column].round(6)
-
+    profiler_standard.mod_completeness[
+        profiler_standard.meteor.value_column
+    ] = profiler_standard.mod_completeness[profiler_standard.meteor.value_column].round(
+        6
+    )
+    # Check module abundance matrix
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_modules.tsv"
     )
-    print(profiler_standard.mod_table)
-    print(expected_output)
     assert profiler_standard.mod_table.equals(expected_output)
+    expected_output = pd.read_table(
+        datadir / "expected_output" / "sample_no_rf_no_norm_mod_completeness.tsv"
+    )
+    # Check module completeness matrix
+    assert profiler_standard.mod_completeness.equals(expected_output)
 
 
 def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
@@ -485,6 +493,7 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     assert fun_table.equals(expected_output)
     assert fun_table_file.with_suffix(".ini").exists()
     # Check modules
+    # 1. Module abundance table
     module_table_file = (
         profiler_standard.meteor.profile_dir
         / f"{profiler_standard.output_base_filename}_modules.tsv"
@@ -498,3 +507,16 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     )
     assert module_table.equals(expected_output)
     assert module_table_file.with_suffix(".ini").exists()
+    # 2. Module completeness table
+    module_completeness_file = (
+        profiler_standard.meteor.profile_dir
+        / f"{profiler_standard.output_base_filename}_modules_completeness.tsv"
+    )
+    module_completeness = pd.read_table(module_completeness_file)
+    module_completeness[profiler_standard.meteor.value_column] = module_completeness[
+        profiler_standard.meteor.value_column
+    ].round(6)
+    expected_output = pd.read_table(
+        datadir / "expected_output" / "sample_no_rf_no_norm_mod_completeness.tsv"
+    )
+    assert module_completeness.equals(expected_output)

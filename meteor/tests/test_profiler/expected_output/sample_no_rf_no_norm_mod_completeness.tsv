@@ -1,0 +1,9 @@
+msp_name	mod_id	value
+msp_01_standard	mod1	1
+msp_03_small	mod1	0
+msp_01_standard	mod2	1
+msp_03_small	mod2	1
+msp_01_standard	mod3	1
+msp_03_small	mod3	0.5
+msp_01_standard	mod4	0
+msp_03_small	mod4	0
