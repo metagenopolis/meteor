@@ -290,27 +290,16 @@ class Counter(Session):
             str, List[pysam.libcalignedsegment.AlignedSegment]
         ] = defaultdict(list)
         unique_reads_list = []
-        # dict[str]:int
-        # gene : 0
-        # count = 0
         unique_on_gene: Dict[int, int] = dict.fromkeys(database, 0)
-        # print("ici")
-        # print(genes['1791'])
         for read_id in genes:
-            # gene = genes[read_id][0]
             # if read map to several gene
             if len(genes[read_id]) != 1:
                 continue
-            # print(genes[read_id])
             # otherwise read map with best score against only one genes
             # we keep read
             unique_reads[read_id] = reads[read_id]
             # get genes id
             gene = genes[read_id][0]
-            # if gene == 11208:
-            #     print(read_id)
-            #     count +=1
-            #     print(f"I have unique {count}")
             # add to unique read dictionnary
             unique_on_gene[gene] += 1
             unique_reads_list.append(read_id)
