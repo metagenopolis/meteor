@@ -29,7 +29,6 @@ def profiler_standard(datadir: Path, tmp_path: Path) -> Profiler:
     module_path = datadir / "module.tsv"
     return Profiler(
         meteor=meteor,
-        suffix_file="test",
         rarefaction_level=-1,
         seed=12345,
         normalization="",

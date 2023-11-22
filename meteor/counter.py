@@ -253,7 +253,7 @@ class Counter(Session):
                 # elif self.counting_type in ("unique", "smart_shared"):
                 if not element.reference_name:
                     continue
-                print(element)
+                # print(element)
                 reads[read_id] = [element]
                 genes[read_id] = [int(element.reference_name)]
                 # In total count, we keep all but not meteor which performs an ex-aequo count

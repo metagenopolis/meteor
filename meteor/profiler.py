@@ -31,7 +31,6 @@ class Profiler(Session):
     """Profile session for abundance and annotation"""
 
     meteor: Type[Component]
-    suffix_file: str
     rarefaction_level: int
     seed: int
     normalization: str
@@ -98,7 +97,7 @@ class Profiler(Session):
         )
 
         # Define output filenames
-        self.output_base_filename = f"{self.sample_name}_{self.suffix_file}"
+        self.output_base_filename = f"{self.sample_name}"
 
         # Define MSP filename
         try:
