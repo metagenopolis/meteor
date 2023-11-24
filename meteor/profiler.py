@@ -50,7 +50,10 @@ class Profiler(Session):
 
         # Initialize the unmapped_count
         try:
-            self.unmapped_reads = int(self.sample_config["mapping"]["unmapped_reads"])
+            self.total_reads = int(self.sample_config["mapping"]["total_read_count"])
+            self.mapped_reads = int(self.sample_config["mapping"]["mapped_read_count"])
+            self.unmapped_reads = self.total_reads - self.mapped_reads
+            logging.info("Number of unmapped reads: %s", str(self.unmapped_reads))
         except KeyError:
             logging.info("No unmapped reads information found. Set to 0.")
             self.unmapped_reads = 0
