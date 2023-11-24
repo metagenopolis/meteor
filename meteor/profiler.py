@@ -486,6 +486,9 @@ class Profiler(Session):
 
     def execute(self) -> bool:
         "Normalize the samples and compute MSP and functions abundances."
+        # Initialize dictionnary for ini file
+        config_param = {}
+        config_stats = {}
         # Part 1: NORMALIZATION
         if self.rarefaction_level > 0:
             logging.info("Run rarefaction.")
@@ -513,15 +516,22 @@ class Profiler(Session):
             self.meteor.profile_dir / f"{self.output_base_filename}_genes.tsv"
         )
         self.gene_count.to_csv(gene_table_file, sep="\t", index=False)
-        # Update config file
-        config_norm = {}
-        config_norm["normalization"] = str(self.normalization)
-        config_norm["rarefaction_level"] = str(self.rarefaction_level)
-        config_norm["seed"] = str(self.seed)
-        self.sample_config = self.update_ini(
-            self.sample_config, "profiling_parameters", config_norm
+        # Update config dictionnary
+        config_param["normalization"] = str(self.normalization)
+        config_param["rarefaction_level"] = str(self.rarefaction_level)
+        config_param["seed"] = str(self.seed)
+        config_stats["gene_count"] = str(
+            len(
+                self.gene_count.loc[
+                    self.gene_count[self.meteor.value_column] > 0,
+                    self.meteor.gene_column,
+                ]
+            )
         )
-        self.save_config(self.sample_config, gene_table_file.with_suffix(".ini"))
+        # self.sample_config = self.update_ini(
+        #    self.sample_config, "profiling_parameters", config_norm
+        # )
+        # self.save_config(self.sample_config, gene_table_file.with_suffix(".ini"))
 
         # Part 2: TAXONOMIC PROFILING
         # Restrict to MSP of interest
@@ -540,12 +550,10 @@ class Profiler(Session):
         logging.info("Compute MSP stats.")
         msp_stats = self.compute_msp_stats(self.msp_filename)
         # Update and save config file
-        config_param_msp = {}
-        config_param_msp["msp_core_size"] = str(self.core_size)
-        config_param_msp["msp_filter"] = str(self.msp_filter)
-        config_param_msp["msp_def"] = self.msp_filename.name
-        config_stats_msp = {}
-        config_stats_msp["msp_count"] = str(
+        config_param["msp_core_size"] = str(self.core_size)
+        config_param["msp_filter"] = str(self.msp_filter)
+        config_param["msp_def"] = self.msp_filename.name
+        config_stats["msp_count"] = str(
             len(
                 self.msp_table.loc[
                     self.msp_table[self.meteor.value_column] > 0,
@@ -553,14 +561,14 @@ class Profiler(Session):
                 ]
             )
         )
-        config_stats_msp["msp_signal"] = str(msp_stats)
-        self.sample_config = self.update_ini(
-            self.sample_config, "profiling_parameters", config_param_msp
-        )
-        self.sample_config = self.update_ini(
-            self.sample_config, "profiling_stats", config_stats_msp
-        )
-        self.save_config(self.sample_config, msp_table_file.with_suffix(".ini"))
+        config_stats["msp_signal"] = str(msp_stats)
+        # self.sample_config = self.update_ini(
+        #     self.sample_config, "profiling_parameters", config_param_msp
+        # )
+        # self.sample_config = self.update_ini(
+        #     self.sample_config, "profiling_stats", config_stats_msp
+        # )
+        # self.save_config(self.sample_config, msp_table_file.with_suffix(".ini"))
 
         # Part 3: FUNCTIONAL PROFILING
         if self.database_type == "complete":
@@ -586,18 +594,15 @@ class Profiler(Session):
                     )
 
                     # Update config file
-                    config_param_db = {}
-                    config_param_db["function_db"] = db
-                    config_param_db["function_filename"] = self.db_filenames[db].name
-                    config_stats_db = {}
-                    config_stats_db["function_signal"] = str(functional_stats)
-                    update_config = self.update_ini(
-                        self.sample_config, "profiling_parameters", config_param_db
-                    )
-                    update_config = self.update_ini(
-                        update_config, "profiling_stats", config_stats_db
-                    )
-                    self.save_config(update_config, fun_table_file.with_suffix(".ini"))
+                    config_param[f"{db}_filename"] = self.db_filenames[db].name
+                    config_stats[f"{db}_signal"] = str(functional_stats)
+                    # update_config = self.update_ini(
+                    #     self.sample_config, "profiling_parameters", config_param_db
+                    # )
+                    # update_config = self.update_ini(
+                    #     update_config, "profiling_stats", config_stats_db
+                    # )
+                    # self.save_config(update_config, fun_table_file.with_suffix(".ini"))
                 # By sum of MSPs
                 if db in single_fun_by_msp_db:
                     logging.info("Compute %s abundances as sum of MSP abundances.", db)
@@ -619,18 +624,15 @@ class Profiler(Session):
                     )
 
                     # Update config file
-                    config_param_db = {}
-                    config_param_db["function_db"] = db
-                    config_param_db["function_filename"] = self.db_filenames[db].name
-                    config_stats_db = {}
-                    config_stats_db["function_signal"] = str(functional_stats)
-                    update_config = self.update_ini(
-                        self.sample_config, "profiling_parameters", config_param_db
-                    )
-                    update_config = self.update_ini(
-                        update_config, "profiling_stats", config_stats_db
-                    )
-                    self.save_config(update_config, fun_table_file.with_suffix(".ini"))
+                    config_param[f"{db}_filename"] = self.db_filenames[db].name
+                    config_stats[f"{db}_signal_by_msp"] = str(functional_stats)
+                    # update_config = self.update_ini(
+                    #     self.sample_config, "profiling_parameters", config_param_db
+                    # )
+                    # update_config = self.update_ini(
+                    #     update_config, "profiling_stats", config_stats_db
+                    # )
+                    # self.save_config(update_config, fun_table_file.with_suffix(".ini"))
 
             # Part 4 Module computation
             # Get db filenames required for module computation
@@ -657,13 +659,26 @@ class Profiler(Session):
                 module_completeness_file, sep="\t", index=False
             )
             # Update config files
-            config_param_modules = {}
-            config_param_modules["modules_def"] = self.module_path.name
-            config_param_modules["module_completeness"] = str(self.completeness)
-            update_config = self.update_ini(
-                self.sample_config, "profiling_parameters", config_param_modules
+            config_param["modules_db"] = ",".join(module_db_filenames.keys())
+            config_param["modules_db_filenames"] = ",".join(
+                [value.name for value in module_db_filenames.values()]
             )
-            self.save_config(update_config, module_table_file.with_suffix(".ini"))
+            config_param["modules_def"] = self.module_path.name
+            config_param["module_completeness"] = str(self.completeness)
+            # update_config = self.update_ini(
+            #     self.sample_config, "profiling_parameters", config_param_modules
+            # )
+            # self.save_config(update_config, module_table_file.with_suffix(".ini"))
+
+        # Update and write ini file
+        update_config = self.update_ini(
+            self.sample_config, "profiling_parameters", config_param
+        )
+        update_config = self.update_ini(update_config, "profiling_stats", config_stats)
+        self.save_config(
+            update_config,
+            self.meteor.profile_dir / f"{self.output_base_filename}_census_stage_2.ini",
+        )
 
         logging.info("Process ended without errors.")
 
