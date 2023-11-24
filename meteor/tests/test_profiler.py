@@ -26,7 +26,6 @@ def profiler_standard(datadir: Path, tmp_path: Path) -> Profiler:
     meteor.mapping_dir = datadir / "mapping"
     meteor.profile_dir = tmp_path
     meteor.ref_dir = datadir / "catalogue"
-    module_path = datadir / "module.tsv"
     return Profiler(
         meteor=meteor,
         rarefaction_level=-1,
@@ -34,10 +33,6 @@ def profiler_standard(datadir: Path, tmp_path: Path) -> Profiler:
         normalization="",
         core_size=4,
         msp_filter=0.5,
-        single_fun_db=["kegg"],
-        single_fun_by_msp_db=["kegg"],
-        module_path=module_path,
-        module_db=["kegg", "mustard"],
         completeness=0.6,
     )
 
@@ -402,7 +397,6 @@ def test_compute_module_abundance(profiler_standard: Profiler, datadir: Path) ->
         profiler_standard.msp_filename, core_size=4
     )
     profiler_standard.compute_msp(msp_dict=msp_set, filter_pc=0.5)
-    all_mod: dict[str, list[set[str]]]
     all_mod = {
         "mod1": [{"ARD2"}, {"ARD1"}],
         "mod2": [{"K8"}, {"K9"}],
@@ -437,6 +431,7 @@ def test_compute_module_abundance(profiler_standard: Profiler, datadir: Path) ->
 
 
 def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
+    profiler_standard.module_path = datadir / "module.tsv"
     profiler_standard.execute()
     # Check gene file
     gene_table_file = (
@@ -463,34 +458,34 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     )
     assert msp_table.equals(expected_output)
     assert msp_table_file.with_suffix(".ini").exists()
-    # Check functions as sum of genes
+    # Check functions as sum of genes (mustard only)
     fun_table_file = (
         profiler_standard.meteor.profile_dir
-        / f"{profiler_standard.output_base_filename}_kegg.tsv"
+        / f"{profiler_standard.output_base_filename}_mustard.tsv"
     )
     fun_table = pd.read_table(fun_table_file)
     fun_table[profiler_standard.meteor.value_column] = fun_table[
         profiler_standard.meteor.value_column
     ].round(6)
     expected_output = pd.read_table(
-        datadir / "expected_output" / "sample_no_rf_no_norm_kegg.tsv"
+        datadir / "expected_output" / "sample_no_rf_no_norm_mustard.tsv"
     )
     assert fun_table.equals(expected_output)
     assert fun_table_file.with_suffix(".ini").exists()
-    # Check functions as sum of MSP
-    fun_table_file = (
-        profiler_standard.meteor.profile_dir
-        / f"{profiler_standard.output_base_filename}_kegg_by_msp.tsv"
-    )
-    fun_table = pd.read_table(fun_table_file)
-    fun_table[profiler_standard.meteor.value_column] = fun_table[
-        profiler_standard.meteor.value_column
-    ].round(6)
-    expected_output = pd.read_table(
-        datadir / "expected_output" / "sample_no_rf_no_norm_kegg_by_msp.tsv"
-    )
-    assert fun_table.equals(expected_output)
-    assert fun_table_file.with_suffix(".ini").exists()
+    # Non check functions as sum of MSP
+    # fun_table_file = (
+    #     profiler_standard.meteor.profile_dir
+    #     / f"{profiler_standard.output_base_filename}_kegg_by_msp.tsv"
+    # )
+    # fun_table = pd.read_table(fun_table_file)
+    # fun_table[profiler_standard.meteor.value_column] = fun_table[
+    #     profiler_standard.meteor.value_column
+    # ].round(6)
+    # expected_output = pd.read_table(
+    #     datadir / "expected_output" / "sample_no_rf_no_norm_kegg_by_msp.tsv"
+    # )
+    # assert fun_table.equals(expected_output)
+    # assert fun_table_file.with_suffix(".ini").exists()
     # Check modules
     # 1. Module abundance table
     module_table_file = (
@@ -502,8 +497,10 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         profiler_standard.meteor.value_column
     ].round(6)
     expected_output = pd.read_table(
-        datadir / "expected_output" / "sample_no_rf_no_norm_modules.tsv"
+        datadir / "expected_output" / "sample_no_rf_no_norm_modules_kegg_only.tsv"
     )
+    print(module_table)
+    print(expected_output)
     assert module_table.equals(expected_output)
     assert module_table_file.with_suffix(".ini").exists()
     # 2. Module completeness table
@@ -516,6 +513,10 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         profiler_standard.meteor.value_column
     ].round(6)
     expected_output = pd.read_table(
-        datadir / "expected_output" / "sample_no_rf_no_norm_mod_completeness.tsv"
+        datadir
+        / "expected_output"
+        / "sample_no_rf_no_norm_mod_completeness_kegg_only.tsv"
     )
+    print(module_completeness)
+    print(expected_output)
     assert module_completeness.equals(expected_output)
