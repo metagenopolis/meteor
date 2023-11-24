@@ -131,9 +131,7 @@ class Profiler(Session):
 
             # Initialize the module definition file
             self.module_path = Path(
-                resource_filename(
-                    "meteor", "data/all_modules_definition_GMM_GBM_KEGG_107.tsv"
-                )
+                resource_filename("meteor", "data/GMM_definition.tsv")
             )
             assert self.module_path.is_file()
 
