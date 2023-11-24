@@ -38,9 +38,6 @@ class Profiler(Session):
     completeness: float
 
     def __post_init__(self):
-        # Prepare the profile directory
-        self.meteor.profile_dir.mkdir(exist_ok=True)
-
         # Get the ini file
         self.sample_config = self.get_census_stage(self.meteor.mapping_dir)
 
@@ -60,6 +57,10 @@ class Profiler(Session):
 
         # Initialize the sample name
         self.sample_name = self.sample_config["sample_info"]["sample_name"]
+
+        # Prepare the census_stage_2 directory
+        self.stage2_dir = self.meteor.profile_dir / self.sample_name
+        self.stage2_dir.mkdir(exist_ok=True, parents=True)
 
         # Initialize the ini ref config parser:
         self.ref_config = self.get_reference_info(self.meteor.ref_dir)
@@ -512,9 +513,7 @@ class Profiler(Session):
             logging.info("No normalization.")
         # Write the normalized count table
         logging.info("Save gene table.")
-        gene_table_file = (
-            self.meteor.profile_dir / f"{self.output_base_filename}_genes.tsv"
-        )
+        gene_table_file = self.stage2_dir / f"{self.output_base_filename}_genes.tsv"
         self.gene_count.to_csv(gene_table_file, sep="\t", index=False)
         # Update config dictionnary
         config_param["normalization"] = str(self.normalization)
@@ -542,9 +541,7 @@ class Profiler(Session):
         self.compute_msp(msp_dict=msp_set, filter_pc=self.msp_filter)
         # Write the MSP table
         logging.info("Save MSP profiles.")
-        msp_table_file = (
-            self.meteor.profile_dir / f"{self.output_base_filename}_msp.tsv"
-        )
+        msp_table_file = self.stage2_dir / f"{self.output_base_filename}_msp.tsv"
         self.msp_table.to_csv(msp_table_file, sep="\t", index=False)
         # Compute MSP stats
         logging.info("Compute MSP stats.")
@@ -581,8 +578,7 @@ class Profiler(Session):
                     self.compute_ko_abundance(annot_file=db_filename)
                     logging.info("Save functional profiles table.")
                     fun_table_file = (
-                        self.meteor.profile_dir
-                        / f"{self.output_base_filename}_{db}.tsv"
+                        self.stage2_dir / f"{self.output_base_filename}_{db}.tsv"
                     )
                     self.functions.to_csv(fun_table_file, sep="\t", index=False)
 
@@ -611,8 +607,7 @@ class Profiler(Session):
                     )
                     logging.info("Save functional profiles table.")
                     fun_table_file = (
-                        self.meteor.profile_dir
-                        / f"{self.output_base_filename}_{db}_by_msp.tsv"
+                        self.stage2_dir / f"{self.output_base_filename}_{db}_by_msp.tsv"
                     )
                     self.functions.to_csv(fun_table_file, sep="\t", index=False)
 
@@ -648,11 +643,11 @@ class Profiler(Session):
                 completeness=self.completeness,
             )
             module_table_file = (
-                self.meteor.profile_dir / f"{self.output_base_filename}_modules.tsv"
+                self.stage2_dir / f"{self.output_base_filename}_modules.tsv"
             )
             self.mod_table.to_csv(module_table_file, sep="\t", index=False)
             module_completeness_file = (
-                self.meteor.profile_dir
+                self.stage2_dir
                 / f"{self.output_base_filename}_modules_completeness.tsv"
             )
             self.mod_completeness.to_csv(
@@ -677,7 +672,7 @@ class Profiler(Session):
         update_config = self.update_ini(update_config, "profiling_stats", config_stats)
         self.save_config(
             update_config,
-            self.meteor.profile_dir / f"{self.output_base_filename}_census_stage_2.ini",
+            self.stage2_dir / f"{self.output_base_filename}_census_stage_2.ini",
         )
 
         logging.info("Process ended without errors.")

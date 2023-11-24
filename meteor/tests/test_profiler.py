@@ -435,7 +435,7 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     profiler_standard.execute()
     # Check gene file
     gene_table_file = (
-        profiler_standard.meteor.profile_dir
+        profiler_standard.stage2_dir
         / f"{profiler_standard.output_base_filename}_genes.tsv"
     )
     gene_table = pd.read_table(gene_table_file)
@@ -443,10 +443,9 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         datadir / "expected_output" / "sample_no_rarefaction.tsv"
     )
     assert gene_table.equals(expected_output)
-    assert gene_table_file.with_suffix(".ini").exists()
     # Check MSP file
     msp_table_file = (
-        profiler_standard.meteor.profile_dir
+        profiler_standard.stage2_dir
         / f"{profiler_standard.output_base_filename}_msp.tsv"
     )
     msp_table = pd.read_table(msp_table_file)
@@ -457,10 +456,9 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         datadir / "expected_output" / "sample_no_rf_no_norm_msp.tsv"
     )
     assert msp_table.equals(expected_output)
-    assert msp_table_file.with_suffix(".ini").exists()
     # Check functions as sum of genes (mustard only)
     fun_table_file = (
-        profiler_standard.meteor.profile_dir
+        profiler_standard.stage2_dir
         / f"{profiler_standard.output_base_filename}_mustard.tsv"
     )
     fun_table = pd.read_table(fun_table_file)
@@ -471,7 +469,6 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         datadir / "expected_output" / "sample_no_rf_no_norm_mustard.tsv"
     )
     assert fun_table.equals(expected_output)
-    assert fun_table_file.with_suffix(".ini").exists()
     # Non check functions as sum of MSP
     # fun_table_file = (
     #     profiler_standard.meteor.profile_dir
@@ -489,7 +486,7 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     # Check modules
     # 1. Module abundance table
     module_table_file = (
-        profiler_standard.meteor.profile_dir
+        profiler_standard.stage2_dir
         / f"{profiler_standard.output_base_filename}_modules.tsv"
     )
     module_table = pd.read_table(module_table_file)
@@ -499,13 +496,10 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_modules_kegg_only.tsv"
     )
-    print(module_table)
-    print(expected_output)
     assert module_table.equals(expected_output)
-    assert module_table_file.with_suffix(".ini").exists()
     # 2. Module completeness table
     module_completeness_file = (
-        profiler_standard.meteor.profile_dir
+        profiler_standard.stage2_dir
         / f"{profiler_standard.output_base_filename}_modules_completeness.tsv"
     )
     module_completeness = pd.read_table(module_completeness_file)
@@ -517,6 +511,9 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         / "expected_output"
         / "sample_no_rf_no_norm_mod_completeness_kegg_only.tsv"
     )
-    print(module_completeness)
-    print(expected_output)
     assert module_completeness.equals(expected_output)
+    census_stage_2_file = (
+        profiler_standard.stage2_dir
+        / f"{profiler_standard.output_base_filename}_census_stage_2.ini"
+    )
+    assert census_stage_2_file.exists()
