@@ -21,9 +21,8 @@ from pathlib import Path
 from pkg_resources import resource_filename
 import numpy as np
 import logging
-import os
 import sys
-from datetime import date
+from datetime import datetime
 
 
 @dataclass
@@ -47,8 +46,7 @@ class Profiler(Session):
 
         # Add session info
         config_session = {}
-        config_session["user"] = os.getlogin()
-        config_session["date"] = str(date.today())
+        config_session["date"] = str(datetime.now().strftime("%Y-%m-%d"))
         self.sample_config = self.update_ini(
             self.sample_config, "profiling_session", config_session
         )
