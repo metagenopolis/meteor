@@ -412,14 +412,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-p",
         dest="pattern",
         required=True,
-        help="Pattern to select files that should be merged (e.g, _suffix_norm.tsv)",
-    )
-    # TODO to remove
-    merging_parser.add_argument(
-        "--no_check",
-        dest="check_param",
-        action="store_false",
-        help="Should the ini files be checked for parameters matching?",
+        help="Pattern to select files that should be merged (e.g, _norm.tsv)",
     )
     strain_parser = subparsers.add_parser(
         "strain", help="Identifies strain from metagenomic samples"
@@ -549,7 +542,7 @@ def main() -> None:  # pragma: no cover
     # Run merging
     elif args.command == "merge":
         meteor.mapping_dir = args.input_dir
-        merging = Merging(meteor, args.pattern, args.check_param, args.output)
+        merging = Merging(meteor, args.pattern, args.output)
         merging.execute()
     # Testing
     else:

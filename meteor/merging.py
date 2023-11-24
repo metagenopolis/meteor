@@ -31,7 +31,6 @@ class Merging(Session):
 
     meteor: Type[Component]
     pattern: str
-    check_param: bool
     output: Path
 
     def find_files_to_merge(self, input_dir: Path, pattern: str) -> list[Path]:
@@ -69,8 +68,10 @@ class Merging(Session):
         ref_config = list(all_sections_info.keys())[0]
         logging.info("Use the ini file associated to %s as a reference.", ref_config)
         # Compare all other entries to this reference
-        ref_comparison_bool = {my_path: my_config == all_sections_info[ref_config]
-                               for (my_path, my_config) in all_sections_info.items()}
+        ref_comparison_bool = {
+            my_path: my_config == all_sections_info[ref_config]
+            for (my_path, my_config) in all_sections_info.items()
+        }
         ref_comparison_bool = {
             my_path: my_config == all_sections_info[ref_config]
             for (my_path, my_config) in all_sections_info.items()
@@ -81,11 +82,10 @@ class Merging(Session):
         }
         if len(problematic_config) > 0:
             for i in problematic_config:
-                logging.error("The file %s does not match the reference ini file.", i)
-            sys.exit()
+                logging.warning("The file %s does not match the reference ini file.", i)
         else:
             logging.info("All files have the same parameters.")
-            return True
+        return True
 
     def merge_df(self, dict_path: dict[str, Path], key_merging: str) -> pd.DataFrame:
         "Merge many data frames contained in a list"
@@ -113,13 +113,9 @@ class Merging(Session):
         )
         # Get the associated ini file (obligatory to get the sample names)
         all_config = self.find_associated_ini(files_to_merge)
-        # Check the parameters if required
-        if self.check_param:
-            # Check the profiling parameters section
-            extracted_info = self.extract_ini_info(all_config, "profiling_parameters")
-            self.compare_section_info(extracted_info)
-        else:
-            logging.info("Their parameters will not be checked prior to merging.")
+        # Check the profiling parameters section
+        extracted_info = self.extract_ini_info(all_config, "profiling_parameters")
+        self.compare_section_info(extracted_info)
         # Guess the key that should be used
         logging.info("Look for the common key for merging.")
         with open(files_to_merge[0], encoding="UTF-8") as ref:
