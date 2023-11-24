@@ -97,24 +97,12 @@ class Profiler(Session):
         self.output_base_filename = f"{self.sample_name}"
 
         # Define MSP filename
-        try:
-            self.msp_filename = (
-                self.meteor.ref_dir
-                / self.ref_config["reference_file"]["database_dir"]
-                / self.ref_config["annotation"]["msp"]
-            )
-            assert self.msp_filename.is_file()
-        except KeyError:
-            logging.info(
-                "No MSP file provided in the reference ini file. No MSP will be computed."
-            )
-            self.msp_filename = None
-        except AssertionError:
-            logging.info(
-                "The MSP file %s does not exist. No MSP will be computed.",
-                self.msp_filename,
-            )
-            self.msp_filename = None
+        self.msp_filename = (
+            self.meteor.ref_dir
+            / self.ref_config["reference_file"]["database_dir"]
+            / self.ref_config["annotation"]["msp"]
+        )
+        assert self.msp_filename.is_file()
         self.check_file(
             self.msp_filename,
             {
@@ -536,44 +524,43 @@ class Profiler(Session):
         self.save_config(self.sample_config, gene_table_file.with_suffix(".ini"))
 
         # Part 2: TAXONOMIC PROFILING
-        if self.msp_filename is not None:
-            # Restrict to MSP of interest
-            logging.info("Get MSP core genes.")
-            msp_set = self.get_msp_core(self.msp_filename, self.core_size)
-            # Compute MSP
-            logging.info("Compute MSP profiles.")
-            self.compute_msp(msp_dict=msp_set, filter_pc=self.msp_filter)
-            # Write the MSP table
-            logging.info("Save MSP profiles.")
-            msp_table_file = (
-                self.meteor.profile_dir / f"{self.output_base_filename}_msp.tsv"
+        # Restrict to MSP of interest
+        logging.info("Get MSP core genes.")
+        msp_set = self.get_msp_core(self.msp_filename, self.core_size)
+        # Compute MSP
+        logging.info("Compute MSP profiles.")
+        self.compute_msp(msp_dict=msp_set, filter_pc=self.msp_filter)
+        # Write the MSP table
+        logging.info("Save MSP profiles.")
+        msp_table_file = (
+            self.meteor.profile_dir / f"{self.output_base_filename}_msp.tsv"
+        )
+        self.msp_table.to_csv(msp_table_file, sep="\t", index=False)
+        # Compute MSP stats
+        logging.info("Compute MSP stats.")
+        msp_stats = self.compute_msp_stats(self.msp_filename)
+        # Update and save config file
+        config_param_msp = {}
+        config_param_msp["msp_core_size"] = str(self.core_size)
+        config_param_msp["msp_filter"] = str(self.msp_filter)
+        config_param_msp["msp_def"] = self.msp_filename.name
+        config_stats_msp = {}
+        config_stats_msp["msp_count"] = str(
+            len(
+                self.msp_table.loc[
+                    self.msp_table[self.meteor.value_column] > 0,
+                    self.meteor.msp_column,
+                ]
             )
-            self.msp_table.to_csv(msp_table_file, sep="\t", index=False)
-            # Compute MSP stats
-            logging.info("Compute MSP stats.")
-            msp_stats = self.compute_msp_stats(self.msp_filename)
-            # Update and save config file
-            config_param_msp = {}
-            config_param_msp["msp_core_size"] = str(self.core_size)
-            config_param_msp["msp_filter"] = str(self.msp_filter)
-            config_param_msp["msp_def"] = self.msp_filename.name
-            config_stats_msp = {}
-            config_stats_msp["msp_count"] = str(
-                len(
-                    self.msp_table.loc[
-                        self.msp_table[self.meteor.value_column] > 0,
-                        self.meteor.msp_column,
-                    ]
-                )
-            )
-            config_stats_msp["msp_signal"] = str(msp_stats)
-            self.sample_config = self.update_ini(
-                self.sample_config, "profiling_parameters", config_param_msp
-            )
-            self.sample_config = self.update_ini(
-                self.sample_config, "profiling_stats", config_stats_msp
-            )
-            self.save_config(self.sample_config, msp_table_file.with_suffix(".ini"))
+        )
+        config_stats_msp["msp_signal"] = str(msp_stats)
+        self.sample_config = self.update_ini(
+            self.sample_config, "profiling_parameters", config_param_msp
+        )
+        self.sample_config = self.update_ini(
+            self.sample_config, "profiling_stats", config_stats_msp
+        )
+        self.save_config(self.sample_config, msp_table_file.with_suffix(".ini"))
 
         # Part 3: FUNCTIONAL PROFILING
         if self.database_type == "complete":
