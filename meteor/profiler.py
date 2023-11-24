@@ -64,6 +64,9 @@ class Profiler(Session):
         # Initialize the ini ref config parser:
         self.ref_config = self.get_reference_info(self.meteor.ref_dir)
 
+        # Get the database type
+        self.database_type = self.ref_config["reference_info"]["database_type"]
+
         # Get the associated count table
         self.input_count_table = (
             self.meteor.mapping_dir / self.sample_name
@@ -122,27 +125,28 @@ class Profiler(Session):
         )
 
         # Get functional db filenames
-        self.db_filenames = {}
-        self.db_filenames["kegg"] = (
-            self.meteor.ref_dir
-            / self.ref_config["reference_file"]["database_dir"]
-            / self.ref_config["annotation"]["kegg"]
-        )
-        self.db_filenames["mustard"] = (
-            self.meteor.ref_dir
-            / self.ref_config["reference_file"]["database_dir"]
-            / self.ref_config["annotation"]["mustard"]
-        )
-        for db in self.db_filenames:
-            assert self.db_filenames[db].is_file()
-
-        # Initialize the module definition file
-        self.module_path = Path(
-            resource_filename(
-                "meteor", "data/all_modules_definition_GMM_GBM_KEGG_107.tsv"
+        if self.database_type == "complete":
+            self.db_filenames = {}
+            self.db_filenames["kegg"] = (
+                self.meteor.ref_dir
+                / self.ref_config["reference_file"]["database_dir"]
+                / self.ref_config["annotation"]["kegg"]
             )
-        )
-        assert self.module_path.is_file()
+            self.db_filenames["mustard"] = (
+                self.meteor.ref_dir
+                / self.ref_config["reference_file"]["database_dir"]
+                / self.ref_config["annotation"]["mustard"]
+            )
+            for db in self.db_filenames:
+                assert self.db_filenames[db].is_file()
+
+            # Initialize the module definition file
+            self.module_path = Path(
+                resource_filename(
+                    "meteor", "data/all_modules_definition_GMM_GBM_KEGG_107.tsv"
+                )
+            )
+            assert self.module_path.is_file()
 
     def rarefy(self, rarefaction_level: int, unmapped_reads: int, seed: int) -> None:
         count_column = self.meteor.value_column
@@ -572,103 +576,107 @@ class Profiler(Session):
             self.save_config(self.sample_config, msp_table_file.with_suffix(".ini"))
 
         # Part 3: FUNCTIONAL PROFILING
-        single_fun_db = ["mustard"]
-        single_fun_by_msp_db = [""]
-        for db, db_filename in self.db_filenames.items():
-            # By sum of genes
-            if db in single_fun_db:
-                logging.info("Compute %s abundances as sum of gene abundances.", db)
-                self.compute_ko_abundance(annot_file=db_filename)
-                logging.info("Save functional profiles table.")
-                fun_table_file = (
-                    self.meteor.profile_dir / f"{self.output_base_filename}_{db}.tsv"
-                )
-                self.functions.to_csv(fun_table_file, sep="\t", index=False)
+        if self.database_type == "complete":
+            single_fun_db = ["mustard"]
+            single_fun_by_msp_db = [""]
+            for db, db_filename in self.db_filenames.items():
+                # By sum of genes
+                if db in single_fun_db:
+                    logging.info("Compute %s abundances as sum of gene abundances.", db)
+                    self.compute_ko_abundance(annot_file=db_filename)
+                    logging.info("Save functional profiles table.")
+                    fun_table_file = (
+                        self.meteor.profile_dir
+                        / f"{self.output_base_filename}_{db}.tsv"
+                    )
+                    self.functions.to_csv(fun_table_file, sep="\t", index=False)
 
-                # Compute functional statistics
-                functional_stats = self.compute_ko_stats(
-                    annot_file=db_filename,
-                    by_msp=False,
-                    msp_def_filename=self.msp_filename,
-                )
+                    # Compute functional statistics
+                    functional_stats = self.compute_ko_stats(
+                        annot_file=db_filename,
+                        by_msp=False,
+                        msp_def_filename=self.msp_filename,
+                    )
 
-                # Update config file
-                config_param_db = {}
-                config_param_db["function_db"] = db
-                config_param_db["function_filename"] = self.db_filenames[db].name
-                config_stats_db = {}
-                config_stats_db["function_signal"] = str(functional_stats)
-                update_config = self.update_ini(
-                    self.sample_config, "profiling_parameters", config_param_db
-                )
-                update_config = self.update_ini(
-                    update_config, "profiling_stats", config_stats_db
-                )
-                self.save_config(update_config, fun_table_file.with_suffix(".ini"))
-            # By sum of MSPs
-            if db in single_fun_by_msp_db:
-                logging.info("Compute %s abundances as sum of MSP abundances.", db)
-                self.compute_ko_abundance_by_msp(
-                    annot_file=db_filename, msp_def_filename=self.msp_filename
-                )
-                logging.info("Save functional profiles table.")
-                fun_table_file = (
-                    self.meteor.profile_dir
-                    / f"{self.output_base_filename}_{db}_by_msp.tsv"
-                )
-                self.functions.to_csv(fun_table_file, sep="\t", index=False)
+                    # Update config file
+                    config_param_db = {}
+                    config_param_db["function_db"] = db
+                    config_param_db["function_filename"] = self.db_filenames[db].name
+                    config_stats_db = {}
+                    config_stats_db["function_signal"] = str(functional_stats)
+                    update_config = self.update_ini(
+                        self.sample_config, "profiling_parameters", config_param_db
+                    )
+                    update_config = self.update_ini(
+                        update_config, "profiling_stats", config_stats_db
+                    )
+                    self.save_config(update_config, fun_table_file.with_suffix(".ini"))
+                # By sum of MSPs
+                if db in single_fun_by_msp_db:
+                    logging.info("Compute %s abundances as sum of MSP abundances.", db)
+                    self.compute_ko_abundance_by_msp(
+                        annot_file=db_filename, msp_def_filename=self.msp_filename
+                    )
+                    logging.info("Save functional profiles table.")
+                    fun_table_file = (
+                        self.meteor.profile_dir
+                        / f"{self.output_base_filename}_{db}_by_msp.tsv"
+                    )
+                    self.functions.to_csv(fun_table_file, sep="\t", index=False)
 
-                # Compute functinal statistics
-                functional_stats = self.compute_ko_stats(
-                    annot_file=db_filename,
-                    by_msp=True,
-                    msp_def_filename=self.msp_filename,
-                )
+                    # Compute functinal statistics
+                    functional_stats = self.compute_ko_stats(
+                        annot_file=db_filename,
+                        by_msp=True,
+                        msp_def_filename=self.msp_filename,
+                    )
 
-                # Update config file
-                config_param_db = {}
-                config_param_db["function_db"] = db
-                config_param_db["function_filename"] = self.db_filenames[db].name
-                config_stats_db = {}
-                config_stats_db["function_signal"] = str(functional_stats)
-                update_config = self.update_ini(
-                    self.sample_config, "profiling_parameters", config_param_db
-                )
-                update_config = self.update_ini(
-                    update_config, "profiling_stats", config_stats_db
-                )
-                self.save_config(update_config, fun_table_file.with_suffix(".ini"))
+                    # Update config file
+                    config_param_db = {}
+                    config_param_db["function_db"] = db
+                    config_param_db["function_filename"] = self.db_filenames[db].name
+                    config_stats_db = {}
+                    config_stats_db["function_signal"] = str(functional_stats)
+                    update_config = self.update_ini(
+                        self.sample_config, "profiling_parameters", config_param_db
+                    )
+                    update_config = self.update_ini(
+                        update_config, "profiling_stats", config_stats_db
+                    )
+                    self.save_config(update_config, fun_table_file.with_suffix(".ini"))
 
-        # Part 4 Module computation
-        # Get db filenames required for module computation
-        module_db_filenames = {db: self.db_filenames[db] for db in ["kegg"]}
-        logging.info("Parse module definition file.")
-        module_dict = Parser(self.module_path)
-        module_dict.execute()
-        logging.info("Compute modules.")
-        self.compute_module_abundance(
-            msp_file=self.msp_filename,
-            annot_file=module_db_filenames,
-            all_mod=module_dict.module_dict_alt,
-            completeness=self.completeness,
-        )
-        module_table_file = (
-            self.meteor.profile_dir / f"{self.output_base_filename}_modules.tsv"
-        )
-        self.mod_table.to_csv(module_table_file, sep="\t", index=False)
-        module_completeness_file = (
-            self.meteor.profile_dir
-            / f"{self.output_base_filename}_modules_completeness.tsv"
-        )
-        self.mod_completeness.to_csv(module_completeness_file, sep="\t", index=False)
-        # Update config files
-        config_param_modules = {}
-        config_param_modules["modules_def"] = self.module_path.name
-        config_param_modules["module_completeness"] = str(self.completeness)
-        update_config = self.update_ini(
-            self.sample_config, "profiling_parameters", config_param_modules
-        )
-        self.save_config(update_config, module_table_file.with_suffix(".ini"))
+            # Part 4 Module computation
+            # Get db filenames required for module computation
+            module_db_filenames = {db: self.db_filenames[db] for db in ["kegg"]}
+            logging.info("Parse module definition file.")
+            module_dict = Parser(self.module_path)
+            module_dict.execute()
+            logging.info("Compute modules.")
+            self.compute_module_abundance(
+                msp_file=self.msp_filename,
+                annot_file=module_db_filenames,
+                all_mod=module_dict.module_dict_alt,
+                completeness=self.completeness,
+            )
+            module_table_file = (
+                self.meteor.profile_dir / f"{self.output_base_filename}_modules.tsv"
+            )
+            self.mod_table.to_csv(module_table_file, sep="\t", index=False)
+            module_completeness_file = (
+                self.meteor.profile_dir
+                / f"{self.output_base_filename}_modules_completeness.tsv"
+            )
+            self.mod_completeness.to_csv(
+                module_completeness_file, sep="\t", index=False
+            )
+            # Update config files
+            config_param_modules = {}
+            config_param_modules["modules_def"] = self.module_path.name
+            config_param_modules["module_completeness"] = str(self.completeness)
+            update_config = self.update_ini(
+                self.sample_config, "profiling_parameters", config_param_modules
+            )
+            self.save_config(update_config, module_table_file.with_suffix(".ini"))
 
         logging.info("Process ended without errors.")
 
