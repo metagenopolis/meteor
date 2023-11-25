@@ -410,9 +410,15 @@ def get_arguments() -> Namespace:  # pragma: no cover
     )
     merging_parser.add_argument(
         "-p",
-        dest="pattern",
-        required=True,
-        help="Pattern to select files that should be merged (e.g, _norm.tsv)",
+        dest="prefix",
+        default="output",
+        help="Prefix to give to output. Default to 'output'.",
+    )
+    merging_parser.add_argument(
+        "--fast",
+        dest="fast",
+        action="store_true",
+        help="Fast merging, do not merge gene tables.",
     )
     strain_parser = subparsers.add_parser(
         "strain", help="Identifies strain from metagenomic samples"
@@ -541,8 +547,8 @@ def main() -> None:  # pragma: no cover
         profiler.execute()
     # Run merging
     elif args.command == "merge":
-        meteor.mapping_dir = args.input_dir
-        merging = Merging(meteor, args.pattern, args.output)
+        meteor.profile_dir = args.input_dir
+        merging = Merging(meteor, Path(args.output), args.prefix, args.fast)
         merging.execute()
     # Testing
     else:

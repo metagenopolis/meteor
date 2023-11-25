@@ -39,7 +39,7 @@ class Profiler(Session):
 
     def __post_init__(self):
         # Get the ini file
-        self.sample_config = self.get_census_stage(self.meteor.mapping_dir)
+        self.sample_config = self.get_census_stage(self.meteor.mapping_dir, 1)
 
         # Add session info
         config_session = {}
@@ -491,6 +491,7 @@ class Profiler(Session):
         # Initialize dictionnary for ini file
         config_param = {}
         config_stats = {}
+        config_mapping = {"database_type": self.database_type}
         # Part 1: NORMALIZATION
         if self.rarefaction_level > 0:
             logging.info("Run rarefaction.")
@@ -671,6 +672,7 @@ class Profiler(Session):
             self.sample_config, "profiling_parameters", config_param
         )
         update_config = self.update_ini(update_config, "profiling_stats", config_stats)
+        update_config = self.update_ini(update_config, "mapping", config_mapping)
         self.save_config(
             update_config,
             self.stage2_dir / f"{self.output_base_filename}_census_stage_2.ini",
