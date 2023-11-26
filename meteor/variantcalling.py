@@ -23,7 +23,6 @@ from time import perf_counter
 from tempfile import NamedTemporaryFile
 import logging
 
-#test
 
 @dataclass
 class VariantCalling(Session):
@@ -78,39 +77,64 @@ class VariantCalling(Session):
             / self.census["reference"]["reference_file"]["fasta_dir"]
             / self.census["reference"]["reference_file"]["fasta_filename"]
         )
+        bed_file = (
+            self.meteor.ref_dir
+            /"database"
+            /self.census["reference"]["annotation"]["bed"]
+        )
         start = perf_counter()
         # "--skip-indels", ?
         with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_vcf_file:
-            check_call(
-                [
-                    "bcftools",
-                    "mpileup",
-                    "-d",
-                    str(self.depth),
-                    "-Ob",
-                    "-f",
-                    str(reference.resolve()),
-                    str(bam_file.resolve()),
-                    "--threads",
-                    str(self.meteor.threads),
-                    "-o",
-                    temp_vcf_file.name,
-                ]
-            )
-            check_call(
-                [
-                    "bcftools",
-                    "call",
-                    "-v",
-                    "-c",
-                    "--threads",
-                    str(self.meteor.threads),
-                    "-Oz",
-                    "-o",
-                    str(vcf_file.resolve()),
-                    temp_vcf_file.name,
-                ]
-            )
+            with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_vcf_file_2 :
+                check_call(
+                    [
+                        "bcftools",
+                        "mpileup",
+                        "-d",
+                        str(self.depth),
+                        "-Ob",
+                        "-f",
+                        str(reference.resolve()),
+                        str(bam_file.resolve()),
+                        "--threads",
+                        str(self.meteor.threads),
+                        "-o",
+                        temp_vcf_file.name,
+                    ]
+                )
+                check_call(
+                    [
+                        "bcftools",
+                        "call",
+                        "-v",
+                        "-c",
+                        "--threads",
+                        str(self.meteor.threads),
+                        "-Oz",
+                        "-o",
+                        temp_vcf_file_2.name,
+                        temp_vcf_file.name,
+                    ]
+                )
+                check_call(
+                    [
+                        "bcftools",
+                        "index",
+                        temp_vcf_file_2.name,
+                    ]
+                )
+                check_call(
+                    [
+                        "bcftools",
+                        "view",
+                        "-R",
+                        str(bed_file.resolve()),
+                        "-Oz",
+                        "-o",
+                        str(vcf_file.resolve()),
+                        temp_vcf_file_2.name,
+                    ]
+                )
         # gatk AddOrReplaceReadGroups -I Zymo_6300.bam -O test_grp.bam -RGID 4 -RGLB lib1 -RGPL illumina -RGPU unit1 -RGSM 20
         # gatk SplitNCigarReads -R ../../catalogue/mock/fasta/mock.fasta -I test_grp.bam -O test.bam
         # gatk --java-options "-Xmx8g" HaplotypeCaller -R ../../catalogue/mock/fasta/mock.fasta -I test.bam -O test.vcf.gz
