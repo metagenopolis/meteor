@@ -43,7 +43,7 @@ class Profiler(Session):
 
         # Add session info
         config_session = {}
-        config_session["date"] = str(datetime.now().strftime("%Y-%m-%d"))
+        config_session["date_profiling"] = str(datetime.now().strftime("%Y-%m-%d"))
         self.sample_config = self.update_ini(
             self.sample_config, "profiling_session", config_session
         )
@@ -529,10 +529,6 @@ class Profiler(Session):
                 ]
             )
         )
-        # self.sample_config = self.update_ini(
-        #    self.sample_config, "profiling_parameters", config_norm
-        # )
-        # self.save_config(self.sample_config, gene_table_file.with_suffix(".ini"))
 
         # Part 2: TAXONOMIC PROFILING
         # Restrict to MSP of interest
@@ -561,13 +557,6 @@ class Profiler(Session):
             )
         )
         config_stats["msp_signal"] = str(msp_stats)
-        # self.sample_config = self.update_ini(
-        #     self.sample_config, "profiling_parameters", config_param_msp
-        # )
-        # self.sample_config = self.update_ini(
-        #     self.sample_config, "profiling_stats", config_stats_msp
-        # )
-        # self.save_config(self.sample_config, msp_table_file.with_suffix(".ini"))
 
         # Part 3: FUNCTIONAL PROFILING
         if self.database_type == "complete":
@@ -594,13 +583,6 @@ class Profiler(Session):
                     # Update config file
                     config_param[f"{db}_filename"] = self.db_filenames[db].name
                     config_stats[f"{db}_signal"] = str(functional_stats)
-                    # update_config = self.update_ini(
-                    #     self.sample_config, "profiling_parameters", config_param_db
-                    # )
-                    # update_config = self.update_ini(
-                    #     update_config, "profiling_stats", config_stats_db
-                    # )
-                    # self.save_config(update_config, fun_table_file.with_suffix(".ini"))
                 # By sum of MSPs
                 if db in single_fun_by_msp_db:
                     logging.info("Compute %s abundances as sum of MSP abundances.", db)
@@ -623,13 +605,6 @@ class Profiler(Session):
                     # Update config file
                     config_param[f"{db}_filename"] = self.db_filenames[db].name
                     config_stats[f"{db}_signal_by_msp"] = str(functional_stats)
-                    # update_config = self.update_ini(
-                    #     self.sample_config, "profiling_parameters", config_param_db
-                    # )
-                    # update_config = self.update_ini(
-                    #     update_config, "profiling_stats", config_stats_db
-                    # )
-                    # self.save_config(update_config, fun_table_file.with_suffix(".ini"))
 
             # Part 4 Module computation
             # Get db filenames required for module computation
@@ -662,10 +637,6 @@ class Profiler(Session):
             )
             config_param["modules_def"] = self.module_path.name
             config_param["module_completeness"] = str(self.completeness)
-            # update_config = self.update_ini(
-            #     self.sample_config, "profiling_parameters", config_param_modules
-            # )
-            # self.save_config(update_config, module_table_file.with_suffix(".ini"))
 
         # Update and write ini file
         update_config = self.update_ini(

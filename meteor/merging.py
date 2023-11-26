@@ -52,7 +52,7 @@ class Merging(Session):
     def find_files_to_merge(
         self, input_dir: dict[str, Path], pattern: str
     ) -> dict[str, Path]:
-        """Find all files of a given directory matching a specific pattern.
+        """Find all files in a list of directories matching a specific pattern.
 
         :param input_dir: dictionnary of path where files should be searched for
         :param pattern: only filenames matching this pattern will be returned
@@ -280,7 +280,7 @@ class Merging(Session):
         elif census_stage == 2:
             list_pattern_to_merge["_msp.tsv"] = [self.meteor.msp_column]
             if not self.fast:
-                list_pattern_to_merge = {"_genes.tsv": [self.meteor.gene_column]}
+                list_pattern_to_merge["_genes.tsv"] = [self.meteor.gene_column]
             if database_type == "complete":
                 list_pattern_to_merge["_modules_completeness.tsv"] = [
                     self.meteor.msp_column,

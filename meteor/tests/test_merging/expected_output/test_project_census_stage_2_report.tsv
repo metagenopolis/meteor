@@ -1,0 +1,5 @@
+sample	total_read_count	mapped_read_count	overall_alignment_rate	gene_count	msp_count	msp_signal	mustard_signal
+sample1	19234567	16234987	84.41	627516	297	0.63	0.0
+sample2	15000000	10000000	66.67	687432	325	0.87	0.1
+sample3	20000000	10000000	50.00	599999	354	0.56	0.3
+
