@@ -1,0 +1,16 @@
+MF0005	GMM	acetylneuraminate and acetylmannosamine degradation	K01639 ((K00885+K01788),K13967) 
+MF0006	GMM	urea degradation	((K01941+K01457),(K01428+K01429+K01430),K14048) 
+MF0009	GMM	tryptophan degradation	K01667 
+MF0011	GMM	aspartate degradation (oxaloacetate pathway)	(K00812,K00813,K11358) 
+MF0013	GMM	glutamate degradation (crotonyl-CoA pathway)	(K00260,K15371,K00261,K00262) K00109 ((K01039+K01040)) K01726 K01615 
+MF0015	GMM	glutamate degradation (methylaspartate pathway)	K01846 K04835 
+MF0016	GMM	glycine degradation	(K00281,(K00282+K00283)) K00605 K00382 
+MF0018	GMM	proline degradation (glutamate pathway)	((K00318+K00294),K13821) 
+MF0019	GMM	proline degradation (aminopentanoate pathway)	K01777 ((K10793+K10794+K10795+K10796)) 
+MF0026	GMM	cysteine biosynthesis/homocysteine degradation	(K01697,K10150) K01758 
+MF0027	GMM	cysteine degradation	(K01758,K01760) 
+MF0029	GMM	threonine degradation (glycine pathway)	((K00060+K00639),(K01620+K00132),(K01620+K04072),(K01620+K04073)) 
+MF0033	GMM	cysteine degradation (mercaptopyruvate pathway)	((K00812+K01011),(K00813+K01011),(K11358+K01011)) 
+MF0034	GMM	glutamine degradation (oxoglutarate pathway)	((K00265+K00266)) 
+MF0035	GMM	arginine degradation (agmatine deiminase pathway)	(K01583,K01584,K01585,K02626) ((K10536+K12251)) 
+MF0041	GMM	histidine degradation	K01745 K01712 K01468 (K01479,(K05603+K01458),(K00603+K13990)) 

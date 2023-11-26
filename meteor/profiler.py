@@ -139,6 +139,17 @@ class Profiler(Session):
             assert self.module_path.is_file()
 
     def rarefy(self, rarefaction_level: int, unmapped_reads: int, seed: int) -> None:
+        """Perform rarefaction on the gene count table.
+
+        :param rarefaction_level: number of reads that will be randomly selected.
+        :param  unmapped_reads: number of unmapped_reads that should be taken into account
+        :param seed: seed to reproduce the random selection of reads.
+        """
+        try:
+            assert rarefaction_level > 0
+        except AssertionError:
+            logging.error("You are trying to rarefy with a null or negative number.")
+            sys.exit()
         count_column = self.meteor.value_column
         # Add the unmapped count
         self.gene_count.loc[len(self.gene_count)] = {
@@ -177,7 +188,7 @@ class Profiler(Session):
         ]
 
     def normalize_coverage(self) -> None:
-        """Normalize by coverage"""
+        """Normalize gene count table by coverage."""
         count_column = self.meteor.value_column
         self.gene_count[count_column] = (
             self.gene_count[count_column]
@@ -221,6 +232,12 @@ class Profiler(Session):
         ]
 
     def compute_msp(self, msp_dict: dict[str, set[str]], filter_pc: float) -> None:
+        """Compute msp abundance table.
+
+        :param msp_dict: dictionnary of msp definition {'msp1': {'gene1', 'gene2'}}
+        :param filter_pc: minimum ratio of msp genes that should be detected, otherwise
+        msp abundance is set to 0.
+        """
         count_column = self.meteor.value_column
         # Compute how many genes are seen for a given msp
         # Restrict to gene table to core genes
@@ -260,6 +277,11 @@ class Profiler(Session):
         )
 
     def get_msp_core(self, msp_def_filename: Path, core_size: int) -> dict:
+        """Get genes for each msp that correspond to gene core, in the limit of the core_size.
+
+        :param msp_def_filename: path to the msp definition file
+        :param core_size: maximum number of core genes to consider.
+        """
         # Load msp file
         msp_df = pd.read_table(msp_def_filename)
         # Restrict to core
@@ -363,6 +385,12 @@ class Profiler(Session):
     def compute_ko_stats(
         self, annot_file: Path, by_msp: bool, msp_def_filename: Path
     ) -> float:
+        """Compute percentage of reads that map on annotated genes.
+
+        :param annot_file: path to the annotation file (kegg, mustard, etc)
+        :param by_msp: should the genes be restricted to those belonging to an MSP
+        :param msp_def_filename: A path object pointing to an MSP definition file.
+        """
         count_column = self.meteor.value_column
         # Load annotation file
         annot_df = pd.read_table(annot_file)
@@ -386,6 +414,11 @@ class Profiler(Session):
     def merge_catalogue_info(
         self, msp_file: Path, annot_file: dict[str, Path]
     ) -> pd.DataFrame:
+        """Merge info from msp definition and genes functional annotation.
+
+        :param msp_file: path to the msp definition file
+        :param annot_file: path to the gene functional annotation file
+        """
         count_column = self.meteor.value_column
         # Load files
         msp_df = pd.read_table(msp_file)
@@ -417,7 +450,12 @@ class Profiler(Session):
     def compute_completeness(
         self, mod: list[set[str]], annotated_msp: pd.DataFrame
     ) -> dict[str, float]:
-        "Compute completeness of a given module in all available MSP."
+        """Compute completeness of a given module in all available MSP.
+
+        :param mod: a module (defined by all its alternatives)
+        :param annotated_msp: a dataframe containing functionnaly annotated gene content
+        of all MSP.
+        """
         return (
             annotated_msp.groupby(self.meteor.msp_column)[self.meteor.ko_column]
             .apply(lambda x: self.compute_max(mod, set(x)))
@@ -425,13 +463,24 @@ class Profiler(Session):
         )
 
     def compute_max(self, mod: list[set[str]], ko: set) -> float:
-        "Compute maximum completeness of a module across all its alternative according to a set of KO."
+        """Compute maximum completeness of a module across
+        all its alternative according to a set of KO.
+
+        :param mod: a module defined by all its alternatives
+        :param ko: a set of ko were the alternatives should be searched for
+        """
         return max((len(alt.intersection(ko)) / len(alt) for alt in mod))
 
     def compute_completeness_all(
         self, all_mod: dict[str, list[set[str]]], annotated_msp: pd.DataFrame
     ) -> dict[str, dict[str, float]]:
-        "Compute completeness of all modules in all MSP."
+        """Compute completeness of all modules in all MSP.
+
+        :param all_mod: dictionnary where key = module id and value = all alternatives
+        of the module
+        :param annotated_msp: a dataframe with functionnaly annotated genes content of
+        all MSP.
+        """
         return {
             mod: self.compute_completeness(alt, annotated_msp)
             for (mod, alt) in all_mod.items()
@@ -444,7 +493,13 @@ class Profiler(Session):
         all_mod: dict[str, list[set[str]]],
         completeness: float,
     ) -> None:
-        "Compute all modules abundance in the sample."
+        """Compute all modules abundance in the sample.
+
+        :param msp_file: path to the msp definition file
+        :param annot_file: path to the gene annotation file (functional)
+        :param all_mod: dictionnary of all modules with their list of alternatives
+        :param completeness: KO ratio above which a module is set as present in an MSP
+        """
         count_column = self.meteor.value_column
         # Merge the data
         annotated_msp = self.merge_catalogue_info(
