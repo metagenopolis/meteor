@@ -107,19 +107,31 @@ class Session(Protocol):
             sys.exit()
         return ref_ini
 
-    def get_census_stage(self, mapping_dir: Path) -> ConfigParser:
+    def get_census_stage(self, mapping_dir: Path, stage: int) -> ConfigParser:
+        """Find census_stage_X.ini file of a given repertory
+
+        :param mapping_dir: A directory containing one census_stage file
+        : param stage: Stage of the census file to find (census_stage_1, census_stage_2, etc)
+        """
         try:
-            census_ini_file_list = list(mapping_dir.glob("**/*_census_stage_1.ini"))
+            census_ini_file_list = list(
+                mapping_dir.glob(f"**/*_census_stage_{stage}.ini")
+            )
             assert len(census_ini_file_list) == 1
             census_ini_file = census_ini_file_list[0]
             census_ini = self.read_ini(census_ini_file)
         except AssertionError:
-            logging.error("Error, no *_census_stage_1.ini file found in %s. "
-                          "One *_census_stage_1.ini is expected", mapping_dir)
+            logging.error(
+                "Error, no *_census_stage_1.ini file found in %s. "
+                "One *_census_stage_1.ini is expected",
+                mapping_dir,
+            )
             sys.exit()
         return census_ini
 
-    def update_ini(self, config: ConfigParser, section: str, new_fields: dict[str, str]) -> ConfigParser:
+    def update_ini(
+        self, config: ConfigParser, section: str, new_fields: dict[str, str]
+    ) -> ConfigParser:
         new_config = ConfigParser()
         new_config.read_dict(config)
         if section in new_config.sections():
