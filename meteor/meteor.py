@@ -312,7 +312,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--tmp",
         dest="tmp_path",
         type=isdir,
-        help="Path to the directory where temporary files (e.g. sam) are stored",
+        help="Path to the directory where temporary files (e.g. bam) are stored",
     )
     mapping_parser.add_argument(
         "-m", dest="mapping_only", action="store_true", help="Execute mapping only"
@@ -351,6 +351,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Path to reference directory (containing *_reference.ini)",
     )
     profiling_parser.add_argument(
+        "-s",
+        dest="profile_suffix",
+        default="",
+        type=str,
+        help="Suffix used to generate filenames.",
+    )
+    profiling_parser.add_argument(
         "-l",
         dest="rarefaction_level",
         type=int,
@@ -386,6 +393,42 @@ def get_arguments() -> Namespace:  # pragma: no cover
         default=0.1,
         help="Ratio of MSP core genes detected in a sample, under which "
         "the MSP abundance is set to 0. Default to 0.1",
+    )
+    # TODO What is this ?
+    profiling_parser.add_argument(
+        "--single_fun_db",
+        choices=["mustard", "kegg"],
+        default=["mustard"],
+        nargs="+",
+        help="""List of databases for single functions profiling.
+                                          Default to mustard.""",
+    )
+    profiling_parser.add_argument(
+        "--single_fun_by_msp_db",
+        choices=["mustard", "kegg"],
+        nargs="+",
+        help="""List of databases for single functions profiling via MSP.
+                                          Default to none.""",
+    )
+    # TODO module are provided by each database
+    # This is not necessary
+    profiling_parser.add_argument(
+        "--module",
+        dest="module_path",
+        type=isfile,
+        help="""Path to personalized module definition file.
+                                          Default to provided module definition file.""",
+    )
+    # TODO module are provided by each database
+    # This is not necessary
+    profiling_parser.add_argument(
+        "--module_db",
+        choices=["kegg", "mustard"],
+        default=["kegg"],
+        nargs="+",
+        help="""Comma separated functional annotation database,
+                                          as specified in the *_reference_ini file.
+                                          Default to kegg.""",
     )
     profiling_parser.add_argument(
         "--completeness",
@@ -455,6 +498,49 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="tmp_path",
         type=isdir,
         help="Path to the directory where temporary files (e.g. sam) are stored",
+    )
+    # TODO to remove
+    merging_parser.add_argument(
+        "--no_check",
+        dest="check_param",
+        action="store_false",
+        help="Should the ini files be checked for parameters matching?",
+    )
+    strain_parser = subparsers.add_parser(
+        "strain", help="Identifies strain from metagenomic samples"
+    )
+    strain_parser.add_argument(
+        "-i", dest="mapped_sample_dir", required=True, type=isdir, help="Bam file ?"
+    )
+    strain_parser.add_argument(
+        "-r",
+        dest="ref_dir",
+        type=isdir,
+        required=True,
+        help="Path to reference directory (Path containing *_reference.ini)",
+    )
+    strain_parser.add_argument(
+        "-d",
+        dest="depth",
+        default=10000,
+        type=int,
+        help="Maximum depth taken in account (default 10000).",
+    )
+    strain_parser.add_argument(
+        "-t", dest="threads", default=1, type=int, help="Threads count."
+    )
+    strain_parser.add_argument(
+        "-o",
+        dest="output_dir",
+        type=isdir,
+        required=True,
+        help="Path to the output file.",
+    )
+    strain_parser.add_argument(
+        "--tmp",
+        dest="tmp_path",
+        type=isdir,
+        help="Path to the directory where temporary files are stored",
     )
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
@@ -537,11 +623,16 @@ def main() -> None:  # pragma: no cover
         meteor.ref_dir = args.ref_dir
         profiler = Profiler(
             meteor,
+            args.profile_suffix,
             args.rarefaction_level,
             args.seed,
             args.normalization,
             args.core_size,
             args.msp_filter,
+            args.single_fun_db,
+            args.single_fun_by_msp_db,
+            args.module_path,
+            args.module_db,
             args.completeness,
         )
         profiler.execute()
