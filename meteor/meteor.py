@@ -497,49 +497,6 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--tmp",
         dest="tmp_path",
         type=isdir,
-        help="Path to the directory where temporary files (e.g. sam) are stored",
-    )
-    # TODO to remove
-    merging_parser.add_argument(
-        "--no_check",
-        dest="check_param",
-        action="store_false",
-        help="Should the ini files be checked for parameters matching?",
-    )
-    strain_parser = subparsers.add_parser(
-        "strain", help="Identifies strain from metagenomic samples"
-    )
-    strain_parser.add_argument(
-        "-i", dest="mapped_sample_dir", required=True, type=isdir, help="Bam file ?"
-    )
-    strain_parser.add_argument(
-        "-r",
-        dest="ref_dir",
-        type=isdir,
-        required=True,
-        help="Path to reference directory (Path containing *_reference.ini)",
-    )
-    strain_parser.add_argument(
-        "-d",
-        dest="depth",
-        default=10000,
-        type=int,
-        help="Maximum depth taken in account (default 10000).",
-    )
-    strain_parser.add_argument(
-        "-t", dest="threads", default=1, type=int, help="Threads count."
-    )
-    strain_parser.add_argument(
-        "-o",
-        dest="output_dir",
-        type=isdir,
-        required=True,
-        help="Path to the output file.",
-    )
-    strain_parser.add_argument(
-        "--tmp",
-        dest="tmp_path",
-        type=isdir,
         help="Path to the directory where temporary files are stored",
     )
     subparsers.add_parser("test", help="Test meteor installation")
