@@ -17,7 +17,6 @@ from ..session import Component
 from ..parser import Parser
 from pathlib import Path
 import pytest
-import pandas as pd
 
 
 @pytest.fixture

@@ -229,7 +229,7 @@ def test_execute2(merging_mapping: Merging, datadir: Path) -> None:
     assert real_output_df.round(2).equals(expected_output_df.round(2))
 
     # Check existence and content of raw gene table
-    real_output = merging_mapping.output / f"my_test.tsv"
+    real_output = merging_mapping.output / "my_test.tsv"
     expected_output = datadir / "expected_output" / "test_project.tsv"
     assert real_output.exists()
     real_output_df = pd.read_table(real_output)

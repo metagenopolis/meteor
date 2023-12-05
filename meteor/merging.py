@@ -236,8 +236,11 @@ class Merging(Session):
             )
             assert len(database_type_all) == 1
             database_type = database_type_all[0]
-        except:
-            # Force to taxo if no information (e.g., census_stage_1) or no consensus
+        except KeyError:
+            # Force to taxo if no information (e.g., census_stage_1)
+            database_type = "taxo"
+        except AssertionError:
+            # Force to taxo in no consensus
             database_type = "taxo"
 
         # Merge ini information

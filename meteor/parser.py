@@ -46,16 +46,16 @@ class Parser(Session):
         :param mod_def: a single module definition (e.g. K01+K02 (K03, K04))
         """
         "Remove from the module definition components '-XXX' or ' -- '"
-        ### Remove ' -- '
+        # Remove ' -- '
         mod_def = re.sub(r"\s?--\s?", r" ", mod_def).strip()
-        ### Remove '-XXX'
+        # Remove '-XXX'
         mod_def = re.sub(r"\-\w+", r"", mod_def)
-        ### Replace ' ' by '+'
+        # Replace ' ' by '+'
         mod_def = mod_def.replace(" ", "+")
-        ### Add parenthesis around the whole mod_def (in case we have such case : KXXX,KYYY
+        # Add parenthesis around the whole mod_def (in case we have such case : KXXX,KYYY
         mod_def = "(" + mod_def + ")"
-        ### Remove single parenthesis (do it as long as the module_def is changed, ie, as long as the pattern is found
-        ### (the while and the flag are necessary for such patterns that could be found : ((KO1+KO2))
+        # Remove single parenthesis (do it as long as the module_def is changed, ie, as long as the pattern is found
+        # (the while and the flag are necessary for such patterns that could be found : ((KO1+KO2))
         flag = 1
         while flag:
             mod_def_new = re.sub(r"\(([\w+]+)\)", r"\1", mod_def)
@@ -85,24 +85,24 @@ class Parser(Session):
         :param mod_def: a single module definition (e.g., "K01,K02+K03")
         :param mod_dict: a module dictionary for submodule solving
         """
-        ### Define an alternative
+        # Define an alternative
         alternative = re.compile(r"(.*)(\(([\w+]+,{1})+[\w+]+\))(.*)")
         list_alt = [mod_def]
-        ### Flag to know if some alternatives remain to be solved
+        # Flag to know if some alternatives remain to be solved
         flag = True
-        while flag:  ### While alternatives remain
-            flag = False  ### At the beginning of each loop we suppose there are no more alternative
+        while flag:  # While alternatives remain
+            flag = False  # At the beginning of each loop we suppose there are no more alternative
             new_list_alt = (
                 []
-            )  ### Initialize a new list to keep alternatives that will be solved in the next loop
+            )  # Initialize a new list to keep alternatives that will be solved in the next loop
             for my_def in list_alt:
                 my_def = self.clean_module(mod_def=my_def)
                 my_def = self.replace_submod(mod_def=my_def, mod_dict=mod_dict)
-                ### Look for simple parenthesis (simple parenthesis = alternatives that should be solved)
+                # Look for simple parenthesis (simple parenthesis = alternatives that should be solved)
                 res = alternative.match(my_def)
                 if res:
                     flag = (
-                        True  ### Alternatives were found so we suppose other may remain
+                        True  # Alternatives were found so we suppose other may remain
                     )
                     # list of alternatives after resolving simple parenthesis
                     new_def = [
@@ -110,17 +110,17 @@ class Parser(Session):
                         for k in res.group(2).strip("()").split(",")
                     ]
                     new_list_alt += new_def
-                else:  ### If the def has already been simplified at maximum
+                else:  # If the def has already been simplified at maximum
                     new_list_alt.append(my_def)
             list_alt = new_list_alt
-        ### Transform each alternative into set of KOs : module_dict_alt['M000x'] = [set(KO1, KO2), set(KO1, KO3), etc]
+        # Transform each alternative into set of KOs : module_dict_alt['M000x'] = [set(KO1, KO2), set(KO1, KO3), etc]
         return [set(k.split("+")) for k in set(list_alt)]
 
     def execute(self) -> bool:
         "Parse a module definition file to get all the possible alternatives"
-        ### Load file
+        # Load file
         module_dict = self.load_modules(self.module_file)
-        ### Get the list of alternatives for all modules
+        # Get the list of alternatives for all modules
         self.module_dict_alt = {
             mod: self.find_all_alt(mod_def=my_def, mod_dict=module_dict)
             for (mod, my_def) in module_dict.items()
