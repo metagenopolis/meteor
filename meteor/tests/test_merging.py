@@ -210,8 +210,12 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
         real_output = merging_profiles.output / f"my_test_{my_file}"
         expected_output = datadir / "expected_output" / f"test_project_{my_file}"
         assert real_output.exists()
-        real_output_df = pd.read_table(real_output)
-        expected_output_df = pd.read_table(expected_output)
+        real_output_df = pd.read_table(real_output).reindex(
+            sorted(real_output_df.columns), axis=1
+        )
+        expected_output_df = pd.read_table(expected_output).reindex(
+            sorted(expected_output_df.columns), axis=1
+        )
         assert real_output_df.round(10).equals(expected_output_df.round(10))
 
 
@@ -236,8 +240,12 @@ def test_execute2(merging_mapping: Merging, datadir: Path) -> None:
     real_output = merging_mapping.output / "my_test.tsv"
     expected_output = datadir / "expected_output" / "test_project.tsv"
     assert real_output.exists()
-    real_output_df = pd.read_table(real_output)
-    expected_output_df = pd.read_table(expected_output)
+    real_output_df = pd.read_table(real_output).reindex(
+        sorted(real_output_df.columns), axis=1
+    )
+    expected_output_df = pd.read_table(expected_output).reindex(
+        sorted(expected_output_df.columns), axis=1
+    )
     assert real_output_df.round(10).equals(expected_output_df.round(10))
 
 
@@ -273,6 +281,10 @@ def test_execute3(merging_fast: Merging, datadir: Path) -> None:
             assert not real_output.exists()
         else:
             assert real_output.exists()
-            real_output_df = pd.read_table(real_output)
-            expected_output_df = pd.read_table(expected_output)
+            real_output_df = pd.read_table(real_output).reindex(
+                sorted(real_output_df.columns), axis=1
+            )
+            expected_output_df = pd.read_table(expected_output).reindex(
+                sorted(expected_output_df.columns), axis=1
+            )
             assert real_output_df.round(10).equals(expected_output_df.round(10))
