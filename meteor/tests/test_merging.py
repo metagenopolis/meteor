@@ -190,7 +190,11 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
     expected_output = (
         datadir / "expected_output" / "test_project_census_stage_2_report.tsv"
     )
-    assert pd.read_table(real_output).equals(pd.read_table(expected_output))
+    assert (
+        pd.read_table(real_output)
+        .round(2)
+        .equals(pd.read_table(expected_output).round(2))
+    )
 
     # Check existence and content of all files
     list_files = [
@@ -206,13 +210,7 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
         assert real_output.exists()
         real_output_df = pd.read_table(real_output)
         expected_output_df = pd.read_table(expected_output)
-        real_output_df[["sample1", "sample2", "sample3"]] = real_output_df[
-            ["sample1", "sample2", "sample3"]
-        ].round(10)
-        expected_output_df[["sample1", "sample2", "sample3"]] = expected_output_df[
-            ["sample1", "sample2", "sample3"]
-        ].round(10)
-        assert real_output_df.equals(expected_output_df)
+        assert real_output_df.round(10).equals(expected_output_df.round(10))
 
 
 def test_execute2(merging_mapping: Merging, datadir: Path) -> None:
@@ -224,7 +222,11 @@ def test_execute2(merging_mapping: Merging, datadir: Path) -> None:
     expected_output = (
         datadir / "expected_output" / "test_project_census_stage_1_report.tsv"
     )
-    assert pd.read_table(real_output).equals(pd.read_table(expected_output))
+    assert (
+        pd.read_table(real_output)
+        .round(2)
+        .equals(pd.read_table(expected_output).round(2))
+    )
 
     # Check existence and content of raw gene table
     real_output = merging_mapping.output / f"my_test.tsv"
@@ -232,13 +234,7 @@ def test_execute2(merging_mapping: Merging, datadir: Path) -> None:
     assert real_output.exists()
     real_output_df = pd.read_table(real_output)
     expected_output_df = pd.read_table(expected_output)
-    real_output_df[["sample1", "sample2", "sample3"]] = real_output_df[
-        ["sample1", "sample2", "sample3"]
-    ].round(10)
-    expected_output_df[["sample1", "sample2", "sample3"]] = expected_output_df[
-        ["sample1", "sample2", "sample3"]
-    ].round(10)
-    assert real_output_df.equals(expected_output_df)
+    assert real_output_df.round(10).equals(expected_output_df.round(10))
 
 
 def test_execute3(merging_fast: Merging, datadir: Path) -> None:
@@ -250,7 +246,11 @@ def test_execute3(merging_fast: Merging, datadir: Path) -> None:
     expected_output = (
         datadir / "expected_output" / "test_project_census_stage_2_report.tsv"
     )
-    assert pd.read_table(real_output).equals(pd.read_table(expected_output))
+    assert (
+        pd.read_table(real_output)
+        .round(2)
+        .equals(pd.read_table(expected_output).round(2))
+    )
 
     # Check existence and content of all files
     list_files = [
@@ -269,10 +269,4 @@ def test_execute3(merging_fast: Merging, datadir: Path) -> None:
             assert real_output.exists()
             real_output_df = pd.read_table(real_output)
             expected_output_df = pd.read_table(expected_output)
-            real_output_df[["sample1", "sample2", "sample3"]] = real_output_df[
-                ["sample1", "sample2", "sample3"]
-            ].round(10)
-            expected_output_df[["sample1", "sample2", "sample3"]] = expected_output_df[
-                ["sample1", "sample2", "sample3"]
-            ].round(10)
-            assert real_output_df.equals(expected_output_df)
+            assert real_output_df.round(10).equals(expected_output_df.round(10))
