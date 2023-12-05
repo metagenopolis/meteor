@@ -211,13 +211,13 @@ class Profiler(Session):
             )
         else:
             unmapped_reads_after_rf = unmapped_reads
-        ### Add the unmapped reads after rf to the gene count table as a pseudo gene
+        # Add the unmapped reads after rf to the gene count table as a pseudo gene
         self.gene_count.loc[len(self.gene_count)] = {
             self.meteor.gene_column: -1,
             self.meteor.gene_length_column: 1000,
             count_column: unmapped_reads_after_rf,
         }
-        ### Normalize
+        # Normalize
         self.gene_count[count_column] = (
             self.gene_count[count_column]
             / self.gene_count[self.meteor.gene_length_column]
