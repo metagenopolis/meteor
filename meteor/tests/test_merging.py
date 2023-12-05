@@ -192,8 +192,8 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
     )
     real_output_df = pd.read_table(real_output)
     expected_output_df = pd.read_table(expected_output)
-    real_output_df = real_output_df.sort_values(by=["sample"])
-    expected_output_df = expected_output_df.sort_values(by=["sample"])
+    real_output_df = real_output_df.sort_values(by=["sample"]).reset_index()
+    expected_output_df = expected_output_df.sort_values(by=["sample"]).reset_index()
     assert real_output_df.round(2).equals(expected_output_df.round(2))
 
     # Check existence and content of all files
@@ -224,8 +224,8 @@ def test_execute2(merging_mapping: Merging, datadir: Path) -> None:
     )
     real_output_df = pd.read_table(real_output)
     expected_output_df = pd.read_table(expected_output)
-    real_output_df = real_output_df.sort_values(by=["sample"])
-    expected_output_df = expected_output_df.sort_values(by=["sample"])
+    real_output_df = real_output_df.sort_values(by=["sample"]).reset_index()
+    expected_output_df = expected_output_df.sort_values(by=["sample"]).reset_index()
     assert real_output_df.round(2).equals(expected_output_df.round(2))
 
     # Check existence and content of raw gene table
@@ -248,8 +248,8 @@ def test_execute3(merging_fast: Merging, datadir: Path) -> None:
     )
     real_output_df = pd.read_table(real_output)
     expected_output_df = pd.read_table(expected_output)
-    real_output_df = real_output_df.sort_values(by=["sample"])
-    expected_output_df = expected_output_df.sort_values(by=["sample"])
+    real_output_df = real_output_df.sort_values(by=["sample"]).reset_index()
+    expected_output_df = expected_output_df.sort_values(by=["sample"]).reset_index()
     assert real_output_df.round(2).equals(expected_output_df.round(2))
 
     # Check existence and content of all files
