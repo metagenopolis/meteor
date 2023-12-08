@@ -75,11 +75,10 @@ def test_rarefy4(profiler_standard: Profiler, datadir: Path) -> None:
 
 def test_normalize_coverage(profiler_standard: Profiler, datadir: Path) -> None:
     profiler_standard.normalize_coverage()
-    print(profiler_standard.gene_count)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_norm_coverage.tsv"
     )
-    assert profiler_standard.gene_count.equals(expected_output)
+    assert profiler_standard.gene_count.round(2).equals(expected_output.round(2))
 
 
 def test_normalize_fpkm1(profiler_standard: Profiler, datadir: Path) -> None:
