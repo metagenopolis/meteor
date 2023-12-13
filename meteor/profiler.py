@@ -193,7 +193,7 @@ class Profiler(Session):
         self.gene_count[count_column] = (
             self.gene_count[count_column]
             / self.gene_count[self.meteor.gene_length_column]
-            * 1000.0
+            * 100.0
         )
 
     def normalize_fpkm(self, rarefaction_level: int, unmapped_reads: int) -> None:
