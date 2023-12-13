@@ -13,6 +13,9 @@ image: python:3.11
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
+include:
+  remote: 'https://gitlab.com/yesolutions/gitlab-ci-templates/raw/main/templates/pre-commit-autofix.yaml'
+
 # Pip's cache doesn't store the python packages
 # https://pip.pypa.io/en/stable/topics/caching/
 #

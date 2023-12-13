@@ -22,8 +22,6 @@ from packaging.version import Version, parse
 from re import findall
 from meteor.session import Session, Component
 
-# from pysam import view, sort, index  # type: ignore[attr-defined]
-# from tempfile import NamedTemporaryFile
 # from memory_profiler import profile
 from time import perf_counter
 import logging
@@ -77,40 +75,13 @@ class Mapper(Session):
             "fastq_files": ",".join(self.fastq_list),
         }
         config["mapping_file"] = {
-            "bowtie_file_1": sam_file.name,
-            "mapping_file_format": "sam",
-            # "mapping_file_format": "bam",
+            "bowtie_file": sam_file.name,
         }
         return config
-
-    # # @profile(stream=fp)
-    # def create_bam(self, samfile: str, bam_file: str) -> None:
-    #     """Function that create a BAM file from a SAM file.
-
-    #     :param samfile: (str) SAM filename
-    #     """
-    #     # convert sam to bam using pysam
-    #     view("-@", str(self.meteor.threads), "-1", "-u", "-S", "-b", "-o",
-    #          bam_file, samfile, catch_stdout=False)
-
-    # # @profile(stream=fp)
-    # def sort_bam(self, bamfile: str, sorted_bamfile: str) -> None:
-    #     """Function that sort a BAM file using pysam
-
-    #     :param bamfile: (str) BAM filename
-    #     :return: bamfile (str) BAM filename
-    #     """
-    #     # sort the bam file
-    #     sort("-o", sorted_bamfile, "-@", str(self.meteor.threads),
-    #          "-O", "bam", bamfile, catch_stdout=False)
-    #     # index the bam file
-    #     index(sorted_bamfile)
 
     # @profile(stream=fp)
     def execute(self) -> bool:
         """Map reads"""
-        # bam_file = self.census["directory"] / f"{self.census['census']['sample_info']['sample_name']}.bam"
-        # test
         sam_file = (
             self.census["directory"]
             / f"{self.census['census']['sample_info']['sample_name']}.sam"
@@ -133,8 +104,8 @@ class Mapper(Session):
         # Check the bowtie2 version
         bowtie_version = (
             str(run(["bowtie2", "--version"], capture_output=True).stdout)
-            .split(" ")[2]
             .split("\\n")[0]
+            .split(" ")[2]
         )
         if parse(bowtie_version) < Version("2.3.5"):
             logging.error(
@@ -167,26 +138,7 @@ class Mapper(Session):
         except AssertionError:
             logging.error("Error, could not access the mapping result from bowtie2")
             sys.exit()
-
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
-        # with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_sam_file:
-        #     # execute command
-        #     start = perf_counter()
-        #     print(" ".join(["bowtie2", parameters, "--mm --no-unal",
-        #                 "-x", str(bowtie_index.resolve()), "-U", ",".join(self.fastq_list),
-        #                 "-S", temp_sam_file.name]))
-        #     check_call(["bowtie2", parameters, "--mm --no-unal",
-        #                 "-x", bowtie_index, "-U", ",".join(self.fastq_list),
-        #                 "-S", temp_sam_file.name])
-        #     logging.info("Completed mapping in %f seconds", perf_counter() - start)
-        #     start = perf_counter()
-        #     with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_bam_file:
-        #         self.create_bam(temp_sam_file.name, temp_bam_file.name)
-        #         self.sort_bam(temp_bam_file.name, str(bam_file.resolve()))
-        #     if not bam_file.exists():
-        #         raise ValueError("Failed to create the bam")
-        #     logging.info("Completed bam creation in %f seconds", perf_counter() - start)
-        # config = self.set_mapping_config(parameters, bam_file)
         config = self.set_mapping_config(
             parameters, sam_file, bowtie_version, mapping_data
         )

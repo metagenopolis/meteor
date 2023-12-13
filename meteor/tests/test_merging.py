@@ -95,8 +95,7 @@ def test_extract_ini_info(merging_profiles: Merging) -> None:
     assert info == {
         "msp_filter": "0.1",
         "modules_def": "GMM_definition.tsv",
-        "bowtie_file_1": "sample1.sam",
-        "mapping_file_format": "sam",
+        "bowtie_file": "sample1.sam",
     }
 
 

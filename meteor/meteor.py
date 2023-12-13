@@ -100,6 +100,8 @@ def isborned01(x: str) -> float:
     :raises ArgumentTypeError: If x is > 1 or < 0
     :return: (float) float number
     """
+    if not isinstance(x, float):
+        raise ArgumentTypeError("Value must be a numerical")
     x_float = float(x)
     if x_float < 0.0 or x_float > 1.0:
         msg = "Should be comprised between 0 and 1."
@@ -133,9 +135,12 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=str,
         required=True,
         choices=[
+            "cat_gut",
             "chicken_caecal",
-            "human_oral",
+            "dog_gut",
             "human_gut",
+            "human_oral",
+            "human_skin",
             "mouse_gut",
             "rabbit_gut",
             "rat_gut",
@@ -315,12 +320,6 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Path to the directory where temporary files (e.g. bam) are stored",
     )
     mapping_parser.add_argument(
-        "-m", dest="mapping_only", action="store_true", help="Execute mapping only"
-    )
-    mapping_parser.add_argument(
-        "-n", dest="counting_only", action="store_true", help="Execute counting only"
-    )
-    mapping_parser.add_argument(
         "-t", dest="threads", default=1, type=int, help="Threads count."
     )
     # mapping_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
@@ -445,6 +444,36 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-t", dest="threads", default=1, type=int, help="Threads count."
     )
     strain_parser.add_argument(
+        "-c",
+        dest="min_gene_count",
+        default=3,
+        type=int,
+        help="Minimum gene count (default 3).",
+    )
+    strain_parser.add_argument(
+        "-s",
+        dest="min_snp_depth",
+        default=3,
+        choices=range(1, 100),
+        type=int,
+        help="Minimum snp depth (default 3).",
+    )
+    strain_parser.add_argument(
+        "-f",
+        dest="min_frequency_non_reference",
+        default=0.8,
+        type=int,
+        help="Minimum frequency for non reference allele (default 0.8).",
+    )
+    strain_parser.add_argument(
+        "-m",
+        dest="min_msp_coverage",
+        default=10,
+        choices=range(1, 100),
+        type=int,
+        help="Minimum MSP coverage (default 10). Values should be comprised between 1 and 100.",
+    )
+    strain_parser.add_argument(
         "-o",
         dest="output_dir",
         type=isdir,
@@ -508,8 +537,6 @@ def main() -> None:  # pragma: no cover
             args.trim,
             args.identity_threshold,
             args.alignment_number,
-            args.counting_only,
-            args.mapping_only,
             args.keep_sam,
             args.keep_bam,
         )
@@ -521,7 +548,14 @@ def main() -> None:  # pragma: no cover
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
         meteor.strain_dir = args.output_dir
-        strain_id = Strain(meteor, args.depth)
+        strain_id = Strain(
+            meteor,
+            args.depth,
+            args.min_gene_count,
+            args.min_snp_depth,
+            args.min_frequency_non_reference,
+            args.min_msp_coverage,
+        )
         strain_id.execute()
     # Run download catalogues
     elif args.command == "download":
@@ -570,10 +604,9 @@ def main() -> None:  # pragma: no cover
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
             meteor.ref_dir = meteor.ref_dir / "mock"
-            counter = Counter(
-                meteor, "smart_shared", "end-to-end", 80, 1, False, False, False, True
-            )
+            counter = Counter(meteor, "smart_shared", "end-to-end", 80, 1, 100)
             counter.execute()
+            # TODO Add strain analysis
     # Close logging
     logger.handlers[0].close()
 

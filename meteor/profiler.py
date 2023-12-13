@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Type
 import pandas as pd
 from pathlib import Path
-from pkg_resources import resource_filename
+import importlib.resources
 import numpy as np
 import logging
 import sys
@@ -133,8 +133,8 @@ class Profiler(Session):
                 assert self.db_filenames[db].is_file()
 
             # Initialize the module definition file
-            self.module_path = Path(
-                resource_filename("meteor", "data/GMM_definition.tsv")
+            self.module_path = (
+                importlib.resources.files("meteor") / "data/GMM_definition.tsv"
             )
             assert self.module_path.is_file()
 
@@ -142,7 +142,7 @@ class Profiler(Session):
         """Perform rarefaction on the gene count table.
 
         :param rarefaction_level: number of reads that will be randomly selected.
-        :param  unmapped_reads: number of unmapped_reads that should be taken into account
+        :param unmapped_reads: number of unmapped_reads that should be taken into account
         :param seed: seed to reproduce the random selection of reads.
         """
         try:

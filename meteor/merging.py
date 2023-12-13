@@ -15,7 +15,7 @@
 from meteor.session import Session, Component
 from configparser import ConfigParser
 from dataclasses import dataclass
-from typing import Type
+from typing import Type, Dict, List
 import pandas as pd
 from pathlib import Path
 import logging
@@ -38,7 +38,7 @@ class Merging(Session):
     def __post_init__(self) -> None:
         self.output.mkdir(exist_ok=True)
 
-    def extract_census_stage(self, census_list: list[Path]) -> list[int]:
+    def extract_census_stage(self, census_list: List[Path]) -> List[int | None]:
         """For a list of census files formatted as
         sample1_census_stage_1.ini or sample2_census_stage_2.ini,
         extract the stage number (here [1, 2]).
@@ -71,7 +71,7 @@ class Merging(Session):
         return files_to_merge
 
     def extract_ini_info(
-        self, config: ConfigParser, param_dict: dict[str, list[str]]
+        self, config: ConfigParser, param_dict: Dict[str, Dict[str, List[str]]]
     ) -> dict[str, str]:
         """Get information from the required section and fields
 

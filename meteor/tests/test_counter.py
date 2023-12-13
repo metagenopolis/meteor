@@ -53,8 +53,6 @@ def counter_unique(datadir: Path, tmp_path: Path) -> Counter:
         trim=80,
         identity_threshold=0.95,
         alignment_number=10000,
-        counting_only=False,
-        mapping_only=False,
     )
 
 
@@ -74,8 +72,6 @@ def counter_smart_shared(datadir: Path, tmp_path: Path) -> Counter:
         trim=80,
         identity_threshold=0.95,
         alignment_number=10000,
-        counting_only=False,
-        mapping_only=False,
     )
 
 
@@ -95,8 +91,6 @@ def counter_total(datadir: Path, tmp_path: Path) -> Counter:
         trim=80,
         identity_threshold=0.95,
         alignment_number=10000,
-        counting_only=False,
-        mapping_only=False,
     )
 
 
@@ -324,8 +318,6 @@ def test_launch_counting_smart_shared(
 
 def test_execute(counter_smart_shared: Counter, tmp_path: Path):
     counter_smart_shared.execute()
-    workflow = tmp_path / "workflow.ini"
-    assert workflow.exists()
     part1 = tmp_path / "part1/part1.tsv"
     assert part1.exists()
     with part1.open("rb") as out:

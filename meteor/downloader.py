@@ -53,7 +53,7 @@ class Downloader(Session):
         :param catalog: (Path) A path object to the downloaded catalog
         :return: (str) A string of the md5sum
         """
-        logging.info("Checking file md5 %s", str(catalog))
+        logging.info("Checking md5 %s", str(catalog))
         with catalog.open("rb") as f:
             file_hash = md5()
             while chunk := f.read(8192):
@@ -122,7 +122,9 @@ class Downloader(Session):
             if self.check_md5:
                 assert md5_expect == self.getmd5(catalogue)
             self.extract_tar(catalogue)
-            logging.info("Catalogue %s is now ready to be used.", self.choice)
+            logging.info(
+                "Catalogue %s is now ready to be used.", str(catalogue.resolve())
+            )
         except AssertionError:
             logging.error("MD5sum of %s has a different value than expected", catalogue)
         return True

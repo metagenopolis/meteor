@@ -12,7 +12,7 @@
 
 """Effective variant calling"""
 
-from subprocess import check_call
+from subprocess import check_call, run
 from dataclasses import dataclass
 from pathlib import Path
 from configparser import ConfigParser
@@ -21,7 +21,9 @@ from typing import Type
 from meteor.session import Session, Component
 from time import perf_counter
 from tempfile import NamedTemporaryFile
+from packaging.version import Version, parse
 import logging
+import sys
 
 
 @dataclass
@@ -31,9 +33,10 @@ class VariantCalling(Session):
     meteor: Type[Component]
     census: dict
     depth: int
+    min_frequency_non_reference: float
 
     def set_variantcalling_config(
-        self, cmd: str, sam_file: Path
+        self, bam_file: Path, vcf_file: Path, consensus_file: Path, bcftool_version: str
     ) -> ConfigParser:  # pragma: no cover
         """Define the census 1 configuration
 
@@ -45,19 +48,17 @@ class VariantCalling(Session):
         config["sample_info"] = self.census["census"]["sample_info"]
         config["sample_file"] = self.census["census"]["sample_file"]
         config["mapping"] = {
-            "variant_calling_tool": "bcftools",
-            "variant_calling_version": "NA",
-            "mapping_date": datetime.now().strftime("%Y-%m-%d"),
             "reference_name": self.census["reference"]["reference_info"][
                 "reference_name"
             ],
-            # "processed_read_count": self.census["census"]["sample_info"]["sequenced_read_count"]
+            "bam_name": bam_file.name,
         }
-        config["mapping_file"] = {
-            "mapping_file_count": "1",
-            "bowtie_file_1": sam_file.name,
-            "mapping_file_format": "sam",
-            # "mapping_file_format": "bam",
+        config["variant_calling"] = {
+            "variant_calling_tool": "bcftools",
+            "variant_calling_version": bcftool_version,
+            "variant_calling_date": datetime.now().strftime("%Y-%m-%d"),
+            "vcf_name": vcf_file.name,
+            "consensus_name": consensus_file.name,
         }
         return config
 
@@ -65,55 +66,115 @@ class VariantCalling(Session):
         """Call variants reads"""
         # Start mapping
         bam_file = (
-            self.census["directory"]
+            self.census["mapped_sample_dir"]
             / f"{self.census['census']['sample_info']['sample_name']}.bam"
         )
         vcf_file = (
-            self.meteor.strain_dir
+            self.census["directory"]
             / f"{self.census['census']['sample_info']['sample_name']}.vcf.gz"
         )
-        reference = (
+        consensus_file = (
+            self.census["directory"]
+            / f"{self.census['census']['sample_info']['sample_name']}_consensus.fasta"
+        )
+        reference_file = (
             self.meteor.ref_dir
             / self.census["reference"]["reference_file"]["fasta_dir"]
             / self.census["reference"]["reference_file"]["fasta_filename"]
         )
+        bed_file = (
+            self.meteor.ref_dir
+            / self.census["reference"]["reference_file"]["database_dir"]
+            / self.census["reference"]["annotation"]["bed"]
+        )
+        bcftools_version = (
+            str(run(["bcftools", "--version"], capture_output=True).stdout)
+            .split("\\n")[0]
+            .split(" ")[1]
+        )
+        if parse(bcftools_version) <= Version("0.1.19"):
+            logging.error(
+                "Error, the bcftools version %s is outdated for meteor. Please update bcftools.",
+                bcftools_version,
+            )
+            sys.exit()
         start = perf_counter()
         # "--skip-indels", ?
-        with NamedTemporaryFile(mode="wt", dir=self.meteor.tmp_dir) as temp_vcf_file:
-            check_call(
-                [
-                    "bcftools",
-                    "mpileup",
-                    "-d",
-                    str(self.depth),
-                    "-Ob",
-                    "-f",
-                    str(reference.resolve()),
-                    str(bam_file.resolve()),
-                    "--threads",
-                    str(self.meteor.threads),
-                    "-o",
-                    temp_vcf_file.name,
-                ]
-            )
-            check_call(
-                [
-                    "bcftools",
-                    "call",
-                    "-v",
-                    "-c",
-                    "--threads",
-                    str(self.meteor.threads),
-                    "-Oz",
-                    "-o",
-                    str(vcf_file.resolve()),
-                    temp_vcf_file.name,
-                ]
-            )
+        with NamedTemporaryFile(
+            mode="wt", dir=self.meteor.tmp_dir
+        ) as temp_vcf_pileup_file:
+            with NamedTemporaryFile(
+                mode="wt", dir=self.meteor.tmp_dir
+            ) as temp_vcf_file:
+                check_call(
+                    [
+                        "bcftools",
+                        "mpileup",
+                        "-d",
+                        str(self.depth),
+                        "-Ob",
+                        "-f",
+                        str(reference_file.resolve()),
+                        str(bam_file.resolve()),
+                        "--threads",
+                        str(self.meteor.threads),
+                        "-o",
+                        temp_vcf_pileup_file.name,
+                    ]
+                )
+                check_call(
+                    [
+                        "bcftools",
+                        "call",
+                        "-v",
+                        "-c",
+                        "--ploidy",
+                        str(1),
+                        "--threads",
+                        str(self.meteor.threads),
+                        "-Oz",
+                        "-o",
+                        temp_vcf_file.name,
+                        temp_vcf_pileup_file.name,
+                    ]
+                )
+                check_call(["bcftools", "index", temp_vcf_file.name])
+                # Only SNP from 100 core genes
+                check_call(
+                    [
+                        "bcftools",
+                        "view",
+                        "-R",
+                        str(bed_file.resolve()),
+                        "--threads",
+                        str(self.meteor.threads),
+                        "-q",
+                        str(self.min_frequency_non_reference),
+                        "-Oz",
+                        "-o",
+                        str(vcf_file.resolve()),
+                        temp_vcf_file.name,
+                    ]
+                )
+                check_call(["bcftools", "index", str(vcf_file.resolve())])
+                check_call(
+                    [
+                        "bcftools",
+                        "consensus",
+                        "-f",
+                        str(reference_file.resolve()),
+                        "-o",
+                        str(consensus_file.resolve()),
+                        str(vcf_file.resolve()),
+                    ]
+                )
         # gatk AddOrReplaceReadGroups -I Zymo_6300.bam -O test_grp.bam -RGID 4 -RGLB lib1 -RGPL illumina -RGPU unit1 -RGSM 20
         # gatk SplitNCigarReads -R ../../catalogue/mock/fasta/mock.fasta -I test_grp.bam -O test.bam
         # gatk --java-options "-Xmx8g" HaplotypeCaller -R ../../catalogue/mock/fasta/mock.fasta -I test.bam -O test.vcf.gz
-        logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
-        # config = self.set_variantcalling_config(parameters, sam_file)
-        # self.save_config(config, self.census["Stage1FileName"])
+        logging.info("Completed strain analysis in %f seconds", perf_counter() - start)
+        config = self.set_variantcalling_config(
+            bam_file, vcf_file, consensus_file, bcftools_version
+        )
+        print(self.census["Stage2FileName"])
+        self.save_config(config, self.census["Stage2FileName"])
         return True

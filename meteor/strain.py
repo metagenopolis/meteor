@@ -14,12 +14,12 @@
 
 import sys
 import logging
+import pandas as pd
 from dataclasses import dataclass, field
-from pysam import VariantFile
 from configparser import ConfigParser
 from meteor.variantcalling import VariantCalling
 from meteor.session import Session, Component
-from typing import Type, Dict, Generator, List, Tuple
+from typing import Type, Iterator, Tuple
 from tempfile import mkdtemp
 from pathlib import Path
 
@@ -30,17 +30,110 @@ class Strain(Session):
 
     meteor: Type[Component]
     depth: int
+    min_gene_count: int
+    min_snp_depth: int
+    min_frequency_non_reference: float
+    min_msp_coverage: int
     ini_data: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.strain_dir.mkdir(exist_ok=True)
 
-    # def find_strain(self) -> None:
-    #     """Compute strain ???"""
+    def get_gene_consensus(self, consensus_file: Path) -> Iterator[Tuple[int, str]]:
+        """Get genes
+        :param consensus_file: (Path) A path to consensus file
+        :return: A generator providing each header and gene sequence
+        """
+        gene_id: int = 0
+        seq: str = ""
+        with consensus_file.open("rt", encoding="UTF-8") as consensus:
+            for line in consensus:
+                if line.startswith(">"):
+                    if len(seq) > 0:
+                        yield gene_id, seq
+                    gene_id = int(line[1:])
+                    seq = ""
+                else:
+                    seq += line.strip().replace("\n", "")
+            if len(seq) > 0:
+                yield gene_id, seq
+
+    def get_msp_variant(
+        self, consensus_file: Path, count_file: Path, msp_file: Path
+    ) -> None:
+        """Produce meaning full msp variants
+        :param consensus_file: (Path) A path to consensus file
+        :param count_file: (Path) A path to count file
+        :param msp_file: (Path) A path to msp file
+        """
+        # Read the abundance file
+        count = pd.read_csv(
+            count_file, sep="\t", names=["gene_id", "gene_length", "value"], header=1
+        )
+        # Read the msp content description file
+        msp_content = pd.read_csv(
+            msp_file,
+            sep="\t",
+            names=["msp_name", "gene_id", "gene_name", "gene_category"],
+            header=1,
+        )
+        msp_content = msp_content.loc[msp_content["gene_category"] == "core"]
+        msp_content = msp_content.groupby("msp_name").head(100).reset_index()
+        # Filter for gene with a minimum count
+        filtered_count = count[count["value"] > self.min_gene_count]
+        # Join the two DataFrames based on gene_id
+        joined_df = msp_content.merge(filtered_count, on="gene_id")
+        # Count the number of overlapping gene IDs for each MSP
+        overlapping_gene_counts = (
+            joined_df.groupby("msp_name")["gene_id"]
+            .nunique()
+            .to_frame(name="overlapping_gene_count")
+            .reset_index()
+        )
+        # Filter the DataFrame to only include MSPs with at least min_msp_coverage overlapping gene IDs
+        msp_with_overlapping_genes = overlapping_gene_counts[
+            overlapping_gene_counts["overlapping_gene_count"] >= self.min_msp_coverage
+        ]
+        msp_covered = joined_df.merge(msp_with_overlapping_genes, on="msp_name")
+        # clear first ?
+        gene_dict = {
+            gene_id: seq for gene_id, seq in self.get_gene_consensus(consensus_file)
+        }
+        logging.info(
+            "%s MSPs have sufficient signal for SNP analysis ",
+            len(msp_with_overlapping_genes["msp_name"].values),
+        )
+        for msp_name in msp_with_overlapping_genes["msp_name"].values:
+            msp_file = self.ini_data["directory"] / Path(msp_name + ".fasta")
+            msp_seq = ""
+            for gene_id in msp_content[msp_content["msp_name"] == msp_name][
+                "gene_id"
+            ].values:
+                if gene_id in msp_covered["gene_id"].values:
+                    msp_seq += gene_dict[gene_id]
+                else:
+                    msp_seq += "-" * len(gene_dict[gene_id])
+            with msp_file.open("wt", encoding="UTF-8") as msp:
+                print(
+                    f">{self.ini_data['census']['sample_info']['sample_name']}\n{msp_seq}\n",
+                    file=msp,
+                )
+
+        # for gene_id, seq in self.get_gene_consensus(consensus_file):
+        #     if gene_id in msp_covered["gene_id"].values:
+        #         msp_name = msp_covered[msp_covered["gene_id"] == gene_id][
+        #             "msp_name"
+        #         ].values[0]
+        #         msp_file = self.ini_data["directory"] / Path(msp_name + ".fasta")
+        #         with msp_file.open("at") as msp:
+        #             print(f">{gene_id}\n{fill(seq, width=80)}\n", file=msp)
+        #     print(gene_id)
+        #     print(seq)
 
     def execute(self) -> bool:
-        """Compute the mapping"""
+        """Compute the strain analysis"""
+        logging.info("Launch strain analysis")
         try:
             # Get the ini ref
             ref_ini_file_list = list(self.meteor.ref_dir.glob("**/*_reference.ini"))
@@ -67,22 +160,47 @@ class Strain(Session):
             with open(census_ini_file, "rt", encoding="UTF-8") as cens:
                 census_ini.read_file(cens)
                 sample_info = census_ini["sample_info"]
-                self.ini_data["directory"] = self.meteor.mapped_sample_dir
+                stage2_dir = self.meteor.strain_dir / sample_info["sample_name"]
+                stage2_dir.mkdir(exist_ok=True, parents=True)
+                self.ini_data["mapped_sample_dir"] = self.meteor.mapped_sample_dir
+                self.ini_data["directory"] = stage2_dir
                 self.ini_data["census"] = census_ini
                 self.ini_data["reference"] = ref_ini
+                self.ini_data["Stage2FileName"] = (
+                    stage2_dir / f"{sample_info['sample_name']}_census_stage_2.ini"
+                )
+
                 # Get the bam
                 # Get the variant calling
                 # Variant calling this library on the reference
                 variant_calling_process = VariantCalling(
-                    self.meteor, self.ini_data, self.depth
+                    self.meteor,
+                    self.ini_data,
+                    self.depth,
+                    self.min_frequency_non_reference,
                 )
-                vcf_file = (
-                    self.ini_data["directory"] / f"{sample_info['sample_name']}.vcf.gz"
+            if self.ini_data["Stage2FileName"].exists():
+                logging.info(
+                    "Variant calling already done for sample: %s",
+                    sample_info["sample_name"],
                 )
-                # fasta_file = self.get_strain(bcf_file)
-            if not variant_calling_process.execute():
-                raise ValueError(f"Error, TaskMainMapping failed: {census_ini_file}")
-            # analyse the bcf file
+                logging.info("Skipped !")
+            else:
+                variant_calling_process.execute()
+            consensus_file = (
+                self.ini_data["directory"]
+                / f"{sample_info['sample_name']}_consensus.fasta"
+            )
+            count_file = (
+                self.ini_data["mapped_sample_dir"] / f"{sample_info['sample_name']}.tsv"
+            )
+            msp_file = (
+                self.meteor.ref_dir
+                / self.ini_data["reference"]["reference_file"]["database_dir"]
+                / self.ini_data["reference"]["annotation"]["msp"]
+            )
+            self.get_msp_variant(consensus_file, count_file, msp_file)
+
         except AssertionError:
             logging.error(
                 "Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir

@@ -21,7 +21,7 @@ If you use meteor , please cite:
 Meteor requires:
 - python>=3.10
 - [bowtie2](https://github.com/BenLangmead/bowtie2)
-- [bfctools](https://samtools.github.io/bcftools/)
+- [bcftools](https://samtools.github.io/bcftools/)
 - [pysam](https://pysam.readthedocs.io/en/latest/installation.html)
 - [pandas](https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html)
 

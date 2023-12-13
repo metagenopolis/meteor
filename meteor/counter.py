@@ -20,11 +20,10 @@ import logging
 import sys
 import pysam
 from dataclasses import dataclass, field
-from tempfile import mkdtemp, mkstemp, NamedTemporaryFile
+from tempfile import mkdtemp, mkstemp
 import tempfile
 from configparser import ConfigParser
 from pathlib import Path
-from subprocess import check_call
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
 from typing import Type, Dict, Generator, List, Tuple, Iterator
@@ -45,8 +44,6 @@ class Counter(Session):
     trim: int
     identity_threshold: float
     alignment_number: int
-    counting_only: bool
-    mapping_only: bool
     keep_sam: bool = False
     keep_bam: bool = False
     # pysam_test: bool = True
@@ -119,7 +116,6 @@ class Counter(Session):
 
     def launch_mapping(self) -> None:
         """Create temporary indexed files and map against"""
-        logging.info("Launch mapping")
         list_fastq_path = []
         # loop on each library
         for (
@@ -460,11 +456,16 @@ class Counter(Session):
 
         :param sam_file: (Path) A path to the input bam file
         :param count_file: (Path) A path to the output count file
+        :return: (bool)
         """
-        logging.info("Launch counting")
-        # "-t", str(self.meteor.tmp_dir) + "/"
-        # open the BAM file
-        # with AlignmentFile(str(bam_file.resolve()), "rb") as bamdesc:
+        if not sam_file.exists():
+            logging.info(
+                "Sam file %s is not available to perform a new counting. Please consider to re-map with --ks option.",
+                sam_file,
+            )
+            sys.exit()
+        else:
+            logging.info("Launch counting")
         with AlignmentFile(str(sam_file.resolve())) as samdesc:
             # create a dictionary containing the length of reference genes
             # get name of reference sequence
@@ -527,6 +528,9 @@ class Counter(Session):
                     catch_stdout=False,
                 )
                 if self.keep_bam:
+                    logging.info(
+                        "Bam file is not kept. Strain analysis will require a new mapping."
+                    )
                     bamfile_sorted = Path(
                         copy(
                             str(bamfile_sorted.resolve()),
@@ -558,22 +562,13 @@ class Counter(Session):
         try:
             census_ini_files = list(self.meteor.fastq_dir.glob("*_census_stage_0.ini"))
             assert len(census_ini_files) > 0
-            #  MAPPING THIS LIBRARY ON MAIN REFERENCE
+            #  mapping of each sample against reference
             for library in census_ini_files:
                 census_ini = ConfigParser()
                 with open(library, "rt", encoding="UTF-8") as cens:
                     census_ini.read_file(cens)
                     sample_info = census_ini["sample_info"]
-                    # sample_file = census_ini['sample_file'] # reference
-                    #
-                    # if self.pysam_test:
                     stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"]
-                    # else:
-                    # stage1_dir = (
-                    #     self.meteor.mapping_dir / sample_info["sample_name"] /
-                    #     f"mapping_vs_{self.meteor.ref_name}_{census_ini['sample_info']['full_sample_name']}"
-                    # )
-                    # sample_info["full_sample_name"]
                     stage1_dir.mkdir(exist_ok=True, parents=True)
                     # if self.pysam_test:
                     self.ini_data[library] = {
@@ -583,54 +578,36 @@ class Counter(Session):
                         / f"{sample_info['sample_name']}_census_stage_1.ini",
                         "reference": ref_ini,
                     }
-                    # else:
-                    # self.ini_data[library] = {
-                    #     "census": census_ini,
-                    #     "directory": stage1_dir,
-                    #     "Stage1FileName": stage1_dir / library.name.replace("stage_0", "stage_1"),
-                    #     "reference": ref_ini
-                    # }
                 if not self.ini_data[library]["Stage1FileName"].exists():
                     mapping_done = False
             else:
-                if not self.counting_only:
-                    # mapping already done and no overwriting
-                    if mapping_done:
-                        logging.info(
-                            "Mapping already done for sample: %s",
-                            sample_info["sample_name"],
-                        )
-                        logging.info("Skipped !")
-                    else:
-                        self.launch_mapping()
-                if not self.mapping_only:
-                    logging.info("Launch mapping")
-                    config = self.set_workflow_config(ref_ini)
-                    workflow_ini = self.meteor.mapping_dir / "workflow.ini"
-                    self.save_config(config, workflow_ini)
-                    # bam_file = self.ini_data[library]["directory"] / f"{sample_info['sample_name']}.bam"
-                    # test
-                    sam_file = (
-                        self.ini_data[library]["directory"]
-                        / f"{sample_info['sample_name']}.sam"
-                    )
-                    count_file = (
-                        self.ini_data[library]["directory"]
-                        / f"{sample_info['sample_name']}.tsv"
-                    )
-                    # if self.pysam_test:
-                    start = perf_counter()
-                    # self.launch_counting(bam_file, count_file)
-                    self.launch_counting(sam_file, count_file)
+                # mapping already done and no overwriting
+                if mapping_done:
                     logging.info(
-                        "Completed counting in %f seconds", perf_counter() - start
+                        "Mapping already done for sample: %s",
+                        sample_info["sample_name"],
                     )
-                    # else:
-                    # self.launch_counting(workflow_ini)
-                    if not self.keep_sam:
-                        sam_file.unlink(missing_ok=True)
-                        # bam_file.with_suffix(".bam.bai").unlink(missing_ok=True)
-                        # self.ini_data[library]["Stage1FileName"].unlink(missing_ok=True)
+                    logging.info("Skipped !")
+                else:
+                    logging.info("Launch mapping")
+                    self.launch_mapping()
+                # running counter
+                sam_file = (
+                    self.ini_data[library]["directory"]
+                    / f"{sample_info['sample_name']}.sam"
+                )
+                count_file = (
+                    self.ini_data[library]["directory"]
+                    / f"{sample_info['sample_name']}.tsv"
+                )
+                start = perf_counter()
+                self.launch_counting(sam_file, count_file)
+                logging.info("Completed counting in %f seconds", perf_counter() - start)
+                if not self.keep_sam:
+                    logging.info(
+                        "Sam file is not kept. Re-counting operation will need to be performed from scratch."
+                    )
+                    sam_file.unlink(missing_ok=True)
             logging.info("Done ! Job finished without errors ...")
         except AssertionError:
             logging.error(
