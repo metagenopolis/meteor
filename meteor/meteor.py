@@ -424,7 +424,11 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "strain", help="Identifies strain from metagenomic samples"
     )
     strain_parser.add_argument(
-        "-i", dest="mapped_sample_dir", required=True, type=isdir, help="Bam file ?"
+        "-i",
+        dest="mapped_sample_dir",
+        required=True,
+        type=isdir,
+        help="Path to the mapped sample directory.",
     )
     strain_parser.add_argument(
         "-r",
