@@ -45,7 +45,7 @@ class Downloader(Session):
                     self.catalogues_config.read_file(config)
         except AssertionError:
             logging.error("The file dataverse_inrae.ini is missing in meteor source")
-        self.meteor.ref_dir.mkdir(exist_ok=True)
+        self.meteor.ref_dir.mkdir(exist_ok=True, parents=True)
 
     def getmd5(self, catalog: Path) -> str:
         """Compute in md5 chunck by chunk to avoid memory overload
@@ -123,7 +123,8 @@ class Downloader(Session):
                 assert md5_expect == self.getmd5(catalogue)
             self.extract_tar(catalogue)
             logging.info(
-                "Catalogue %s is now ready to be used.", str(catalogue.resolve())
+                "The catalogue is now ready to be used in the folder: %s",
+                str(catalogue.with_suffix("").stem),
             )
         except AssertionError:
             logging.error("MD5sum of %s has a different value than expected", catalogue)
