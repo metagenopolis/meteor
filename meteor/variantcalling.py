@@ -130,6 +130,8 @@ class VariantCalling(Session):
                         "-c",
                         "--ploidy",
                         str(1),
+                        "-V",
+                        "indels",
                         "--threads",
                         str(self.meteor.threads),
                         "-Oz",
@@ -171,10 +173,9 @@ class VariantCalling(Session):
         # gatk AddOrReplaceReadGroups -I Zymo_6300.bam -O test_grp.bam -RGID 4 -RGLB lib1 -RGPL illumina -RGPU unit1 -RGSM 20
         # gatk SplitNCigarReads -R ../../catalogue/mock/fasta/mock.fasta -I test_grp.bam -O test.bam
         # gatk --java-options "-Xmx8g" HaplotypeCaller -R ../../catalogue/mock/fasta/mock.fasta -I test.bam -O test.vcf.gz
-        logging.info("Completed strain analysis in %f seconds", perf_counter() - start)
+        logging.info("Completed SNP calling in %f seconds", perf_counter() - start)
         config = self.set_variantcalling_config(
             bam_file, vcf_file, consensus_file, bcftools_version
         )
-        print(self.census["Stage2FileName"])
         self.save_config(config, self.census["Stage2FileName"])
         return True

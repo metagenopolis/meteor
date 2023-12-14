@@ -22,6 +22,7 @@ from meteor.session import Session, Component
 from typing import Type, Iterator, Tuple
 from tempfile import mkdtemp
 from pathlib import Path
+from time import perf_counter
 
 
 @dataclass
@@ -199,8 +200,11 @@ class Strain(Session):
                 / self.ini_data["reference"]["reference_file"]["database_dir"]
                 / self.ini_data["reference"]["annotation"]["msp"]
             )
+            start = perf_counter()
             self.get_msp_variant(consensus_file, count_file, msp_file)
-
+            logging.info(
+                "Completed strain analysis in %f seconds", perf_counter() - start
+            )
         except AssertionError:
             logging.error(
                 "Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir

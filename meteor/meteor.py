@@ -259,8 +259,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="mapping_dir",
         type=isdir,
         required=True,
-        help="""Path to project directory, containing mapping
-                                        and profile data (e.g. /projects/project_dir)""",
+        help="Path to output directory",
     )
     mapping_parser.add_argument(
         "-c",
@@ -459,6 +458,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="min_snp_depth",
         default=3,
         choices=range(1, 100),
+        metavar="MIN_SNP_DEPTH",
         type=int,
         help="Minimum snp depth (default 3).",
     )
@@ -466,7 +466,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-f",
         dest="min_frequency_non_reference",
         default=0.8,
-        type=int,
+        type=isborned01,
         help="Minimum frequency for non reference allele (default 0.8).",
     )
     strain_parser.add_argument(
@@ -474,15 +474,16 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="min_msp_coverage",
         default=10,
         choices=range(1, 100),
+        metavar="MIN_SNP_COVERAGE",
         type=int,
-        help="Minimum MSP coverage (default 10). Values should be comprised between 1 and 100.",
+        help="Minimum number of genes from the MSP that are covered (default 10).  Values should be comprised between 1 and 100.",
     )
     strain_parser.add_argument(
         "-o",
         dest="output_dir",
         type=isdir,
         required=True,
-        help="Path to the output file.",
+        help="Path to output directory.",
     )
     strain_parser.add_argument(
         "--tmp",

@@ -170,10 +170,7 @@ class Counter(Session):
         :param element: Alignment object
         :return: Aligned item
         """
-        for item in element.cigartuples:
-            # I don't know this cigar yet
-            if item[0] < 3:
-                yield item[1]
+        yield from (item[1] for item in element.cigartuples if item[0] < 3)
 
     def filter_alignments(
         self, samdesc: AlignmentFile
@@ -197,7 +194,7 @@ class Counter(Session):
         for element in samdesc:
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
             # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
-            ali = sum(list(self.get_aligned_nucleotides(element)))
+            ali = sum(self.get_aligned_nucleotides(element))
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
             identity = (ali - int(element.get_tag("NM"))) / ali
             # if lower than the identity threshold
@@ -226,44 +223,19 @@ class Counter(Session):
             if prev_score == score:
                 tmp_score[read_id] = score
                 # add the genes to the list if it doesn't exist
-                # Meteor uncomment if we don't want two counts for the same gene
-                # if int(element.reference_name) not in set(genes[read_id]):
-                # if int(element.reference_name) == 182 and int(element.reference_name) in set(genes[read_id]):
-                #     print("gene mapped several time")
                 if not element.reference_name:
                     continue
                 reads[read_id].append(element)
                 genes[read_id].append(int(element.reference_name))
-                # else:
-                #     print(reads[read_id])
             # case new score is higher
             elif prev_score < score:
                 # set the new score
                 tmp_score[read_id] = score
-                # In best counting, it happens because several alignment can be selected by bowtie
-                # if self.counting_type == "best":
-                #     raise ValueError("Bam file contains read aligned against multiple genes. "
-                #                      "It should not, we aligned with the bowtie2 -k 1 option.")
-                # In smart_shared and unique case, we reinitialise all
                 # We keep the new score and forget the previous one
-                # elif self.counting_type in ("unique", "smart_shared"):
                 if not element.reference_name:
                     continue
-                # print(element)
                 reads[read_id] = [element]
                 genes[read_id] = [int(element.reference_name)]
-                # In total count, we keep all but not meteor which performs an ex-aequo count
-                # Case total
-                # else:
-                #     reads[read_id].append(element)
-                #     genes[read_id].append(element.reference_name)
-        # we need to check this following part
-        # May be useless
-        # if self.counting_type == "smart_shared":
-        #     # We keep a unique reference per read
-        #     # genes dict is only used for smart shared counting
-        #     for read_id, reference_names in genes.items():
-        #         genes[read_id] = list(set(reference_names))
         return reads, genes
 
     def uniq_from_mult(
