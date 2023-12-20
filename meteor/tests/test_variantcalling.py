@@ -34,16 +34,16 @@ def vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
     with census_ini_file.open("rt", encoding="UTF-8") as cens:
         census_ini.read_file(cens)
         sample_info = census_ini["sample_info"]
-        stage2_dir = tmp_path / sample_info["sample_name"]
-        stage2_dir.mkdir(exist_ok=True, parents=True)
+        stage3_dir = tmp_path / sample_info["sample_name"]
+        stage3_dir.mkdir(exist_ok=True, parents=True)
         data_dict = {
             "mapped_sample_dir": datadir / "eva71_bench",
             "census": census_ini,
-            "directory": stage2_dir,
-            "Stage2FileName": stage2_dir / census_ini_file.name,
+            "directory": stage3_dir,
+            "Stage3FileName": stage3_dir / census_ini_file.name,
             "reference": ref_ini,
         }
-    return VariantCalling(meteor, data_dict, 100, 0.5)
+    return VariantCalling(meteor, data_dict, 100, 3, 0.5)
 
 
 def test_execute(vc_builder: VariantCalling) -> None:

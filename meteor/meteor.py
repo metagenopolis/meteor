@@ -27,6 +27,7 @@ from meteor.downloader import Downloader
 from meteor.profiler import Profiler
 from meteor.merging import Merging
 from meteor.strain import Strain
+from meteor.treebuilder import TreeBuilder
 from tempfile import TemporaryDirectory
 
 
@@ -100,8 +101,9 @@ def isborned01(x: str) -> float:
     :raises ArgumentTypeError: If x is > 1 or < 0
     :return: (float) float number
     """
-    if not isinstance(x, float):
-        raise ArgumentTypeError("Value must be a numerical")
+    # print(x)
+    # if not isinstance(x, float):
+    #     raise ArgumentTypeError("Value must be a numerical")
     x_float = float(x)
     if x_float < 0.0 or x_float > 1.0:
         msg = "Should be comprised between 0 and 1."
@@ -217,13 +219,6 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="mask_sample_name",
         type=str,
         help="Regular expression for extracting sample name.",
-    )
-    fastq_parser.add_argument(
-        "-n",
-        dest="project_name",
-        type=str,
-        required=True,
-        help="Project name (ansi-string without space).",
     )
     fastq_parser.add_argument(
         "-o",
@@ -420,7 +415,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Fast merging, do not merge gene tables.",
     )
     strain_parser = subparsers.add_parser(
-        "strain", help="Identifies strain from metagenomic samples"
+        "strain", help="Identifies strains from metagenomic samples"
     )
     strain_parser.add_argument(
         "-i",
@@ -472,11 +467,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
     strain_parser.add_argument(
         "-m",
         dest="min_msp_coverage",
-        default=10,
+        default=50,
         choices=range(1, 100),
-        metavar="MIN_SNP_COVERAGE",
+        metavar="MIN_MSP_COVERAGE",
         type=int,
-        help="Minimum number of genes from the MSP that are covered (default 10).  Values should be comprised between 1 and 100.",
+        help="""Minimum number of genes from the MSP that are covered (default 50).
+        Values should be comprised between 1 and 100
+        (maximum number of core genes taken in account).""",
     )
     strain_parser.add_argument(
         "-o",
@@ -486,6 +483,74 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Path to output directory.",
     )
     strain_parser.add_argument(
+        "--kc",
+        dest="keep_consensus",
+        action="store_true",
+        help="Keep consensus marker genes (default False, set to True to recompute strain)",
+    )
+    strain_parser.add_argument(
+        "--tmp",
+        dest="tmp_path",
+        type=isdir,
+        help="Path to the directory where temporary files are stored",
+    )
+    tree_parser = subparsers.add_parser(
+        "tree", help="Compute phylogenetical tree from detected strains"
+    )
+    tree_parser.add_argument(
+        "-i",
+        dest="strain_dir",
+        required=True,
+        type=isdir,
+        help="Path to the strain directory.",
+    )
+    tree_parser.add_argument(
+        "-g",
+        dest="max_gap",
+        default=0.5,
+        type=isborned01,
+        help="Removes sites constitued of >= cutoff gap character (default 0.5).",
+    )
+    tree_parser.add_argument(
+        "-c",
+        dest="gap_char",
+        default="-",
+        type=str,
+        help="Gap character (default -).",
+    )
+    tree_parser.add_argument(
+        "-w",
+        dest="width",
+        default=200,
+        type=int,
+        help="Output image width (default 200px).",
+    )
+    tree_parser.add_argument(
+        "-H",
+        dest="height",
+        default=200,
+        type=int,
+        help="Output image height (default 200px).",
+    )
+    tree_parser.add_argument(
+        "-f",
+        dest="format",
+        default="png",
+        choices=["png", "svg", "pdf"],
+        type=str,
+        help="Output image format (default png).",
+    )
+    tree_parser.add_argument(
+        "-o",
+        dest="output_dir",
+        type=isdir,
+        required=True,
+        help="Path to output directory.",
+    )
+    tree_parser.add_argument(
+        "-t", dest="threads", default=1, type=int, help="Threads count."
+    )
+    tree_parser.add_argument(
         "--tmp",
         dest="tmp_path",
         type=isdir,
@@ -514,7 +579,6 @@ def main() -> None:  # pragma: no cover
             args.input_fastq_dir,
             args.ispaired,
             args.mask_sample_name,
-            args.project_name,
         )
         fastq_importer.execute()
     # Import reference
@@ -560,8 +624,24 @@ def main() -> None:  # pragma: no cover
             args.min_snp_depth,
             args.min_frequency_non_reference,
             args.min_msp_coverage,
+            args.keep_consensus,
         )
         strain_id.execute()
+    # Compute trees
+    elif args.command == "tree":
+        meteor.strain_dir = args.strain_dir
+        meteor.tree_dir = args.output_dir
+        meteor.threads = args.threads
+        meteor.tmp_path = args.tmp_path
+        trees = TreeBuilder(
+            meteor,
+            args.max_gap,
+            args.width,
+            args.height,
+            args.format,
+            args.gap_char,
+        )
+        trees.execute()
     # Run download catalogues
     elif args.command == "download":
         meteor.ref_name = args.user_choice
@@ -603,9 +683,7 @@ def main() -> None:  # pragma: no cover
             meteor.fastq_dir = Path(tmpdirname)
             downloader = Downloader(meteor, "test", True)
             downloader.execute()
-            fastq_importer = FastqImporter(
-                meteor, meteor.tmp_dir, False, None, "test_project"
-            )
+            fastq_importer = FastqImporter(meteor, meteor.tmp_dir, False, None)
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
             meteor.ref_dir = meteor.ref_dir / "mock"

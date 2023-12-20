@@ -1,3 +1,5 @@
+ete3==3.1.3 ; python_version >= "3.10" and python_version < "3.12" \
+    --hash=sha256:06a3b7fa8ed90187b076a8dbbe5b1b62acee94201d3c6e822f55f449601ef6f2
 numpy==1.26.1 ; python_version >= "3.10" and python_version <= "3.11" \
     --hash=sha256:06934e1a22c54636a059215d6da99e23286424f316fddd979f5071093b648668 \
     --hash=sha256:1c59c046c31a43310ad0199d6299e59f57a289e22f0f36951ced1c9eac3665b9 \

@@ -30,7 +30,6 @@ class FastqImporter(Session):
     input_fastq_dir: Path
     ispaired: bool
     mask_sample_name: str | None
-    project_name: str
     ext_r1: tuple = field(default_factory=tuple)
     ext_r2: tuple = field(default_factory=tuple)
     ext: tuple = field(default_factory=tuple)
@@ -109,7 +108,6 @@ class FastqImporter(Session):
         config = ConfigParser()
         config["sample_info"] = {
             "sample_name": sample_name,
-            "project_name": self.project_name,
             "tag": tag,
             "full_sample_name": full_sample_name,
         }

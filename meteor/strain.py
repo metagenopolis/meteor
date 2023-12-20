@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from configparser import ConfigParser
 from meteor.variantcalling import VariantCalling
 from meteor.session import Session, Component
-from typing import Type, Iterator, Tuple
+from typing import Type
 from tempfile import mkdtemp
 from pathlib import Path
 from time import perf_counter
@@ -35,30 +35,12 @@ class Strain(Session):
     min_snp_depth: int
     min_frequency_non_reference: float
     min_msp_coverage: int
+    keep_consensus: bool
     ini_data: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
-        self.meteor.strain_dir.mkdir(exist_ok=True)
-
-    def get_gene_consensus(self, consensus_file: Path) -> Iterator[Tuple[int, str]]:
-        """Get genes
-        :param consensus_file: (Path) A path to consensus file
-        :return: A generator providing each header and gene sequence
-        """
-        gene_id: int = 0
-        seq: str = ""
-        with consensus_file.open("rt", encoding="UTF-8") as consensus:
-            for line in consensus:
-                if line.startswith(">"):
-                    if len(seq) > 0:
-                        yield gene_id, seq
-                    gene_id = int(line[1:])
-                    seq = ""
-                else:
-                    seq += line.strip().replace("\n", "")
-            if len(seq) > 0:
-                yield gene_id, seq
+        self.meteor.strain_dir.mkdir(exist_ok=True, parents=True)
 
     def get_msp_variant(
         self, consensus_file: Path, count_file: Path, msp_file: Path
@@ -98,8 +80,14 @@ class Strain(Session):
         ]
         msp_covered = joined_df.merge(msp_with_overlapping_genes, on="msp_name")
         # clear first ?
+        if not consensus_file.exists():
+            logging.error(
+                "Consensus file %s is not available to perform a new strain extraction. Please consider to use strain with --kc option.",
+                consensus_file,
+            )
+            sys.exit()
         gene_dict = {
-            gene_id: seq for gene_id, seq in self.get_gene_consensus(consensus_file)
+            gene_id: seq for gene_id, seq in self.get_sequences(consensus_file)
         }
         logging.info(
             "%s MSPs have sufficient signal for SNP analysis ",
@@ -120,7 +108,12 @@ class Strain(Session):
                     f">{self.ini_data['census']['sample_info']['sample_name']}\n{msp_seq}\n",
                     file=msp,
                 )
-
+        # Remove consensus file
+        if not self.keep_consensus:
+            logging.info(
+                "Consensus catalogue is not kept. Re-counting strain will need to be performed from scratch."
+            )
+            consensus_file.unlink(missing_ok=True)
         # for gene_id, seq in self.get_gene_consensus(consensus_file):
         #     if gene_id in msp_covered["gene_id"].values:
         #         msp_name = msp_covered[msp_covered["gene_id"] == gene_id][
@@ -161,14 +154,14 @@ class Strain(Session):
             with open(census_ini_file, "rt", encoding="UTF-8") as cens:
                 census_ini.read_file(cens)
                 sample_info = census_ini["sample_info"]
-                stage2_dir = self.meteor.strain_dir / sample_info["sample_name"]
-                stage2_dir.mkdir(exist_ok=True, parents=True)
+                stage3_dir = self.meteor.strain_dir / sample_info["sample_name"]
+                stage3_dir.mkdir(exist_ok=True, parents=True)
                 self.ini_data["mapped_sample_dir"] = self.meteor.mapped_sample_dir
-                self.ini_data["directory"] = stage2_dir
+                self.ini_data["directory"] = stage3_dir
                 self.ini_data["census"] = census_ini
                 self.ini_data["reference"] = ref_ini
-                self.ini_data["Stage2FileName"] = (
-                    stage2_dir / f"{sample_info['sample_name']}_census_stage_2.ini"
+                self.ini_data["Stage3FileName"] = (
+                    stage3_dir / f"{sample_info['sample_name']}_census_stage_3.ini"
                 )
 
                 # Get the bam
@@ -178,9 +171,10 @@ class Strain(Session):
                     self.meteor,
                     self.ini_data,
                     self.depth,
+                    self.min_snp_depth,
                     self.min_frequency_non_reference,
                 )
-            if self.ini_data["Stage2FileName"].exists():
+            if self.ini_data["Stage3FileName"].exists():
                 logging.info(
                     "Variant calling already done for sample: %s",
                     sample_info["sample_name"],

@@ -22,17 +22,19 @@ Meteor requires:
 - python>=3.10
 - [bowtie2](https://github.com/BenLangmead/bowtie2)
 - [bcftools](https://samtools.github.io/bcftools/)
+- [FastTree](http://www.microbesonline.org/fasttree/)
 - [pysam](https://pysam.readthedocs.io/en/latest/installation.html)
 - [pandas](https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html)
+- [ete3](http://etetoolkit.org/)
 
 ## Installation
 
-Meteor is available with bioconda which includes all its dependencies:
+Meteor is available with conda which includes all its dependencies:
 ```
-conda install -c bioconda meteor
+conda install -c aghozlane meteor
 ```
 
-And with pip with a recent Python>=3.10:
+And soon with pip with a recent Python>=3.10:
 ```
 pip install meteor
 ```

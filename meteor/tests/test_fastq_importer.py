@@ -23,35 +23,35 @@ import pytest
 def builder(tmp_path: Path, datadir: Path) -> FastqImporter:
     meteor = Component
     meteor.fastq_dir = tmp_path
-    return FastqImporter(meteor, datadir, False, "\\d+", "fun")
+    return FastqImporter(meteor, datadir, False, "\\d+")
 
 
 @pytest.fixture
 def builder_single(tmp_path: Path, datadir: Path) -> FastqImporter:
     meteor = Component
     meteor.fastq_dir = tmp_path / "single"
-    return FastqImporter(meteor, datadir / "single", False, None, "fun")
+    return FastqImporter(meteor, datadir / "single", False, None)
 
 
 @pytest.fixture
 def builder_paired(tmp_path: Path, datadir: Path) -> FastqImporter:
     meteor = Component
     meteor.fastq_dir = tmp_path / "paired"
-    return FastqImporter(meteor, datadir / "paired", True, None, "fun")
+    return FastqImporter(meteor, datadir / "paired", True, None)
 
 
 @pytest.fixture
 def builder_single_mask(tmp_path: Path, datadir: Path) -> FastqImporter:
     meteor = Component
     meteor.fastq_dir = tmp_path / "single_mask"
-    return FastqImporter(meteor, datadir / "single_mask", False, "Zymo_\\d+", "fun")
+    return FastqImporter(meteor, datadir / "single_mask", False, "Zymo_\\d+")
 
 
 @pytest.fixture
 def builder_paired_mask(tmp_path: Path, datadir: Path) -> FastqImporter:
     meteor = Component
     meteor.fastq_dir = tmp_path / "paired_mask"
-    return FastqImporter(meteor, datadir / "paired_mask", True, "Zymo_\\d+", "fun")
+    return FastqImporter(meteor, datadir / "paired_mask", True, "Zymo_\\d+")
 
 
 @pytest.fixture

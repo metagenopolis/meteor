@@ -15,7 +15,7 @@
 from pathlib import Path
 from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, Iterator, Tuple
 import logging
 import sys
 
@@ -30,6 +30,7 @@ class Component:
     profile_dir: Path = field(default_factory=Path)
     mapped_sample_dir: Path = field(default_factory=Path)
     strain_dir: Path = field(default_factory=Path)
+    tree_dir: Path = field(default_factory=Path)
     ref_dir: Path = field(default_factory=Path)
     ref_name: str = field(default_factory=str)
     # Path given by the user
@@ -72,7 +73,9 @@ class Session(Protocol):
             sys.exit()
         return True
 
-    def save_config(self, config: ConfigParser, config_path: Path) -> None:
+    def save_config(
+        self, config: ConfigParser, config_path: Path
+    ) -> None:  # pragma: no cover
         """Save a configuration file
 
         :param config: A configparser object
@@ -81,7 +84,7 @@ class Session(Protocol):
         with config_path.open("wt", encoding="utf-8") as configfile:
             config.write(configfile)
 
-    def read_ini(self, input_ini: Path) -> ConfigParser:
+    def read_ini(self, input_ini: Path) -> ConfigParser:  # pragma: no cover
         config = ConfigParser()
         try:
             with open(input_ini, "rt", encoding="UTF-8") as ini:
@@ -146,6 +149,25 @@ class Session(Protocol):
         else:
             new_config[section] = new_fields
         return new_config
+
+    def get_sequences(self, fasta_file: Path) -> Iterator[Tuple[str, str]]:
+        """Get genes sequences
+        :param fasta_file: (Path) A path to fasta file
+        :return: A generator providing each header and gene sequence
+        """
+        gene_id: str = ""
+        seq: str = ""
+        with fasta_file.open("rt", encoding="UTF-8") as fasta:
+            for line in fasta:
+                if line.startswith(">"):
+                    if len(seq) > 0:
+                        yield gene_id, seq
+                    gene_id = line[1:].strip()
+                    seq = ""
+                else:
+                    seq += line.strip().replace("\n", "")
+            if len(seq) > 0:
+                yield gene_id, seq
 
     def execute(self) -> bool:
         ...

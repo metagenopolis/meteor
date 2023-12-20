@@ -36,7 +36,7 @@ class Merging(Session):
     fast: bool = False
 
     def __post_init__(self) -> None:
-        self.output.mkdir(exist_ok=True)
+        self.output.mkdir(exist_ok=True, parents=True)
 
     def extract_census_stage(self, census_list: List[Path]) -> List[int | None]:
         """For a list of census files formatted as
@@ -197,7 +197,7 @@ class Merging(Session):
         try:
             assert len(all_census_dict) == len(all_census)
         except AssertionError:
-            logging.error("There are several census files in the same directory. Exit.")
+            logging.error("There are several census files in the same directory.")
             sys.exit()
         # Create the dict: sample_name -> path
         all_samples_dict = {
@@ -208,7 +208,7 @@ class Merging(Session):
         try:
             assert len(all_samples_dict) == len(all_census)
         except AssertionError:
-            logging.error("Several census files refer to the same sample. Exit.")
+            logging.error("Several census files refer to the same sample.")
             sys.exit()
         # Check that the ConfigParser match for mapping parameters
         logging.info("Checking that census parameters match...")

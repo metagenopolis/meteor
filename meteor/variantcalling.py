@@ -33,6 +33,7 @@ class VariantCalling(Session):
     meteor: Type[Component]
     census: dict
     depth: int
+    min_snp_depth: int
     min_frequency_non_reference: float
 
     def set_variantcalling_config(
@@ -148,6 +149,8 @@ class VariantCalling(Session):
                         "view",
                         "-R",
                         str(bed_file.resolve()),
+                        "-f",
+                        f"MIN(FMT/DP>{str(self.min_snp_depth)})",
                         "--threads",
                         str(self.meteor.threads),
                         "-q",
@@ -177,5 +180,5 @@ class VariantCalling(Session):
         config = self.set_variantcalling_config(
             bam_file, vcf_file, consensus_file, bcftools_version
         )
-        self.save_config(config, self.census["Stage2FileName"])
+        self.save_config(config, self.census["Stage3FileName"])
         return True

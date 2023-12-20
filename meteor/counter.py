@@ -431,7 +431,7 @@ class Counter(Session):
         :return: (bool)
         """
         if not sam_file.exists():
-            logging.info(
+            logging.error(
                 "Sam file %s is not available to perform a new counting. Please consider to re-map with --ks option.",
                 sam_file,
             )
