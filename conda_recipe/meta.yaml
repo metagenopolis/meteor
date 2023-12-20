@@ -21,13 +21,18 @@ requirements:
         - bowtie2>=2.3.5
         - pysam
         - pandas
+        - ete3
+        - packaging
         - bcftools
+        - fasttree
 test:
     commands:
         - meteor -h
     imports:
         - pysam
         - pandas
+        - ete3
+        - packaging
 
 about:
   home: https://mgps.eu/
