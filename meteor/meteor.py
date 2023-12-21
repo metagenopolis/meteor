@@ -433,7 +433,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     )
     strain_parser.add_argument(
         "-d",
-        dest="depth",
+        dest="max_depth",
         default=10000,
         type=int,
         help="Maximum depth taken in account (default 10000).",
@@ -452,10 +452,12 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-s",
         dest="min_snp_depth",
         default=3,
-        choices=range(1, 100),
+        choices=range(1, 10000),
         metavar="MIN_SNP_DEPTH",
         type=int,
-        help="Minimum snp depth (default 3).",
+        help="""Minimum snp depth (default 3).
+        Values should be comprised between 1 and the maximum depth
+        (10000 reads are taken in account).""",
     )
     strain_parser.add_argument(
         "-f",
@@ -619,7 +621,7 @@ def main() -> None:  # pragma: no cover
         meteor.strain_dir = args.output_dir
         strain_id = Strain(
             meteor,
-            args.depth,
+            args.max_depth,
             args.min_gene_count,
             args.min_snp_depth,
             args.min_frequency_non_reference,

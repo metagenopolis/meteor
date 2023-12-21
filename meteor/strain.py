@@ -30,7 +30,7 @@ class Strain(Session):
     """Counter session map and count"""
 
     meteor: Type[Component]
-    depth: int
+    max_depth: int
     min_gene_count: int
     min_snp_depth: int
     min_frequency_non_reference: float
@@ -170,7 +170,7 @@ class Strain(Session):
                 variant_calling_process = VariantCalling(
                     self.meteor,
                     self.ini_data,
-                    self.depth,
+                    self.max_depth,
                     self.min_snp_depth,
                     self.min_frequency_non_reference,
                 )

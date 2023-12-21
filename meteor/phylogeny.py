@@ -123,7 +123,7 @@ class Phylogeny(Session):
                         stdout=tree,
                     )
                     tree_files.append(tree_file)
-        logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
+        logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
         config = self.set_tree_config(fasttree_version, tree_files)
         self.save_config(config, self.meteor.tree_dir / f"census_stage_4.ini")
         return True

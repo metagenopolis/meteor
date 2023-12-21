@@ -32,7 +32,7 @@ class VariantCalling(Session):
 
     meteor: Type[Component]
     census: dict
-    depth: int
+    max_depth: int
     min_snp_depth: int
     min_frequency_non_reference: float
 
@@ -112,7 +112,7 @@ class VariantCalling(Session):
                         "bcftools",
                         "mpileup",
                         "-d",
-                        str(self.depth),
+                        str(self.max_depth),
                         "-Ob",
                         "-f",
                         str(reference_file.resolve()),

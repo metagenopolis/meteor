@@ -57,19 +57,6 @@ class TreeBuilder(Session):
                 msp_list += [res]
         return msp_list
 
-    def draw_graph(self, tree_file: Path, width: int, height: int, img_file: Path):
-        """Draw the graph
-
-        :param graph: (nx.DiGraph) A directed graph object
-        :param graphimg_file: (Path) Path to the output file
-        """
-        tree = Tree(tree_file)
-        ts = TreeStyle()
-        ts.show_leaf_name = True
-        ts.show_branch_length = True
-        ts.show_branch_support = True
-        tree.render(img_file, w=width, h=height, units="px", dpi=300)
-
     def get_msp_distance(self, tree: ete3.TreeNode) -> pd.DataFrame:
         samples = [leaf for leaf in tree]
         distance_matrix = pd.DataFrame(
@@ -106,10 +93,20 @@ class TreeBuilder(Session):
         # Analyze tree data
         for msp_file in msp_file_list:
             tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
+            img_file = self.meteor.tree_dir / f"{msp_file.stem}.{self.format}"
             msp_tree = Tree(str(tree_file.resolve()))
             # Generate a distance msp by msp
             matrix = self.get_msp_distance(msp_tree)
             matrix.to_csv(self.meteor.tree_dir / f"{msp_file.stem}.tsv", sep="\t")
-        # compute_gunifrac(target, target2=None, topology_only=False)
-        # Generate a matrix of distance between samples
+            # Draw trees
+            ts = TreeStyle()
+            ts.show_leaf_name = True
+            ts.show_branch_length = True
+            msp_tree.render(
+                str(img_file.resolve()),
+                w=self.width,
+                h=self.height,
+                units="px",
+                dpi=300,
+            )
         return True
