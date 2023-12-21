@@ -160,6 +160,7 @@ class Strain(Session):
                 self.ini_data["directory"] = stage3_dir
                 self.ini_data["census"] = census_ini
                 self.ini_data["reference"] = ref_ini
+                self.ini_data["reference"] = ref_ini
                 self.ini_data["Stage3FileName"] = (
                     stage3_dir / f"{sample_info['sample_name']}_census_stage_3.ini"
                 )
@@ -182,6 +183,17 @@ class Strain(Session):
                 logging.info("Skipped !")
             else:
                 variant_calling_process.execute()
+                ref_ini = ConfigParser()
+                with open(ref_ini_file, "rt", encoding="UTF-8") as ref:
+                    ref_ini.read_file(ref)
+                self.update_ini(
+                    ref_ini,
+                    "variant_calling",
+                    {
+                        "min_msp_coverage": str(self.min_msp_coverage),
+                        "min_gene_comptage": str(self.min_gene_count),
+                    },
+                )
             consensus_file = (
                 self.ini_data["directory"]
                 / f"{sample_info['sample_name']}_consensus.fasta"

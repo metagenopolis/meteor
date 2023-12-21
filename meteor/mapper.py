@@ -67,6 +67,9 @@ class Mapper(Session):
                 "reference_name"
             ],
             "mapping_options": cmd,
+            "trim": str(self.trim),
+            "alignment_number": str(self.alignment_number),
+            "mapping_type": self.mapping_type,
             "total_read_count": str(mapping_data[0]),
             "mapped_read_count": str(mapping_data[2] + mapping_data[3]),
             "overall_alignment_rate": str(

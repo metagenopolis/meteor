@@ -60,6 +60,9 @@ class VariantCalling(Session):
             "variant_calling_date": datetime.now().strftime("%Y-%m-%d"),
             "vcf_name": vcf_file.name,
             "consensus_name": consensus_file.name,
+            "min_snp_depth": str(self.min_snp_depth),
+            "min_frequency_non_reference": str(self.min_frequency_non_reference),
+            "max_depth": str(self.max_depth),
         }
         return config
 

@@ -125,8 +125,8 @@ class Session(Protocol):
             census_ini = self.read_ini(census_ini_file)
         except AssertionError:
             logging.error(
-                "Error, no *_census_stage_1.ini file found in %s. "
-                "One *_census_stage_1.ini is expected",
+                "Error, no *_census_stage_%d.ini file found in %s. ",
+                stage,
                 mapping_dir,
             )
             sys.exit()
@@ -135,6 +135,7 @@ class Session(Protocol):
     def update_ini(
         self, config: ConfigParser, section: str, new_fields: dict[str, str]
     ) -> ConfigParser:
+        """Add information in the ini configuaration"""
         new_config = ConfigParser()
         new_config.read_dict(config)
         if section in new_config.sections():
