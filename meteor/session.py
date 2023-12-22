@@ -151,24 +151,24 @@ class Session(Protocol):
             new_config[section] = new_fields
         return new_config
 
-    def get_sequences(self, fasta_file: Path) -> Iterator[Tuple[str, str]]:
+    def get_sequences(self, fasta_file: Path) -> Iterator[Tuple[int, str]]:
         """Get genes sequences
         :param fasta_file: (Path) A path to fasta file
         :return: A generator providing each header and gene sequence
         """
-        gene_id: str = ""
+        gene_id: int = 0
         seq: str = ""
         with fasta_file.open("rt", encoding="UTF-8") as fasta:
             for line in fasta:
                 if line.startswith(">"):
                     if len(seq) > 0:
                         yield gene_id, seq
-                    gene_id = line[1:].strip()
+                    gene_id = int(line[1:].strip())
                     seq = ""
                 else:
                     seq += line.strip().replace("\n", "")
             if len(seq) > 0:
-                yield gene_id, seq
+                yield int(gene_id), seq
 
     def execute(self) -> bool:
         ...
