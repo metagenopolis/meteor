@@ -170,5 +170,24 @@ class Session(Protocol):
             if len(seq) > 0:
                 yield int(gene_id), seq
 
+    def get_sequences_class(self, fasta_file: Path) -> Iterator[Tuple[str, str]]:
+        """Get genes sequences
+        :param fasta_file: (Path) A path to fasta file
+        :return: A generator providing each header and gene sequence
+        """
+        gene_id: str = ""
+        seq: str = ""
+        with fasta_file.open("rt", encoding="UTF-8") as fasta:
+            for line in fasta:
+                if line.startswith(">"):
+                    if len(seq) > 0:
+                        yield gene_id, seq
+                    gene_id = line[1:].strip()
+                    seq = ""
+                else:
+                    seq += line.strip().replace("\n", "")
+            if len(seq) > 0:
+                yield gene_id, seq
+
     def execute(self) -> bool:
         ...

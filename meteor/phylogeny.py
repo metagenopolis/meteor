@@ -52,7 +52,7 @@ class Phylogeny(Session):
         :param output_file: (Path) Output cleaned fasta file
         """
         gene_dict = OrderedDict(
-            (gene_id, seq) for gene_id, seq in self.get_sequences(msp_file)
+            (gene_id, seq) for gene_id, seq in self.get_sequences_class(msp_file)
         )
         info_ratio = self.compute_site_info(list(gene_dict.values()))
         for gene_id, seq in gene_dict.items():
