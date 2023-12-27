@@ -92,9 +92,9 @@ class Phylogeny(Session):
         # Check if a match is found
         if matches:
             fasttree_version = matches[0]
-            if parse(fasttree_version) <= Version("1.9.0"):
+            if parse(fasttree_version) < Version("1.9.0"):
                 logging.error(
-                    "Error, the FastTree version %s is outdated for meteor. Please update FastTree.",
+                    "Error, the FastTree version %s is outdated for meteor. Please update FastTree to >=1.9.0.",
                     fasttree_version,
                 )
                 sys.exit()
@@ -107,10 +107,10 @@ class Phylogeny(Session):
         for msp_file in self.msp_file_list:
             with NamedTemporaryFile(
                 mode="wt", dir=self.meteor.tmp_dir, suffix=".fasta", delete=False
-            ) as temp_clean_file:
+            ) as temp_clean:
                 tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
                 # Clean sites
-                self.clean_sites(msp_file, temp_clean_file)
+                self.clean_sites(msp_file, temp_clean)
                 with tree_file.open("wt", encoding="UTF-8") as tree:
                     # Compute trees
                     call(
@@ -118,7 +118,7 @@ class Phylogeny(Session):
                             "FastTree",
                             "-nt",
                             "-gtr",
-                            temp_clean_file.name,
+                            temp_clean.name,
                         ],
                         stdout=tree,
                     )

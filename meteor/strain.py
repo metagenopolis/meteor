@@ -23,6 +23,8 @@ from typing import Type
 from tempfile import mkdtemp
 from pathlib import Path
 from time import perf_counter
+from io import StringIO
+from pysam import coverage
 
 
 @dataclass
@@ -31,10 +33,11 @@ class Strain(Session):
 
     meteor: Type[Component]
     max_depth: int
-    min_gene_count: int
+    # min_gene_count: int
     min_snp_depth: int
     min_frequency_non_reference: float
     min_msp_coverage: int
+    min_gene_coverage: float
     keep_consensus: bool
     ini_data: dict = field(default_factory=dict)
 
@@ -42,18 +45,68 @@ class Strain(Session):
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.strain_dir.mkdir(exist_ok=True, parents=True)
 
+    def filter_coverage(self, bam_file: Path, bed_file: Path) -> pd.DataFrame:
+        """Filter gene coverage
+        :param bam_file: (Path) Path to the bam file
+        :param bed_file: (Path) Path to the bed file
+        :return: (pd.DataFrame) Return a matrix with gene having a coverage above threshold
+        """
+        # Read the abundance file
+        gene_interest = pd.read_csv(
+            bed_file,
+            sep="\t",
+            names=[
+                "gene_id",
+                "startpos",
+                "endpos",
+            ],
+            header=1,
+        )
+        cov_df = pd.read_csv(
+            StringIO(coverage("-d", str(self.max_depth), str(bam_file.resolve()))),
+            sep="\t",
+            header=1,
+            names=[
+                "gene_id",
+                "startpos",
+                "endpos",
+                "numreads",
+                "covbases",
+                "coverage",
+                "meandepth",
+                "meanbaseq",
+                "meanmapq",
+            ],
+        )
+        merged_df = cov_df.merge(gene_interest, on="gene_id", how="inner")
+        filtered_df = merged_df[
+            merged_df["coverage"] >= round(self.min_gene_coverage * 100.0)
+        ]
+        return filtered_df
+
+        # for gene, startpos, endpos in gene_interest.itertuples(index=False):
+        #     a = bamdesc.count_coverage(str(gene), start=startpos, stop=endpos)
+        #     print(a)
+
     def get_msp_variant(
-        self, consensus_file: Path, count_file: Path, msp_file: Path
+        self,
+        consensus_file: Path,
+        # count_file: Path,
+        msp_file: Path,
+        bam_file: Path,
+        bed_file: Path,
     ) -> None:
         """Produce meaning full msp variants
         :param consensus_file: (Path) A path to consensus file
         :param count_file: (Path) A path to count file
         :param msp_file: (Path) A path to msp file
+        :param bam_file: (Path) A path to bam file
+        :param bed_file: (Path) A path to bed file
         """
         # Read the abundance file
-        count = pd.read_csv(
-            count_file, sep="\t", names=["gene_id", "gene_length", "value"], header=1
-        )
+        # count = pd.read_csv(
+        #     count_file, sep="\t", names=["gene_id", "gene_length", "value"], header=1
+        # )
         # Read the msp content description file
         msp_content = pd.read_csv(
             msp_file,
@@ -64,16 +117,28 @@ class Strain(Session):
         msp_content = msp_content.loc[msp_content["gene_category"] == "core"]
         msp_content = msp_content.groupby("msp_name").head(100).reset_index()
         # Filter for gene with a minimum count
-        filtered_count = count[count["value"] > self.min_gene_count]
-        # Join the two DataFrames based on gene_id
-        joined_df = msp_content.merge(filtered_count, on="gene_id")
-        # Count the number of overlapping gene IDs for each MSP
-        overlapping_gene_counts = (
-            joined_df.groupby("msp_name")["gene_id"]
-            .nunique()
-            .to_frame(name="overlapping_gene_count")
-            .reset_index()
-        )
+        # filtered_count = count[count["value"] >= self.min_gene_count]
+        # Filter for gene with a minimum count
+        if self.min_gene_coverage:
+            filtered_coverage = self.filter_coverage(bam_file, bed_file)
+            joined_df = msp_content.merge(filtered_coverage, on="gene_id")
+            # filtered_coverage = filtered_count.groupby("gene_id")
+            # Join the two DataFrames based on gene_id
+            # joined_df = msp_content.merge(filtered_count, on="gene_id")
+            # Count the number of overlapping gene IDs for each MSP
+            overlapping_gene_counts = (
+                joined_df.groupby("msp_name")["gene_id"]
+                .nunique()
+                .to_frame(name="overlapping_gene_count")
+                .reset_index()
+            )
+        else:
+            overlapping_gene_counts = (
+                msp_content.groupby("msp_name")["gene_id"]
+                .nunique()
+                .to_frame(name="overlapping_gene_count")
+                .reset_index()
+            )
         # Filter the DataFrame to only include MSPs with at least min_msp_coverage overlapping gene IDs
         msp_with_overlapping_genes = overlapping_gene_counts[
             overlapping_gene_counts["overlapping_gene_count"] >= self.min_msp_coverage
@@ -191,23 +256,33 @@ class Strain(Session):
                     "variant_calling",
                     {
                         "min_msp_coverage": str(self.min_msp_coverage),
-                        "min_gene_comptage": str(self.min_gene_count),
+                        "min_gene_coverage": str(self.min_gene_coverage),
+                        # "min_gene_comptage": str(self.min_gene_count),
                     },
                 )
             consensus_file = (
                 self.ini_data["directory"]
                 / f"{sample_info['sample_name']}_consensus.fasta"
             )
-            count_file = (
-                self.ini_data["mapped_sample_dir"] / f"{sample_info['sample_name']}.tsv"
-            )
+            # count_file = (
+            #     self.ini_data["mapped_sample_dir"] / f"{sample_info['sample_name']}.tsv"
+            # )
             msp_file = (
                 self.meteor.ref_dir
                 / self.ini_data["reference"]["reference_file"]["database_dir"]
                 / self.ini_data["reference"]["annotation"]["msp"]
             )
+            bam_file = (
+                self.ini_data["mapped_sample_dir"] / f"{sample_info['sample_name']}.bam"
+            )
+            bed_file = (
+                self.meteor.ref_dir
+                / self.ini_data["reference"]["reference_file"]["database_dir"]
+                / self.ini_data["reference"]["annotation"]["bed"]
+            )
             start = perf_counter()
-            self.get_msp_variant(consensus_file, count_file, msp_file)
+            # count_file,
+            self.get_msp_variant(consensus_file, msp_file, bam_file, bed_file)
             logging.info(
                 "Completed strain analysis in %f seconds", perf_counter() - start
             )

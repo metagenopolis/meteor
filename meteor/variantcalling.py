@@ -20,8 +20,11 @@ from datetime import datetime
 from typing import Type
 from meteor.session import Session, Component
 from time import perf_counter
+import tempfile
 from tempfile import NamedTemporaryFile
 from packaging.version import Version, parse
+from io import StringIO
+import pandas as pd
 import logging
 import sys
 
@@ -66,6 +69,24 @@ class VariantCalling(Session):
         }
         return config
 
+    def filter_low_cov_sites(
+        self, output: str, temp_low_cov_sites: tempfile._TemporaryFileWrapper
+    ) -> None:
+        """Write sites with a low coverage"""
+        sum_cov_bed = pd.read_csv(
+            StringIO(output),
+            sep="\t",
+            names=[
+                "gene_id",
+                "startpos",
+                "endpos",
+                "coverage",
+            ],
+        )
+        sum_cov_bed.query(f"coverage < {self.min_snp_depth}").to_csv(
+            temp_low_cov_sites, sep="\t", header=False, index=False
+        )
+
     def execute(self) -> bool:
         """Call variants reads"""
         # Start mapping
@@ -92,24 +113,35 @@ class VariantCalling(Session):
             / self.census["reference"]["annotation"]["bed"]
         )
         bcftools_version = (
-            str(run(["bcftools", "--version"], capture_output=True).stdout)
-            .split("\\n")[0]
+            run(["bcftools", "--version"], capture_output=True)
+            .stdout.decode("utf-8")
+            .split("\n")[0]
             .split(" ")[1]
         )
-        if parse(bcftools_version) <= Version("0.1.19"):
+        if parse(bcftools_version) < Version("0.1.19"):
             logging.error(
-                "Error, the bcftools version %s is outdated for meteor. Please update bcftools.",
+                "Error, the bcftools version %s is outdated for meteor. Please update bcftools to >= 0.1.19.",
                 bcftools_version,
             )
             sys.exit()
+        bedtools_version = (
+            run(["bedtools", "--version"], capture_output=True)
+            .stdout.decode("utf-8")
+            .split(" ")[1][1:]
+        )
+        if parse(bedtools_version) < Version("2.18"):
+            logging.error(
+                "Error, the bedtools version %s is outdated for meteor. Please update bedtools to >= 2.18.",
+                bedtools_version,
+            )
+            sys.exit()
         start = perf_counter()
-        # "--skip-indels", ?
         with NamedTemporaryFile(
-            mode="wt", dir=self.meteor.tmp_dir
-        ) as temp_vcf_pileup_file:
+            mode="wt", dir=self.meteor.tmp_dir, delete=False
+        ) as temp_vcf_pileup:
             with NamedTemporaryFile(
-                mode="wt", dir=self.meteor.tmp_dir
-            ) as temp_vcf_file:
+                mode="wt", dir=self.meteor.tmp_dir, delete=False
+            ) as temp_vcf:
                 check_call(
                     [
                         "bcftools",
@@ -123,7 +155,7 @@ class VariantCalling(Session):
                         "--threads",
                         str(self.meteor.threads),
                         "-o",
-                        temp_vcf_pileup_file.name,
+                        temp_vcf_pileup.name,
                     ]
                 )
                 check_call(
@@ -140,11 +172,11 @@ class VariantCalling(Session):
                         str(self.meteor.threads),
                         "-Oz",
                         "-o",
-                        temp_vcf_file.name,
-                        temp_vcf_pileup_file.name,
+                        temp_vcf.name,
+                        temp_vcf_pileup.name,
                     ]
                 )
-                check_call(["bcftools", "index", temp_vcf_file.name])
+                check_call(["bcftools", "index", temp_vcf.name])
                 # Only SNP from 100 core genes
                 check_call(
                     [
@@ -153,7 +185,7 @@ class VariantCalling(Session):
                         "-R",
                         str(bed_file.resolve()),
                         "-f",
-                        f"MIN(FMT/DP>{str(self.min_snp_depth)})",
+                        f"MIN(FMT/DP >= {str(self.min_snp_depth)})",
                         "--threads",
                         str(self.meteor.threads),
                         "-q",
@@ -161,24 +193,44 @@ class VariantCalling(Session):
                         "-Oz",
                         "-o",
                         str(vcf_file.resolve()),
-                        temp_vcf_file.name,
+                        temp_vcf.name,
                     ]
                 )
                 check_call(["bcftools", "index", str(vcf_file.resolve())])
-                check_call(
-                    [
-                        "bcftools",
-                        "consensus",
-                        "-f",
-                        str(reference_file.resolve()),
-                        "-o",
-                        str(consensus_file.resolve()),
-                        str(vcf_file.resolve()),
-                    ]
-                )
-        # gatk AddOrReplaceReadGroups -I Zymo_6300.bam -O test_grp.bam -RGID 4 -RGLB lib1 -RGPL illumina -RGPU unit1 -RGSM 20
-        # gatk SplitNCigarReads -R ../../catalogue/mock/fasta/mock.fasta -I test_grp.bam -O test.bam
-        # gatk --java-options "-Xmx8g" HaplotypeCaller -R ../../catalogue/mock/fasta/mock.fasta -I test.bam -O test.vcf.gz
+                # The columns of the tab-delimited BED file are also CHROM, POS
+                # and END (trailing columns are ignored), but coordinates are
+                # 0-based, half-open. To indicate that a file be treated as BED
+                # rather than the 1-based tab-delimited file, the file must have
+                # the ".bed" or ".bed.gz" suffix (case-insensitive).
+                with NamedTemporaryFile(
+                    mode="wt", dir=self.meteor.tmp_dir, delete=False, suffix=".bed"
+                ) as temp_low_cov_sites:
+                    output = run(
+                        [
+                            "bedtools",
+                            "genomecov",
+                            "-bga",
+                            "-ibam",
+                            str(bam_file.resolve()),
+                        ],
+                        capture_output=True,
+                    ).stdout.decode("utf-8")
+                    self.filter_low_cov_sites(output, temp_low_cov_sites)
+                    check_call(
+                        [
+                            "bcftools",
+                            "consensus",
+                            "--mask",
+                            temp_low_cov_sites.name,
+                            "--mask-with",
+                            "-",
+                            "-f",
+                            str(reference_file.resolve()),
+                            "-o",
+                            str(consensus_file.resolve()),
+                            str(vcf_file.resolve()),
+                        ]
+                    )
         logging.info("Completed SNP calling in %f seconds", perf_counter() - start)
         config = self.set_variantcalling_config(
             bam_file, vcf_file, consensus_file, bcftools_version

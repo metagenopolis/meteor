@@ -112,28 +112,26 @@ class Mapper(Session):
         )
         if parse(bowtie_version) < Version("2.3.5"):
             logging.error(
-                "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.",
+                "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2 to >=2.3.5.",
                 bowtie_version,
             )
             sys.exit()
         # Start mapping
         start = perf_counter()
-        mapping_result = str(
-            run(
-                [
-                    "bowtie2",
-                    parameters,
-                    "--mm --no-unal",
-                    "-x",
-                    str(bowtie_index.resolve()),
-                    "-U",
-                    ",".join(self.fastq_list),
-                    "-S",
-                    str(sam_file.resolve()),
-                ],
-                capture_output=True,
-            ).stderr
-        )
+        mapping_result = run(
+            [
+                "bowtie2",
+                parameters,
+                "--mm --no-unal",
+                "-x",
+                str(bowtie_index.resolve()),
+                "-U",
+                ",".join(self.fastq_list),
+                "-S",
+                str(sam_file.resolve()),
+            ],
+            capture_output=True,
+        ).stderr.decode("utf-8")
         try:
             mapping_log = findall(r"([0-9]+)\s+\(", mapping_result)
             assert len(mapping_log) == 4

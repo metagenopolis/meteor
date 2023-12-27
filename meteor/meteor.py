@@ -441,13 +441,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
     strain_parser.add_argument(
         "-t", dest="threads", default=1, type=int, help="Threads count."
     )
-    strain_parser.add_argument(
-        "-c",
-        dest="min_gene_count",
-        default=3,
-        type=int,
-        help="Minimum gene count (default 3).",
-    )
+    # strain_parser.add_argument(
+    #     "-c",
+    #     dest="min_gene_count",
+    #     default=3,
+    #     type=int,
+    #     help="Minimum gene count (default 3).",
+    # )
     strain_parser.add_argument(
         "-s",
         dest="min_snp_depth",
@@ -455,7 +455,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         choices=range(1, 10000),
         metavar="MIN_SNP_DEPTH",
         type=int,
-        help="""Minimum snp depth (default 3).
+        help="""Minimum snp depth (default >=3).
         Values should be comprised between 1 and the maximum depth
         (10000 reads are taken in account).""",
     )
@@ -464,7 +464,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="min_frequency_non_reference",
         default=0.8,
         type=isborned01,
-        help="Minimum frequency for non reference allele (default 0.8).",
+        help="Minimum frequency for non reference allele (default >=0.8).",
     )
     strain_parser.add_argument(
         "-m",
@@ -473,9 +473,16 @@ def get_arguments() -> Namespace:  # pragma: no cover
         choices=range(1, 100),
         metavar="MIN_MSP_COVERAGE",
         type=int,
-        help="""Minimum number of genes from the MSP that are covered (default 50).
+        help="""Minimum number of genes from the MSP that are covered (default >=50).
         Values should be comprised between 1 and 100
         (maximum number of core genes taken in account).""",
+    )
+    strain_parser.add_argument(
+        "-c",
+        dest="min_gene_coverage",
+        default=0.8,
+        type=isborned01,
+        help="Minimum gene coverage from 0 to 1 (default >=0.5).",
     )
     strain_parser.add_argument(
         "-o",
@@ -511,7 +518,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="max_gap",
         default=0.5,
         type=isborned01,
-        help="Removes sites constitued of >= cutoff gap character (default 0.5).",
+        help="Removes sites constitued of >= cutoff gap character (default >=0.5).",
     )
     tree_parser.add_argument(
         "-c",
@@ -622,10 +629,11 @@ def main() -> None:  # pragma: no cover
         strain_id = Strain(
             meteor,
             args.max_depth,
-            args.min_gene_count,
+            # args.min_gene_count,
             args.min_snp_depth,
             args.min_frequency_non_reference,
             args.min_msp_coverage,
+            args.min_gene_coverage,
             args.keep_consensus,
         )
         strain_id.execute()

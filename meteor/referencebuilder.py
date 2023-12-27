@@ -131,9 +131,10 @@ class ReferenceBuilder(Session):
         self.create_reference()
         # Check the bowtie2 version
         bowtie_version = (
-            str(run(["bowtie2", "--version"], capture_output=True).stdout)
+            run(["bowtie2", "--version"], capture_output=True)
+            .stdout.decode("utf-8")
             .split(" ")[2]
-            .split("\\n")[0]
+            .split("\n")[0]
         )
         if parse(bowtie_version) < Version("2.3.5"):
             logging.error(
