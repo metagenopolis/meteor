@@ -40,7 +40,12 @@ class VariantCalling(Session):
     min_frequency_non_reference: float
 
     def set_variantcalling_config(
-        self, bam_file: Path, vcf_file: Path, consensus_file: Path, bcftool_version: str
+        self,
+        bam_file: Path,
+        vcf_file: Path,
+        consensus_file: Path,
+        bcftool_version: str,
+        bedtools_version: str,
     ) -> ConfigParser:  # pragma: no cover
         """Define the census 1 configuration
 
@@ -60,6 +65,8 @@ class VariantCalling(Session):
         config["variant_calling"] = {
             "variant_calling_tool": "bcftools",
             "variant_calling_version": bcftool_version,
+            "bed_manipulation": "bedtools",
+            "bedtools_version": bedtools_version,
             "variant_calling_date": datetime.now().strftime("%Y-%m-%d"),
             "vcf_name": vcf_file.name,
             "consensus_name": consensus_file.name,
@@ -233,7 +240,7 @@ class VariantCalling(Session):
                     )
         logging.info("Completed SNP calling in %f seconds", perf_counter() - start)
         config = self.set_variantcalling_config(
-            bam_file, vcf_file, consensus_file, bcftools_version
+            bam_file, vcf_file, consensus_file, bcftools_version, bedtools_version
         )
         self.save_config(config, self.census["Stage3FileName"])
         return True
