@@ -400,7 +400,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Directory containing files that should be merged.",
     )
     merging_parser.add_argument(
-        "-o", dest="output", required=True, help="Path to the output file."
+        "-o", dest="output", required=True, help="Path to the output directory."
     )
     merging_parser.add_argument(
         "-p",

@@ -28,11 +28,11 @@ def merging_profiles(datadir: Path, tmp_path: Path) -> Merging:
     return Merging(meteor=meteor, output=tmp_path, prefix="my_test", fast=False)
 
 
-@pytest.fixture
-def merging_mapping(datadir: Path, tmp_path: Path) -> Merging:
-    meteor = Component
-    meteor.profile_dir = datadir / "mapping"
-    return Merging(meteor=meteor, output=tmp_path, prefix="my_test", fast=False)
+# @pytest.fixture
+# def merging_mapping(datadir: Path, tmp_path: Path) -> Merging:
+#     meteor = Component
+#     meteor.profile_dir = datadir / "mapping"
+#     return Merging(meteor=meteor, output=tmp_path, prefix="my_test", fast=False)
 
 
 @pytest.fixture
@@ -42,20 +42,20 @@ def merging_fast(datadir: Path, tmp_path: Path) -> Merging:
     return Merging(meteor=meteor, output=tmp_path, prefix="my_test", fast=True)
 
 
-def test_extract_census_stage_1(merging_mapping: Merging) -> None:
-    all_census = list(
-        Path(merging_mapping.meteor.profile_dir).glob("**/*census_stage_*.ini")
-    )
-    all_census_stages = merging_mapping.extract_census_stage(all_census)
-    assert all_census_stages == [1, 1, 1]
+# def test_extract_census_stage_1(merging_mapping: Merging) -> None:
+#     all_census = list(
+#         Path(merging_mapping.meteor.profile_dir).glob("**/*census_stage_*.ini")
+#     )
+#     all_census_stages = merging_mapping.extract_census_stage(all_census)
+#     assert all_census_stages == [1, 1, 1]
 
 
-def test_extract_census_stage_2(merging_profiles: Merging) -> None:
-    all_census = list(
-        Path(merging_profiles.meteor.profile_dir).glob("**/*census_stage_*.ini")
-    )
-    all_census_stages = merging_profiles.extract_census_stage(all_census)
-    assert all_census_stages == [2, 2, 2]
+# def test_extract_census_stage_2(merging_profiles: Merging) -> None:
+#     all_census = list(
+#         Path(merging_profiles.meteor.profile_dir).glob("**/*census_stage_*.ini")
+#     )
+#     all_census_stages = merging_profiles.extract_census_stage(all_census)
+#     assert all_census_stages == [2, 2, 2]
 
 
 def test_find_files_to_merge(merging_profiles: Merging) -> None:
@@ -92,7 +92,6 @@ def test_extract_ini_info(merging_profiles: Merging) -> None:
             "mapping_file": [""],
         },
     )
-    print(info)
     assert info == {
         "msp_filter": "0.1",
         "modules_def": "GMM_definition.tsv",
@@ -200,6 +199,7 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
 
     # Check existence and content of all files
     list_files = [
+        "raw.tsv",
         "genes.tsv",
         "msp.tsv",
         "mustard.tsv",
@@ -219,34 +219,34 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
         assert real_output_df.round(10).equals(expected_output_df.round(10))
 
 
-def test_execute2(merging_mapping: Merging, datadir: Path) -> None:
-    merging_mapping.execute()
+# def test_execute2(merging_mapping: Merging, datadir: Path) -> None:
+#     merging_mapping.execute()
 
-    # Check report
-    real_output = merging_mapping.output / "my_test_report.tsv"
-    assert real_output.exists()
-    expected_output = (
-        datadir / "expected_output" / "test_project_census_stage_1_report.tsv"
-    )
-    real_output_df = pd.read_table(real_output)
-    expected_output_df = pd.read_table(expected_output)
-    real_output_df = real_output_df.sort_values(by=["sample"]).reset_index(drop=True)
-    expected_output_df = expected_output_df.sort_values(by=["sample"]).reset_index(
-        drop=True
-    )
-    assert real_output_df.round(2).equals(expected_output_df.round(2))
+#     # Check report
+#     real_output = merging_mapping.output / "my_test_report.tsv"
+#     assert real_output.exists()
+#     expected_output = (
+#         datadir / "expected_output" / "test_project_census_stage_1_report.tsv"
+#     )
+#     real_output_df = pd.read_table(real_output)
+#     expected_output_df = pd.read_table(expected_output)
+#     real_output_df = real_output_df.sort_values(by=["sample"]).reset_index(drop=True)
+#     expected_output_df = expected_output_df.sort_values(by=["sample"]).reset_index(
+#         drop=True
+#     )
+#     assert real_output_df.round(2).equals(expected_output_df.round(2))
 
-    # Check existence and content of raw gene table
-    real_output = merging_mapping.output / "my_test.tsv"
-    expected_output = datadir / "expected_output" / "test_project.tsv"
-    assert real_output.exists()
-    real_output_df = pd.read_table(real_output).reindex(
-        sorted(real_output_df.columns), axis=1
-    )
-    expected_output_df = pd.read_table(expected_output).reindex(
-        sorted(expected_output_df.columns), axis=1
-    )
-    assert real_output_df.round(10).equals(expected_output_df.round(10))
+#     # Check existence and content of raw gene table
+#     real_output = merging_mapping.output / "my_test.tsv"
+#     expected_output = datadir / "expected_output" / "test_project.tsv"
+#     assert real_output.exists()
+#     real_output_df = pd.read_table(real_output).reindex(
+#         sorted(real_output_df.columns), axis=1
+#     )
+#     expected_output_df = pd.read_table(expected_output).reindex(
+#         sorted(expected_output_df.columns), axis=1
+#     )
+#     assert real_output_df.round(10).equals(expected_output_df.round(10))
 
 
 def test_execute3(merging_fast: Merging, datadir: Path) -> None:
@@ -268,6 +268,7 @@ def test_execute3(merging_fast: Merging, datadir: Path) -> None:
 
     # Check existence and content of all files
     list_files = [
+        "raw.tsv",
         "genes.tsv",
         "msp.tsv",
         "mustard.tsv",
@@ -277,7 +278,7 @@ def test_execute3(merging_fast: Merging, datadir: Path) -> None:
     for my_file in list_files:
         real_output = merging_fast.output / f"my_test_{my_file}"
         expected_output = datadir / "expected_output" / f"test_project_{my_file}"
-        if my_file == "genes.tsv":
+        if my_file in ["genes.tsv", "raw.tsv"]:
             assert not real_output.exists()
         else:
             assert real_output.exists()

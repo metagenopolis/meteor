@@ -81,6 +81,17 @@ class Profiler(Session):
             logging.error("The count table %s does not exist.", self.input_count_table)
             sys.exit()
 
+        # Add a symlink to get the raw count table in the profile directory (for merging purpose)
+        raw_count_table_symlink = (
+            self.stage2_dir / f"{self.sample_name}_raw"
+        ).with_suffix(".tsv")
+        try:
+            raw_count_table_symlink.symlink_to(self.input_count_table)
+        except FileExistsError:
+            logging.info(
+                "The symbolic link to raw data already exists in the profile directory."
+            )
+
         # Check the input count table
         self.check_file(
             self.input_count_table,
@@ -199,11 +210,6 @@ class Profiler(Session):
             else 100.0 * row["value"] * 4 * trim_length / (row["gene_length"] + 1) ** 2
             for _, row in self.gene_count.iterrows()
         ]
-        # self.gene_count["value"] = (
-        #     self.gene_count["value"]
-        #     / self.gene_count["gene_length"]
-        #     * 100.0
-        # )
 
     def normalize_fpkm(self, rarefaction_level: int, unmapped_reads: int) -> None:
         """Normalize matrix using fpkm method

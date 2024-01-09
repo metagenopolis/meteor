@@ -425,6 +425,15 @@ def test_compute_module_abundance(profiler_standard: Profiler, datadir: Path) ->
 def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     profiler_standard.module_path = datadir / "module.tsv"
     profiler_standard.execute()
+    # Check symlink file (raw data)
+    raw_gene_table_file = (
+        profiler_standard.stage2_dir
+        / f"{profiler_standard.output_base_filename}_raw.tsv"
+    )
+    assert raw_gene_table_file.exists()
+    assert raw_gene_table_file.is_symlink()
+    expected_output = pd.read_table(datadir / "mapping" / "sample.tsv")
+    assert pd.read_table(raw_gene_table_file).equals(expected_output)
     # Check gene file
     gene_table_file = (
         profiler_standard.stage2_dir
