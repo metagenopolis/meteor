@@ -40,15 +40,6 @@ class Component:
     sequence: tuple = ("_R", ".R", "_", ".", "")
     extension: tuple = (".fq", ".fastq")
     compression: tuple = (".gz", ".bz2", ".xz", "")
-    # TODO REMOVE this
-    gene_column: str = "gene_id"
-    msp_column: str = "msp_name"
-    ko_column: str = "annotation"
-    module_column: str = "mod_id"
-    module_def_column: str = "mod_def"
-    gene_length_column: str = "gene_length"
-    value_column: str = "value"
-    gene_class_column: str = "gene_category"
 
 
 class Session(Protocol):

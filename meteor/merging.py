@@ -71,7 +71,7 @@ class Merging(Session):
         return files_to_merge
 
     def extract_ini_info(
-        self, config: ConfigParser, param_dict: Dict[str, Dict[str, List[str]]]
+        self, config: ConfigParser, param_dict: Dict[str, List[str]]
     ) -> dict[str, str]:
         """Get information from the required section and fields
 
@@ -86,11 +86,13 @@ class Merging(Session):
             logging.error("Missing required section in census ini file.")
             sys.exit()
         # If fields is empty, consider all fields of the section
+        print(param_dict)
         param_dict = {
-            key: list(config[key]) if len(value) == 0 else value
+            key: list(config[key]) if value == [""] else value
             for key, value in param_dict.items()
         }
         # Check that required fields are present
+        print(param_dict)
         try:
             assert all(
                 [
@@ -155,9 +157,9 @@ class Merging(Session):
         """
         # Load the data frames
         list_df = [
-            pd.read_table(my_path).rename(
-                columns={self.meteor.value_column: my_sample}
-            )[key_merging + [my_sample]]
+            pd.read_table(my_path).rename(columns={"value": my_sample})[
+                key_merging + [my_sample]
+            ]
             for (my_sample, my_path) in dict_path.items()
         ]
         merged_df = reduce(
@@ -217,7 +219,7 @@ class Merging(Session):
         elif census_stage == 2:
             param_to_check = {
                 "mapping": ["reference_name", "mapping_options", "database_type"],
-                "profiling_parameters": [],
+                "profiling_parameters": [""],
             }
         all_information = {
             my_path: self.extract_ini_info(my_config, param_to_check)
@@ -260,7 +262,7 @@ class Merging(Session):
                     "mapped_read_count",
                     "overall_alignment_rate",
                 ],
-                "profiling_stats": [],
+                "profiling_stats": [""],
             }
         all_information_to_save = {
             my_sample: self.extract_ini_info(all_census_dict[my_path], param_to_save)
@@ -280,18 +282,18 @@ class Merging(Session):
         list_pattern_to_merge = {}
         if census_stage == 1:
             if not self.fast:
-                list_pattern_to_merge = {".tsv": [self.meteor.gene_column]}
+                list_pattern_to_merge = {".tsv": ["gene_id"]}
         elif census_stage == 2:
-            list_pattern_to_merge["_msp.tsv"] = [self.meteor.msp_column]
+            list_pattern_to_merge["_msp.tsv"] = ["msp_name"]
             if not self.fast:
-                list_pattern_to_merge["_genes.tsv"] = [self.meteor.gene_column]
+                list_pattern_to_merge["_genes.tsv"] = ["gene_id"]
             if database_type == "complete":
                 list_pattern_to_merge["_modules_completeness.tsv"] = [
-                    self.meteor.msp_column,
-                    self.meteor.module_column,
+                    "msp_name",
+                    "mod_id",
                 ]
-                list_pattern_to_merge["_modules.tsv"] = [self.meteor.module_column]
-                list_pattern_to_merge["_mustard.tsv"] = [self.meteor.ko_column]
+                list_pattern_to_merge["_modules.tsv"] = ["mod_id"]
+                list_pattern_to_merge["_mustard.tsv"] = ["annotation"]
         for my_pattern in list_pattern_to_merge:
             logging.info("Fetching output files with pattern %s", my_pattern)
             files_to_merge = self.find_files_to_merge(

@@ -74,20 +74,27 @@ def test_rarefy4(profiler_standard: Profiler, datadir: Path) -> None:
 
 
 def test_normalize_coverage(profiler_standard: Profiler, datadir: Path) -> None:
-    profiler_standard.normalize_coverage()
+    # Manually change gene count so that all possibilities are tested
+    manual_gene_count = {
+        "gene_id": [1, 2, 3, 4, 5, 6],
+        "gene_length": [80, 81, 160, 159, 200, 2000],
+        "value": [27, 58, 12, 99, 80, 89],
+    }
+    profiler_standard.gene_count = pd.DataFrame(manual_gene_count)
+    profiler_standard.normalize_coverage(trim_length=80)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_norm_coverage.tsv"
     )
-    assert profiler_standard.gene_count.round(2).equals(expected_output.round(2))
+    assert profiler_standard.gene_count.round(6).equals(expected_output.round(6))
 
 
 def test_normalize_fpkm1(profiler_standard: Profiler, datadir: Path) -> None:
     # No downsizing, no unmapped reads
     profiler_standard.normalize_fpkm(rarefaction_level=0, unmapped_reads=0)
     # Round the results to 6 digits, if not df are not equal
-    profiler_standard.gene_count[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.gene_count[profiler_standard.meteor.value_column].round(6)
+    profiler_standard.gene_count["value"] = profiler_standard.gene_count["value"].round(
+        6
+    )
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_norm_fpkm_raref_0_unmapped_0.tsv"
     )
@@ -98,9 +105,9 @@ def test_normalize_fpkm2(profiler_standard: Profiler, datadir: Path) -> None:
     # No downsizing, 500 unmapped reads
     profiler_standard.normalize_fpkm(rarefaction_level=0, unmapped_reads=500)
     # Round the results to 6 digits, if not df are not equal
-    profiler_standard.gene_count[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.gene_count[profiler_standard.meteor.value_column].round(6)
+    profiler_standard.gene_count["value"] = profiler_standard.gene_count["value"].round(
+        6
+    )
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_norm_fpkm_raref_0_unmapped_500.tsv"
     )
@@ -112,9 +119,9 @@ def test_normalize_fpkm3(profiler_standard: Profiler, datadir: Path) -> None:
     profiler_standard.rarefy(rarefaction_level=100, unmapped_reads=0, seed=12345)
     profiler_standard.normalize_fpkm(rarefaction_level=100, unmapped_reads=0)
     # Round the results to 6 digits, if not df are not equal
-    profiler_standard.gene_count[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.gene_count[profiler_standard.meteor.value_column].round(6)
+    profiler_standard.gene_count["value"] = profiler_standard.gene_count["value"].round(
+        6
+    )
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_norm_fpkm_raref_100_unmapped_0.tsv"
     )
@@ -126,9 +133,9 @@ def test_normalize_fpkm4(profiler_standard: Profiler, datadir: Path) -> None:
     profiler_standard.rarefy(rarefaction_level=900, unmapped_reads=100, seed=12345)
     profiler_standard.normalize_fpkm(rarefaction_level=900, unmapped_reads=100)
     # Round the results to 6 digits, if not df are not equal
-    profiler_standard.gene_count[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.gene_count[profiler_standard.meteor.value_column].round(6)
+    profiler_standard.gene_count["value"] = profiler_standard.gene_count["value"].round(
+        6
+    )
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_norm_fpkm_raref_900_unmapped_100.tsv"
     )
@@ -140,9 +147,9 @@ def test_normalize_fpkm5(profiler_standard: Profiler, datadir: Path) -> None:
     profiler_standard.rarefy(rarefaction_level=900, unmapped_reads=80, seed=12345)
     profiler_standard.normalize_fpkm(rarefaction_level=900, unmapped_reads=80)
     # Round the results to 6 digits, if not df are not equal
-    profiler_standard.gene_count[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.gene_count[profiler_standard.meteor.value_column].round(6)
+    profiler_standard.gene_count["value"] = profiler_standard.gene_count["value"].round(
+        6
+    )
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_norm_fpkm_raref_900_unmapped_80.tsv"
     )
@@ -157,9 +164,7 @@ def test_compute_msp(profiler_standard: Profiler, datadir: Path) -> None:
     # Compute MSP directly on the raw gene count (only rounded)
     profiler_standard.compute_msp(msp_dict=msp_set, filter_pc=0.5)
     # Round at 6 digits
-    profiler_standard.msp_table[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.msp_table[profiler_standard.meteor.value_column].round(6)
+    profiler_standard.msp_table["value"] = profiler_standard.msp_table["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_msp.tsv"
     )
@@ -168,9 +173,7 @@ def test_compute_msp(profiler_standard: Profiler, datadir: Path) -> None:
     profiler_standard.normalize_fpkm(rarefaction_level=0, unmapped_reads=0)
     profiler_standard.compute_msp(msp_dict=msp_set, filter_pc=0.5)
     # Round at 6 digits
-    profiler_standard.msp_table[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.msp_table[profiler_standard.meteor.value_column].round(6)
+    profiler_standard.msp_table["value"] = profiler_standard.msp_table["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_norm_fpkm_msp.tsv"
     )
@@ -220,9 +223,7 @@ def test_compute_ko_abundance(profiler_standard: Profiler, datadir: Path) -> Non
         annot_file=profiler_standard.db_filenames["kegg"]
     )
     # Round at 6 digits
-    profiler_standard.functions[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.functions[profiler_standard.meteor.value_column].round(6)
+    profiler_standard.functions["value"] = profiler_standard.functions["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_norm_fpkm_kegg.tsv"
     )
@@ -242,9 +243,7 @@ def test_compute_ko_abundance_by_msp(
         msp_def_filename=profiler_standard.msp_filename,
     )
     # Round at 6 digits
-    profiler_standard.functions[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.functions[profiler_standard.meteor.value_column].round(6)
+    profiler_standard.functions["value"] = profiler_standard.functions["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_kegg_by_msp.tsv"
     )
@@ -257,9 +256,7 @@ def test_compute_ko_abundance_by_msp(
         msp_def_filename=profiler_standard.msp_filename,
     )
     # Round at 6 digits
-    profiler_standard.functions[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.functions[profiler_standard.meteor.value_column].round(6)
+    profiler_standard.functions["value"] = profiler_standard.functions["value"].round(6)
 
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_norm_fpkm_kegg_by_msp.tsv"
@@ -300,9 +297,9 @@ def test_merge_catalogue_info(profiler_standard: Profiler, datadir: Path) -> Non
     # Order rows
     merged_catalogue = merged_catalogue.sort_values(
         by=[
-            profiler_standard.meteor.msp_column,
-            profiler_standard.meteor.gene_column,
-            profiler_standard.meteor.ko_column,
+            "msp_name",
+            "gene_id",
+            "annotation",
         ]
     ).reset_index(drop=True)
     expected_output = pd.read_table(
@@ -310,9 +307,9 @@ def test_merge_catalogue_info(profiler_standard: Profiler, datadir: Path) -> Non
     )
     expected_output = expected_output.sort_values(
         by=[
-            profiler_standard.meteor.msp_column,
-            profiler_standard.meteor.gene_column,
-            profiler_standard.meteor.ko_column,
+            "msp_name",
+            "gene_id",
+            "annotation",
         ]
     ).reset_index(drop=True)
     assert merged_catalogue.equals(expected_output)
@@ -409,14 +406,10 @@ def test_compute_module_abundance(profiler_standard: Profiler, datadir: Path) ->
         completeness=0.6,
     )
     # Round at 6 digits
-    profiler_standard.mod_table[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.mod_table[profiler_standard.meteor.value_column].round(6)
-    profiler_standard.mod_completeness[
-        profiler_standard.meteor.value_column
-    ] = profiler_standard.mod_completeness[profiler_standard.meteor.value_column].round(
-        6
-    )
+    profiler_standard.mod_table["value"] = profiler_standard.mod_table["value"].round(6)
+    profiler_standard.mod_completeness["value"] = profiler_standard.mod_completeness[
+        "value"
+    ].round(6)
     # Check module abundance matrix
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_modules.tsv"
@@ -448,9 +441,7 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         / f"{profiler_standard.output_base_filename}_msp.tsv"
     )
     msp_table = pd.read_table(msp_table_file)
-    msp_table[profiler_standard.meteor.value_column] = msp_table[
-        profiler_standard.meteor.value_column
-    ].round(6)
+    msp_table["value"] = msp_table["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_msp.tsv"
     )
@@ -461,9 +452,7 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         / f"{profiler_standard.output_base_filename}_mustard.tsv"
     )
     fun_table = pd.read_table(fun_table_file)
-    fun_table[profiler_standard.meteor.value_column] = fun_table[
-        profiler_standard.meteor.value_column
-    ].round(6)
+    fun_table["value"] = fun_table["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_mustard.tsv"
     )
@@ -474,8 +463,8 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     #     / f"{profiler_standard.output_base_filename}_kegg_by_msp.tsv"
     # )
     # fun_table = pd.read_table(fun_table_file)
-    # fun_table[profiler_standard.meteor.value_column] = fun_table[
-    #     profiler_standard.meteor.value_column
+    # fun_table["value"] = fun_table[
+    #     "value"
     # ].round(6)
     # expected_output = pd.read_table(
     #     datadir / "expected_output" / "sample_no_rf_no_norm_kegg_by_msp.tsv"
@@ -489,9 +478,7 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         / f"{profiler_standard.output_base_filename}_modules.tsv"
     )
     module_table = pd.read_table(module_table_file)
-    module_table[profiler_standard.meteor.value_column] = module_table[
-        profiler_standard.meteor.value_column
-    ].round(6)
+    module_table["value"] = module_table["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_modules_kegg_only.tsv"
     )
@@ -502,9 +489,7 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         / f"{profiler_standard.output_base_filename}_modules_completeness.tsv"
     )
     module_completeness = pd.read_table(module_completeness_file)
-    module_completeness[profiler_standard.meteor.value_column] = module_completeness[
-        profiler_standard.meteor.value_column
-    ].round(6)
+    module_completeness["value"] = module_completeness["value"].round(6)
     expected_output = pd.read_table(
         datadir
         / "expected_output"

@@ -85,17 +85,15 @@ class Profiler(Session):
         self.check_file(
             self.input_count_table,
             {
-                self.meteor.gene_column,
-                self.meteor.value_column,
-                self.meteor.gene_length_column,
+                "gene_id",
+                "value",
+                "gene_length",
             },
         )
 
         # Load the count table
         self.gene_count = pd.read_table(self.input_count_table)
-        self.gene_count[self.meteor.value_column] = (
-            self.gene_count[self.meteor.value_column].round(0).astype("int")
-        )
+        self.gene_count["value"] = self.gene_count["value"].round(0).astype("int")
 
         # Define output filenames
         self.output_base_filename = f"{self.sample_name}"
@@ -110,9 +108,9 @@ class Profiler(Session):
         self.check_file(
             self.msp_filename,
             {
-                self.meteor.msp_column,
-                self.meteor.gene_column,
-                self.meteor.gene_class_column,
+                "msp_name",
+                "gene_id",
+                "gene_category",
             },
         )
 
@@ -150,19 +148,18 @@ class Profiler(Session):
         except AssertionError:
             logging.error("You are trying to rarefy with a null or negative number.")
             sys.exit()
-        count_column = self.meteor.value_column
         # Add the unmapped count
         self.gene_count.loc[len(self.gene_count)] = {
-            self.meteor.gene_column: -1,
-            self.meteor.gene_length_column: 1000,
-            count_column: unmapped_reads,
+            "gene_id": -1,
+            "gene_length": 1000,
+            "value": unmapped_reads,
         }
 
         # Check if rarefaction is possible
-        if self.gene_count[count_column].sum() > rarefaction_level:
+        if self.gene_count["value"].sum() > rarefaction_level:
             # Transform into a long array of gene_id according to gene occurence
             array_to_rarefy = np.repeat(
-                self.gene_count[self.meteor.gene_column], self.gene_count[count_column]
+                self.gene_count["gene_id"], self.gene_count["value"]
             )
             # Randomly choose among the long array the selected reads
             rng = np.random.default_rng(seed=seed)
@@ -171,30 +168,42 @@ class Profiler(Session):
             )
             # Count gene_id occurence to get back to short gene_id list
             unique, counts = np.unique(array_rarefied, return_counts=True)
-            self.gene_count[count_column] = np.zeros(
-                self.gene_count.shape[0], dtype="int"
-            )
+            self.gene_count["value"] = np.zeros(self.gene_count.shape[0], dtype="int")
             self.gene_count.loc[
                 self.gene_count.reset_index()
-                .set_index(self.meteor.gene_column)
+                .set_index("gene_id")
                 .loc[unique, "index"]
                 .values,
-                count_column,
+                "value",
             ] = counts
 
         # Remove the counts for the gene "-1" (unmapped_reads)
-        self.gene_count = self.gene_count[
-            self.gene_count[self.meteor.gene_column] != -1
-        ]
+        self.gene_count = self.gene_count[self.gene_count["gene_id"] != -1]
 
-    def normalize_coverage(self) -> None:
-        """Normalize gene count table by coverage."""
-        count_column = self.meteor.value_column
-        self.gene_count[count_column] = (
-            self.gene_count[count_column]
-            / self.gene_count[self.meteor.gene_length_column]
-            * 100.0
-        )
+    def normalize_coverage(self, trim_length: int) -> None:
+        """Normalize gene count table by coverage.
+
+        :param trim_length: length used in bowtie2 to trim reads before mapping.
+        """
+        self.gene_count["value"] = [
+            100.0 * row["value"] / (row["gene_length"] - trim_length + 1)
+            if row["gene_length"] >= 2 * trim_length
+            else 100.0
+            * row["value"]
+            * 4
+            * trim_length
+            / (row["gene_length"] * (row["gene_length"] + 2))
+            if row["gene_length"] >= trim_length
+            and row["gene_length"] < 2 * trim_length
+            and row["gene_length"] % 2 == 0
+            else 100.0 * row["value"] * 4 * trim_length / (row["gene_length"] + 1) ** 2
+            for _, row in self.gene_count.iterrows()
+        ]
+        # self.gene_count["value"] = (
+        #     self.gene_count["value"]
+        #     / self.gene_count["gene_length"]
+        #     * 100.0
+        # )
 
     def normalize_fpkm(self, rarefaction_level: int, unmapped_reads: int) -> None:
         """Normalize matrix using fpkm method
@@ -202,34 +211,30 @@ class Profiler(Session):
         :param rarefaction_level: Value of rarefaction level
         :param unmapped_reads: Value of the unmapped reads
         """
-        count_column = self.meteor.value_column
         # Compute the unmapped reads after rarefaction
         if rarefaction_level > 0:
             # Force to 0 if the result is negative (ie, no rarefaction was performed)
             unmapped_reads_after_rf = min(
-                rarefaction_level - self.gene_count[count_column].sum(), unmapped_reads
+                rarefaction_level - self.gene_count["value"].sum(), unmapped_reads
             )
         else:
             unmapped_reads_after_rf = unmapped_reads
         # Add the unmapped reads after rf to the gene count table as a pseudo gene
         self.gene_count.loc[len(self.gene_count)] = {
-            self.meteor.gene_column: -1,
-            self.meteor.gene_length_column: 1000,
-            count_column: unmapped_reads_after_rf,
+            "gene_id": -1,
+            "gene_length": 1000,
+            "value": unmapped_reads_after_rf,
         }
         # Normalize
-        self.gene_count[count_column] = (
-            self.gene_count[count_column]
-            / self.gene_count[self.meteor.gene_length_column]
+        self.gene_count["value"] = (
+            self.gene_count["value"] / self.gene_count["gene_length"]
         )
-        self.gene_count[count_column] = (
-            self.gene_count[count_column] / self.gene_count[count_column].sum()
+        self.gene_count["value"] = (
+            self.gene_count["value"] / self.gene_count["value"].sum()
         )
 
         # Remove the counts for the gene "-1" (unmapped_reads)
-        self.gene_count = self.gene_count[
-            self.gene_count[self.meteor.gene_column] != -1
-        ]
+        self.gene_count = self.gene_count[self.gene_count["gene_id"] != -1]
 
     def compute_msp(self, msp_dict: dict[str, set[str]], filter_pc: float) -> None:
         """Compute msp abundance table.
@@ -238,18 +243,17 @@ class Profiler(Session):
         :param filter_pc: minimum ratio of msp genes that should be detected, otherwise
         msp abundance is set to 0.
         """
-        count_column = self.meteor.value_column
         # Compute how many genes are seen for a given msp
         # Restrict to gene table to core genes
         all_core_genes = {item for sublist in msp_dict.values() for item in sublist}
         gene_count_core = self.gene_count.loc[
-            self.gene_count[self.meteor.gene_column].isin(all_core_genes)
+            self.gene_count["gene_id"].isin(all_core_genes)
         ]
         msp_filter = {
             msp: (
                 gene_count_core.loc[
-                    gene_count_core[self.meteor.gene_column].isin(set_genes),
-                    count_column,
+                    gene_count_core["gene_id"].isin(set_genes),
+                    "value",
                 ]
                 > 0
             ).sum()
@@ -260,8 +264,8 @@ class Profiler(Session):
         msp_table_dict = {
             msp: (
                 gene_count_core.loc[
-                    gene_count_core[self.meteor.gene_column].isin(set_genes),
-                    count_column,
+                    gene_count_core["gene_id"].isin(set_genes),
+                    "value",
                 ].mean()
                 if msp_filter[msp] >= filter_pc
                 else 0
@@ -269,11 +273,9 @@ class Profiler(Session):
             for (msp, set_genes) in msp_dict.items()
         }
         self.msp_table = (
-            pd.DataFrame.from_dict(
-                msp_table_dict, orient="index", columns=[self.meteor.value_column]
-            )
+            pd.DataFrame.from_dict(msp_table_dict, orient="index", columns=["value"])
             .reset_index()
-            .rename(columns={"index": self.meteor.msp_column})
+            .rename(columns={"index": "msp_name"})
         )
 
     def get_msp_core(self, msp_def_filename: Path, core_size: int) -> dict:
@@ -285,10 +287,10 @@ class Profiler(Session):
         # Load msp file
         msp_df = pd.read_table(msp_def_filename)
         # Restrict to core
-        msp_df_selection = msp_df.loc[msp_df[self.meteor.gene_class_column] == "core"]
+        msp_df_selection = msp_df.loc[msp_df["gene_category"] == "core"]
         # Return the df as a dict of set
         msp_dict = (
-            msp_df_selection.groupby(self.meteor.msp_column)[self.meteor.gene_column]
+            msp_df_selection.groupby("msp_name")["gene_id"]
             .apply(lambda x: set(x.head(core_size)))
             .to_dict()
         )
@@ -299,18 +301,17 @@ class Profiler(Session):
 
         :param msp_def_filename: A path object pointing to an MSP definition file.
         """
-        count_column = self.meteor.value_column
         # Load msp file
         msp_df = pd.read_table(msp_def_filename)
         # Get the ensemble of genes used in MSP
-        all_msp_genes = msp_df[self.meteor.gene_column].unique()
+        all_msp_genes = msp_df["gene_id"].unique()
         # Get the percentage of reads that map on an MSP
         msp_reads_pc = (
             self.gene_count.loc[
-                self.gene_count[self.meteor.gene_column].isin(all_msp_genes),
-                count_column,
+                self.gene_count["gene_id"].isin(all_msp_genes),
+                "value",
             ].sum()
-            / self.gene_count[count_column].sum()
+            / self.gene_count["value"].sum()
         )
         return round(msp_reads_pc, 2)
 
@@ -319,20 +320,17 @@ class Profiler(Session):
 
         :param annot_file: a path object pointing to the annotation gene_name -> enzyme file.
         """
-        count_column = self.meteor.value_column
         # Load annotation file
         annot_df = pd.read_table(annot_file)
         # Merge count table and gene annotation
         merged_df = pd.merge(
             annot_df,
             self.gene_count,
-            left_on=self.meteor.gene_column,
-            right_on=self.meteor.gene_column,
+            left_on="gene_id",
+            right_on="gene_id",
         )
         # Compute sum of KO
-        aggregated_count = (
-            merged_df.groupby(self.meteor.ko_column)[count_column].sum().reset_index()
-        )
+        aggregated_count = merged_df.groupby("annotation")["value"].sum().reset_index()
         self.functions = aggregated_count
 
     def compute_ko_abundance_by_msp(
@@ -346,40 +344,34 @@ class Profiler(Session):
         # Load annotation file
         annot_df = pd.read_table(annot_file)
         # Get KO list
-        all_ko = annot_df[self.meteor.ko_column].unique()
+        all_ko = annot_df["annotation"].unique()
         # Load MSP file
         msp_df = pd.read_table(msp_def_filename)
         # Merge both data frames
         msp_df_annotated = pd.merge(msp_df, annot_df)
         # Restrict to detected genes
-        detected_genes = self.gene_count.loc[
-            self.gene_count[self.meteor.value_column] > 0, self.meteor.gene_column
-        ]
+        detected_genes = self.gene_count.loc[self.gene_count["value"] > 0, "gene_id"]
         msp_df_annotated = msp_df_annotated.loc[
-            msp_df_annotated[self.meteor.gene_column].isin(detected_genes)
+            msp_df_annotated["gene_id"].isin(detected_genes)
         ]
         # Create a dict ko: {msp1, msp2}
         ko_dict = (
-            msp_df_annotated.groupby(self.meteor.ko_column)[self.meteor.msp_column]
-            .apply(set)
-            .to_dict()
+            msp_df_annotated.groupby("annotation")["msp_name"].apply(set).to_dict()
         )
         # Loop on all_ko since some ko have no msp or ne detected genes
         ko_dict_ab = {
             ko: self.msp_table.loc[
-                self.msp_table[self.meteor.msp_column].isin(ko_dict[ko]),
-                self.meteor.value_column,
+                self.msp_table["msp_name"].isin(ko_dict[ko]),
+                "value",
             ].sum()
             if ko in ko_dict
             else 0
             for ko in all_ko
         }
         self.functions = (
-            pd.DataFrame.from_dict(
-                ko_dict_ab, orient="index", columns=[self.meteor.value_column]
-            )
+            pd.DataFrame.from_dict(ko_dict_ab, orient="index", columns=["value"])
             .reset_index()
-            .rename(columns={"index": self.meteor.ko_column})
+            .rename(columns={"index": "annotation"})
         )
 
     def compute_ko_stats(
@@ -391,7 +383,6 @@ class Profiler(Session):
         :param by_msp: should the genes be restricted to those belonging to an MSP
         :param msp_def_filename: A path object pointing to an MSP definition file.
         """
-        count_column = self.meteor.value_column
         # Load annotation file
         annot_df = pd.read_table(annot_file)
         if by_msp:
@@ -400,14 +391,14 @@ class Profiler(Session):
             # Merge both data frames
             annot_df = pd.merge(msp_df, annot_df)
         # Get the genes in MSP AND annotated
-        all_msp_genes = annot_df[self.meteor.gene_column].unique()
+        all_msp_genes = annot_df["gene_id"].unique()
         # Get the percentage of reads that map on these genes
         annot_reads_pc = (
             self.gene_count.loc[
-                self.gene_count[self.meteor.gene_column].isin(all_msp_genes),
-                count_column,
+                self.gene_count["gene_id"].isin(all_msp_genes),
+                "value",
             ].sum()
-            / self.gene_count[count_column].sum()
+            / self.gene_count["value"].sum()
         )
         return round(annot_reads_pc, 2)
 
@@ -419,31 +410,26 @@ class Profiler(Session):
         :param msp_file: path to the msp definition file
         :param annot_file: path to the gene functional annotation file
         """
-        count_column = self.meteor.value_column
         # Load files
         msp_df = pd.read_table(msp_file)
         # Restrict df to detected genes
-        detected_genes = self.gene_count.loc[
-            self.gene_count[count_column] > 0, self.meteor.gene_column
-        ]
-        msp_df = msp_df.loc[msp_df[self.meteor.gene_column].isin(detected_genes)]
+        detected_genes = self.gene_count.loc[self.gene_count["value"] > 0, "gene_id"]
+        msp_df = msp_df.loc[msp_df["gene_id"].isin(detected_genes)]
         # Restrict df to detected msp
         msp_df = msp_df.loc[
-            msp_df[self.meteor.msp_column].isin(
-                self.msp_table.loc[
-                    self.msp_table[self.meteor.value_column] > 0, self.meteor.msp_column
-                ]
+            msp_df["msp_name"].isin(
+                self.msp_table.loc[self.msp_table["value"] > 0, "msp_name"]
             )
         ]
         # Merge each provided db
         annot_df = pd.concat(
             [
-                pd.read_table(db)[[self.meteor.gene_column, self.meteor.ko_column]]
+                pd.read_table(db)[["gene_id", "annotation"]]
                 for db in annot_file.values()
             ],
             ignore_index=True,
         )
-        annot_df = annot_df.loc[annot_df[self.meteor.gene_column].isin(detected_genes)]
+        annot_df = annot_df.loc[annot_df["gene_id"].isin(detected_genes)]
         annotated_msp_df = msp_df.merge(annot_df)
         return annotated_msp_df
 
@@ -457,7 +443,7 @@ class Profiler(Session):
         of all MSP.
         """
         return (
-            annotated_msp.groupby(self.meteor.msp_column)[self.meteor.ko_column]
+            annotated_msp.groupby("msp_name")["annotation"]
             .apply(lambda x: self.compute_max(mod, set(x)))
             .to_dict()
         )
@@ -500,7 +486,6 @@ class Profiler(Session):
         :param all_mod: dictionnary of all modules with their list of alternatives
         :param completeness: KO ratio above which a module is set as present in an MSP
         """
-        count_column = self.meteor.value_column
         # Merge the data
         annotated_msp = self.merge_catalogue_info(
             msp_file=msp_file, annot_file=annot_file
@@ -516,8 +501,8 @@ class Profiler(Session):
             .reset_index()
             .rename(
                 columns={
-                    "index": self.meteor.msp_column,
-                    "variable": self.meteor.module_column,
+                    "index": "msp_name",
+                    "variable": "mod_id",
                 }
             )
         )
@@ -529,16 +514,14 @@ class Profiler(Session):
         # Compute module abundance
         module_abundance = {
             mod: self.msp_table.loc[
-                self.msp_table[self.meteor.msp_column].isin(msp_set), count_column
+                self.msp_table["msp_name"].isin(msp_set), "value"
             ].sum()
             for (mod, msp_set) in mod_dict.items()
         }
         self.mod_table = (
-            pd.DataFrame.from_dict(
-                module_abundance, orient="index", columns=[self.meteor.value_column]
-            )
+            pd.DataFrame.from_dict(module_abundance, orient="index", columns=["value"])
             .reset_index()
-            .rename(columns={"index": self.meteor.module_column})
+            .rename(columns={"index": "mod_id"})
         )
 
     def execute(self) -> bool:
@@ -559,7 +542,9 @@ class Profiler(Session):
             logging.info("No rarefaction.")
         if self.normalization == "coverage":
             logging.info("Run coverage normalization.")
-            self.normalize_coverage()
+            self.normalize_coverage(
+                trim_length=int(self.sample_config["mapping"]["trim"])
+            )
         elif self.normalization == "fpkm":
             logging.info("Run fpkm normalization.")
             self.normalize_fpkm(
@@ -579,8 +564,8 @@ class Profiler(Session):
         config_stats["gene_count"] = str(
             len(
                 self.gene_count.loc[
-                    self.gene_count[self.meteor.value_column] > 0,
-                    self.meteor.gene_column,
+                    self.gene_count["value"] > 0,
+                    "gene_id",
                 ]
             )
         )
@@ -606,8 +591,8 @@ class Profiler(Session):
         config_stats["msp_count"] = str(
             len(
                 self.msp_table.loc[
-                    self.msp_table[self.meteor.value_column] > 0,
-                    self.meteor.msp_column,
+                    self.msp_table["value"] > 0,
+                    "msp_name",
                 ]
             )
         )

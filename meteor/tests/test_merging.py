@@ -89,9 +89,10 @@ def test_extract_ini_info(merging_profiles: Merging) -> None:
         config,
         param_dict={
             "profiling_parameters": ["msp_filter", "modules_def"],
-            "mapping_file": [],
+            "mapping_file": [""],
         },
     )
+    print(info)
     assert info == {
         "msp_filter": "0.1",
         "modules_def": "GMM_definition.tsv",
@@ -112,7 +113,7 @@ def test_compare(merging_profiles: Merging) -> None:
     # Define parameters that will be checked
     param_to_check = {
         "mapping": ["reference_name", "mapping_options", "database_type"],
-        "profiling_parameters": [],
+        "profiling_parameters": [""],
     }
     # Retrieve information about parameters
     all_information = {
