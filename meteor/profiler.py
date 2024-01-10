@@ -135,21 +135,6 @@ class Profiler(Session):
                     / self.ref_config["annotation"][db]
                 )
                 assert self.db_filenames[db].is_file()
-            # self.db_filenames["kegg"] = (
-            #     self.meteor.ref_dir
-            #     / self.ref_config["reference_file"]["database_dir"]
-            #     / self.ref_config["annotation"]["kegg"]
-            # )
-            # self.db_filenames["mustard"] = (
-            #     self.meteor.ref_dir
-            #     / self.ref_config["reference_file"]["database_dir"]
-            #     / self.ref_config["annotation"]["mustard"]
-            # )
-            # self.db_filenames["dbcan"] = (
-            #     self.meteor.ref_dir
-            # )
-            # for db in self.db_filenames:
-            #     assert self.db_filenames[db].is_file()
 
             # Initialize the module definition file
             self.module_path = (
@@ -206,20 +191,36 @@ class Profiler(Session):
 
         :param trim_length: length used in bowtie2 to trim reads before mapping.
         """
-        self.gene_count["value"] = [
-            100.0 * row["value"] / (row["gene_length"] - trim_length + 1)
-            if row["gene_length"] >= 2 * trim_length
-            else 100.0
-            * row["value"]
-            * 4
-            * trim_length
-            / (row["gene_length"] * (row["gene_length"] + 2))
-            if row["gene_length"] >= trim_length
-            and row["gene_length"] < 2 * trim_length
-            and row["gene_length"] % 2 == 0
-            else 100.0 * row["value"] * 4 * trim_length / (row["gene_length"] + 1) ** 2
-            for _, row in self.gene_count.iterrows()
+        condlist = [
+            self.gene_count["gene_length"] >= 2 * trim_length,
+            self.gene_count["gene_length"] % 2 == 0,
+            self.gene_count["gene_length"] % 2 == 1,
         ]
+
+        choicelist = [
+            (100.0 * self.gene_count["value"])
+            / (self.gene_count["gene_length"] - trim_length + 1),
+            (100.0 * self.gene_count["value"] * 4 * trim_length)
+            / (self.gene_count["gene_length"] * (self.gene_count["gene_length"] + 2)),
+            (100.0 * self.gene_count["value"] * 4 * trim_length)
+            / (self.gene_count["gene_length"] + 1) ** 2,
+        ]
+        self.gene_count["value"] = np.select(condlist, choicelist)
+
+        # self.gene_count["value"] = [
+        #     100.0 * row["value"] / (row["gene_length"] - trim_length + 1)
+        #     if row["gene_length"] >= 2 * trim_length
+        #     else 100.0
+        #     * row["value"]
+        #     * 4
+        #     * trim_length
+        #     / (row["gene_length"] * (row["gene_length"] + 2))
+        #     if row["gene_length"] >= trim_length
+        #     and row["gene_length"] < 2 * trim_length
+        #     and row["gene_length"] % 2 == 0
+        #     else 100.0 * row["value"] * 4 * trim_length / (row["gene_length"] + 1) ** 2
+        #     for _, row in self.gene_count.iterrows()
+        # ]
 
     def normalize_fpkm(self, rarefaction_level: int, unmapped_reads: int) -> None:
         """Normalize matrix using fpkm method
