@@ -128,18 +128,28 @@ class Profiler(Session):
         # Get functional db filenames
         if self.database_type == "complete":
             self.db_filenames = {}
-            self.db_filenames["kegg"] = (
-                self.meteor.ref_dir
-                / self.ref_config["reference_file"]["database_dir"]
-                / self.ref_config["annotation"]["kegg"]
-            )
-            self.db_filenames["mustard"] = (
-                self.meteor.ref_dir
-                / self.ref_config["reference_file"]["database_dir"]
-                / self.ref_config["annotation"]["mustard"]
-            )
-            for db in self.db_filenames:
+            for db in ["kegg", "mustard", "dbcan"]:
+                self.db_filenames[db] = (
+                    self.meteor.ref_dir
+                    / self.ref_config["reference_file"]["database_dir"]
+                    / self.ref_config["annotation"][db]
+                )
                 assert self.db_filenames[db].is_file()
+            # self.db_filenames["kegg"] = (
+            #     self.meteor.ref_dir
+            #     / self.ref_config["reference_file"]["database_dir"]
+            #     / self.ref_config["annotation"]["kegg"]
+            # )
+            # self.db_filenames["mustard"] = (
+            #     self.meteor.ref_dir
+            #     / self.ref_config["reference_file"]["database_dir"]
+            #     / self.ref_config["annotation"]["mustard"]
+            # )
+            # self.db_filenames["dbcan"] = (
+            #     self.meteor.ref_dir
+            # )
+            # for db in self.db_filenames:
+            #     assert self.db_filenames[db].is_file()
 
             # Initialize the module definition file
             self.module_path = (
@@ -607,7 +617,7 @@ class Profiler(Session):
         # Part 3: FUNCTIONAL PROFILING
         if self.database_type == "complete":
             single_fun_db = ["mustard"]
-            single_fun_by_msp_db = [""]
+            single_fun_by_msp_db = ["dbcan"]
             for db, db_filename in self.db_filenames.items():
                 # By sum of genes
                 if db in single_fun_db:
@@ -615,7 +625,8 @@ class Profiler(Session):
                     self.compute_ko_abundance(annot_file=db_filename)
                     logging.info("Save functional profiles table.")
                     fun_table_file = (
-                        self.stage2_dir / f"{self.output_base_filename}_{db}.tsv"
+                        self.stage2_dir
+                        / f"{self.output_base_filename}_{db}_as_genes_sum.tsv"
                     )
                     self.functions.to_csv(fun_table_file, sep="\t", index=False)
 
@@ -628,7 +639,7 @@ class Profiler(Session):
 
                     # Update config file
                     config_param[f"{db}_filename"] = self.db_filenames[db].name
-                    config_stats[f"{db}_signal"] = str(functional_stats)
+                    config_stats[f"{db}_signal_by_genes"] = str(functional_stats)
                 # By sum of MSPs
                 if db in single_fun_by_msp_db:
                     logging.info("Compute %s abundances as sum of MSP abundances.", db)
@@ -637,7 +648,8 @@ class Profiler(Session):
                     )
                     logging.info("Save functional profiles table.")
                     fun_table_file = (
-                        self.stage2_dir / f"{self.output_base_filename}_{db}_by_msp.tsv"
+                        self.stage2_dir
+                        / f"{self.output_base_filename}_{db}_as_msp_sum.tsv"
                     )
                     self.functions.to_csv(fun_table_file, sep="\t", index=False)
 

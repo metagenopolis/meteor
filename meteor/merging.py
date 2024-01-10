@@ -174,19 +174,6 @@ class Merging(Session):
             sys.exit()
         else:
             logging.info("%s census files have been detected.", str(len(all_census)))
-        # Check that all census have the same stage
-        # all_census_stage = set(self.extract_census_stage(all_census))
-        # if len(all_census_stage) > 1:
-        #     logging.error(
-        #         "More than one type of census stage file have been detected: %s",
-        #         ",".join(map(str, all_census_stage)),
-        #     )
-        #     logging.error("Potential mix between mapping output and profile output.")
-        #     sys.exit()
-        # else:
-        #     census_stage = list(all_census_stage)[0]
-        #     assert census_stage in [1, 2]
-        #     logging.info("Exactly one type of census found: %s", str(census_stage))
 
         # Create the dict: path -> ConfigParser
         all_census_dict = {
@@ -272,7 +259,8 @@ class Merging(Session):
                 "mod_id",
             ]
             list_pattern_to_merge["_modules.tsv"] = ["mod_id"]
-            list_pattern_to_merge["_mustard.tsv"] = ["annotation"]
+            list_pattern_to_merge["_mustard_as_genes_sum.tsv"] = ["annotation"]
+            list_pattern_to_merge["_dbcan_as_msp_sum.tsv"] = ["annotation"]
         for my_pattern in list_pattern_to_merge:
             logging.info("Fetching output files with pattern %s", my_pattern)
             files_to_merge = self.find_files_to_merge(

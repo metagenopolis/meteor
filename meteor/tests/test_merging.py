@@ -202,7 +202,8 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
         "raw.tsv",
         "genes.tsv",
         "msp.tsv",
-        "mustard.tsv",
+        "mustard_as_genes_sum.tsv",
+        "dbcan_as_msp_sum.tsv",
         "modules.tsv",
         "modules_completeness.tsv",
     ]
@@ -219,37 +220,7 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
         assert real_output_df.round(10).equals(expected_output_df.round(10))
 
 
-# def test_execute2(merging_mapping: Merging, datadir: Path) -> None:
-#     merging_mapping.execute()
-
-#     # Check report
-#     real_output = merging_mapping.output / "my_test_report.tsv"
-#     assert real_output.exists()
-#     expected_output = (
-#         datadir / "expected_output" / "test_project_census_stage_1_report.tsv"
-#     )
-#     real_output_df = pd.read_table(real_output)
-#     expected_output_df = pd.read_table(expected_output)
-#     real_output_df = real_output_df.sort_values(by=["sample"]).reset_index(drop=True)
-#     expected_output_df = expected_output_df.sort_values(by=["sample"]).reset_index(
-#         drop=True
-#     )
-#     assert real_output_df.round(2).equals(expected_output_df.round(2))
-
-#     # Check existence and content of raw gene table
-#     real_output = merging_mapping.output / "my_test.tsv"
-#     expected_output = datadir / "expected_output" / "test_project.tsv"
-#     assert real_output.exists()
-#     real_output_df = pd.read_table(real_output).reindex(
-#         sorted(real_output_df.columns), axis=1
-#     )
-#     expected_output_df = pd.read_table(expected_output).reindex(
-#         sorted(expected_output_df.columns), axis=1
-#     )
-#     assert real_output_df.round(10).equals(expected_output_df.round(10))
-
-
-def test_execute3(merging_fast: Merging, datadir: Path) -> None:
+def test_execute2(merging_fast: Merging, datadir: Path) -> None:
     merging_fast.execute()
 
     # Check report
@@ -271,7 +242,8 @@ def test_execute3(merging_fast: Merging, datadir: Path) -> None:
         "raw.tsv",
         "genes.tsv",
         "msp.tsv",
-        "mustard.tsv",
+        "mustard_as_genes_sum.tsv",
+        "dbcan_as_msp_sum.tsv",
         "modules.tsv",
         "modules_completeness.tsv",
     ]

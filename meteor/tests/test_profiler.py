@@ -289,10 +289,11 @@ def test_merge_catalogue_info(profiler_standard: Profiler, datadir: Path) -> Non
         profiler_standard.msp_filename, core_size=4
     )
     profiler_standard.compute_msp(msp_dict=msp_set, filter_pc=0.5)
-    # Merge information
+    # Merge information for KEGG and MUSTARD
+    db_to_merge = {db: profiler_standard.db_filenames[db] for db in ["kegg", "mustard"]}
     merged_catalogue = profiler_standard.merge_catalogue_info(
         msp_file=profiler_standard.msp_filename,
-        annot_file=profiler_standard.db_filenames,
+        annot_file=db_to_merge,
     )
     # Order rows
     merged_catalogue = merged_catalogue.sort_values(
@@ -458,7 +459,7 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     # Check functions as sum of genes (mustard only)
     fun_table_file = (
         profiler_standard.stage2_dir
-        / f"{profiler_standard.output_base_filename}_mustard.tsv"
+        / f"{profiler_standard.output_base_filename}_mustard_as_genes_sum.tsv"
     )
     fun_table = pd.read_table(fun_table_file)
     fun_table["value"] = fun_table["value"].round(6)
@@ -466,20 +467,17 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         datadir / "expected_output" / "sample_no_rf_no_norm_mustard.tsv"
     )
     assert fun_table.equals(expected_output)
-    # Non check functions as sum of MSP
-    # fun_table_file = (
-    #     profiler_standard.meteor.profile_dir
-    #     / f"{profiler_standard.output_base_filename}_kegg_by_msp.tsv"
-    # )
-    # fun_table = pd.read_table(fun_table_file)
-    # fun_table["value"] = fun_table[
-    #     "value"
-    # ].round(6)
-    # expected_output = pd.read_table(
-    #     datadir / "expected_output" / "sample_no_rf_no_norm_kegg_by_msp.tsv"
-    # )
-    # assert fun_table.equals(expected_output)
-    # assert fun_table_file.with_suffix(".ini").exists()
+    # Check functions as sum of MSP
+    fun_table_file = (
+        profiler_standard.stage2_dir
+        / f"{profiler_standard.output_base_filename}_dbcan_as_msp_sum.tsv"
+    )
+    fun_table = pd.read_table(fun_table_file)
+    fun_table["value"] = fun_table["value"].round(6)
+    expected_output = pd.read_table(
+        datadir / "expected_output" / "sample_no_rf_no_norm_dbcan_by_msp.tsv"
+    )
+    assert fun_table.equals(expected_output)
     # Check modules
     # 1. Module abundance table
     module_table_file = (
