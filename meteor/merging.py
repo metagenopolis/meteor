@@ -20,7 +20,6 @@ import pandas as pd
 from pathlib import Path
 import logging
 import sys
-import re
 from functools import reduce
 
 
@@ -234,18 +233,7 @@ class Merging(Session):
             }
             for key, config_parser in all_census_dict.items()
         }
-        # param_to_save = {
-        #     "mapping": [
-        #         "total_read_count",
-        #         "mapped_read_count",
-        #         "overall_alignment_rate",
-        #     ],
-        #     "profiling_stats": [""],
-        # }
-        # all_information_to_save = {
-        #     my_sample: self.extract_ini_info(all_census_dict[my_path], param_to_save)
-        #     for my_sample, my_path in all_samples_dict.items()
-        # }
+
         all_information_to_save_df = (
             pd.DataFrame.from_dict(all_information_to_save)
             .transpose()
