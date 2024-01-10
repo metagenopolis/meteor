@@ -225,18 +225,27 @@ class Merging(Session):
 
         # Merge ini information
         logging.info("Merging ini information...")
-        param_to_save = {
-            "mapping": [
-                "total_read_count",
-                "mapped_read_count",
-                "overall_alignment_rate",
-            ],
-            "profiling_stats": [""],
-        }
+        # Get all values from all fields from all sections from all ini files
         all_information_to_save = {
-            my_sample: self.extract_ini_info(all_census_dict[my_path], param_to_save)
-            for my_sample, my_path in all_samples_dict.items()
+            key.name: {
+                option: value
+                for section in config_parser.sections()
+                for option, value in config_parser.items(section)
+            }
+            for key, config_parser in all_census_dict.items()
         }
+        # param_to_save = {
+        #     "mapping": [
+        #         "total_read_count",
+        #         "mapped_read_count",
+        #         "overall_alignment_rate",
+        #     ],
+        #     "profiling_stats": [""],
+        # }
+        # all_information_to_save = {
+        #     my_sample: self.extract_ini_info(all_census_dict[my_path], param_to_save)
+        #     for my_sample, my_path in all_samples_dict.items()
+        # }
         all_information_to_save_df = (
             pd.DataFrame.from_dict(all_information_to_save)
             .transpose()

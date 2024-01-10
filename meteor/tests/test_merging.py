@@ -191,9 +191,15 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
     )
     real_output_df = pd.read_table(real_output)
     expected_output_df = pd.read_table(expected_output)
-    real_output_df = real_output_df.sort_values(by=["sample"]).reset_index(drop=True)
-    expected_output_df = expected_output_df.sort_values(by=["sample"]).reset_index(
-        drop=True
+    real_output_df = (
+        real_output_df.sort_values(by=["sample"])
+        .reset_index(drop=True)
+        .reindex(sorted(real_output_df.columns), axis=1)
+    )
+    expected_output_df = (
+        expected_output_df.sort_values(by=["sample"])
+        .reset_index(drop=True)
+        .reindex(sorted(expected_output_df.columns), axis=1)
     )
     assert real_output_df.round(2).equals(expected_output_df.round(2))
 
@@ -231,9 +237,15 @@ def test_execute2(merging_fast: Merging, datadir: Path) -> None:
     )
     real_output_df = pd.read_table(real_output)
     expected_output_df = pd.read_table(expected_output)
-    real_output_df = real_output_df.sort_values(by=["sample"]).reset_index(drop=True)
-    expected_output_df = expected_output_df.sort_values(by=["sample"]).reset_index(
-        drop=True
+    real_output_df = (
+        real_output_df.sort_values(by=["sample"])
+        .reset_index(drop=True)
+        .reindex(sorted(real_output_df.columns), axis=1)
+    )
+    expected_output_df = (
+        expected_output_df.sort_values(by=["sample"])
+        .reset_index(drop=True)
+        .reindex(sorted(expected_output_df.columns), axis=1)
     )
     assert real_output_df.round(2).equals(expected_output_df.round(2))
 
