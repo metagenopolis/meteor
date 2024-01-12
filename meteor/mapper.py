@@ -110,7 +110,12 @@ class Mapper(Session):
             .split("\\n")[0]
             .split(" ")[2]
         )
-        if parse(bowtie_version) < Version("2.3.5"):
+        if bowtie_version.returncode != 0:
+            logging.error(
+                "bowtie2 failed with error code: {}".format(bowtie_version.returncode)
+            )
+            sys.exit()
+        elif parse(bowtie_version) < Version("2.3.5"):
             logging.error(
                 "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2 to >=2.3.5.",
                 bowtie_version,
@@ -132,6 +137,11 @@ class Mapper(Session):
             ],
             capture_output=True,
         ).stderr.decode("utf-8")
+        if mapping_result.returncode != 0:
+            logging.error(
+                "bowtie2 failed with error code: {}".format(mapping_result.returncode)
+            )
+            sys.exit()
         try:
             mapping_log = findall(r"([0-9]+)\s+\(", mapping_result)
             assert len(mapping_log) == 4

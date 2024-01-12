@@ -125,7 +125,14 @@ class VariantCalling(Session):
             .split("\n")[0]
             .split(" ")[1]
         )
-        if parse(bcftools_version) < Version("0.1.19"):
+        if bcftools_version.returncode != 0:
+            logging.error(
+                "bcftools failed with error code: {}".format(
+                    bcftools_version.returncode
+                )
+            )
+            sys.exit()
+        elif parse(bcftools_version) < Version("0.1.19"):
             logging.error(
                 "Error, the bcftools version %s is outdated for meteor. Please update bcftools to >= 0.1.19.",
                 bcftools_version,
@@ -136,7 +143,14 @@ class VariantCalling(Session):
             .stdout.decode("utf-8")
             .split(" ")[1][1:]
         )
-        if parse(bedtools_version) < Version("2.18"):
+        if bedtools_version.returncode != 0:
+            logging.error(
+                "bedtools failed with error code: {}".format(
+                    bedtools_version.returncode
+                )
+            )
+            sys.exit()
+        elif parse(bedtools_version) < Version("2.18"):
             logging.error(
                 "Error, the bedtools version %s is outdated for meteor. Please update bedtools to >= 2.18.",
                 bedtools_version,
