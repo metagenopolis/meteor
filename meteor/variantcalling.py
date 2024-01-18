@@ -12,7 +12,7 @@
 
 """Effective variant calling"""
 
-from subprocess import check_call, run
+from subprocess import check_call, run, SubprocessError
 from dataclasses import dataclass
 from pathlib import Path
 from configparser import ConfigParser
@@ -119,38 +119,32 @@ class VariantCalling(Session):
             / self.census["reference"]["reference_file"]["database_dir"]
             / self.census["reference"]["annotation"]["bed"]
         )
-        bcftools_version = (
-            run(["bcftools", "--version"], capture_output=True)
-            .stdout.decode("utf-8")
-            .split("\n")[0]
-            .split(" ")[1]
-        )
-        if bcftools_version.returncode != 0:
-            logging.error(
-                "bcftools failed with error code: {}".format(
-                    bcftools_version.returncode
-                )
+        try:
+            bcftools_version = (
+                run(["bcftools", "--version"], capture_output=True, check=True)
+                .stdout.decode("utf-8")
+                .split("\n")[0]
+                .split(" ")[1]
             )
+        except SubprocessError:
+            logging.error("Checking bcftools failed:\n%s" % bcftools_version)
             sys.exit()
-        elif parse(bcftools_version) < Version("0.1.19"):
+        if parse(bcftools_version) < Version("0.1.19"):
             logging.error(
                 "Error, the bcftools version %s is outdated for meteor. Please update bcftools to >= 0.1.19.",
                 bcftools_version,
             )
             sys.exit()
-        bedtools_version = (
-            run(["bedtools", "--version"], capture_output=True)
-            .stdout.decode("utf-8")
-            .split(" ")[1][1:]
-        )
-        if bedtools_version.returncode != 0:
-            logging.error(
-                "bedtools failed with error code: {}".format(
-                    bedtools_version.returncode
-                )
+        try:
+            bedtools_version = (
+                run(["bedtools", "--version"], capture_output=True, check=True)
+                .stdout.decode("utf-8")
+                .split(" ")[1][1:]
             )
+        except SubprocessError:
+            logging.error("Check bedtools failed:\n%s" % bedtools_version)
             sys.exit()
-        elif parse(bedtools_version) < Version("2.18"):
+        if parse(bedtools_version) < Version("2.18"):
             logging.error(
                 "Error, the bedtools version %s is outdated for meteor. Please update bedtools to >= 2.18.",
                 bedtools_version,
