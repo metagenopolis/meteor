@@ -12,7 +12,7 @@
 
 """Effective mapping"""
 
-from subprocess import run, SubprocessError
+from subprocess import run
 from dataclasses import dataclass
 from pathlib import Path
 from configparser import ConfigParser
@@ -105,20 +105,15 @@ class Mapper(Session):
             # and self.counting_type != "best"
             parameters += f"-k {self.alignment_number} "
         # Check the bowtie2 version
-        try:
-            bowtie_version = (
-                str(
-                    run(
-                        ["bowtie2", "--version"], capture_output=True, check=True
-                    ).stdout
-                )
-                .split("\\n")[0]
-                .split(" ")[2]
+        bowtie_exec = run(["bowtie2", "--version"], capture_output=True)
+        bowtie_version = str(bowtie_exec.stdout).split("\\n")[0].split(" ")[2]
+        if bowtie_exec.returncode != 0:
+            logging.error(
+                "Checking bowtie2 version failed:\n%s",
+                bowtie_exec.stderr.decode("utf-8"),
             )
-        except SubprocessError:
-            logging.error("Checking bowtie2 version failed:\n%s", bowtie_version)
             sys.exit()
-        if parse(bowtie_version) < Version("2.3.5"):
+        elif parse(bowtie_version) < Version("2.3.5"):
             logging.error(
                 "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2 to >=2.3.5.",
                 bowtie_version,
@@ -126,24 +121,23 @@ class Mapper(Session):
             sys.exit()
         # Start mapping
         start = perf_counter()
-        try:
-            mapping_result = run(
-                [
-                    "bowtie2",
-                    parameters,
-                    "--mm --no-unal",
-                    "-x",
-                    str(bowtie_index.resolve()),
-                    "-U",
-                    ",".join(self.fastq_list),
-                    "-S",
-                    str(sam_file.resolve()),
-                ],
-                capture_output=True,
-                check=True,
-            ).stderr.decode("utf-8")
-        except SubprocessError:
-            logging.error("bowtie2 failed:\n%s", mapping_result)
+        mapping_exec = run(
+            [
+                "bowtie2",
+                parameters,
+                "--mm --no-unal",
+                "-x",
+                str(bowtie_index.resolve()),
+                "-U",
+                ",".join(self.fastq_list),
+                "-S",
+                str(sam_file.resolve()),
+            ],
+            capture_output=True,
+        )
+        mapping_result = mapping_exec.stderr.decode("utf-8")
+        if mapping_exec.returncode != 0:
+            logging.error("bowtie2 failed:\n%s" % mapping_result)
             sys.exit()
         try:
             mapping_log = findall(r"([0-9]+)\s+\(", mapping_result)

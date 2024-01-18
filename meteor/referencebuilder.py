@@ -130,13 +130,15 @@ class ReferenceBuilder(Session):
         # Prepare the reference for meteor
         self.create_reference()
         # Check the bowtie2 version
-        bowtie_version = (
-            run(["bowtie2", "--version"], capture_output=True)
-            .stdout.decode("utf-8")
-            .split(" ")[2]
-            .split("\n")[0]
-        )
-        if parse(bowtie_version) < Version("2.3.5"):
+        bowtie_exec = run(["bowtie2", "--version"], capture_output=True)
+        bowtie_version = bowtie_exec.stdout.decode("utf-8").split(" ")[2].split("\n")[0]
+        if bowtie_exec.returncode != 0:
+            logging.error(
+                "Checking bowtie2 version failed:\n%s",
+                bowtie_exec.stderr.decode("utf-8"),
+            )
+            sys.exit()
+        elif parse(bowtie_version) < Version("2.3.5"):
             logging.error(
                 "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.",
                 bowtie_version,
