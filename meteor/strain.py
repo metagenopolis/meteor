@@ -45,9 +45,9 @@ class Strain(Session):
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.strain_dir.mkdir(exist_ok=True, parents=True)
 
-    def filter_coverage(self, bam_file: Path, bed_file: Path) -> pd.DataFrame:
+    def filter_coverage(self, cram_file: Path, bed_file: Path) -> pd.DataFrame:
         """Filter gene coverage
-        :param bam_file: (Path) Path to the bam file
+        :param cram_file: (Path) Path to the cram file
         :param bed_file: (Path) Path to the bed file
         :return: (pd.DataFrame) Return a matrix with gene having a coverage above threshold
         """
@@ -63,7 +63,7 @@ class Strain(Session):
             header=1,
         )
         cov_df = pd.read_csv(
-            StringIO(coverage("-d", str(self.max_depth), str(bam_file.resolve()))),
+            StringIO(coverage("-d", str(self.max_depth), str(cram_file.resolve()))),
             sep="\t",
             header=1,
             names=[
@@ -85,7 +85,7 @@ class Strain(Session):
         return filtered_df
 
         # for gene, startpos, endpos in gene_interest.itertuples(index=False):
-        #     a = bamdesc.count_coverage(str(gene), start=startpos, stop=endpos)
+        #     a = cramdesc.count_coverage(str(gene), start=startpos, stop=endpos)
         #     print(a)
 
     def get_msp_variant(
@@ -93,14 +93,14 @@ class Strain(Session):
         consensus_file: Path,
         # count_file: Path,
         msp_file: Path,
-        bam_file: Path,
+        cram_file: Path,
         bed_file: Path,
     ) -> None:
         """Produce meaning full msp variants
         :param consensus_file: (Path) A path to consensus file
         :param count_file: (Path) A path to count file
         :param msp_file: (Path) A path to msp file
-        :param bam_file: (Path) A path to bam file
+        :param cram_file: (Path) A path to cram file
         :param bed_file: (Path) A path to bed file
         """
         # Read the abundance file
@@ -120,7 +120,7 @@ class Strain(Session):
         # filtered_count = count[count["value"] >= self.min_gene_count]
         # Filter for gene with a minimum count
         if self.min_gene_coverage:
-            filtered_coverage = self.filter_coverage(bam_file, bed_file)
+            filtered_coverage = self.filter_coverage(cram_file, bed_file)
             joined_df = msp_content.merge(filtered_coverage, on="gene_id")
             # filtered_coverage = filtered_count.groupby("gene_id")
             # Join the two DataFrames based on gene_id
@@ -230,7 +230,7 @@ class Strain(Session):
                     stage3_dir / f"{sample_info['sample_name']}_census_stage_3.ini"
                 )
 
-                # Get the bam
+                # Get the cram
                 # Get the variant calling
                 # Variant calling this library on the reference
                 variant_calling_process = VariantCalling(
@@ -272,8 +272,9 @@ class Strain(Session):
                 / self.ini_data["reference"]["reference_file"]["database_dir"]
                 / self.ini_data["reference"]["annotation"]["msp"]
             )
-            bam_file = (
-                self.ini_data["mapped_sample_dir"] / f"{sample_info['sample_name']}.bam"
+            cram_file = (
+                self.ini_data["mapped_sample_dir"]
+                / f"{sample_info['sample_name']}.cram"
             )
             bed_file = (
                 self.meteor.ref_dir
@@ -282,7 +283,7 @@ class Strain(Session):
             )
             start = perf_counter()
             # count_file,
-            self.get_msp_variant(consensus_file, msp_file, bam_file, bed_file)
+            self.get_msp_variant(consensus_file, msp_file, cram_file, bed_file)
             logging.info(
                 "Completed strain analysis in %f seconds", perf_counter() - start
             )

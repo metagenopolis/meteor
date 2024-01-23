@@ -283,7 +283,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     mapping_parser.add_argument(
         "--id",
         dest="identity_threshold",
-        type=float,
+        type=isborned01,
         default=0.95,
         help="Aligned reads should have an identity to reference > 0.95 (default)."
         "If 0, no filtering)",
@@ -303,15 +303,15 @@ def get_arguments() -> Namespace:  # pragma: no cover
     )
     mapping_parser.add_argument(
         "--kb",
-        dest="keep_bam",
+        dest="keep_cram",
         action="store_true",
-        help="Save the bam files. Required for strain analysis.",
+        help="Save the cram files. Required for strain analysis.",
     )
     mapping_parser.add_argument(
         "--tmp",
         dest="tmp_path",
         type=isdir,
-        help="Path to the directory where temporary files (e.g. bam) are stored",
+        help="Path to the directory where temporary files (e.g. cram) are stored",
     )
     mapping_parser.add_argument(
         "-t", dest="threads", default=1, type=int, help="Threads count."
@@ -616,7 +616,7 @@ def main() -> None:  # pragma: no cover
             args.identity_threshold,
             args.alignment_number,
             args.keep_sam,
-            args.keep_bam,
+            args.keep_cram,
         )
         counter.execute()
     # Run strain

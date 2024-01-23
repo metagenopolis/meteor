@@ -68,7 +68,7 @@ class Phylogeny(Session):
         """Define the census configuration
 
         :param cmd: A string of the specific parameters
-        :param bam_file: A path to the sam file
+        :param cram_file: A path to the sam file
         :return: (ConfigParser) A configparser object with the census 1 config
         """
         config = ConfigParser()

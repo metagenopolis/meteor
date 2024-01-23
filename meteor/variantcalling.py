@@ -41,7 +41,7 @@ class VariantCalling(Session):
 
     def set_variantcalling_config(
         self,
-        bam_file: Path,
+        cram_file: Path,
         vcf_file: Path,
         consensus_file: Path,
         bcftool_version: str,
@@ -50,7 +50,7 @@ class VariantCalling(Session):
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
-        :param bam_file: A path to the sam file
+        :param cram_file: A path to the sam file
         :return: (ConfigParser) A configparser object with the census 1 config
         """
         config = ConfigParser()
@@ -60,7 +60,7 @@ class VariantCalling(Session):
             "reference_name": self.census["reference"]["reference_info"][
                 "reference_name"
             ],
-            "bam_name": bam_file.name,
+            "cram_name": cram_file.name,
         }
         config["variant_calling"] = {
             "variant_calling_tool": "bcftools",
@@ -97,9 +97,9 @@ class VariantCalling(Session):
     def execute(self) -> bool:
         """Call variants reads"""
         # Start mapping
-        bam_file = (
+        cram_file = (
             self.census["mapped_sample_dir"]
-            / f"{self.census['census']['sample_info']['sample_name']}.bam"
+            / f"{self.census['census']['sample_info']['sample_name']}.cram"
         )
         vcf_file = (
             self.census["directory"]
@@ -163,7 +163,7 @@ class VariantCalling(Session):
                         "-Ob",
                         "-f",
                         str(reference_file.resolve()),
-                        str(bam_file.resolve()),
+                        str(cram_file.resolve()),
                         "--threads",
                         str(self.meteor.threads),
                         "-o",
@@ -222,8 +222,8 @@ class VariantCalling(Session):
                             "bedtools",
                             "genomecov",
                             "-bga",
-                            "-ibam",
-                            str(bam_file.resolve()),
+                            "-icram",
+                            str(cram_file.resolve()),
                         ],
                         capture_output=True,
                     ).stdout.decode("utf-8")
@@ -245,7 +245,7 @@ class VariantCalling(Session):
                     )
         logging.info("Completed SNP calling in %f seconds", perf_counter() - start)
         config = self.set_variantcalling_config(
-            bam_file, vcf_file, consensus_file, bcftools_version, bedtools_version
+            cram_file, vcf_file, consensus_file, bcftools_version, bedtools_version
         )
         self.save_config(config, self.census["Stage3FileName"])
         return True

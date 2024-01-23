@@ -120,16 +120,16 @@ def test_launch_mapping(counter_total: Counter):
     #    assert md5(stage1.read()).hexdigest() == "a8a5b5e400dafb226ce3bab1a2cee69d"
     sam = stage1_dir / "part1.sam"
     assert sam.exists()
-    # bam = stage1_dir / "part1.bam"
-    # bai = stage1_dir / "part1.bam.bai"
-    # assert bam.exists()
+    # cram = stage1_dir / "part1.cram"
+    # bai = stage1_dir / "part1.cram.bai"
+    # assert cram.exists()
     # assert bai.exists()
 
 
 def test_write_table(counter_total: Counter, datadir: Path, tmp_path: Path) -> None:
-    bamfile = datadir / "total.bam"
+    cramfile = datadir / "total.cram"
     output = tmp_path / "total.tsv"
-    counter_total.write_table(bamfile, output)
+    counter_total.write_table(cramfile, output)
     assert output.exists()
     with output.open("rb") as out:
         assert md5(out.read()).hexdigest() == "647decb83957c2d3257c3a13fd399c92"
@@ -143,9 +143,9 @@ def test_write_table(counter_total: Counter, datadir: Path, tmp_path: Path) -> N
 #     49 (2.45%) aligned >1 times
 # 75.15% overall alignment rate
 def test_filter_alignments(counter_total: Counter, datadir: Path) -> None:
-    bamfile = datadir / "total.bam"
-    with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
-        reads, genes = counter_total.filter_alignments(bamdesc)
+    cramfile = datadir / "total.cram"
+    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+        reads, genes = counter_total.filter_alignments(cramdesc)
         # We check that genes and reads are correctly associated
         # 11003 is mapped by two reads
         assert 26485 in genes["1368"]
@@ -161,13 +161,13 @@ def test_filter_alignments(counter_total: Counter, datadir: Path) -> None:
 
 
 def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
-    bamfile = datadir / "total.bam"
-    with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
-        reads, genes = counter_unique.filter_alignments(bamdesc)
+    cramfile = datadir / "total.cram"
+    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+        reads, genes = counter_unique.filter_alignments(cramdesc)
         # print(genes)
-        references = map(int, bamdesc.references)
+        references = map(int, cramdesc.references)
         # get reference length
-        lengths = bamdesc.lengths
+        lengths = cramdesc.lengths
         database = dict(zip(references, lengths))
         (unique_reads, genes_mult, unique_on_gene) = counter_unique.uniq_from_mult(
             reads, genes, database
@@ -182,12 +182,12 @@ def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
 
 
 def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
-    bamfile = datadir / "total.bam"
-    with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
-        reads, genes = counter_smart_shared.filter_alignments(bamdesc)
-        references = map(int, bamdesc.references)
+    cramfile = datadir / "total.cram"
+    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+        reads, genes = counter_smart_shared.filter_alignments(cramdesc)
+        references = map(int, cramdesc.references)
         # get reference length
-        lengths = bamdesc.lengths
+        lengths = cramdesc.lengths
         database = dict(zip(references, lengths))
         (
             unique_reads,
@@ -205,12 +205,12 @@ def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
 
 
 def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> None:
-    bamfile = datadir / "total.bam"
-    with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
-        reads, genes = counter_smart_shared.filter_alignments(bamdesc)
-        references = map(int, bamdesc.references)
+    cramfile = datadir / "total.cram"
+    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+        reads, genes = counter_smart_shared.filter_alignments(cramdesc)
+        references = map(int, cramdesc.references)
         # get reference length
-        lengths = bamdesc.lengths
+        lengths = cramdesc.lengths
         database = dict(zip(references, lengths))
         (
             unique_reads,
@@ -225,12 +225,12 @@ def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> Non
 
 
 def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
-    bamfile = datadir / "total.bam"
-    with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
-        reads, genes = counter_smart_shared.filter_alignments(bamdesc)
-        references = map(int, bamdesc.references)
+    cramfile = datadir / "total.cram"
+    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+        reads, genes = counter_smart_shared.filter_alignments(cramdesc)
+        references = map(int, cramdesc.references)
         # get reference length
-        lengths = bamdesc.lengths
+        lengths = cramdesc.lengths
         database = dict(zip(references, lengths))
         (
             unique_reads,
@@ -245,12 +245,12 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
 
 
 def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
-    bamfile = datadir / "total.bam"
-    with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
-        reads, genes = counter_smart_shared.filter_alignments(bamdesc)
-        references = map(int, bamdesc.references)
+    cramfile = datadir / "total.cram"
+    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+        reads, genes = counter_smart_shared.filter_alignments(cramdesc)
+        references = map(int, cramdesc.references)
         # get reference length
-        lengths = bamdesc.lengths
+        lengths = cramdesc.lengths
         database = dict(zip(references, lengths))
         (
             unique_reads,
@@ -274,34 +274,34 @@ def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
         assert md5(out.read()).hexdigest() == "0448f393b702b038840f1be20c0f4aa6"
 
 
-def test_save_bam(counter_unique: Counter, datadir: Path, tmp_path: Path) -> None:
-    bamfile = datadir / "total.bam"
-    with AlignmentFile(str(bamfile.resolve()), "rb") as bamdesc:
+def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> None:
+    cramfile = datadir / "total.cram"
+    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
         reads, genes = counter_unique.filter_alignments(
-            bamdesc
+            cramdesc
         )  # pylint: disable=unused-variable
         read_list = list(chain(reads.values()))
         merged_list = list(chain.from_iterable(read_list))
-        tmpbamfile = tmp_path / "test"
-        counter_unique.save_bam(tmpbamfile, bamdesc, merged_list)
-        assert tmpbamfile.exists()
+        tmpcramfile = tmp_path / "test"
+        counter_unique.save_cram(tmpcramfile, cramdesc, merged_list)
+        assert tmpcramfile.exists()
         # issues at testing content
-        # with tmpbamfile.open("rb") as out:
+        # with tmpcramfile.open("rb") as out:
         #     assert md5(out.read()).hexdigest() == "7e9c1b3e89690624ca03882cb968fb09"
 
 
 def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path: Path):
-    bamfile = datadir / "total.bam"
+    cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv"
-    counter_unique.launch_counting(bamfile, countfile)
+    counter_unique.launch_counting(cramfile, countfile)
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "4188e42b16ca23af21bb0b03c88089fe"
 
 
 def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: Path):
-    bamfile = datadir / "total.bam"
+    cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv"
-    counter_total.launch_counting(bamfile, countfile)
+    counter_total.launch_counting(cramfile, countfile)
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "78216b228518d101983f39a92ac9bdb0"
 
@@ -309,9 +309,9 @@ def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: 
 def test_launch_counting_smart_shared(
     counter_smart_shared: Counter, datadir: Path, tmp_path: Path
 ):
-    bamfile = datadir / "total.bam"
+    cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv"
-    counter_smart_shared.launch_counting(bamfile, countfile)
+    counter_smart_shared.launch_counting(cramfile, countfile)
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "06383f066a83fe158f9d6eb98c9a41a3"
 

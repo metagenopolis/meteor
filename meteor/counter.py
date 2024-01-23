@@ -45,7 +45,7 @@ class Counter(Session):
     identity_threshold: float
     alignment_number: int
     keep_sam: bool = False
-    keep_bam: bool = False
+    keep_cram: bool = False
     # pysam_test: bool = True
     ini_data: dict = field(default_factory=dict)
 
@@ -100,7 +100,7 @@ class Counter(Session):
         config["worksession"] = {
             "meteor.reference.dir": self.meteor.ref_dir.name,
             "meteor.mapping.program": "bowtie2",
-            "meteor.mapping.file.format": "bam",
+            "meteor.mapping.file.format": "cram",
             "meteor.cpu.count": str(self.meteor.threads),
         }
         config["main_reference"] = {
@@ -140,21 +140,21 @@ class Counter(Session):
             if not mapping_process.execute():
                 raise ValueError("Error, TaskMainMapping failed")
 
-    def write_table(self, bamfile: Path, outfile: Path) -> bool:
-        """Function that create a count table using pysam. First index the BAM file,
+    def write_table(self, cramfile: Path, outfile: Path) -> bool:
+        """Function that create a count table using pysam. First index the cram file,
         then count reads using the function idxstats from pysam, and output a count
         table.
 
-        :param bamfile: (Path) BAM file to count
+        :param cramfile: (Path) cram file to count
         :param outfile: (Path) count table
         """
-        if not bamfile.with_suffix(".bam.bai").exists():
-            # index the bam file
-            index(str(bamfile.resolve()))
-        # indStats = pd.read_csv(StringIO(pysam.idxstats(bamfile)), sep = '\t',
+        if not cramfile.with_suffix(".cram.bai").exists():
+            # index the cram file
+            index(str(cramfile.resolve()))
+        # indStats = pd.read_csv(StringIO(pysam.idxstats(cramfile)), sep = '\t',
         # header = None, names = ['contig', 'length', 'mapped', 'unmapped'])
         # create count table
-        table = idxstats(str(bamfile.resolve()))
+        table = idxstats(str(cramfile.resolve()))
         # write the count table
         with outfile.open("wt", encoding="UTF-8") as out:
             out.write("gene_id\tgene_length\tvalue\n")
@@ -404,25 +404,25 @@ class Counter(Session):
                 out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
         return True
 
-    def save_bam(self, outbamfile: Path, samdesc: AlignmentFile, read_list: list):
+    def save_cram(self, outcramfile: Path, samdesc: AlignmentFile, read_list: list):
         """Writing the filtered SAM file.
 
-        :param outsamfile: [Path] Temporary bam file
+        :param outsamfile: [Path] Temporary cram file
         :param samdesc: Pysam sam descriptor
         :param read_list: [List] List of pysam reads objects
         """
         with AlignmentFile(
-            str(outbamfile.resolve()), "wb", template=samdesc
+            str(outcramfile.resolve()), "wb", template=samdesc
         ) as total_reads:
             for element in read_list:
                 total_reads.write(element)
 
-    # def launch_counting(self, bam_file: Path, count_file: Path) -> bool:
+    # def launch_counting(self, cram_file: Path, count_file: Path) -> bool:
     def launch_counting(self, sam_file: Path, count_file: Path) -> bool:
-        """Function that count reads from a BAM file, using the given methods in count:
+        """Function that count reads from a cram file, using the given methods in count:
         "total" or "shared" or "unique".
 
-        :param sam_file: (Path) A path to the input bam file
+        :param sam_file: (Path) A path to the input cram file
         :param count_file: (Path) A path to the output count file
         :return: (bool)
         """
@@ -457,56 +457,56 @@ class Counter(Session):
                 # Calculate reference abundance & write count table
                 abundance = self.compute_abs_meteor(database, unique_on_gene, multiple)
                 # abundance = self.compute_abs(unique_on_gene, multiple)
-                if self.keep_bam:
-                    bamfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                    bamfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                    self.save_bam(bamfile, samdesc, list(chain(*reads.values())))
+                if self.keep_cram:
+                    cramfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                    cramfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                    self.save_cram(cramfile, samdesc, list(chain(*reads.values())))
                     sort(
                         "-o",
-                        str(bamfile_sorted.resolve()),
+                        str(cramfile_sorted.resolve()),
                         "-@",
                         str(self.meteor.threads),
                         "-O",
-                        "bam",
-                        str(bamfile.resolve()),
+                        "cram",
+                        str(cramfile.resolve()),
                         catch_stdout=False,
                     )
-                    bamfile_sorted = Path(
+                    cramfile_sorted = Path(
                         copy(
-                            str(bamfile_sorted.resolve()),
-                            str(sam_file.resolve().with_suffix(".bam")),
+                            str(cramfile_sorted.resolve()),
+                            str(sam_file.resolve().with_suffix(".cram")),
                         )
                     )
-                    index(str(bamfile_sorted.resolve()))
+                    index(str(cramfile_sorted.resolve()))
                 return self.write_stat(count_file, abundance, database)
             else:
                 if self.counting_type == "unique":
                     reads = unique_reads
-                bamfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                bamfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                self.save_bam(bamfile, samdesc, list(chain(*reads.values())))
+                cramfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                cramfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                self.save_cram(cramfile, samdesc, list(chain(*reads.values())))
                 sort(
                     "-o",
-                    str(bamfile_sorted.resolve()),
+                    str(cramfile_sorted.resolve()),
                     "-@",
                     str(self.meteor.threads),
                     "-O",
-                    "bam",
-                    str(bamfile.resolve()),
+                    "cram",
+                    str(cramfile.resolve()),
                     catch_stdout=False,
                 )
-                if self.keep_bam:
+                if self.keep_cram:
                     logging.info(
-                        "Bam file is not kept. Strain analysis will require a new mapping."
+                        "cram file is not kept. Strain analysis will require a new mapping."
                     )
-                    bamfile_sorted = Path(
+                    cramfile_sorted = Path(
                         copy(
-                            str(bamfile_sorted.resolve()),
-                            str(sam_file.resolve().with_suffix(".bam")),
+                            str(cramfile_sorted.resolve()),
+                            str(sam_file.resolve().with_suffix(".cram")),
                         )
                     )
-                    index(str(bamfile_sorted.resolve()))
-                return self.write_table(bamfile_sorted, count_file)
+                    index(str(cramfile_sorted.resolve()))
+                return self.write_table(cramfile_sorted, count_file)
 
     def execute(self) -> bool:
         """Compute the mapping"""

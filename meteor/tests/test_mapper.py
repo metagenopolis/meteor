@@ -56,18 +56,18 @@ def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper:
     )
 
 
-# def test_create_bam(mapping_builder: Mapper,  datadir: Path, tmp_path: Path) -> None:
+# def test_create_cram(mapping_builder: Mapper,  datadir: Path, tmp_path: Path) -> None:
 #     input_sam = datadir / "eva71_bench.sam"
-#     output_bam = tmp_path / "eva71_bench.bam"
-#     mapping_builder.create_bam(str(input_sam.resolve()),  str(output_bam.resolve()))
-#     assert output_bam.exists()
+#     output_cram = tmp_path / "eva71_bench.cram"
+#     mapping_builder.create_cram(str(input_sam.resolve()),  str(output_cram.resolve()))
+#     assert output_cram.exists()
 
 
-# def test_sort_bam(mapping_builder: Mapper,  datadir: Path, tmp_path: Path) -> None:
-#     input_bam = datadir / "eva71_bench.bam"
-#     output_bam = tmp_path / "eva71_bench_sorted.bam"
-#     mapping_builder.sort_bam(str(input_bam.resolve()), str(output_bam.resolve()))
-#     assert output_bam.exists()
+# def test_sort_cram(mapping_builder: Mapper,  datadir: Path, tmp_path: Path) -> None:
+#     input_cram = datadir / "eva71_bench.cram"
+#     output_cram = tmp_path / "eva71_bench_sorted.cram"
+#     mapping_builder.sort_cram(str(input_cram.resolve()), str(output_cram.resolve()))
+#     assert output_cram.exists()
 
 
 def test_execute(mapping_builder: Mapper) -> None:
