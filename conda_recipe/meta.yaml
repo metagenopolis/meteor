@@ -24,7 +24,6 @@ requirements:
         - ete3
         - packaging
         - bcftools>=0.1.19
-        - bedtools>=2.18
         - fasttree>=1.9.0
 test:
     commands:
