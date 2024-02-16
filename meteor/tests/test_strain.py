@@ -16,7 +16,7 @@ from ..session import Component
 from ..strain import Strain
 from pathlib import Path
 from hashlib import md5
-from configparser import ConfigParser
+import json
 import pytest
 
 
@@ -29,4 +29,4 @@ def strain_builder(datadir: Path, tmp_path: Path) -> Strain:
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.mapping_dir = tmp_path
-    return Strain(meteor, 100, 3, 3, 0.5, 10, True)
+    return Strain(meteor, 100, 3, 0.5, 3, 0.8, True)

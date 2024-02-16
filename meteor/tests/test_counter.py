@@ -17,10 +17,10 @@ from ..session import Component
 from ..counter import Counter
 from pathlib import Path
 from hashlib import md5
-from configparser import ConfigParser
 from pysam import AlignmentFile
 from itertools import chain
 import pytest
+import json
 
 # No more best count
 # @pytest.fixture
@@ -95,28 +95,25 @@ def counter_total(datadir: Path, tmp_path: Path) -> Counter:
 
 
 def test_launch_mapping(counter_total: Counter):
-    ref_ini_file = counter_total.meteor.ref_dir / "mock_reference.ini"
-    ref_ini = ConfigParser()
-    with open(ref_ini_file, "rt", encoding="UTF-8") as ref:
-        ref_ini.read_file(ref)
-    census_ini_file = counter_total.meteor.fastq_dir / "part1_census_stage_0.ini"
-    census_ini = ConfigParser()
-    with open(census_ini_file, "rt", encoding="UTF-8") as cens:
-        census_ini.read_file(cens)
-    sample_info = census_ini["sample_info"]
+    ref_json = counter_total.read_json(
+        counter_total.meteor.ref_dir / "mock_reference.json"
+    )
+    census_json_file = counter_total.meteor.fastq_dir / "part1_census_stage_0.json"
+    census_json = counter_total.read_json(census_json_file)
+    sample_info = census_json["sample_info"]
     stage1_dir = counter_total.meteor.mapping_dir / sample_info["sample_name"]
     stage1_dir.mkdir(exist_ok=True, parents=True)
-    counter_total.ini_data[census_ini_file] = {
-        "census": census_ini,
+    counter_total.json_data[census_json_file] = {
+        "census": census_json,
         "directory": stage1_dir,
         "Stage1FileName": stage1_dir
-        / census_ini_file.name.replace("stage_0", "stage_1"),
-        "reference": ref_ini,
+        / census_json_file.name.replace("stage_0", "stage_1"),
+        "reference": ref_json,
     }
     counter_total.launch_mapping()
-    assert counter_total.ini_data[census_ini_file]["Stage1FileName"].exists()
+    assert counter_total.json_data[census_json_file]["Stage1FileName"].exists()
     # Fail with changing day
-    # with counter_best.ini_data[census_ini_file]["Stage1FileName"].open("rb") as stage1:
+    # with counter_best.json_data[census_ini_file]["Stage1FileName"].open("rb") as stage1:
     #    assert md5(stage1.read()).hexdigest() == "a8a5b5e400dafb226ce3bab1a2cee69d"
     sam = stage1_dir / "part1.sam"
     assert sam.exists()

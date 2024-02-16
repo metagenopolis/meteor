@@ -16,7 +16,6 @@ import sys
 import logging
 import pandas as pd
 from dataclasses import dataclass, field
-from configparser import ConfigParser
 from meteor.variantcalling import VariantCalling
 from meteor.session import Session, Component
 from typing import Type
@@ -24,7 +23,7 @@ from tempfile import mkdtemp
 from pathlib import Path
 from time import perf_counter
 from io import StringIO
-from pysam import coverage
+import pysam
 
 
 @dataclass
@@ -39,7 +38,7 @@ class Strain(Session):
     min_msp_coverage: int
     min_gene_coverage: float
     keep_consensus: bool
-    ini_data: dict = field(default_factory=dict)
+    json_data: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
@@ -63,7 +62,9 @@ class Strain(Session):
             header=1,
         )
         cov_df = pd.read_csv(
-            StringIO(coverage("-d", str(self.max_depth), str(cram_file.resolve()))),
+            StringIO(
+                pysam.coverage("-d", str(self.max_depth), str(cram_file.resolve()))
+            ),
             sep="\t",
             header=1,
             names=[
@@ -159,7 +160,7 @@ class Strain(Session):
             len(msp_with_overlapping_genes["msp_name"].values),
         )
         for msp_name in msp_with_overlapping_genes["msp_name"].values:
-            msp_file = self.ini_data["directory"] / Path(msp_name + ".fasta")
+            msp_file = self.json_data["directory"] / Path(msp_name + ".fasta")
             msp_seq = ""
             for gene_id in msp_content[msp_content["msp_name"] == msp_name][
                 "gene_id"
@@ -170,7 +171,7 @@ class Strain(Session):
                     msp_seq += "-" * len(gene_dict[gene_id])
             with msp_file.open("wt", encoding="UTF-8") as msp:
                 print(
-                    f">{self.ini_data['census']['sample_info']['sample_name']}\n{msp_seq}\n",
+                    f">{self.json_data['census']['sample_info']['sample_name']}\n{msp_seq}\n",
                     file=msp,
                 )
         # Remove consensus file
@@ -184,63 +185,50 @@ class Strain(Session):
         #         msp_name = msp_covered[msp_covered["gene_id"] == gene_id][
         #             "msp_name"
         #         ].values[0]
-        #         msp_file = self.ini_data["directory"] / Path(msp_name + ".fasta")
+        #         msp_file = self.json_data["directory"] / Path(msp_name + ".fasta")
         #         with msp_file.open("at") as msp:
         #             print(f">{gene_id}\n{fill(seq, width=80)}\n", file=msp)
         #     print(gene_id)
         #     print(seq)
 
-    def execute(self) -> bool:
+    def execute(self) -> None:
         """Compute the strain analysis"""
         logging.info("Launch strain analysis")
         try:
-            # Get the ini ref
-            ref_ini_file_list = list(self.meteor.ref_dir.glob("**/*_reference.ini"))
-            assert len(ref_ini_file_list) == 1
-            ref_ini_file = ref_ini_file_list[0]
-            ref_ini = ConfigParser()
-            with open(ref_ini_file, "rt", encoding="UTF-8") as ref:
-                ref_ini.read_file(ref)
-            self.meteor.ref_name = ref_ini["reference_info"]["reference_name"]
+            ref_json = self.get_reference_info(self.meteor.ref_dir)
+            self.meteor.ref_name = ref_json["reference_info"]["reference_name"]
         except AssertionError:
             logging.error(
-                "Error, no *_reference.ini file found in %s. "
-                "One *_reference.ini is expected",
+                "Error, no *_reference.json file found in %s. "
+                "One *_reference.json is expected",
                 self.meteor.ref_dir,
             )
             sys.exit()
         try:
-            census_ini_file_list = list(
-                self.meteor.mapped_sample_dir.glob("*_census_stage_1.ini")
+            census_json = self.get_census_stage(self.meteor.mapped_sample_dir, 1)
+            sample_info = census_json["sample_info"]
+            stage3_dir = self.meteor.strain_dir / sample_info["sample_name"]
+            stage3_dir.mkdir(exist_ok=True, parents=True)
+            self.json_data["mapped_sample_dir"] = self.meteor.mapped_sample_dir
+            self.json_data["directory"] = stage3_dir
+            self.json_data["census"] = census_json
+            self.json_data["reference"] = ref_json
+            self.json_data["reference"] = ref_json
+            self.json_data["Stage3FileName"] = (
+                stage3_dir / f"{sample_info['sample_name']}_census_stage_3.json"
             )
-            assert len(census_ini_file_list) == 1
-            census_ini_file = census_ini_file_list[0]
-            census_ini = ConfigParser()
-            with open(census_ini_file, "rt", encoding="UTF-8") as cens:
-                census_ini.read_file(cens)
-                sample_info = census_ini["sample_info"]
-                stage3_dir = self.meteor.strain_dir / sample_info["sample_name"]
-                stage3_dir.mkdir(exist_ok=True, parents=True)
-                self.ini_data["mapped_sample_dir"] = self.meteor.mapped_sample_dir
-                self.ini_data["directory"] = stage3_dir
-                self.ini_data["census"] = census_ini
-                self.ini_data["reference"] = ref_ini
-                self.ini_data["reference"] = ref_ini
-                self.ini_data["Stage3FileName"] = (
-                    stage3_dir / f"{sample_info['sample_name']}_census_stage_3.ini"
-                )
 
-                # Get the cram
-                # Get the variant calling
-                # Variant calling this library on the reference
-                variant_calling_process = VariantCalling(
-                    self.meteor,
-                    self.ini_data,
-                    self.max_depth,
-                    self.min_snp_depth,
-                    self.min_frequency_non_reference,
-                )
-            if self.ini_data["Stage3FileName"].exists():
+            # Get the cram
+            # Get the variant calling
+            # Variant calling this library on the reference
+            variant_calling_process = VariantCalling(
+                self.meteor,
+                self.json_data,
+                self.max_depth,
+                self.min_snp_depth,
+                self.min_frequency_non_reference,
+            )
+            if self.json_data["Stage3FileName"].exists():
                 logging.info(
                     "Variant calling already done for sample: %s",
                     sample_info["sample_name"],
@@ -248,11 +236,8 @@ class Strain(Session):
                 logging.info("Skipped !")
             else:
                 variant_calling_process.execute()
-                ref_ini = ConfigParser()
-                with open(ref_ini_file, "rt", encoding="UTF-8") as ref:
-                    ref_ini.read_file(ref)
-                self.update_ini(
-                    ref_ini,
+                self.update_json(
+                    ref_json,
                     "variant_calling",
                     {
                         "min_msp_coverage": str(self.min_msp_coverage),
@@ -261,25 +246,25 @@ class Strain(Session):
                     },
                 )
             consensus_file = (
-                self.ini_data["directory"]
+                self.json_data["directory"]
                 / f"{sample_info['sample_name']}_consensus.fasta"
             )
             # count_file = (
-            #     self.ini_data["mapped_sample_dir"] / f"{sample_info['sample_name']}.tsv"
+            #     self.json_data["mapped_sample_dir"] / f"{sample_info['sample_name']}.tsv"
             # )
             msp_file = (
                 self.meteor.ref_dir
-                / self.ini_data["reference"]["reference_file"]["database_dir"]
-                / self.ini_data["reference"]["annotation"]["msp"]
+                / self.json_data["reference"]["reference_file"]["database_dir"]
+                / self.json_data["reference"]["annotation"]["msp"]
             )
             cram_file = (
-                self.ini_data["mapped_sample_dir"]
+                self.json_data["mapped_sample_dir"]
                 / f"{sample_info['sample_name']}.cram"
             )
             bed_file = (
                 self.meteor.ref_dir
-                / self.ini_data["reference"]["reference_file"]["database_dir"]
-                / self.ini_data["reference"]["annotation"]["bed"]
+                / self.json_data["reference"]["reference_file"]["database_dir"]
+                / self.json_data["reference"]["annotation"]["bed"]
             )
             start = perf_counter()
             # count_file,
@@ -289,7 +274,7 @@ class Strain(Session):
             )
         except AssertionError:
             logging.error(
-                "Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir
+                "Error, no *_census_stage_0.json file found in %s",
+                self.meteor.fastq_dir,
             )
             sys.exit()
-        return True

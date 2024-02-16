@@ -1,0 +1,10 @@
+{
+  "sample_info": {
+    "sample_name": "part1",
+    "census_status": 0,
+    "full_sample_name": "part1"
+  },
+  "sample_file": {
+    "fastq_file": "part1.fastq.gz"
+  }
+}

@@ -14,7 +14,7 @@
 from dataclasses import dataclass
 from meteor.session import Session, Component
 from subprocess import call, run
-from typing import Type, List
+from typing import Type, List, Dict
 from time import perf_counter
 from pathlib import Path
 import tempfile
@@ -22,7 +22,6 @@ from tempfile import NamedTemporaryFile
 from packaging.version import Version, parse
 from collections import OrderedDict
 from datetime import datetime
-from configparser import ConfigParser
 import re
 import logging
 import sys
@@ -64,23 +63,24 @@ class Phylogeny(Session):
 
     def set_tree_config(
         self, fasttree_version: str, tree_files: List[Path]
-    ) -> ConfigParser:  # pragma: no cover
+    ) -> Dict:  # pragma: no cover
         """Define the census configuration
 
         :param cmd: A string of the specific parameters
         :param cram_file: A path to the sam file
-        :return: (ConfigParser) A configparser object with the census 1 config
+        :return: (Dict) A dict object with the census 1 config
         """
-        config = ConfigParser()
-        config["phylogeny"] = {
-            "phylogeny_tool": "FastTree",
-            "phylogeny_version": fasttree_version,
-            "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
-            "tree_files": ",".join([tree.name for tree in tree_files]),
+        config = {
+            "phylogeny": {
+                "phylogeny_tool": "FastTree",
+                "phylogeny_version": fasttree_version,
+                "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
+                "tree_files": ",".join([tree.name for tree in tree_files]),
+            }
         }
         return config
 
-    def execute(self) -> bool:
+    def execute(self) -> None:
         # Define the regex pattern to match the version number
         version_pattern = re.compile(r"FastTree version (\d+\.\d+\.\d+)")
         fasttree_help = str(run(["FastTree"], capture_output=True).stderr).split("\\n")[
@@ -125,5 +125,4 @@ class Phylogeny(Session):
                     tree_files.append(tree_file)
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
         config = self.set_tree_config(fasttree_version, tree_files)
-        self.save_config(config, self.meteor.tree_dir / f"census_stage_4.ini")
-        return True
+        self.save_config(config, self.meteor.tree_dir / f"census_stage_4.json")

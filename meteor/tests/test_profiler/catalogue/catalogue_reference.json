@@ -1,0 +1,27 @@
+{
+  "reference_info": {
+    "reference_name": "catalogue",
+    "database_type": "complete"
+  },
+  "reference_file": {
+    "database_dir": "database"
+  },
+  "annotation": {
+    "mustard": {
+        "filename": "catalogue_mustard.tsv",
+        "version": "2.0"
+    },
+    "msp": {
+        "filename": "catalogue_msp.tsv",
+        "version": "1.0"
+    },
+    "kegg": {
+        "filename": "catalogue_kegg.tsv",
+        "version": "107"
+    },
+    "dbcan": {
+        "filename": "catalogue_dbcan.tsv"
+        "version": "3.0"
+    }
+  }
+}

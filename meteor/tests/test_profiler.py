@@ -505,6 +505,6 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     assert module_completeness.equals(expected_output)
     census_stage_2_file = (
         profiler_standard.stage2_dir
-        / f"{profiler_standard.output_base_filename}_census_stage_2.ini"
+        / f"{profiler_standard.output_base_filename}_census_stage_2.json"
     )
     assert census_stage_2_file.exists()

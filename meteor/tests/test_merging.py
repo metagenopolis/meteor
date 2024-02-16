@@ -18,7 +18,7 @@ from ..merging import Merging
 from pathlib import Path
 import pytest
 import pandas as pd
-from configparser import ConfigParser
+import json
 
 
 @pytest.fixture
@@ -44,7 +44,7 @@ def merging_fast(datadir: Path, tmp_path: Path) -> Merging:
 
 # def test_extract_census_stage_1(merging_mapping: Merging) -> None:
 #     all_census = list(
-#         Path(merging_mapping.meteor.profile_dir).glob("**/*census_stage_*.ini")
+#         Path(merging_mapping.meteor.profile_dir).glob("**/*census_stage_*.json")
 #     )
 #     all_census_stages = merging_mapping.extract_census_stage(all_census)
 #     assert all_census_stages == [1, 1, 1]
@@ -52,7 +52,7 @@ def merging_fast(datadir: Path, tmp_path: Path) -> Merging:
 
 # def test_extract_census_stage_2(merging_profiles: Merging) -> None:
 #     all_census = list(
-#         Path(merging_profiles.meteor.profile_dir).glob("**/*census_stage_*.ini")
+#         Path(merging_profiles.meteor.profile_dir).glob("**/*census_stage_*.json")
 #     )
 #     all_census_stages = merging_profiles.extract_census_stage(all_census)
 #     assert all_census_stages == [2, 2, 2]
@@ -78,22 +78,23 @@ def test_find_files_to_merge(merging_profiles: Merging) -> None:
     }
 
 
-def test_extract_ini_info(merging_profiles: Merging) -> None:
-    config = ConfigParser()
-    input_ini = (
-        merging_profiles.meteor.profile_dir / "sample1" / "sample1_census_stage_2.ini"
+def test_extract_json_info(merging_profiles: Merging) -> None:
+    config = {}
+    input_json = (
+        merging_profiles.meteor.profile_dir / "sample1" / "sample1_census_stage_2.json"
     )
-    with open(input_ini, "rt", encoding="UTF-8") as ini:
-        config.read_file(ini)
-    info = merging_profiles.extract_ini_info(
+    with open(input_json, "rt", encoding="UTF-8") as json_data:
+        config = json.load(json_data)
+    info = merging_profiles.extract_json_info(
         config,
         param_dict={
             "profiling_parameters": ["msp_filter", "modules_def"],
             "mapping_file": [""],
         },
     )
+    print(info)
     assert info == {
-        "msp_filter": "0.1",
+        "msp_filter": 0.1,
         "modules_def": "GMM_definition.tsv",
         "bowtie_file": "sample1.sam",
     }
@@ -102,11 +103,11 @@ def test_extract_ini_info(merging_profiles: Merging) -> None:
 def test_compare(merging_profiles: Merging) -> None:
     # Fetch all census ini files
     all_census = list(
-        Path(merging_profiles.meteor.profile_dir).glob("**/*census_stage_*.ini")
+        Path(merging_profiles.meteor.profile_dir).glob("**/*census_stage_*.json")
     )
-    # Create the dict: path -> ConfigParser
+    # Create the dict: path -> Dict
     all_census_dict = {
-        my_census.parent: merging_profiles.read_ini(my_census)
+        my_census.parent: merging_profiles.read_json(my_census)
         for my_census in all_census
     }
     # Define parameters that will be checked
@@ -116,7 +117,7 @@ def test_compare(merging_profiles: Merging) -> None:
     }
     # Retrieve information about parameters
     all_information = {
-        my_path: merging_profiles.extract_ini_info(my_config, param_to_check)
+        my_path: merging_profiles.extract_json_info(my_config, param_to_check)
         for my_path, my_config in all_census_dict.items()
     }
     # Compare

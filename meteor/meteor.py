@@ -240,14 +240,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=isdir,
         required=True,
         help="""Path to sample directory, containing the sample sequencing metadata
-                                        (files ending with _census_stage_0.ini)""",
+                                        (files ending with _census_stage_0.json)""",
     )
     mapping_parser.add_argument(
         "-r",
         dest="ref_dir",
         type=isdir,
         required=True,
-        help="Path to reference directory (Path containing *_reference.ini)",
+        help="Path to reference directory (Path containing *_reference.json)",
     )
     mapping_parser.add_argument(
         "-o",
@@ -342,7 +342,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="ref_dir",
         type=isdir,
         required=True,
-        help="Path to reference directory (containing *_reference.ini)",
+        help="Path to reference directory (containing *_reference.json)",
     )
     profiling_parser.add_argument(
         "-l",
@@ -429,7 +429,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="ref_dir",
         type=isdir,
         required=True,
-        help="Path to reference directory (Path containing *_reference.ini)",
+        help="Path to reference directory (Path containing *_reference.json)",
     )
     strain_parser.add_argument(
         "-d",
@@ -656,9 +656,7 @@ def main() -> None:  # pragma: no cover
     elif args.command == "download":
         meteor.ref_name = args.user_choice
         meteor.ref_dir = args.ref_dir
-        if args.taxonomy:
-            args.user_choice += "_taxo"
-        downloader = Downloader(meteor, args.user_choice, args.check_md5)
+        downloader = Downloader(meteor, args.user_choice, args.taxonomy, args.check_md5)
         downloader.execute()
     # Run profiling
     elif args.command == "profile":
@@ -691,7 +689,7 @@ def main() -> None:  # pragma: no cover
             meteor.tmp_dir = Path(tmpdirname)
             meteor.mapping_dir = Path(tmpdirname) / "map"
             meteor.fastq_dir = Path(tmpdirname)
-            downloader = Downloader(meteor, "test", True)
+            downloader = Downloader(meteor, "test", False, True)
             downloader.execute()
             fastq_importer = FastqImporter(meteor, meteor.tmp_dir, False, None)
             fastq_importer.execute()

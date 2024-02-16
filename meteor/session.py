@@ -13,11 +13,11 @@
 """Define commune objects"""
 
 from pathlib import Path
-from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import Protocol, Iterator, Tuple
+from typing import Protocol, Iterator, Tuple, Dict
 import logging
 import sys
+import json
 
 
 @dataclass(kw_only=True)
@@ -48,8 +48,8 @@ class Session(Protocol):
     def check_file(self, filename: Path, expected_colnames: set[str]) -> bool:
         """Check that the expected colnames are in the file.
 
-        :param config: A configparser object
-        :param config_path: (Path) An output path object
+        :param filename: (Path) An input path object
+        :param expected_colnames: (Path) An expected set of colnames
         """
         try:
             with open(filename, "rt", encoding="UTF-8") as header:
@@ -64,83 +64,80 @@ class Session(Protocol):
             sys.exit()
         return True
 
-    def save_config(
-        self, config: ConfigParser, config_path: Path
-    ) -> None:  # pragma: no cover
+    def save_config(self, config: Dict, config_path: Path) -> None:  # pragma: no cover
         """Save a configuration file
 
-        :param config: A configparser object
+        :param config: A Dict object
         :param config_path: (Path) An output path object
         """
         with config_path.open("wt", encoding="utf-8") as configfile:
-            config.write(configfile)
+            json.dump(config, configfile)
 
-    def read_ini(self, input_ini: Path) -> ConfigParser:  # pragma: no cover
-        config = ConfigParser()
+    def read_json(self, input_json: Path) -> Dict:  # pragma: no cover
+        """Read json file"""
+        config = {}
         try:
-            with open(input_ini, "rt", encoding="UTF-8") as ini:
-                config.read_file(ini)
+            with open(input_json, "rt", encoding="UTF-8") as json_data:
+                config = json.load(json_data)
         except FileNotFoundError:
-            logging.error("The file %s does not exist.", input_ini)
+            logging.error("The file %s does not exist.", input_json)
             sys.exit()
         return config
 
-    def get_reference_info(self, ref_dir: Path) -> ConfigParser:
-        # Get the ini ref
+    def get_reference_info(self, ref_dir: Path) -> Dict:
+        # Get the json ref
         try:
-            ref_ini_file_list = list(ref_dir.glob("**/*_reference.ini"))
-            assert len(ref_ini_file_list) == 1
-            ref_ini_file = ref_ini_file_list[0]
-            ref_ini = self.read_ini(ref_ini_file)
+            ref_json_file_list = list(ref_dir.glob("**/*_reference.json"))
+            assert len(ref_json_file_list) == 1
+            ref_json_file = ref_json_file_list[0]
+            ref_json = self.read_json(ref_json_file)
         except AssertionError:
             logging.error(
-                "Error, no *_reference.ini file found in %s. "
-                "One *_reference.ini is expected",
-                ref_dir,
+                "Error, no *_reference.json file found in %s. "
+                "One *_reference.json is expected",
+                ref_dir.name,
             )
             sys.exit()
-        return ref_ini
+        return ref_json
 
-    def get_census_stage(self, mapping_dir: Path, stage: int) -> ConfigParser:
-        """Find census_stage_X.ini file of a given repertory
+    def get_census_stage(self, mapping_dir: Path, stage: int) -> Dict:
+        """Find census_stage_X.json file of a given repertory
 
         :param mapping_dir: A directory containing one census_stage file
         : param stage: Stage of the census file to find (census_stage_1, census_stage_2, etc)
         """
         try:
-            census_ini_file_list = list(
-                mapping_dir.glob(f"**/*_census_stage_{stage}.ini")
+            census_json_file_list = list(
+                mapping_dir.glob(f"**/*_census_stage_{stage}.json")
             )
-            assert len(census_ini_file_list) == 1
-            census_ini_file = census_ini_file_list[0]
-            census_ini = self.read_ini(census_ini_file)
+            assert len(census_json_file_list) == 1
+            census_json_file = census_json_file_list[0]
+            census_json = self.read_json(census_json_file)
         except AssertionError:
             logging.error(
-                "Error, no *_census_stage_%d.ini file found in %s. ",
+                "Error, no *_census_stage_%d.json file found in %s.",
                 stage,
                 mapping_dir,
             )
             sys.exit()
-        return census_ini
+        return census_json
 
-    def update_ini(
-        self, config: ConfigParser, section: str, new_fields: dict[str, str]
-    ) -> ConfigParser:
+    def update_json(
+        self, config: Dict, section: str, new_fields: Dict[str, str]
+    ) -> Dict:
         """Add information in the ini configuaration"""
-        new_config = ConfigParser()
-        new_config.read_dict(config)
-        if section in new_config.sections():
+        if section in config:
             for my_field, my_value in new_fields.items():
-                if my_field in new_config[section]:
+                if my_field in config[section]:
                     logging.error(
-                        "The field %s is already present in the ini file.", my_field
+                        "The field %s is already present in the json file.", my_field
                     )
                     sys.exit()
                 else:
-                    new_config[section][my_field] = my_value
+                    config[section][my_field] = my_value
         else:
-            new_config[section] = new_fields
-        return new_config
+            config[section] = new_fields
+        return config
 
     def get_sequences(self, fasta_file: Path) -> Iterator[Tuple[int, str]]:
         """Get genes sequences
@@ -180,5 +177,4 @@ class Session(Protocol):
             if len(seq) > 0:
                 yield gene_id, seq
 
-    def execute(self) -> bool:
-        ...
+    def execute(self) -> None: ...

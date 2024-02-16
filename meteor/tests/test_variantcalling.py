@@ -14,8 +14,8 @@
 from ..session import Component
 from ..variantcalling import VariantCalling
 from pathlib import Path
-from configparser import ConfigParser
 import pytest
+import json
 
 
 @pytest.fixture
@@ -25,23 +25,23 @@ def vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.tmp_dir = tmp_path
-    ref_ini_file = datadir / "eva71" / "eva71_reference.ini"
-    ref_ini = ConfigParser()
-    with ref_ini_file.open("rt", encoding="UTF-8") as ref:
-        ref_ini.read_file(ref)
-    census_ini_file = datadir / "eva71_bench" / "eva71_bench_census_stage_1.ini"
-    census_ini = ConfigParser()
-    with census_ini_file.open("rt", encoding="UTF-8") as cens:
-        census_ini.read_file(cens)
-        sample_info = census_ini["sample_info"]
+    ref_json_file = datadir / "eva71" / "eva71_reference.json"
+    ref_json = {}
+    with ref_json_file.open("rt", encoding="UTF-8") as ref:
+        ref_json = json.load(ref)
+    census_json_file = datadir / "eva71_bench" / "eva71_bench_census_stage_1.json"
+    census_json = {}
+    with census_json_file.open("rt", encoding="UTF-8") as cens:
+        census_json = json.load(cens)
+        sample_info = census_json["sample_info"]
         stage3_dir = tmp_path / sample_info["sample_name"]
         stage3_dir.mkdir(exist_ok=True, parents=True)
         data_dict = {
             "mapped_sample_dir": datadir / "eva71_bench",
-            "census": census_ini,
+            "census": census_json,
             "directory": stage3_dir,
-            "Stage3FileName": stage3_dir / census_ini_file.name,
-            "reference": ref_ini,
+            "Stage3FileName": stage3_dir / census_json_file.name,
+            "reference": ref_json,
         }
     return VariantCalling(meteor, data_dict, 100, 3, 0.5)
 

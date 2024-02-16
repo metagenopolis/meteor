@@ -15,7 +15,7 @@
 from meteor.session import Session, Component
 from meteor.parser import Parser
 from dataclasses import dataclass
-from typing import Type
+from typing import Type, NoReturn
 import pandas as pd
 from pathlib import Path
 import importlib.resources
@@ -38,13 +38,13 @@ class Profiler(Session):
     completeness: float
 
     def __post_init__(self):
-        # Get the ini file
+        # Get the json file
         self.sample_config = self.get_census_stage(self.meteor.mapping_dir, 1)
 
         # Add session info
         config_session = {}
         config_session["date_profiling"] = str(datetime.now().strftime("%Y-%m-%d"))
-        self.sample_config = self.update_ini(
+        self.sample_config = self.update_json(
             self.sample_config, "profiling_session", config_session
         )
 
@@ -86,7 +86,7 @@ class Profiler(Session):
             self.stage2_dir / f"{self.sample_name}_raw"
         ).with_suffix(".tsv")
         try:
-            raw_count_table_symlink.symlink_to(self.input_count_table)
+            raw_count_table_symlink.symlink_to(self.input_count_table.resolve())
         except FileExistsError:
             logging.info(
                 "The symbolic link to raw data already exists in the profile directory."
@@ -113,7 +113,7 @@ class Profiler(Session):
         self.msp_filename = (
             self.meteor.ref_dir
             / self.ref_config["reference_file"]["database_dir"]
-            / self.ref_config["annotation"]["msp"]
+            / self.ref_config["annotation"]["msp"]["filename"]
         )
         assert self.msp_filename.is_file()
         self.check_file(
@@ -377,12 +377,14 @@ class Profiler(Session):
         )
         # Loop on all_ko since some ko have no msp or ne detected genes
         ko_dict_ab = {
-            ko: self.msp_table.loc[
-                self.msp_table["msp_name"].isin(ko_dict[ko]),
-                "value",
-            ].sum()
-            if ko in ko_dict
-            else 0
+            ko: (
+                self.msp_table.loc[
+                    self.msp_table["msp_name"].isin(ko_dict[ko]),
+                    "value",
+                ].sum()
+                if ko in ko_dict
+                else 0
+            )
             for ko in all_ko
         }
         self.functions = (
@@ -541,9 +543,9 @@ class Profiler(Session):
             .rename(columns={"index": "mod_id"})
         )
 
-    def execute(self) -> bool:
+    def execute(self) -> None:
         "Normalize the samples and compute MSP and functions abundances."
-        # Initialize dictionnary for ini file
+        # Initialize dictionnary for json file
         config_param = {}
         config_stats = {}
         config_mapping = {"database_type": self.database_type}
@@ -698,16 +700,14 @@ class Profiler(Session):
             config_param["module_completeness"] = str(self.completeness)
 
         # Update and write ini file
-        update_config = self.update_ini(
+        update_config = self.update_json(
             self.sample_config, "profiling_parameters", config_param
         )
-        update_config = self.update_ini(update_config, "profiling_stats", config_stats)
-        update_config = self.update_ini(update_config, "mapping", config_mapping)
+        update_config = self.update_json(update_config, "profiling_stats", config_stats)
+        update_config = self.update_json(update_config, "mapping", config_mapping)
         self.save_config(
             update_config,
-            self.stage2_dir / f"{self.output_base_filename}_census_stage_2.ini",
+            self.stage2_dir / f"{self.output_base_filename}_census_stage_2.json",
         )
 
         logging.info("Process ended without errors.")
-
-        return True

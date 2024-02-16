@@ -1,0 +1,134 @@
+{
+  "cat_gut": {
+      "file_info": {
+          "catalogue": "https://zenodo.org/records/10656835/files/fc_1_3_gut.tar.xz",
+          "filename": "fc_1_3_gut.tar.xz",
+          "md5": "d02911039c99c69913b676a4211fa9dd"
+      },
+      "taxonomy_info": {
+          "catalogue": "https://zenodo.org/records/10656835/files/fc_1_3_gut_taxo.tar.xz",
+          "filename": "fc_1_3_gut_taxo.tar.xz",
+          "md5": "c8b2c46fe987e83b18c3ff657fd40ba9"
+      }
+  },
+  "chicken_caecal": {
+      "file_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/QTP719",
+          "filename": "gg_13_6_caecal.tar.xz",
+          "md5": "69af9d1844dd595665b7c22595f8921c"
+      },
+      "taxonomy_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/5O0LU1",
+          "filename": "gg_13_6_caecal_taxo.tar.xz",
+          "md5": "8bfff7826fe3fe05ccea89fcfa18719e"
+      }
+  },
+  "dog_gut": {
+      "file_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/LFAHVT",
+          "filename": "clf_1_0_gut.tar.xz",
+          "md5": "774c5b789111a9038ab03304fa4f0e38"
+      },
+      "taxonomy_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/2NXVUD",
+          "filename": "clf_1_0_gut_taxo.tar.xz",
+          "md5": "da5c61f5e1f49d6ac4342699721b0333"
+      }
+  },
+  "human_gut": {
+      "file_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/LPJF7L",
+          "filename": "hs_10_4_gut.tar.xz",
+          "md5": "3bdaf77a42ee5bda6dcda8a2c85dbd56"
+      },
+      "taxonomy_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/XBOPFP",
+          "filename": "hs_10_4_gut_taxo.tar.xz",
+          "md5": "585d5ea1652ae215ae025a5b7d59ca44"
+      }
+  },
+  "human_oral": {
+      "file_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/PE2QKQ",
+          "filename": "hs_8_4_oral.tar.xz",
+          "md5": "0206db6f938d4562d0ed23f1d3c12470"
+      },
+      "taxonomy_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/CHGJRH",
+          "filename": "hs_8_4_oral_taxo.tar.xz",
+          "md5": "ff3aef1f26cfb16bc9123a5b71d50fe3"
+      }
+  },
+  "human_skin": {
+      "file_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/DSXF1F",
+          "filename": "hs_2_9_skin.tar.xz",
+          "md5": "c114d0c362d1e6415a7a0f21b77f0bce"
+      },
+      "taxonomy_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/YHQEKQ",
+          "filename": "hs_2_9_skin_taxo.tar.xz",
+          "md5": "724c293741b00770ba0259ff1d2f050e"
+      }
+  },
+  "mouse_gut": {
+      "file_info": {
+          "catalogue": "https://zenodo.org/records/10658548/files/mm_5_0_gut.tar.xz",
+          "filename": "mm_5_0_gut.tar.xz",
+          "md5": "833cec5c59742346f039900fba82f3fd"
+      },
+      "taxonomy_info": {
+          "catalogue": "https://zenodo.org/records/10658548/files/mm_5_0_gut_taxo.tar.xz",
+          "filename": "mm_5_0_gut_taxo.tar.xz",
+          "md5": "09b5fd4722944b9d1161418f0cb667c7"
+      }
+  },
+  "rabbit_gut": {
+      "file_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/JA7VPS",
+          "filename": "oc_5_7_gut.tar.xz",
+          "md5": "0ac07cfb145ccbdc15a515d2950c0f29"
+      },
+      "taxonomy_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/CMNJGV",
+          "filename": "oc_5_7_gut_taxo.tar.xz",
+          "md5": "1b75f6c44e35b55c6a78dedb09c1b927"
+      }
+  },
+  "rat_gut": {
+      "file_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/JYNUB8",
+          "filename": "rn_5_9_gut.tar.xz",
+          "md5": "873ae7dd72288169a1019a3aa2c8c346"
+      },
+      "taxonomy_info": {
+          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/YUHCBS",
+          "filename": "rn_5_9_gut_taxo.tar.xz",
+          "md5": "f0b3c288ac0a5273ce869c6c4575589f"
+      }
+  },
+  "pig_gut": {
+      "file_info": {
+          "complete": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/1R6Q4Z",
+          "filename": "ssc_9_3_gut.tar.xz",
+          "md5": "3c7a51ee2c71d07fd1d884262143b15b"
+      },
+      "taxonomy_info": {
+          "taxo": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/R3MVVD",
+          "filename": "ssc_9_3_gut_taxo.tar.xz",
+          "md5": "5768a6b77083070841c3218f6d7dbdfe"
+      }
+  },
+  "test": {
+      "file_info": {
+          "catalogue": "https://zenodo.org/records/10658738/files/mock.tar.xz",
+          "filename": "mock.tar.xz",
+          "md5": "c6031f334f06e3a25fb62674c5134e15"
+      },
+      "fastq_info": {
+          "catalogue": "https://zenodo.org/records/10280819/files/test.fastq.gz",
+          "filename": "test.fastq.gz",
+          "md5": "b6d2dad808256b8718a4a3bf30688ac7"
+      }
+  }
+}

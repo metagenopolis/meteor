@@ -116,7 +116,7 @@ class Parser(Session):
         # Transform each alternative into set of KOs : module_dict_alt['M000x'] = [set(KO1, KO2), set(KO1, KO3), etc]
         return [set(k.split("+")) for k in set(list_alt)]
 
-    def execute(self) -> bool:
+    def execute(self) -> None:
         "Parse a module definition file to get all the possible alternatives"
         # Load file
         module_dict = self.load_modules(self.module_file)
@@ -125,4 +125,3 @@ class Parser(Session):
             mod: self.find_all_alt(mod_def=my_def, mod_dict=module_dict)
             for (mod, my_def) in module_dict.items()
         }
-        return True

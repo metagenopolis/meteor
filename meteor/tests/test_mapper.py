@@ -16,8 +16,8 @@
 from ..session import Component
 from ..mapper import Mapper
 from pathlib import Path
-from configparser import ConfigParser
 import pytest
+import json
 
 
 @pytest.fixture
@@ -27,14 +27,14 @@ def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper:
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.tmp_dir = tmp_path
-    ref_ini_file = datadir / "eva71" / "eva71_reference.ini"
-    ref_ini = ConfigParser()
-    with ref_ini_file.open("rt", encoding="UTF-8") as ref:
-        ref_ini.read_file(ref)
-    census_ini_file = datadir / "eva71_bench_census_stage_0.ini"
-    census_ini = ConfigParser()
+    ref_json_file = datadir / "eva71" / "eva71_reference.json"
+    ref_json = {}
+    with ref_json_file.open("rt", encoding="UTF-8") as ref:
+        ref_json = json.load(ref)
+    census_ini_file = datadir / "eva71_bench_census_stage_0.json"
+    census_ini = {}
     with census_ini_file.open("rt", encoding="UTF-8") as cens:
-        census_ini.read_file(cens)
+        census_ini = json.load(cens)
         sample_info = census_ini["sample_info"]
         stage1_dir = tmp_path / sample_info["sample_name"]
         stage1_dir.mkdir(exist_ok=True, parents=True)
@@ -43,7 +43,7 @@ def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper:
             "directory": stage1_dir,
             "Stage1FileName": stage1_dir
             / census_ini_file.name.replace("stage_0", "stage_1"),
-            "reference": ref_ini,
+            "reference": ref_json,
         }
     return Mapper(
         meteor,

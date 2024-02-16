@@ -16,13 +16,13 @@ import logging
 import importlib.resources
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
-from configparser import ConfigParser
 from pathlib import Path
 from hashlib import md5
 from urllib.request import urlretrieve
 from typing import Type
 from time import time
 import tarfile
+import json
 
 
 @dataclass
@@ -31,21 +31,23 @@ class Downloader(Session):
 
     meteor: Type[Component]
     choice: str
+    taxonomy: bool
     check_md5: bool
-    catalogues_config: ConfigParser = field(default_factory=ConfigParser)
+    data_type: str = "file_info"
+    catalogues_config: dict = field(default_factory=dict)
     start_time: float = field(default_factory=float)
 
     def __post_init__(self) -> None:
         try:
-            config_data = (
-                importlib.resources.files("meteor") / "data/dataverse_inrae.ini"
-            )
+            config_data = importlib.resources.files("meteor") / "data/zenodo.json"
             with importlib.resources.as_file(config_data) as configuration_path:
                 with configuration_path.open("rt", encoding="UTF-8") as config:
-                    self.catalogues_config.read_file(config)
+                    self.catalogues_config = json.load(config)
         except AssertionError:
-            logging.error("The file dataverse_inrae.ini is missing in meteor source")
+            logging.error("The file zenodo.json is missing in meteor source")
         self.meteor.ref_dir.mkdir(exist_ok=True, parents=True)
+        if self.taxonomy:
+            self.data_type = "taxonomy_info"
 
     def getmd5(self, catalog: Path) -> str:
         """Compute in md5 chunck by chunk to avoid memory overload
@@ -95,25 +97,33 @@ class Downloader(Session):
             tar.extractall(path=self.meteor.ref_dir)
         catalogue.unlink(missing_ok=True)
 
-    def execute(self) -> bool:
+    def execute(self) -> None:
         try:
             # for choice in self.user_choice:
-            logging.info("Download %s microbiome reference catalogue", self.choice)
-            url = self.catalogues_config[self.choice]["catalogue"]
-            md5_expect = self.catalogues_config[self.choice]["md5"]
+            logging.info(
+                "Download %s catalogue",
+                self.catalogues_config[self.choice][self.data_type]["filename"],
+            )
+            url = self.catalogues_config[self.choice][self.data_type]["catalogue"]
+            md5_expect = self.catalogues_config[self.choice][self.data_type]["md5"]
             catalogue = (
-                self.meteor.ref_dir / self.catalogues_config[self.choice]["filename"]
+                self.meteor.ref_dir
+                / self.catalogues_config[self.choice][self.data_type]["filename"]
             )
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
             print(flush=True)
             if self.choice == "test":
                 logging.info("Download test fastq file")
-                url_fastq = self.catalogues_config[self.choice]["fastq"]
+                url_fastq = self.catalogues_config[self.choice]["fastq_info"][
+                    "catalogue"
+                ]
                 fastq_test = (
                     self.meteor.tmp_dir
-                    / self.catalogues_config[self.choice]["fastqfilename"]
+                    / self.catalogues_config[self.choice]["fastq_info"]["filename"]
                 )
-                md5fastq_expect = self.catalogues_config[self.choice]["md5fastq"]
+                md5fastq_expect = self.catalogues_config[self.choice]["fastq_info"][
+                    "md5"
+                ]
                 urlretrieve(
                     url_fastq, filename=fastq_test, reporthook=self.show_progress
                 )
@@ -128,4 +138,3 @@ class Downloader(Session):
             )
         except AssertionError:
             logging.error("MD5sum of %s has a different value than expected", catalogue)
-        return True

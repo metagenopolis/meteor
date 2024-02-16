@@ -20,9 +20,7 @@ import logging
 import sys
 import pysam
 from dataclasses import dataclass, field
-from tempfile import mkdtemp, mkstemp
-import tempfile
-from configparser import ConfigParser
+from tempfile import mkdtemp, mkstemp, _TemporaryFileWrapper
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
@@ -47,7 +45,7 @@ class Counter(Session):
     keep_sam: bool = False
     keep_cram: bool = False
     # pysam_test: bool = True
-    ini_data: dict = field(default_factory=dict)
+    json_data: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.meteor.tmp_path:
@@ -56,12 +54,12 @@ class Counter(Session):
         self.meteor.mapping_dir.mkdir(exist_ok=True)
 
     def count_index_fastq(
-        self, fastq_file: Path, output_desc: tempfile._TemporaryFileWrapper
+        self, fastq_file: Path, output_desc: _TemporaryFileWrapper
     ) -> tuple:
         """Count the number of bases
 
         :param fastq_file: Path object of the fastq_file
-        :param output_desc: Output tempfile._TemporaryFileWrapper descriptor
+        :param output_desc: Output _TemporaryFileWrapper descriptor
         :return: (Tuple) A tuple giving the read count and base count
         """
         read_count = 0
@@ -91,29 +89,6 @@ class Counter(Session):
             output_desc.flush()
         return read_count, base_count
 
-    def set_workflow_config(self, ref_ini) -> ConfigParser:
-        """Write configuration file for reference genes
-
-        :return: (ConfigParser) A configparser object
-        """
-        config = ConfigParser()
-        config["worksession"] = {
-            "meteor.reference.dir": self.meteor.ref_dir.name,
-            "meteor.mapping.program": "bowtie2",
-            "meteor.mapping.file.format": "cram",
-            "meteor.cpu.count": str(self.meteor.threads),
-        }
-        config["main_reference"] = {
-            "meteor.reference.name": self.meteor.ref_name,
-            "meteor.matches": str(self.alignment_number),
-            "meteor.mismatches": "5",
-            "meteor.is.perc.mismatches": "1",
-            "meteor.bestalignment": "1",
-            "meteor.mapping.prefix.name": f"mapping_vs_{ref_ini['reference_info']['reference_name']}",
-            "meteor.counting.prefix.name": f"vs_{ref_ini['reference_info']['reference_name']}",
-        }
-        return config
-
     def launch_mapping(self) -> None:
         """Create temporary indexed files and map against"""
         list_fastq_path = []
@@ -121,7 +96,7 @@ class Counter(Session):
         for (
             library,
             dict_data,
-        ) in self.ini_data.items():  # pylint: disable=unused-variable
+        ) in self.json_data.items():  # pylint: disable=unused-variable
             census = dict_data["census"]
             sample_file = census["sample_file"]
             # reindexing this library reads and fill FLibraryIndexerReport
@@ -137,8 +112,7 @@ class Counter(Session):
                 self.alignment_number,
                 self.counting_type,
             )
-            if not mapping_process.execute():
-                raise ValueError("Error, TaskMainMapping failed")
+            mapping_process.execute()
 
     def write_table(self, cramfile: Path, outfile: Path) -> bool:
         """Function that create a count table using pysam. First index the cram file,
@@ -508,45 +482,44 @@ class Counter(Session):
                     index(str(cramfile_sorted.resolve()))
                 return self.write_table(cramfile_sorted, count_file)
 
-    def execute(self) -> bool:
+    def execute(self) -> None:
         """Compute the mapping"""
         mapping_done = True
         try:
             # Get the ini ref
-            ref_ini_file_list = list(self.meteor.ref_dir.glob("**/*_reference.ini"))
-            assert len(ref_ini_file_list) == 1
-            ref_ini_file = ref_ini_file_list[0]
-            ref_ini = ConfigParser()
-            with open(ref_ini_file, "rt", encoding="UTF-8") as ref:
-                ref_ini.read_file(ref)
-            self.meteor.ref_name = ref_ini["reference_info"]["reference_name"]
+            ref_json_file_list = list(self.meteor.ref_dir.glob("**/*_reference.json"))
+            assert len(ref_json_file_list) == 1
+            ref_json_file = ref_json_file_list[0]
+            ref_json = self.read_json(ref_json_file)
+            self.meteor.ref_name = ref_json["reference_info"]["reference_name"]
         except AssertionError:
             logging.error(
-                "Error, no *_reference.ini file found in %s. "
-                "One *_reference.ini is expected",
+                "Error, no *_reference.json file found in %s. "
+                "One *_reference.json is expected",
                 self.meteor.ref_dir,
             )
             sys.exit()
         try:
-            census_ini_files = list(self.meteor.fastq_dir.glob("*_census_stage_0.ini"))
-            assert len(census_ini_files) > 0
+            census_json_files = list(
+                self.meteor.fastq_dir.glob("*_census_stage_0.json")
+            )
+            assert len(census_json_files) > 0
+
             #  mapping of each sample against reference
-            for library in census_ini_files:
-                census_ini = ConfigParser()
-                with open(library, "rt", encoding="UTF-8") as cens:
-                    census_ini.read_file(cens)
-                    sample_info = census_ini["sample_info"]
-                    stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"]
-                    stage1_dir.mkdir(exist_ok=True, parents=True)
-                    # if self.pysam_test:
-                    self.ini_data[library] = {
-                        "census": census_ini,
-                        "directory": stage1_dir,
-                        "Stage1FileName": stage1_dir
-                        / f"{sample_info['sample_name']}_census_stage_1.ini",
-                        "reference": ref_ini,
-                    }
-                if not self.ini_data[library]["Stage1FileName"].exists():
+            for library in census_json_files:
+                census_json = self.read_json(library)
+                sample_info = census_json["sample_info"]
+                stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"]
+                stage1_dir.mkdir(exist_ok=True, parents=True)
+                # if self.pysam_test:
+                self.json_data[library] = {
+                    "census": census_json,
+                    "directory": stage1_dir,
+                    "Stage1FileName": stage1_dir
+                    / f"{sample_info['sample_name']}_census_stage_1.json",
+                    "reference": ref_json,
+                }
+                if not self.json_data[library]["Stage1FileName"].exists():
                     mapping_done = False
             else:
                 # mapping already done and no overwriting
@@ -561,11 +534,11 @@ class Counter(Session):
                     self.launch_mapping()
                 # running counter
                 sam_file = (
-                    self.ini_data[library]["directory"]
+                    self.json_data[library]["directory"]
                     / f"{sample_info['sample_name']}.sam"
                 )
                 count_file = (
-                    self.ini_data[library]["directory"]
+                    self.json_data[library]["directory"]
                     / f"{sample_info['sample_name']}.tsv"
                 )
                 start = perf_counter()
@@ -579,10 +552,10 @@ class Counter(Session):
             logging.info("Done ! Job finished without errors ...")
         except AssertionError:
             logging.error(
-                "Error, no *_census_stage_0.ini file found in %s", self.meteor.fastq_dir
+                "Error, no *_census_stage_0.json file found in %s",
+                self.meteor.fastq_dir,
             )
             sys.exit()
         else:
             # Not sure if it's a good idea to delete a temporary file
             rmtree(self.meteor.tmp_dir, ignore_errors=True)
-        return True

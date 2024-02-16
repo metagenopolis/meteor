@@ -15,18 +15,16 @@
 from subprocess import run
 from dataclasses import dataclass
 from pathlib import Path
-from configparser import ConfigParser
 from datetime import datetime
-from typing import Type, List
+from typing import Type, List, Dict
 from packaging.version import Version, parse
 from re import findall
 from meteor.session import Session, Component
-
-# from memory_profiler import profile
 from time import perf_counter
 import logging
 import sys
 
+# from memory_profiler import profile
 # import os
 # fp=open('memory_profiler.log','w+')
 
@@ -49,41 +47,44 @@ class Mapper(Session):
         sam_file: Path,
         bowtie_version: str,
         mapping_data: List[int],
-    ) -> ConfigParser:  # pragma: no cover
+    ) -> Dict:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
         :param cram_file: A path to the sam file
-        :return: (ConfigParser) A configparser object with the census 1 config
+        :return: (Dict) A dict object with the census 1 config
         """
-        config = ConfigParser()
-        config["sample_info"] = self.census["census"]["sample_info"]
-        config["sample_file"] = self.census["census"]["sample_file"]
-        config["mapping"] = {
-            "mapping_tool": "bowtie2",
-            "mapping_tool_version": bowtie_version,
-            "mapping_date": datetime.now().strftime("%Y-%m-%d"),
-            "reference_name": self.census["reference"]["reference_info"][
-                "reference_name"
-            ],
-            "mapping_options": cmd,
-            "trim": str(self.trim),
-            "alignment_number": str(self.alignment_number),
-            "mapping_type": self.mapping_type,
-            "total_read_count": str(mapping_data[0]),
-            "mapped_read_count": str(mapping_data[2] + mapping_data[3]),
-            "overall_alignment_rate": str(
-                round((mapping_data[2] + mapping_data[3]) / mapping_data[0] * 100, 2)
-            ),
-            "fastq_files": ",".join(self.fastq_list),
-        }
-        config["mapping_file"] = {
-            "bowtie_file": sam_file.name,
+        config = {
+            "sample_info": self.census["census"]["sample_info"],
+            "sample_file": self.census["census"]["sample_file"],
+            "mapping": {
+                "mapping_tool": "bowtie2",
+                "mapping_tool_version": bowtie_version,
+                "mapping_date": datetime.now().strftime("%Y-%m-%d"),
+                "reference_name": self.census["reference"]["reference_info"][
+                    "reference_name"
+                ],
+                "mapping_options": cmd,
+                "trim": str(self.trim),
+                "alignment_number": str(self.alignment_number),
+                "mapping_type": self.mapping_type,
+                "total_read_count": str(mapping_data[0]),
+                "mapped_read_count": str(mapping_data[2] + mapping_data[3]),
+                "overall_alignment_rate": str(
+                    round(
+                        (mapping_data[2] + mapping_data[3]) / mapping_data[0] * 100, 2
+                    )
+                ),
+                "fastq_files": ",".join(self.fastq_list),
+            },
+            "mapping_file": {
+                "bowtie_file": sam_file.name,
+            },
         }
         return config
 
     # @profile(stream=fp)
-    def execute(self) -> bool:
+    def execute(self) -> None:
         """Map reads"""
         sam_file = (
             self.census["directory"]
@@ -151,4 +152,3 @@ class Mapper(Session):
             parameters, sam_file, bowtie_version, mapping_data
         )
         self.save_config(config, self.census["Stage1FileName"])
-        return True

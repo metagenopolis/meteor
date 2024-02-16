@@ -15,7 +15,6 @@
 from subprocess import check_call, run
 from dataclasses import dataclass
 from pathlib import Path
-from configparser import ConfigParser
 from datetime import datetime
 from typing import Type, Dict
 from meteor.session import Session, Component
@@ -46,31 +45,32 @@ class VariantCalling(Session):
         vcf_file: Path,
         consensus_file: Path,
         bcftool_version: str,
-    ) -> ConfigParser:  # pragma: no cover
+    ) -> Dict:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
         :param cram_file: A path to the sam file
-        :return: (ConfigParser) A configparser object with the census 1 config
+        :return: (Dict) A dict object with the census 1 config
         """
-        config = ConfigParser()
-        config["sample_info"] = self.census["census"]["sample_info"]
-        config["sample_file"] = self.census["census"]["sample_file"]
-        config["mapping"] = {
-            "reference_name": self.census["reference"]["reference_info"][
-                "reference_name"
-            ],
-            "cram_name": cram_file.name,
-        }
-        config["variant_calling"] = {
-            "variant_calling_tool": "bcftools",
-            "variant_calling_version": bcftool_version,
-            "variant_calling_date": datetime.now().strftime("%Y-%m-%d"),
-            "vcf_name": vcf_file.name,
-            "consensus_name": consensus_file.name,
-            "min_snp_depth": str(self.min_snp_depth),
-            "min_frequency_non_reference": str(self.min_frequency_non_reference),
-            "max_depth": str(self.max_depth),
+        config = {
+            "sample_info": self.census["census"]["sample_info"],
+            "sample_file": self.census["census"]["sample_file"],
+            "mapping": {
+                "reference_name": self.census["reference"]["reference_info"][
+                    "reference_name"
+                ],
+                "cram_name": cram_file.name,
+            },
+            "variant_calling": {
+                "variant_calling_tool": "bcftools",
+                "variant_calling_version": bcftool_version,
+                "variant_calling_date": datetime.now().strftime("%Y-%m-%d"),
+                "vcf_name": vcf_file.name,
+                "consensus_name": consensus_file.name,
+                "min_snp_depth": str(self.min_snp_depth),
+                "min_frequency_non_reference": str(self.min_frequency_non_reference),
+                "max_depth": str(self.max_depth),
+            },
         }
         return config
 
@@ -158,9 +158,9 @@ class VariantCalling(Session):
         gene_tofilter = gene_interest[gene_interest["coverage"] >= self.min_snp_depth][
             ["gene_id", "gene_length"]
         ]
-        reads_dict = defaultdict(int)
+        reads_dict: Dict = defaultdict(int)
         dfs = []
-        with AlignmentFile(cram_file, "rb") as cram:
+        with AlignmentFile(str(cram_file.resolve()), "rb") as cram:
             for index, row in gene_tofilter.iterrows():
                 reads_dict = self.count_reads_in_gene(
                     cram, str(row["gene_id"]), row["gene_length"], reads_dict
@@ -186,7 +186,7 @@ class VariantCalling(Session):
             temp_low_cov_sites, sep="\t", header=False, index=False
         )
 
-    def execute(self) -> bool:
+    def execute(self) -> None:
         """Call variants reads"""
         # Start mapping
         cram_file = (
@@ -321,4 +321,3 @@ class VariantCalling(Session):
             cram_file, vcf_file, consensus_file, bcftools_version
         )
         self.save_config(config, self.census["Stage3FileName"])
-        return True

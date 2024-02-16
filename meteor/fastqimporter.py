@@ -16,9 +16,8 @@ import logging
 import re
 from itertools import product
 from pathlib import Path
-from configparser import ConfigParser
 from dataclasses import dataclass, field
-from typing import Type, Iterator
+from typing import Type, Iterator, Dict, NoReturn
 from meteor.session import Session, Component
 
 
@@ -96,25 +95,26 @@ class FastqImporter(Session):
 
     def set_fastq_config(
         self, sample_name: str, tag: str, fastq_file: Path, full_sample_name: str
-    ) -> ConfigParser:  # pragma: no cover
+    ) -> Dict:  # pragma: no cover
         """Set configuration for fastq
 
         :param sample_name: Sample name
         :param tag: Identified tag (single or 1 or 2)
         :param fastq_file: A fastq file path
         :param full_sample_name: A fastq file name without the extension
-        :return: (ConfigParser) A configparser configuration
+        :return: (Dict) A dict configuration
         """
-        config = ConfigParser()
-        config["sample_info"] = {
-            "sample_name": sample_name,
-            "tag": tag,
-            "full_sample_name": full_sample_name,
+        config = {
+            "sample_info": {
+                "sample_name": sample_name,
+                "tag": tag,
+                "full_sample_name": full_sample_name,
+            },
+            "sample_file": {"fastq_file": fastq_file.name},
         }
-        config["sample_file"] = {"fastq_file": fastq_file.name}
         return config
 
-    def execute(self) -> bool:
+    def execute(self) -> None:
         """Dispatch the fastq file"""
         logging.info("Start importing task")
         if len(list(self.get_fastq_file())) == 0:
@@ -156,6 +156,5 @@ class FastqImporter(Session):
             config_fastq = self.set_fastq_config(
                 sample_name, tag, sym_fastq, full_sample_name
             )
-            config_path = sample_dir / f"{full_sample_name}_census_stage_0.ini"
+            config_path = sample_dir / f"{full_sample_name}_census_stage_0.json"
             self.save_config(config_fastq, config_path)
-        return True

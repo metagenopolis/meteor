@@ -1,0 +1,10 @@
+{
+  "sample_info": {
+    "sample_name": "eva71_bench",
+    "census_status": 0,
+    "full_sample_name": "eva71_bench"
+  },
+  "sample_file": {
+    "fastq_file": "eva71_bench.fq.gz"
+  }
+}

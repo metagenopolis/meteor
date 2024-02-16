@@ -1,0 +1,12 @@
+{
+  "reference_info": {
+    "reference_name": "eva71",
+    "reference_date": "2023-03-14",
+    "database_type": "complete"
+  },
+  "reference_file": {
+    "database_dir": "database",
+    "fasta_dir": "fasta",
+    "fasta_filename": "eva71.fasta"
+  }
+}

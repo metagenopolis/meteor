@@ -1,0 +1,25 @@
+{
+  "sample_info": {
+    "sample_name": "eva71_bench",
+    "sequencing_device": "Illumina",
+    "census_status": 0,
+    "full_sample_name": "eva71_bench"
+  },
+  "sample_file": {
+    "fastq_file": "eva71_bench.fq.gz"
+  },
+  "mapping": {
+    "mapping_tool": "bowtie2",
+    "mapping_tool_version": "2.5.1",
+    "mapping_date": "2023-12-12",
+    "reference_name": "eva71",
+    "mapping_options": "-p 1 --end-to-end --sensitive --trim-to 80 -k 10000",
+    "total_read_count": 1480,
+    "mapped_read_count": 1480,
+    "overall_alignment_rate": 100.0,
+    "fastq_files": ["eva71_bench.fq.gz"]
+  },
+  "mapping_file": {
+    "bowtie_file": "eva71_bench.sam"
+  }
+}

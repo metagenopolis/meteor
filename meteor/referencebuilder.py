@@ -19,12 +19,11 @@ import lzma
 import sys
 from subprocess import check_call, run
 from pathlib import Path
-from configparser import ConfigParser
 from dataclasses import dataclass, field
 from datetime import datetime
 from packaging.version import Version, parse
 from textwrap import fill
-from typing import Type
+from typing import Type, Dict
 from meteor.session import Session, Component
 from typing import Iterator, Tuple
 
@@ -63,22 +62,23 @@ class ReferenceBuilder(Session):
         config_path = (
             self.meteor.ref_dir
             / self.meteor.ref_name
-            / f"{self.meteor.ref_name}_reference.ini"
+            / f"{self.meteor.ref_name}_reference.json"
         )
         self.save_config(config_ref, config_path)
 
-    def set_reference_config(self) -> ConfigParser:  # pragma: no cover
+    def set_reference_config(self) -> Dict:  # pragma: no cover
         """Write configuration file for reference genome"""
-        config = ConfigParser()
-        config["reference_info"] = {
-            "reference_name": self.meteor.ref_name,
-            "reference_date": datetime.now().strftime("%Y-%m-%d"),
-            "database_type": "complete",
-        }
-        config["reference_file"] = {
-            "database_dir": "database",
-            "fasta_dir": "fasta",
-            "fasta_filename": self.output_fasta_file.name,
+        config = {
+            "reference_info": {
+                "reference_name": self.meteor.ref_name,
+                "reference_date": datetime.now().strftime("%Y-%m-%d"),
+                "database_type": "complete",
+            },
+            "reference_file": {
+                "database_dir": "database",
+                "fasta_dir": "fasta",
+                "fasta_filename": self.output_fasta_file.name,
+            },
         }
         return config
 
@@ -124,7 +124,7 @@ class ReferenceBuilder(Session):
                     output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
                     output_fasta.write(f">{gene_id}\n{seq}\n")
 
-    def execute(self) -> bool:
+    def execute(self) -> None:
         """Build the database"""
         logging.info("Import %s", self.meteor.ref_name)
         # Prepare the reference for meteor
@@ -157,4 +157,3 @@ class ReferenceBuilder(Session):
         )
         # Build the index with gatk
         # check_call(["gatk", "CreateSequenceDictionary", "-R", self.output_fasta_file])
-        return True
