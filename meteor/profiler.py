@@ -132,7 +132,7 @@ class Profiler(Session):
                 self.db_filenames[db] = (
                     self.meteor.ref_dir
                     / self.ref_config["reference_file"]["database_dir"]
-                    / self.ref_config["annotation"][db]
+                    / self.ref_config["annotation"][db]["filename"]
                 )
                 assert self.db_filenames[db].is_file()
 

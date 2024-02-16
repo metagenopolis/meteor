@@ -20,7 +20,7 @@
         "version": "107"
     },
     "dbcan": {
-        "filename": "catalogue_dbcan.tsv"
+        "filename": "catalogue_dbcan.tsv",
         "version": "3.0"
     }
   }
