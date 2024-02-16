@@ -53,6 +53,7 @@ def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper:
         80,
         10000,
         "smart_shared_reads",
+        0.95,
     )
 
 

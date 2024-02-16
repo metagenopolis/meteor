@@ -40,10 +40,10 @@ class Mapper(Session):
     trim: int
     alignment_number: int
     counting_type: str
+    identity_threshold: float
 
     def set_mapping_config(
         self,
-        cmd: str,
         sam_file: Path,
         bowtie_version: str,
         mapping_data: List[int],
@@ -64,16 +64,14 @@ class Mapper(Session):
                 "reference_name": self.census["reference"]["reference_info"][
                     "reference_name"
                 ],
-                "mapping_options": cmd,
                 "trim": str(self.trim),
-                "alignment_number": str(self.alignment_number),
+                "alignment_number": self.alignment_number,
                 "mapping_type": self.mapping_type,
-                "total_read_count": str(mapping_data[0]),
-                "mapped_read_count": str(mapping_data[2] + mapping_data[3]),
-                "overall_alignment_rate": str(
-                    round(
-                        (mapping_data[2] + mapping_data[3]) / mapping_data[0] * 100, 2
-                    )
+                "identity_threshold": round(self.identity_threshold, 2),
+                "total_read_count": mapping_data[0],
+                "mapped_read_count": mapping_data[2] + mapping_data[3],
+                "overall_alignment_rate": round(
+                    (mapping_data[2] + mapping_data[3]) / mapping_data[0] * 100, 2
                 ),
                 "fastq_files": ",".join(self.fastq_list),
             },
@@ -148,7 +146,5 @@ class Mapper(Session):
             logging.error("Error, could not access the mapping result from bowtie2")
             sys.exit()
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
-        config = self.set_mapping_config(
-            parameters, sam_file, bowtie_version, mapping_data
-        )
+        config = self.set_mapping_config(sam_file, bowtie_version, mapping_data)
         self.save_config(config, self.census["Stage1FileName"])

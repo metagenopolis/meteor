@@ -89,7 +89,6 @@ class Merging(Session):
             for key, value in param_dict.items()
         }
         # Check that required fields are present
-        print(param_dict)
         try:
             assert all(
                 [
@@ -175,7 +174,8 @@ class Merging(Session):
             sys.exit()
         else:
             logging.info("%s census files have been detected.", str(len(all_census)))
-
+        for my_census in all_census:
+            print(my_census)
         # Create the dict: path -> Dict
         all_census_dict = {
             my_census.parent: self.read_json(my_census) for my_census in all_census
@@ -200,7 +200,14 @@ class Merging(Session):
         # Check that the json match for mapping parameters
         logging.info("Checking that census parameters match...")
         param_to_check = {
-            "mapping": ["reference_name", "mapping_options", "database_type"],
+            "mapping": [
+                "reference_name",
+                "trim",
+                "alignment_number",
+                "mapping_type",
+                "identity_threshold",
+                "database_type",
+            ],
             "profiling_parameters": [""],
         }
         all_information = {

@@ -1,0 +1,27 @@
+{
+  "sample_info": {
+    "sample_name": "sample2",
+    "census_status": 0,
+    "full_sample_name": "sample2_trimmed.Q17.converted.noHost"
+  },
+  "sample_file": {
+    "fastq_file": "sample2_trimmed.Q17.converted.noHost.fastq.gz"
+  },
+  "mapping": {
+    "mapping_tool": "bowtie2",
+    "mapping_tool_version": "2.5.1",
+    "mapping_date": "2023-11-17",
+    "reference_name": "IGC2",
+    "trim": 80,
+    "alignment_number": 10000,
+    "mapping_type": "end-to-end",
+    "identity_threshold": 0.95,
+    "total_read_count": 15000000,
+    "mapped_read_count": 10000000,
+    "overall_alignment_rate": 66.67,
+    "fastq_files": ["fastq1.fastq.gz", "fastq2.fastq.gz"]
+  },
+  "mapping_file": {
+    "bowtie_file": "sample2.sam"
+  }
+}

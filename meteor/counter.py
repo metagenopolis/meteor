@@ -111,6 +111,7 @@ class Counter(Session):
                 self.trim,
                 self.alignment_number,
                 self.counting_type,
+                self.identity_threshold,
             )
             mapping_process.execute()
 
