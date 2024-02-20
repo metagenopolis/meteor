@@ -93,12 +93,12 @@ class VariantCalling(Session):
                     debut = fin = pos
             regions.append([debut, fin + 1])
             dico_regions[count] = regions
-        data = []
-        for count, regions in dico_regions.items():
-            for region in regions:
-                data.append((gene_name, region[0], region[1], count))
         return pd.DataFrame(
-            data,
+            [
+                (gene_name, region[0], region[1], count)
+                for count, regions in dico_regions.items()
+                for region in regions
+            ],
             columns=["gene_id", "startpos", "endpos", "coverage"],
         )
 
