@@ -15,7 +15,7 @@
 from meteor.session import Session, Component
 from meteor.parser import Parser
 from dataclasses import dataclass
-from typing import Type, NoReturn
+from typing import Type
 import pandas as pd
 from pathlib import Path
 import importlib.resources

@@ -17,7 +17,7 @@ from meteor.session import Session, Component
 from dataclasses import dataclass
 from typing import Type, Dict, List
 from tempfile import mkdtemp
-import ete3
+import ete3  # type: ignore[import]
 from ete3 import Tree, TreeStyle
 from meteor.phylogeny import Phylogeny
 import logging

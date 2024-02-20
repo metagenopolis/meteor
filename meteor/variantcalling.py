@@ -16,7 +16,7 @@ from subprocess import check_call, run
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
-from typing import Type, Dict
+from typing import Type, Dict, List
 from meteor.session import Session, Component
 from time import perf_counter
 import tempfile
@@ -79,20 +79,20 @@ class VariantCalling(Session):
         for position, count in reads_dict.items():
             dico_inverse[count].append(position)
 
-        dico_regions = {}
+        dico_regions: Dict[int, List[List[int]]] = {}
         for count, positions in dico_inverse.items():
             positions.sort()
-            region = []
+            regions = []
             debut, fin = positions[0], positions[0]
 
             for pos in positions[1:]:
                 if pos == fin + 1:
                     fin = pos
                 else:
-                    region.append([debut, fin + 1])
+                    regions.append([debut, fin + 1])
                     debut = fin = pos
-            region.append([debut, fin + 1])
-            dico_regions[count] = region
+            regions.append([debut, fin + 1])
+            dico_regions[count] = regions
         data = []
         for count, regions in dico_regions.items():
             for region in regions:

@@ -17,7 +17,7 @@ import re
 from itertools import product
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Type, Iterator, Dict, NoReturn
+from typing import Type, Iterator, Dict
 from meteor.session import Session, Component
 
 

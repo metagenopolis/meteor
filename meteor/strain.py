@@ -63,7 +63,7 @@ class Strain(Session):
         )
         cov_df = pd.read_csv(
             StringIO(
-                pysam.coverage("-d", str(self.max_depth), str(cram_file.resolve()))
+                pysam.coverage("-d", str(self.max_depth), str(cram_file.resolve()))  # type: ignore[attr-defined]
             ),
             sep="\t",
             header=1,
@@ -148,7 +148,8 @@ class Strain(Session):
         # clear first ?
         if not consensus_file.exists():
             logging.error(
-                "Consensus file %s is not available to perform a new strain extraction. Please consider to use strain with --kc option.",
+                """Consensus file %s is not available to perform a new strain extraction.
+                Please consider to use strain with --kc option.""",
                 consensus_file,
             )
             sys.exit()
