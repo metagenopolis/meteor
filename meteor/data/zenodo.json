@@ -37,14 +37,14 @@
   },
   "human_gut": {
       "file_info": {
-          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/LPJF7L",
+          "catalogue": "https://zenodo.org/records/10681122/files/hs_10_4_gut.tar.xz",
           "filename": "hs_10_4_gut.tar.xz",
-          "md5": "3bdaf77a42ee5bda6dcda8a2c85dbd56"
+          "md5": "54569886c01bd0769bbf976ffc3a662a"
       },
       "taxonomy_info": {
-          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/XBOPFP",
+          "catalogue": "https://zenodo.org/api/records/10681122/files/hs_10_4_gut_taxo.tar.xz",
           "filename": "hs_10_4_gut_taxo.tar.xz",
-          "md5": "585d5ea1652ae215ae025a5b7d59ca44"
+          "md5": "8cc3f5fdd8ff508f5e01b5674531c5f3"
       }
   },
   "human_oral": {
