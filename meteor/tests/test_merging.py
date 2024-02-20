@@ -209,12 +209,6 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
         .reset_index(drop=True)
         .reindex(sorted(expected_output_df.columns), axis=1)
     )
-    print(real_output_df)
-    real_output_df.to_csv("/Users/aghozlan/real_output.tsv", sep="\t", index=False)
-    print(expected_output_df)
-    expected_output_df.to_csv(
-        "/Users/aghozlan/expected_output.tsv", sep="\t", index=False
-    )
     assert real_output_df.round(2).equals(expected_output_df.round(2))
 
     # Check existence and content of all files
