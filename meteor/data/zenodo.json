@@ -49,14 +49,14 @@
   },
   "human_oral": {
       "file_info": {
-          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/PE2QKQ",
+          "catalogue": "https://zenodo.org/records/10685510/files/hs_8_4_oral.tar.xz",
           "filename": "hs_8_4_oral.tar.xz",
-          "md5": "0206db6f938d4562d0ed23f1d3c12470"
+          "md5": "b6ae08a85301ba37d19ef8b78dfe94a1"
       },
       "taxonomy_info": {
-          "catalogue": "https://entrepot.recherche.data.gouv.fr/api/access/datafile/:persistentId?persistentId=doi:10.57745/CHGJRH",
+          "catalogue": "https://zenodo.org/records/10685510/files/hs_8_4_oral_taxo.tar.xz",
           "filename": "hs_8_4_oral_taxo.tar.xz",
-          "md5": "ff3aef1f26cfb16bc9123a5b71d50fe3"
+          "md5": "c4492bc345aef9f420d6a107a30f240d"
       }
   },
   "human_skin": {
