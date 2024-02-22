@@ -121,12 +121,12 @@
   },
   "test": {
       "file_info": {
-          "catalogue": "https://zenodo.org/records/10658738/files/mock.tar.xz",
+          "catalogue": "https://zenodo.org/records/10693995/files/mock.tar.xz",
           "filename": "mock.tar.xz",
-          "md5": "c6031f334f06e3a25fb62674c5134e15"
+          "md5": "be4f51c13c907337a6ddea274ae012f3"
       },
       "fastq_info": {
-          "catalogue": "https://zenodo.org/records/10280819/files/test.fastq.gz",
+          "catalogue": "https://zenodo.org/records/10693995/files/test.fastq.gz",
           "filename": "test.fastq.gz",
           "md5": "b6d2dad808256b8718a4a3bf30688ac7"
       }

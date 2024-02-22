@@ -74,10 +74,14 @@ class Session(Protocol):
             json.dump(config, configfile)
 
     def read_json(self, input_json: Path) -> Dict:  # pragma: no cover
-        """Read json file"""
+        """Read json file
+        :param input_json: (Path) An input path to the json file
+        :return: A Dict object of the json file
+        """
         config = {}
         try:
-            with open(input_json, "rt", encoding="UTF-8") as json_data:
+            print(input_json)
+            with input_json.open("rt", encoding="UTF-8") as json_data:
                 config = json.load(json_data)
         except FileNotFoundError:
             logging.error("The file %s does not exist.", input_json)
