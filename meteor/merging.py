@@ -174,8 +174,6 @@ class Merging(Session):
             sys.exit()
         else:
             logging.info("%s census files have been detected.", str(len(all_census)))
-        for my_census in all_census:
-            print(my_census)
         # Create the dict: path -> Dict
         all_census_dict = {
             my_census.parent: self.read_json(my_census) for my_census in all_census
