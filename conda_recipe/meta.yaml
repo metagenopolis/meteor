@@ -9,11 +9,9 @@ source:
 
 build:
   noarch: python
-  script: poetry build &&  {{ PYTHON }} -m pip install .
+  script: {{ PYTHON }} -m pip install .
 
 requirements:
-    build:
-        - poetry
     host:
         - python>=3.10
     run:
