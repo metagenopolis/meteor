@@ -9,7 +9,7 @@ source:
 
 build:
   noarch: python
-  script: {{ PYTHON }} -m pip install .
+  script: {{ PYTHON }} -m pip install -r requirements.txt .
 
 requirements:
     host:
