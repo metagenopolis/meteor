@@ -22,6 +22,7 @@ requirements:
         - python>=3.10
         - bowtie2>=2.3.5
         - pysam
+        - pyarrow
         - pandas
         - ete3
         - packaging
