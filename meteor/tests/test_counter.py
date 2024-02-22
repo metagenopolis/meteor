@@ -20,7 +20,6 @@ from hashlib import md5
 from pysam import AlignmentFile
 from itertools import chain
 import pytest
-import json
 
 # No more best count
 # @pytest.fixture
