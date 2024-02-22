@@ -185,6 +185,10 @@ def test_merge_df(merging_profiles: Merging, datadir: Path):
     expected_output = pd.read_table(
         datadir / "expected_output" / "test_project_modules_completeness.tsv"
     )
+    with open("/Users/aghozlan/obtained_output.tsv", "wt", encoding="UTF-8") as f:
+        merged_df.to_csv(f, sep="\t", index=False)
+    with open("/Users/aghozlan/expected_output.tsv", "wt", encoding="UTF-8") as f:
+        expected_output.to_csv(f, sep="\t", index=False)
     assert merged_df.equals(expected_output)
 
 

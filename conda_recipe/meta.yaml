@@ -1,15 +1,19 @@
+{% set name = "meteor" %}
+{% set version = "3.4" %}
 package:
-    name: meteor
+    name: {{ name }}
     version: {{ environ.get('GIT_DESCRIBE_TAG', '') }}
 
 source:
     - git_url: https://forgemia.inra.fr/metagenopolis/meteor.git
-      git_rev: 3.4
+      git_rev: {{ environ.get('GIT_DESCRIBE_TAG', '') }}
       #git_rev: {{ environ.get('GIT_DESCRIBE_TAG', '') }}
 
 build:
   noarch: python
   script: {{ PYTHON }} -m pip install -r requirements.txt
+  run_exports:
+    - {{ pin_subpackage('meteor', max_pin='x.x') }}
 
 requirements:
     host:
@@ -29,12 +33,14 @@ test:
     imports:
         - pysam
         - pandas
+        - Pyarrow
         - ete3
         - packaging
 
 about:
-  home: https://mgps.eu/
+  home: https://github.com/metagenopolis/meteor
   license: GPL (>= 3)
+  license_file: COPYING
   summary: 'Meteor is a plateform for quantitative metagenomics profiling of complex ecosystems.'
   description: |
     Meteor relies on genes catalogue to perform specie level taxonomic assignments and functional analysis.
