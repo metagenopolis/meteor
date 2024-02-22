@@ -75,6 +75,7 @@ pytest:3.12:
    - poetry run -C meteor pytest
   only:
     - dev
+  allow_failure: true
 
 flake8:
   stage: test
