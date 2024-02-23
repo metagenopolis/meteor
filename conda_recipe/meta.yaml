@@ -32,7 +32,7 @@ requirements:
         - pyarrow
         - pandas
         - ete3
-        - pyqt5-sip
+          #- pyqt5-sip
         - packaging
         - bcftools>=0.1.19
         - fasttree>=1.9.0

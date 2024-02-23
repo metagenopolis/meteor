@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Type, Dict, List
 from tempfile import mkdtemp
 import ete3  # type: ignore[import]
-from ete3 import Tree, TreeStyle
+from ete3 import Tree #, TreeStyle
 from meteor.phylogeny import Phylogeny
 import logging
 import sys
@@ -99,9 +99,9 @@ class TreeBuilder(Session):
             matrix = self.get_msp_distance(msp_tree)
             matrix.to_csv(self.meteor.tree_dir / f"{msp_file.stem}.tsv", sep="\t")
             # Draw trees
-            ts = TreeStyle()
-            ts.show_leaf_name = True
-            ts.show_branch_length = True
+            #ts = TreeStyle()
+            #ts.show_leaf_name = True
+            #ts.show_branch_length = True
             msp_tree.render(
                 str(img_file.resolve()),
                 w=self.width,
