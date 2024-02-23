@@ -52,5 +52,4 @@ about:
   summary: 'Meteor is a plateform for quantitative metagenomics profiling of complex ecosystems.'
   description: |
     Meteor relies on genes catalogue to perform specie level taxonomic assignments and functional analysis.
-  dev_url: https://forgemia.inra.fr/metagenopolis/meteor
   license_family: GPL3
