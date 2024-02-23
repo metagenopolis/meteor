@@ -2,24 +2,31 @@
 {% set version = "3.4" %}
 package:
     name: {{ name }}
-    version: {{ environ.get('GIT_DESCRIBE_TAG', '') }}
+    version: {{ version }}
 
 source:
-    - git_url: https://forgemia.inra.fr/metagenopolis/meteor.git
-      git_rev: 3.4
+      path: ..
+        #- git_url: https://forgemia.inra.fr/metagenopolis/meteor.git
+        #    git_rev: 3.4
       #git_rev: {{ environ.get('GIT_DESCRIBE_TAG', '') }}
 
 build:
   noarch: python
-  script: {{ PYTHON }} -m pip install -r requirements.txt
-  run_exports:
-    - {{ pin_subpackage('meteor', max_pin='x.x') }}
+  #script: {{ PYTHON }} -m pip install -r requirements.txt
+  #script: {{ PYTHON }} -m poetry install
+  script: {{ PYTHON }} -m pip install . --no-deps -vv
+  #run_exports:
+  # - {{ pin_subpackage('meteor', max_pin='x.x') }}
 
 requirements:
+        #build:
+        #- poetry
     host:
         - python>=3.10
+        - poetry
     run:
         - python>=3.10
+        - poetry
         - bowtie2>=2.3.5
         - pysam
         - pyarrow
