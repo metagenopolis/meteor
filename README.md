@@ -9,10 +9,10 @@
 ## Introduction
 
 Meteor is a plateform for quantitative metagenomics profiling of complex ecosystems.
-Meteor relies on genes catalogue to perform specie level taxonomic assignments and functional analysis.
+Meteor relies on genes catalogue to perform species-level taxonomic profiling and functional analysis.
 
 Check the [wiki](https://forgemia.inra.fr/metagenopolis/meteor/-/wikis/home) for more information.
-If you use meteor , please cite:
+If you use meteor, please cite:
 
 
 
@@ -46,17 +46,19 @@ meteor test
 
 A basic usage of meteor will require to:
 1. **Download or build a reference catalogue**
-2. **Import the raw fastq files**
+2. **Structure the raw fastq files**
 3. **Map reads against the reference catalogue**
-4. **Profile taxonomical or functional abundances**
+4. **Compute taxonomical and/or functional abundances**
 5. **Strain profiling**
 
 ### 1. Download or build a custom reference
 -------------------------------------------
 
-Meteor requires to download locally a microbial gene catalogue. Several catalogues are currently available:
+Meteor requires to download locally a microbial gene catalogue specif, either in 'full' or 'light' version. The 'full' version contains all genes of the catalogue, whereas the 'light' version contains only the marker genes that will be used to infer species abundance profiles. Of note, no functional profiling can be performed when using the 'light' version of a catalogue. 
 
-|  Microbial gene catalogue | \<name\> | Genes count (M) | Metagenomic Species Pan-genomes (MSPs) |Size (GB) | Taxonomy catalogue size (GB)  | Description  |
+Ten catalogues are currently available:
+
+|  Microbial gene catalogue | \<name\> | Genes count (M) | Metagenomic Species Pan-genomes (MSPs) |Size (full) (GB) | Size (light) (GB)  | Description  |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
 |  *Felis catus* | cat_gut  | 1.3  | 344 | 2.7 | 0.9 |[link](https://zenodo.org/records/10719585)
 |  *Gallus gallus domesticus* | chicken_caecal  | 13.6  | 2420 | 22.8 | 4.8 |[link](https://zenodo.org/records/10719564)
@@ -69,11 +71,11 @@ Meteor requires to download locally a microbial gene catalogue. Several catalogu
 | *Rattus norvegicus* | rat_gut  | 5.9 | 1627 | 8.4 | 2.0 |[link](https://zenodo.org/records/10719596)
 | *Sus domesticus* | pig_gut  | 9.3  | 1523 | 8.4 | 378 |[link](https://zenodo.org/records/10719591)
 
-These references can be downloaded with following command:
+These references can be downloaded with the following command:
 ```
 meteor download -i <name> -c -o <refdir>
 ```
-We also created smaller catalogue designed exclusively for taxonomical profiling. They are available with the tag (-t) :
+The 'light' catalogues are available with the tag (--fast) :
 ```
 meteor download -i <name> -c --fast -o <refdir>
 ```
@@ -104,34 +106,45 @@ meteor fastq -i ./  -m SAMPLE_\\d+ -n projectname -o outputdir
 
 ### 3. Mapping
 ----------------
-The mapping is performed with the raw fastq file against a catalogue reference with the following command:
+The raw fastq files are mapped against a catalogue to generate a gene count table with the following command:
 ```
 meteor mapping -i <fastqdir> -r <refdir> -o <mappingdir>
 ```
-We recommand to filter out reads of length < 60nt.
+We recommend to first filter out reads with low-quality, length < 60nt or belonging to the host.
 
-### 4. Abundance profiling
+### 4. Taxonomic and functional profiling
 -------------------------
 
-####  **Taxonomical analysis**
+Genes from the catalogue are clustered into Metagenomic Species Pangeomes (MSP) with [MSPminer](https://academic.oup.com/bioinformatics/article/35/9/1544/5106712), and are functionnaly annotated against [KEGG r107](https://academic.oup.com/nar/article/36/suppl_1/D480/2507484), [DBcan](https://academic.oup.com/nar/article/51/W1/W115/7147496?login=true) (carbohydate active enzymes) and [MUSTARD](https://www.nature.com/articles/s41564-018-0292-6) (antiobitic resistant determinants).
 
-The taxonomical profiling can be performed at several level of accuracy (gene, MSP, SuperKingdom, Phylum, Class, Order, Family, Genus, Specie). MSPs were calculated with [MSPminer](https://academic.oup.com/bioinformatics/article/35/9/1544/5106712).
-Their abundances can be profiled with the following command:
+ MSP and functional profiles are computed from the gene count table with the following command:
+
 ```
-meteor profile -i <mappingdir> -r <refdir> -l <accuracy> -o <profiledir>  -n coverage
+meteor profile -i <mappingdir> -o <profiledir> -r <refdir> -n coverage
 ```
 
-#### **Functional analysis**
+The "-n" parameter ensures read count normalization for gene length. If omitted, no normalization will be performed on the gene table. 
 
-Meteor provides  a pathway annotation based on [KEGG r107](https://academic.oup.com/nar/article/36/suppl_1/D480/2507484), a CAZyme annotation based on [DBcan](https://academic.oup.com/nar/article/51/W1/W115/7147496?login=true) and an ARDs annotation based on [MUSTARD](https://www.nature.com/articles/s41564-018-0292-6). Their abundances can be profiled with the following command:
+This profiling step will generate:
+- species abundance table;
+- ARD abundance table (full catalogue only);
+- DBCAN abundance table (full catalogue only);
+- Gut Metabolic Modules ([GMM](https://www.nature.com/articles/nmicrobiol201688)) abundance table (from the KO annotation) (full catalogue only).
+
+
+### 5. Merging
+
+To merge output from different samples into a single table, use the following command:
+
 ```
-meteor profile -i <mappingdir> -a <annotation> -o <countingdir>
+meteor merge -i <profiledir> -o <mergingdir> --fast
 ```
+
+The '--fast' parameter prevent merging of the gene count tables, so that only species and functions table will be merged.
 
 ### 5. Strain profiling
 -------------------------
 
-#### **Functional analysis**
 
 ## The METEOR team
 The main contributors to METEOR:
