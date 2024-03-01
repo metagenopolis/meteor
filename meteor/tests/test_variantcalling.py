@@ -46,6 +46,19 @@ def vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
     return VariantCalling(meteor, data_dict, 100, 3, 0.5)
 
 
+# def test_get_regions(vc_builder: VariantCalling) -> None:
+#     regions = vc_builder.get_regions()
+#     print(regions)
+
+
+# def test_count_reads_in_gene(vc_builder: VariantCalling) -> None:
+#     reads_in_gene = vc_builder.count_reads_in_gene("ENSG00000279457")
+
+
+# def test_filter_low_cov_sites(vc_builder: VariantCalling) -> None:
+#     vc_builder.filter_low_cov_sites(cram_file)
+
+
 def test_execute(vc_builder: VariantCalling) -> None:
     vc_builder.execute()
     output_vcf = (

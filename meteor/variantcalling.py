@@ -75,6 +75,7 @@ class VariantCalling(Session):
         return config
 
     def get_regions(self, gene_name: str, reads_dict: Dict[int, int]) -> pd.DataFrame:
+        """Give the"""
         dico_inverse = defaultdict(list)
         for position, count in reads_dict.items():
             dico_inverse[count].append(position)
@@ -161,6 +162,7 @@ class VariantCalling(Session):
         reads_dict: Dict = defaultdict(int)
         dfs = []
         with AlignmentFile(str(cram_file.resolve()), "rb") as cram:
+            # For genes with a count
             for index, row in gene_tofilter.iterrows():
                 reads_dict = self.count_reads_in_gene(
                     cram, str(row["gene_id"]), row["gene_length"], reads_dict

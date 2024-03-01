@@ -80,7 +80,6 @@ class Session(Protocol):
         """
         config = {}
         try:
-            print(input_json)
             with input_json.open("rt", encoding="UTF-8") as json_data:
                 config = json.load(json_data)
         except FileNotFoundError:

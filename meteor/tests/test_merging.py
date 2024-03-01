@@ -92,7 +92,6 @@ def test_extract_json_info(merging_profiles: Merging) -> None:
             "mapping_file": [""],
         },
     )
-    print(info)
     assert info == {
         "msp_filter": 0.1,
         "modules_def": "GMM_definition.tsv",
