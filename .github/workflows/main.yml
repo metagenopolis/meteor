@@ -17,19 +17,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          pip install numpy scipy cython
-          sudo apt install bowtie2
+          sudo apt-get install -y bowtie2 bcftools
       - name: Install Python
         uses: actions/setup-python@v4
         # see details (matrix, python-version, python-version-file, etc.)
         # https://github.com/actions/setup-python
       - name: Install poetry
         uses: abatilo/actions-poetry@v2
-      - uses: actions/cache@v3
-        name: Define a cache for the virtual environment based on the dependencies lock file
-        with:
-          path: ./.venv
-          key: venv-${{ hashFiles('poetry.lock') }}
       - name: Install the project dependencies
         run: poetry install --only test -C meteor
       - name: Run the automated tests (for example)
