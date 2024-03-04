@@ -119,7 +119,7 @@ class Merging(Session):
         where config parser information is stored as a dictionnary field: value
         """
         # Define an ini file of reference
-        ref_config = list(all_sections_info.keys())[0]
+        ref_config = sorted(list(all_sections_info.keys()))[0]
         logging.info("Use the ini file associated to %s as a reference.", ref_config)
         # Compare all other entries to this reference
         ref_comparison_bool = {

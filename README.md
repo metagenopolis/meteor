@@ -1,10 +1,8 @@
 # Meteor
 
 [![install with conda](https://img.shields.io/conda/vn/aghozlane/meteor?color=green&label=aghozlane%2Fmeteor&logo=anaconda)](https://anaconda.org/aghozlane/meteor)
-[![Latest Release](https://forgemia.inra.fr/metagenopolis/meteor/-/badges/release.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/releases)
-[![pipeline status](https://forgemia.inra.fr/metagenopolis/meteor/badges/dev/pipeline.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev)
-[![coverage report](https://forgemia.inra.fr/metagenopolis/meteor/badges/dev/coverage.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev)
-[![pylint](https://forgemia.inra.fr/metagenopolis/meteor/-/jobs/artifacts/dev/raw/pylint/pylint.svg?job=pylint)](https://forgemia.inra.fr/metagenopolis/meteor/-/jobs/artifacts/dev/raw/pylint/pylint.log?job=pylint)
+[![Latest Release](https://img.shields.io/github/v/release/metagenopolis/meteor)](https://forgemia.inra.fr/metagenopolis/meteor/-/releases)
+[![dockerhub](https://img.shields.io/docker/v/aghozlane/meteor?label=aghozlane/meteor&logo=docker)](https://hub.docker.com/r/aghozlane/meteor/)
 
 ## Introduction
 
