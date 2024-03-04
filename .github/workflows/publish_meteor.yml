@@ -29,17 +29,21 @@ jobs:
   build_conda:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
         with:
-          auto-update-conda: true
+          environment-file: devtools/conda-envs/build_env.yaml
+          auto-update-conda: false
           channels: conda-forge,bioconda,aghozlane,defaults
-      - name: Login to Anaconda
-        run: anaconda login --hostname ${{ secrets.DOCKER_HOST }} --username ${{ secrets.DOCKER_USER }} --password ${{ secrets.DOCKER_PASS }}
-      - name: Build Conda package
-        run: conda build conda_recipe
-      - name: Logout from Anaconda
-        run: anaconda logout
-
+      - name: Build and upload the conda packages
+        uses: uibcdf/action-build-and-upload-conda-packages@v1.3.0
+        with:
+          meta_yaml_dir: devtools/conda-build
+          platform_linux-64: true
+          platform_osx-64: true
+          user: aghozlane
+          label: auto
+          token: ${{ secrets.ANACONDA_TOKEN }} # Replace with the right name of your secret
 
   publish:
     runs-on: ubuntu-latest
@@ -53,7 +57,8 @@ jobs:
         uses: abatilo/actions-poetry@v2
       - name: Build and publish to PyPI
         run: |
+          poetry config http-basic.pypi __token__ ${{ secrets.PYPI_PASS }}
           poetry build -C meteor
-          poetry publish -C meteor -u ${{ secrets.PYPI_USER }} -p  ${{ secrets.PYPI_PASS }}
+          poetry publish -C meteor
 
 
