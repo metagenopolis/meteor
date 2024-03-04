@@ -29,6 +29,7 @@ from meteor.merging import Merging
 from meteor.strain import Strain
 from meteor.treebuilder import TreeBuilder
 from tempfile import TemporaryDirectory
+import importlib.metadata
 
 
 class Color:
@@ -577,6 +578,8 @@ def main() -> None:  # pragma: no cover
     args = get_arguments()
     # Let us logging
     logger = get_logging()
+    # version = importlib.metadata.version("meteor")
+    # print("Meteor version", version)
     # Create a meteor dataset
     meteor = Component
     # Import FASTQ
