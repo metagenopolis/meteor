@@ -11,13 +11,13 @@ jobs:
         include:
           - python-version: 3.12
             allow-failure: true
-        poetry-version: ["1.2.2", "1.7.1"]
         os: [ubuntu-22.04, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: |
-          sudo apt-get install -y bowtie2 bcftools
+      - uses: ConorMacBride/install-package@v1
+        with:
+          brew: bowtie2 bcftools
+          apt: bowtie2 bcftools
       - name: Install Python
         uses: actions/setup-python@v4
         # see details (matrix, python-version, python-version-file, etc.)
