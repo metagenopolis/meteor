@@ -1,0 +1,147 @@
+name: meteor
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - dev
+
+env:
+  PIP_CACHE_DIR: ${{ github.workspace }}/.cache/pip
+
+jobs:
+
+  pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11, 3.10, 3.12]
+        include:
+          - python-version: 3.12
+            allow-failure: true
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install Poetry
+      run: pip install poetry
+    - name: Install dependencies
+      run: poetry install --only test -C meteor
+    - name: Run pytest
+      run: poetry run -C meteor pytest
+      if: matrix.python-version != '3.12' # Skip coverage for Python 3.12
+    - name: Run pytest with coverage
+      run: |
+        poetry run -C meteor pytest --cov=meteor --cov-report xml
+        poetry run -C meteor coverage report
+      if: matrix.python-version == '3.11'
+      continue-on-error: ${{ matrix.allow-failure }}
+    - name: Upload coverage artifact
+      uses: actions/upload-artifact@v2
+      if: matrix.python-version == '3.11'
+      with:
+        name: coverage-report
+        path: coverage.xml
+
+  flake8:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install Flake8
+      run: pip install flake8
+    - name: Run Flake8
+      run: flake8 --max-line-length=120 meteor
+      continue-on-error: true
+
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install Poetry
+      run: pip install poetry
+    - name: Install dependencies
+      run: poetry install --only mypy -C meteor
+    - name: Run Mypy
+      run: poetry run mypy meteor
+      continue-on-error: true
+
+  pylint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install Poetry
+      run: pip install poetry
+    - name: Install dependencies
+      run: poetry install --only pylint -C meteor
+    - name: Run Pylint and generate badge
+      run: |
+        mkdir ./pylint
+        poetry run pylint --rcfile=.pylintrc --exit-zero --output-format=text meteor | tee ./pylint/pylint.log
+        PYLINT_SCORE=$(sed -n 's/^Your code has been rated at $[-0-9.]*$\/.*/\1/p' ./pylint/pylint.log)
+        poetry run anybadge --label=Pylint --file=pylint/pylint.svg --value=$PYLINT_SCORE 2=red 4=orange 8=yellow 10=green
+        echo "Pylint score is $PYLINT_SCORE"
+      continue-on-error: true
+    - name: Upload Pylint artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: pylint-report
+        path: ./pylint/
+
+  run:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install Poetry
+      run: pip install poetry
+    - name: Build and publish to GitLab PyPI
+      run: |
+        poetry config repositories.gitlab ${{ secrets.CI_API_V4_URL }}/projects/${{ github.repository_id }}/packages/pypi
+        poetry build -C meteor
+        poetry publish -C meteor --repository gitlab -u gitlab-ci-token -p ${{ secrets.CI_JOB_TOKEN }}
+      if: startsWith(github.ref, 'refs/tags/')
+
+  build_conda:
+    runs-on: ubuntu-latest
+    container:
+      image: continuumio/miniconda3:latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Configure Conda
+      run: |
+        conda config --add channels conda-forge
+        conda config --add channels bioconda
+        conda config --set anaconda_upload yes
+        conda update -n base -c defaults conda
+        conda install -y conda-verify
+        conda install -y anaconda-client
+        conda install -y conda-build
+        conda install -y git
+    - name: Login to Anaconda
+      run: anaconda login --hostname "$DOCKER_HOST" --username "$DOCKER_USER" --password "$DOCKER_PASS"
+    - name: Build Conda package
+      run: conda build conda_recipe
+    - name: Logout from Anaconda
+      run: anaconda logout
+      if: startsWith(github.ref, 'refs/tags/')

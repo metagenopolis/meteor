@@ -1,6 +1,6 @@
 # Meteor
 
-[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/metaphlan/README.html)
+[![install with conda](https://img.shields.io/conda/vn/aghozlane/meteor?color=green&label=aghozlane%2Fmeteor&logo=anaconda)](https://anaconda.org/aghozlane/meteor)
 [![Latest Release](https://forgemia.inra.fr/metagenopolis/meteor/-/badges/release.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/releases)
 [![pipeline status](https://forgemia.inra.fr/metagenopolis/meteor/badges/dev/pipeline.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev)
 [![coverage report](https://forgemia.inra.fr/metagenopolis/meteor/badges/dev/coverage.svg)](https://forgemia.inra.fr/metagenopolis/meteor/-/commits/dev)
@@ -54,7 +54,7 @@ A basic usage of meteor will require to:
 ### 1. Download or build a custom reference
 -------------------------------------------
 
-Meteor requires to download locally a microbial gene catalogue specif, either in 'full' or 'light' version. The 'full' version contains all genes of the catalogue, whereas the 'light' version contains only the marker genes that will be used to infer species abundance profiles. Of note, no functional profiling can be performed when using the 'light' version of a catalogue. 
+Meteor requires to download locally a microbial gene catalogue specif, either in 'full' or 'light' version. The 'full' version contains all genes of the catalogue, whereas the 'light' version contains only the marker genes that will be used to infer species abundance profiles. Of note, no functional profiling can be performed when using the 'light' version of a catalogue.
 
 Ten catalogues are currently available:
 
@@ -123,7 +123,7 @@ Genes from the catalogue are clustered into Metagenomic Species Pangeomes (MSP) 
 meteor profile -i <mappingdir> -o <profiledir> -r <refdir> -n coverage
 ```
 
-The "-n" parameter ensures read count normalization for gene length. If omitted, no normalization will be performed on the gene table. 
+The "-n" parameter ensures read count normalization for gene length. If omitted, no normalization will be performed on the gene table.
 
 This profiling step will generate:
 - species abundance table;
