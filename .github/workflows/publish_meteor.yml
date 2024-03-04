@@ -8,8 +8,6 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -24,13 +22,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: user/app:latest
-      - name: Update repo description
-        uses: aghozlane/meteor
-        with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
-          repository: user/app
+          tags: aghozlane/meteor:latest
 
   build_conda:
     runs-on: ubuntu-latest
