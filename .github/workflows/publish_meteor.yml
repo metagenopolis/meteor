@@ -31,15 +31,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build and upload the conda packages
-        uses: uibcdf/action-build-and-upload-conda-packages@v1.3.0
+      - uses: conda-incubator/setup-miniconda@v3
         with:
-          meta_yaml_dir: conda_recipe/
-          user: aghozlane
-          upload: true
-          overwrite: true
-          label: auto
-          token: ${{ secrets.ANACONDA_TOKEN }}
+          auto-update-conda: true
+      - name: Build and upload the conda packages
+        shell: bash -el {0}
+        run: conda build --token ${{ secrets.ANACONDA_TOKEN }} conda_recipe
 
   # We need to obtain the domain on PyPI
   # pypi:
