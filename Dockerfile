@@ -4,7 +4,7 @@ FROM continuumio/miniconda3
 WORKDIR /app
 
 # install conda packages
-RUN conda create --name meteor -c conda-forge -c bioconda  -c aghozlane meteor && conda clean -ya
+RUN conda create -y -n meteor -c conda-forge -c bioconda  -c aghozlane meteor && conda clean -ya
 
 # add meteor environment to path
 RUN echo "source activate meteor" > ~/.bashrc
