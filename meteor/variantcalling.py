@@ -212,10 +212,13 @@ class VariantCalling(Session):
             / self.census["reference"]["reference_file"]["fasta_dir"]
             / self.census["reference"]["reference_file"]["fasta_filename"]
         )
+        print(self.meteor.ref_dir)
+        print(self.census["reference"]["reference_file"]["database_dir"])
+        print(self.census["reference"]["annotation"]["bed"])
         bed_file = (
             self.meteor.ref_dir
             / self.census["reference"]["reference_file"]["database_dir"]
-            / self.census["reference"]["annotation"]["bed"]
+            / self.census["reference"]["annotation"]["bed"]["filename"]
         )
         bcftools_exec = run(["bcftools", "--version"], capture_output=True)
         bcftools_version = (

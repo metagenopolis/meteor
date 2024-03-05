@@ -256,7 +256,7 @@ class Strain(Session):
             msp_file = (
                 self.meteor.ref_dir
                 / self.json_data["reference"]["reference_file"]["database_dir"]
-                / self.json_data["reference"]["annotation"]["msp"]
+                / self.json_data["reference"]["annotation"]["msp"]["filename"]
             )
             cram_file = (
                 self.json_data["mapped_sample_dir"]
@@ -265,7 +265,7 @@ class Strain(Session):
             bed_file = (
                 self.meteor.ref_dir
                 / self.json_data["reference"]["reference_file"]["database_dir"]
-                / self.json_data["reference"]["annotation"]["bed"]
+                / self.json_data["reference"]["annotation"]["bed"]["filename"]
             )
             start = perf_counter()
             # count_file,
