@@ -212,9 +212,6 @@ class VariantCalling(Session):
             / self.census["reference"]["reference_file"]["fasta_dir"]
             / self.census["reference"]["reference_file"]["fasta_filename"]
         )
-        print(self.meteor.ref_dir)
-        print(self.census["reference"]["reference_file"]["database_dir"])
-        print(self.census["reference"]["annotation"]["bed"])
         bed_file = (
             self.meteor.ref_dir
             / self.census["reference"]["reference_file"]["database_dir"]
@@ -249,6 +246,8 @@ class VariantCalling(Session):
                         "-d",
                         str(self.max_depth),
                         "-Ob",
+                        "-R",
+                        str(bed_file.resolve()),
                         "-f",
                         str(reference_file.resolve()),
                         str(cram_file.resolve()),

@@ -1,14 +1,18 @@
 {% set name = "meteor" %}
-{% set version = "2.0.0" %}
+#{% set version = "2.0.0" %}
 
 package:
     name: {{ name }}
-    version: {{ version }}
+    version: "{{ environ['GIT_DESCRIBE_TAG'] }}"
 
 channels:
-    - defaults
     - conda-forge
     - bioconda
+    - defaults
+
+dependencies:   # Keep this block with only these two packages
+  - anaconda-client
+  - conda-build
 
 source:
       path: ..
