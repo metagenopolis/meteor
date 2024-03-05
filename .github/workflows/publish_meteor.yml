@@ -18,7 +18,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: true
           tags: aghozlane/meteor:latest
           secrets: |
@@ -28,20 +28,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: conda-incubator/setup-miniconda@v3
-        with:
-          environment-file: devtools/conda-envs/build_env.yaml    # Path to the build conda environment
-          auto-update-conda: false
-          auto-activate-base: false
-          show-channel-urls: true
       - name: Build and upload the conda packages
         uses: uibcdf/action-build-and-upload-conda-packages@v1.3.0
         with:
           meta_yaml_dir: conda_recipe/meta.yaml
-          platform_linux-64: true
-          platform_osx-64: true
           user: aghozlane
           label: auto
+          upload: true
           token: ${{ secrets.ANACONDA_TOKEN }} # Replace with the right name of your secret
 
   publish:
