@@ -35,11 +35,11 @@ jobs:
         with:
           auto-update-conda: true
           channels: conda-forge,bioconda
-          activate-environment: anaconda-client-env
       - name: Build and upload the conda package
         shell: bash -el {0}
         run: |
           conda config --set anaconda_upload yes
+          conda install -y anaconda-client
           conda install -y conda-build
           conda build --token ${{ secrets.ANACONDA_TOKEN }} conda_recipe
 

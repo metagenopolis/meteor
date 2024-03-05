@@ -12,4 +12,4 @@ ENV PATH /opt/conda/envs/meteor/bin:$PATH
 
 ENTRYPOINT ["meteor"]
 
-CMD [ "meteor -h" ]
+CMD [ "meteor" ]
