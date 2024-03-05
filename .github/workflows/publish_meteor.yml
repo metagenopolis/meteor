@@ -36,7 +36,9 @@ jobs:
           auto-update-conda: true
       - name: Build and upload the conda packages
         shell: bash -el {0}
-        run: conda build --token ${{ secrets.ANACONDA_TOKEN }} conda_recipe
+        run: |
+          conda install -y conda-build
+          conda build --token ${{ secrets.ANACONDA_TOKEN }} conda_recipe
 
   # We need to obtain the domain on PyPI
   # pypi:
