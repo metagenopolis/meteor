@@ -10,6 +10,6 @@
     "fasta_filename": "eva71.fasta"
   },
   "annotation": {
-    "bed": "eva71.bed"
+    "bed": { "filename": "eva71.bed", "version": "1.0" }
   }
 }

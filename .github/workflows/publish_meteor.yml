@@ -25,7 +25,7 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ secrets.DOCKER_USER }}/meteor:${{ steps.vars.outputs.tag }} , ${{ secrets.DOCKER_USER }}/meteor:latest
+          tags: ${{ secrets.DOCKER_USER }}/meteor:${{  github.ref_name }} , ${{ secrets.DOCKER_USER }}/meteor:latest
 
   conda:
     runs-on: ubuntu-latest
