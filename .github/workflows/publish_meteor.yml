@@ -14,6 +14,11 @@ jobs:
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -21,8 +26,6 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: aghozlane/meteor:latest
-          secrets: |
-            "github_token=${{ secrets.DOCKER_TOKEN }}"
 
   build_conda:
     runs-on: ubuntu-latest
@@ -31,10 +34,11 @@ jobs:
       - name: Build and upload the conda packages
         uses: uibcdf/action-build-and-upload-conda-packages@v1.3.0
         with:
-          meta_yaml_dir: conda_recipe/meta.yaml
+          meta_yaml_dir: conda_recipe/
           user: aghozlane
           label: auto
           upload: true
+          overwrite: true
           token: ${{ secrets.ANACONDA_TOKEN }} # Replace with the right name of your secret
 
   publish:
