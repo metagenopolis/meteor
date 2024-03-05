@@ -35,6 +35,7 @@ jobs:
         with:
           auto-update-conda: true
           channels: conda-forge,bioconda
+          activate-environment: anaconda-client-env
       - name: Build and upload the conda package
         shell: bash -el {0}
         run: |
