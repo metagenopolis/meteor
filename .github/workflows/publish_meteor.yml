@@ -36,7 +36,6 @@ jobs:
         with:
           meta_yaml_dir: conda_recipe/
           user: aghozlane
-          label: auto
           upload: true
           overwrite: true
           token: ${{ secrets.ANACONDA_TOKEN }} # Replace with the right name of your secret
