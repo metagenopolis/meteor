@@ -25,7 +25,7 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: aghozlane/meteor:latest
+          tags: ${{ secrets.DOCKER_USER }}/meteor:${{ steps.vars.outputs.tag }} , ${{ secrets.DOCKER_USER }}/meteor:latest
 
   conda:
     runs-on: ubuntu-latest
@@ -41,6 +41,7 @@ jobs:
           conda config --set anaconda_upload yes
           conda install -y anaconda-client
           conda install -y conda-build
+          conda install -y conda-verify
           conda build --token ${{ secrets.ANACONDA_TOKEN }} conda_recipe
 
   # We need to obtain the domain on PyPI
