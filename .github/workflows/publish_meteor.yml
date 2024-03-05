@@ -34,9 +34,11 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-      - name: Build and upload the conda packages
+          channels: conda-forge,bioconda
+      - name: Build and upload the conda package
         shell: bash -el {0}
         run: |
+          conda config --set anaconda_upload yes
           conda install -y conda-build
           conda build --token ${{ secrets.ANACONDA_TOKEN }} conda_recipe
 
