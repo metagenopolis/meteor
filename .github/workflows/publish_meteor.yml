@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
         with:
-          environment-file: conda/build_env.yaml
+          environment-file: conda_recipe/meta.yaml
           auto-update-conda: false
           channels: conda-forge,bioconda,aghozlane,defaults
       - name: Build and upload the conda packages
