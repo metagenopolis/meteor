@@ -272,6 +272,9 @@ def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
 
 def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> None:
     cramfile = datadir / "total.cram"
+    ref_json = counter_unique.read_json(
+        counter_unique.meteor.ref_dir / "mock_reference.json"
+    )
     with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_unique.filter_alignments(
             cramdesc
@@ -279,7 +282,7 @@ def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> No
         read_list = list(chain(reads.values()))
         merged_list = list(chain.from_iterable(read_list))
         tmpcramfile = tmp_path / "test"
-        counter_unique.save_cram(tmpcramfile, cramdesc, merged_list)
+        counter_unique.save_cram(tmpcramfile, cramdesc, merged_list, ref_json)
         assert tmpcramfile.exists()
         # issues at testing content
         # with tmpcramfile.open("rb") as out:
@@ -289,7 +292,10 @@ def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> No
 def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path: Path):
     cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv"
-    counter_unique.launch_counting(cramfile, countfile)
+    ref_json = counter_unique.read_json(
+        counter_unique.meteor.ref_dir / "mock_reference.json"
+    )
+    counter_unique.launch_counting(cramfile, countfile, ref_json)
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "4188e42b16ca23af21bb0b03c88089fe"
 
@@ -297,7 +303,10 @@ def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path
 def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: Path):
     cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv"
-    counter_total.launch_counting(cramfile, countfile)
+    ref_json = counter_total.read_json(
+        counter_total.meteor.ref_dir / "mock_reference.json"
+    )
+    counter_total.launch_counting(cramfile, countfile, ref_json)
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "78216b228518d101983f39a92ac9bdb0"
 
@@ -307,7 +316,10 @@ def test_launch_counting_smart_shared(
 ):
     cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv"
-    counter_smart_shared.launch_counting(cramfile, countfile)
+    ref_json = counter_smart_shared.read_json(
+        counter_smart_shared.meteor.ref_dir / "mock_reference.json"
+    )
+    counter_smart_shared.launch_counting(cramfile, countfile, ref_json)
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "06383f066a83fe158f9d6eb98c9a41a3"
 

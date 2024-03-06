@@ -13,14 +13,11 @@
 """Run mapping and performs counting"""
 
 from functools import reduce
-import gzip
-import bz2
-import lzma
 import logging
 import sys
 import pysam
 from dataclasses import dataclass, field
-from tempfile import mkdtemp, mkstemp, _TemporaryFileWrapper
+from tempfile import mkdtemp, mkstemp
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
@@ -343,21 +340,31 @@ class Counter(Session):
                 out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
         return True
 
-    def save_cram(self, outcramfile: Path, samdesc: AlignmentFile, read_list: list):
+    def save_cram(
+        self, outcramfile: Path, samdesc: AlignmentFile, read_list: list, ref_json: dict
+    ):
         """Writing the filtered SAM file.
 
         :param outsamfile: [Path] Temporary cram file
         :param samdesc: Pysam sam descriptor
         :param read_list: [List] List of pysam reads objects
         """
+        reference = (
+            self.meteor.ref_dir
+            / ref_json["reference_file"]["fasta_dir"]
+            / ref_json["reference_file"]["fasta_filename"]
+        )
         with AlignmentFile(
-            str(outcramfile.resolve()), "wc", template=samdesc
+            str(outcramfile.resolve()),
+            "wc",
+            template=samdesc,
+            reference_filename=str(reference.resolve()),
         ) as total_reads:
             for element in read_list:
                 total_reads.write(element)
 
     # def launch_counting(self, cram_file: Path, count_file: Path) -> bool:
-    def launch_counting(self, sam_file: Path, count_file: Path) -> bool:
+    def launch_counting(self, sam_file: Path, count_file: Path, ref_json: dict) -> bool:
         """Function that count reads from a cram file, using the given methods in count:
         "total" or "shared" or "unique".
 
@@ -399,7 +406,9 @@ class Counter(Session):
                 if self.keep_cram:
                     cramfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                     cramfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                    self.save_cram(cramfile, samdesc, list(chain(*reads.values())))
+                    self.save_cram(
+                        cramfile, samdesc, list(chain(*reads.values())), ref_json
+                    )
                     sort(
                         "-o",
                         str(cramfile_sorted.resolve()),
@@ -423,7 +432,9 @@ class Counter(Session):
                     reads = unique_reads
                 cramfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                 cramfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                self.save_cram(cramfile, samdesc, list(chain(*reads.values())))
+                self.save_cram(
+                    cramfile, samdesc, list(chain(*reads.values())), ref_json
+                )
                 sort(
                     "-o",
                     str(cramfile_sorted.resolve()),
@@ -435,9 +446,6 @@ class Counter(Session):
                     catch_stdout=False,
                 )
                 if self.keep_cram:
-                    logging.info(
-                        "cram file is not kept. Strain analysis will require a new mapping."
-                    )
                     cramfile_sorted = Path(
                         copy(
                             str(cramfile_sorted.resolve()),
@@ -445,6 +453,10 @@ class Counter(Session):
                         )
                     )
                     index(str(cramfile_sorted.resolve()))
+                else:
+                    logging.info(
+                        "cram file is not kept. Strain analysis will require a new mapping."
+                    )
                 return self.write_table(cramfile_sorted, count_file)
 
     def execute(self) -> None:
@@ -507,7 +519,7 @@ class Counter(Session):
                     / f"{sample_info['sample_name']}.tsv"
                 )
                 start = perf_counter()
-                self.launch_counting(sam_file, count_file)
+                self.launch_counting(sam_file, count_file, ref_json)
                 logging.info("Completed counting in %f seconds", perf_counter() - start)
                 if not self.keep_sam:
                     logging.info(
