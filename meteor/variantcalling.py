@@ -161,7 +161,7 @@ class VariantCalling(Session):
         ]
         reads_dict: Dict = defaultdict(int)
         dfs = []
-        with AlignmentFile(str(cram_file.resolve()), "rb") as cram:
+        with AlignmentFile(str(cram_file.resolve()), "rc") as cram:
             # For genes with a count
             for index, row in gene_tofilter.iterrows():
                 reads_dict = self.count_reads_in_gene(

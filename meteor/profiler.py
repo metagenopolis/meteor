@@ -207,21 +207,6 @@ class Profiler(Session):
         ]
         self.gene_count["value"] = np.select(condlist, choicelist)
 
-        # self.gene_count["value"] = [
-        #     100.0 * row["value"] / (row["gene_length"] - trim_length + 1)
-        #     if row["gene_length"] >= 2 * trim_length
-        #     else 100.0
-        #     * row["value"]
-        #     * 4
-        #     * trim_length
-        #     / (row["gene_length"] * (row["gene_length"] + 2))
-        #     if row["gene_length"] >= trim_length
-        #     and row["gene_length"] < 2 * trim_length
-        #     and row["gene_length"] % 2 == 0
-        #     else 100.0 * row["value"] * 4 * trim_length / (row["gene_length"] + 1) ** 2
-        #     for _, row in self.gene_count.iterrows()
-        # ]
-
     def normalize_fpkm(self, rarefaction_level: int, unmapped_reads: int) -> None:
         """Normalize matrix using fpkm method
 

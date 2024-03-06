@@ -140,7 +140,7 @@ def test_write_table(counter_total: Counter, datadir: Path, tmp_path: Path) -> N
 # 75.15% overall alignment rate
 def test_filter_alignments(counter_total: Counter, datadir: Path) -> None:
     cramfile = datadir / "total.cram"
-    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+    with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_total.filter_alignments(cramdesc)
         # We check that genes and reads are correctly associated
         # 11003 is mapped by two reads
@@ -158,7 +158,7 @@ def test_filter_alignments(counter_total: Counter, datadir: Path) -> None:
 
 def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
     cramfile = datadir / "total.cram"
-    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+    with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_unique.filter_alignments(cramdesc)
         # print(genes)
         references = map(int, cramdesc.references)
@@ -179,7 +179,7 @@ def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
 
 def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
     cramfile = datadir / "total.cram"
-    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+    with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_smart_shared.filter_alignments(cramdesc)
         references = map(int, cramdesc.references)
         # get reference length
@@ -202,7 +202,7 @@ def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
 
 def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> None:
     cramfile = datadir / "total.cram"
-    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+    with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_smart_shared.filter_alignments(cramdesc)
         references = map(int, cramdesc.references)
         # get reference length
@@ -222,7 +222,7 @@ def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> Non
 
 def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
     cramfile = datadir / "total.cram"
-    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+    with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_smart_shared.filter_alignments(cramdesc)
         references = map(int, cramdesc.references)
         # get reference length
@@ -242,7 +242,7 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
 
 def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
     cramfile = datadir / "total.cram"
-    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+    with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_smart_shared.filter_alignments(cramdesc)
         references = map(int, cramdesc.references)
         # get reference length
@@ -272,7 +272,7 @@ def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
 
 def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> None:
     cramfile = datadir / "total.cram"
-    with AlignmentFile(str(cramfile.resolve()), "rb") as cramdesc:
+    with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_unique.filter_alignments(
             cramdesc
         )  # pylint: disable=unused-variable

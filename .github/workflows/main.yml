@@ -25,3 +25,15 @@ jobs:
         run: poetry install --only test -C meteor
       - name: Run the automated tests (for example)
         run: poetry run  -C meteor pytest --cov=meteor --cov-report xml
+      - name: Code Coverage Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: coverage.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: '60 80'

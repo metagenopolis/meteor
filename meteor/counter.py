@@ -53,42 +53,6 @@ class Counter(Session):
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.mapping_dir.mkdir(exist_ok=True)
 
-    def count_index_fastq(
-        self, fastq_file: Path, output_desc: _TemporaryFileWrapper
-    ) -> tuple:
-        """Count the number of bases
-
-        :param fastq_file: Path object of the fastq_file
-        :param output_desc: Output _TemporaryFileWrapper descriptor
-        :return: (Tuple) A tuple giving the read count and base count
-        """
-        read_count = 0
-        base_count = 0
-        if fastq_file.suffix == ".gz":
-            in_fq = gzip.open(fastq_file, "rt")
-        elif fastq_file.suffix == ".bz2":
-            in_fq = bz2.open(fastq_file, "rt")
-        elif fastq_file.suffix == ".xz":
-            in_fq = lzma.open(fastq_file, "rt")
-        else:
-            in_fq = open(fastq_file, "rt", encoding="UTF-8")
-        # read input fastq line by line
-        with in_fq:
-            for read_count, line in enumerate(
-                in_fq, start=1
-            ):  # pylint: disable=unused-variable
-                output_desc.write(f"@{read_count}\n")
-                # read the sequence
-                read = next(in_fq)
-                output_desc.write(f"{read}")
-                base_count += len(read.strip())
-                # pass the plus
-                output_desc.write(next(in_fq))
-                # pass the quality
-                output_desc.write(next(in_fq))
-            output_desc.flush()
-        return read_count, base_count
-
     def launch_mapping(self) -> None:
         """Create temporary indexed files and map against"""
         list_fastq_path = []
@@ -387,7 +351,7 @@ class Counter(Session):
         :param read_list: [List] List of pysam reads objects
         """
         with AlignmentFile(
-            str(outcramfile.resolve()), "wb", template=samdesc
+            str(outcramfile.resolve()), "wc", template=samdesc
         ) as total_reads:
             for element in read_list:
                 total_reads.write(element)
