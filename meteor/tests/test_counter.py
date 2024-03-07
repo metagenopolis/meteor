@@ -124,11 +124,11 @@ def test_launch_mapping(counter_total: Counter):
 
 def test_write_table(counter_total: Counter, datadir: Path, tmp_path: Path) -> None:
     cramfile = datadir / "total.cram"
-    output = tmp_path / "total.tsv"
+    output = tmp_path / "total.tsv.xz"
     counter_total.write_table(cramfile, output)
     assert output.exists()
     with output.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "647decb83957c2d3257c3a13fd399c92"
+        assert md5(out.read()).hexdigest() == "006c2be62428ecf58cc20310d36078c1"
 
 
 # detail of the mapping
@@ -262,12 +262,12 @@ def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
 
 
 def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
-    test = tmp_path / "test.tsv"
+    test = tmp_path / "test.tsv.xz"
     abundance_dict = {"11003": 1.5}
     database = {"11003": 500}
     counter_smart_shared.write_stat(test, abundance_dict, database)
     with test.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "0448f393b702b038840f1be20c0f4aa6"
+        assert md5(out.read()).hexdigest() == "64cc59536603837848cbbfbb563d04fc"
 
 
 def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> None:
@@ -291,42 +291,42 @@ def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> No
 
 def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path: Path):
     cramfile = datadir / "total.cram"
-    countfile = tmp_path / "count.tsv"
+    countfile = tmp_path / "count.tsv.xz"
     ref_json = counter_unique.read_json(
         counter_unique.meteor.ref_dir / "mock_reference.json"
     )
     counter_unique.launch_counting(cramfile, countfile, ref_json)
     with countfile.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "4188e42b16ca23af21bb0b03c88089fe"
+        assert md5(out.read()).hexdigest() == "f5bc528dcbf594b5089ad7f6228ebab5"
 
 
 def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: Path):
     cramfile = datadir / "total.cram"
-    countfile = tmp_path / "count.tsv"
+    countfile = tmp_path / "count.tsv.xz"
     ref_json = counter_total.read_json(
         counter_total.meteor.ref_dir / "mock_reference.json"
     )
     counter_total.launch_counting(cramfile, countfile, ref_json)
     with countfile.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "78216b228518d101983f39a92ac9bdb0"
+        assert md5(out.read()).hexdigest() == "f010e4136323ac408d4c127e243756c2"
 
 
 def test_launch_counting_smart_shared(
     counter_smart_shared: Counter, datadir: Path, tmp_path: Path
 ):
     cramfile = datadir / "total.cram"
-    countfile = tmp_path / "count.tsv"
+    countfile = tmp_path / "count.tsv.xz"
     ref_json = counter_smart_shared.read_json(
         counter_smart_shared.meteor.ref_dir / "mock_reference.json"
     )
     counter_smart_shared.launch_counting(cramfile, countfile, ref_json)
     with countfile.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "06383f066a83fe158f9d6eb98c9a41a3"
+        assert md5(out.read()).hexdigest() == "4bdd7327cbad8e71d210feb0c6375077"
 
 
 def test_execute(counter_smart_shared: Counter, tmp_path: Path):
     counter_smart_shared.execute()
-    part1 = tmp_path / "part1/part1.tsv"
+    part1 = tmp_path / "part1/part1.tsv.xz"
     assert part1.exists()
     with part1.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "91ee131f2cbbb3abdb441849b55c4481"
+        assert md5(out.read()).hexdigest() == "5db950a4404793f73ba034e99cb676fa"

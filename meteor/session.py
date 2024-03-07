@@ -18,6 +18,7 @@ from typing import Protocol, Iterator, Tuple, Dict
 import logging
 import sys
 import json
+import lzma
 
 
 @dataclass(kw_only=True)
@@ -51,8 +52,14 @@ class Session(Protocol):
         :param filename: (Path) An input path object
         :param expected_colnames: (Path) An expected set of colnames
         """
+
         try:
-            with open(filename, "rt", encoding="UTF-8") as header:
+
+            if filename.suffix == ".xz":
+                header = lzma.open(filename, "rt")
+            else:
+                header = filename.open("rt", encoding="UTF-8")
+            with header:
                 real_colnames = set(header.readline().strip("\n").split("\t"))
             assert len(expected_colnames - real_colnames) == 0
         except AssertionError:

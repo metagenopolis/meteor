@@ -3,6 +3,8 @@
 [![install with conda](https://img.shields.io/conda/vn/aghozlane/meteor?color=green&label=aghozlane%2Fmeteor&logo=anaconda)](https://anaconda.org/aghozlane/meteor)
 [![Latest Release](https://img.shields.io/github/v/release/metagenopolis/meteor)](https://forgemia.inra.fr/metagenopolis/meteor/-/releases)
 [![dockerhub](https://img.shields.io/docker/v/aghozlane/meteor?label=aghozlane/meteor&logo=docker)](https://hub.docker.com/r/aghozlane/meteor/)
+![Github Actions](https://github.com/metagenopolis/meteor/actions/workflows/main.yml/badge.svg)
+![Code Coverage](hhttps://img.shields.io/badge/Code%20Coverage-83%25-success?style=flat)
 
 ## Introduction
 
@@ -21,8 +23,6 @@ Meteor requires:
 - [bowtie2](https://github.com/BenLangmead/bowtie2)
 - [bcftools](https://samtools.github.io/bcftools/)
 - [FastTree](http://www.microbesonline.org/fasttree/)
-- [pysam](https://pysam.readthedocs.io/en/latest/installation.html)
-- [pandas](https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html)
 - [ete3](http://etetoolkit.org/)
 
 ## Installation

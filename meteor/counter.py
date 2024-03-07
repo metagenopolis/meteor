@@ -16,6 +16,7 @@ from functools import reduce
 import logging
 import sys
 import pysam
+import lzma
 from dataclasses import dataclass, field
 from tempfile import mkdtemp, mkstemp
 from pathlib import Path
@@ -92,7 +93,7 @@ class Counter(Session):
         # create count table
         table = idxstats(str(cramfile.resolve()))
         # write the count table
-        with outfile.open("wt", encoding="UTF-8") as out:
+        with lzma.open(outfile, "wt", preset=0) as out:
             out.write("gene_id\tgene_length\tvalue\n")
             for line in table.split("\n")[:-2]:
                 s = "\t".join(line.split("\t")[0:3])
@@ -334,7 +335,7 @@ class Counter(Session):
         :param abundance_dict: [DICT] = contains abundance of each reference genes
         :param database: [DICT] = contrains length of each reference genes
         """
-        with open(output, "wt", encoding="UTF-8") as out:
+        with lzma.open(output, "wt", preset=0) as out:
             out.write("gene_id\tgene_length\tvalue\n")
             for genes, abundance in sorted(abundance_dict.items()):
                 out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
@@ -405,7 +406,7 @@ class Counter(Session):
                 # abundance = self.compute_abs(unique_on_gene, multiple)
                 if self.keep_cram:
                     cramfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                    cramfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                    cramfile_sorted = sam_file.resolve().with_suffix(".cram")
                     self.save_cram(
                         cramfile, samdesc, list(chain(*reads.values())), ref_json
                     )
@@ -419,19 +420,17 @@ class Counter(Session):
                         str(cramfile.resolve()),
                         catch_stdout=False,
                     )
-                    cramfile_sorted = Path(
-                        copy(
-                            str(cramfile_sorted.resolve()),
-                            str(sam_file.resolve().with_suffix(".cram")),
-                        )
-                    )
                     index(str(cramfile_sorted.resolve()))
                 return self.write_stat(count_file, abundance, database)
             else:
                 if self.counting_type == "unique":
                     reads = unique_reads
                 cramfile = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                cramfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                cramfile_sorted = cramfile_sorted = (
+                    sam_file.resolve().with_suffix(".cram")
+                    if self.keep_cram
+                    else Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                )
                 self.save_cram(
                     cramfile, samdesc, list(chain(*reads.values())), ref_json
                 )
@@ -446,12 +445,6 @@ class Counter(Session):
                     catch_stdout=False,
                 )
                 if self.keep_cram:
-                    cramfile_sorted = Path(
-                        copy(
-                            str(cramfile_sorted.resolve()),
-                            str(sam_file.resolve().with_suffix(".cram")),
-                        )
-                    )
                     index(str(cramfile_sorted.resolve()))
                 else:
                     logging.info(
@@ -516,7 +509,7 @@ class Counter(Session):
                 )
                 count_file = (
                     self.json_data[library]["directory"]
-                    / f"{sample_info['sample_name']}.tsv"
+                    / f"{sample_info['sample_name']}.tsv.xz"
                 )
                 start = perf_counter()
                 self.launch_counting(sam_file, count_file, ref_json)

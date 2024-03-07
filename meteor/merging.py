@@ -154,9 +154,9 @@ class Merging(Session):
         """
         # Load the data frames
         list_df = [
-            pd.read_table(my_path).rename(columns={"value": my_sample})[
-                key_merging + [my_sample]
-            ]
+            pd.read_table(my_path, compression="xz").rename(
+                columns={"value": my_sample}
+            )[key_merging + [my_sample]]
             for (my_sample, my_path) in dict_path.items()
         ]
         merged_df = reduce(
@@ -266,9 +266,9 @@ class Merging(Session):
             list_pattern_to_merge["_mustard_as_genes_sum.tsv"] = ["annotation"]
             list_pattern_to_merge["_dbcan_as_msp_sum.tsv"] = ["annotation"]
         for my_pattern in list_pattern_to_merge:
-            logging.info("Fetching output files with pattern %s", my_pattern)
+            logging.info("Fetching output files with pattern %s", my_pattern + ".xz")
             files_to_merge = self.find_files_to_merge(
-                input_dir=all_samples_dict, pattern=my_pattern
+                input_dir=all_samples_dict, pattern=my_pattern + ".xz"
             )
             logging.info(
                 "There was %s files that correspond to the pattern.",

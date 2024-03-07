@@ -136,13 +136,13 @@ def test_merge_df(merging_profiles: Merging, datadir: Path):
     files_to_merge = {
         "sample1": merging_profiles.meteor.profile_dir
         / "sample1"
-        / "sample1_genes.tsv",
+        / "sample1_genes.tsv.xz",
         "sample2": merging_profiles.meteor.profile_dir
         / "sample2"
-        / "sample2_genes.tsv",
+        / "sample2_genes.tsv.xz",
         "sample3": merging_profiles.meteor.profile_dir
         / "sample3"
-        / "sample3_genes.tsv",
+        / "sample3_genes.tsv.xz",
     }
     merged_df = merging_profiles.merge_df(files_to_merge, key_merging=["gene_id"])
     expected_output = pd.read_table(
@@ -153,13 +153,13 @@ def test_merge_df(merging_profiles: Merging, datadir: Path):
     files_to_merge = {
         "sample1": merging_profiles.meteor.profile_dir
         / "sample1"
-        / "sample1_modules.tsv",
+        / "sample1_modules.tsv.xz",
         "sample2": merging_profiles.meteor.profile_dir
         / "sample2"
-        / "sample2_modules.tsv",
+        / "sample2_modules.tsv.xz",
         "sample3": merging_profiles.meteor.profile_dir
         / "sample3"
-        / "sample3_modules.tsv",
+        / "sample3_modules.tsv.xz",
     }
     merged_df = merging_profiles.merge_df(files_to_merge, key_merging=["mod_id"])
     expected_output = pd.read_table(
@@ -170,13 +170,13 @@ def test_merge_df(merging_profiles: Merging, datadir: Path):
     files_to_merge = {
         "sample1": merging_profiles.meteor.profile_dir
         / "sample1"
-        / "sample1_modules_completeness.tsv",
+        / "sample1_modules_completeness.tsv.xz",
         "sample2": merging_profiles.meteor.profile_dir
         / "sample2"
-        / "sample2_modules_completeness.tsv",
+        / "sample2_modules_completeness.tsv.xz",
         "sample3": merging_profiles.meteor.profile_dir
         / "sample3"
-        / "sample3_modules_completeness.tsv",
+        / "sample3_modules_completeness.tsv.xz",
     }
     merged_df = merging_profiles.merge_df(
         files_to_merge, key_merging=["msp_name", "mod_id"]

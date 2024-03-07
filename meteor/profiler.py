@@ -22,6 +22,7 @@ import importlib.resources
 import numpy as np
 import logging
 import sys
+import lzma
 from datetime import datetime
 
 
@@ -74,7 +75,7 @@ class Profiler(Session):
         # Get the associated count table
         self.input_count_table = (
             self.meteor.mapping_dir / self.sample_name
-        ).with_suffix(".tsv")
+        ).with_suffix(".tsv.xz")
         try:
             assert self.input_count_table.is_file()
         except AssertionError:
@@ -84,7 +85,7 @@ class Profiler(Session):
         # Add a symlink to get the raw count table in the profile directory (for merging purpose)
         raw_count_table_symlink = (
             self.stage2_dir / f"{self.sample_name}_raw"
-        ).with_suffix(".tsv")
+        ).with_suffix(".tsv.xz")
         try:
             raw_count_table_symlink.symlink_to(self.input_count_table.resolve())
         except FileExistsError:
@@ -559,8 +560,9 @@ class Profiler(Session):
             logging.info("No normalization.")
         # Write the normalized count table
         logging.info("Save gene table.")
-        gene_table_file = self.stage2_dir / f"{self.output_base_filename}_genes.tsv"
-        self.gene_count.to_csv(gene_table_file, sep="\t", index=False)
+        gene_table_file = self.stage2_dir / f"{self.output_base_filename}_genes.tsv.xz"
+        with lzma.open(gene_table_file, "wt", preset=0) as out:
+            self.gene_count.to_csv(out, sep="\t", index=False)
         # Update config dictionnary
         config_param["normalization"] = str(self.normalization)
         config_param["rarefaction_level"] = str(self.rarefaction_level)
@@ -583,8 +585,9 @@ class Profiler(Session):
         self.compute_msp(msp_dict=msp_set, filter_pc=self.msp_filter)
         # Write the MSP table
         logging.info("Save MSP profiles.")
-        msp_table_file = self.stage2_dir / f"{self.output_base_filename}_msp.tsv"
-        self.msp_table.to_csv(msp_table_file, sep="\t", index=False)
+        msp_table_file = self.stage2_dir / f"{self.output_base_filename}_msp.tsv.xz"
+        with lzma.open(msp_table_file, "wt", preset=0) as out:
+            self.msp_table.to_csv(out, sep="\t", index=False)
         # Compute MSP stats
         logging.info("Compute MSP stats.")
         msp_stats = self.compute_msp_stats(self.msp_filename)
@@ -614,10 +617,10 @@ class Profiler(Session):
                     logging.info("Save functional profiles table.")
                     fun_table_file = (
                         self.stage2_dir
-                        / f"{self.output_base_filename}_{db}_as_genes_sum.tsv"
+                        / f"{self.output_base_filename}_{db}_as_genes_sum.tsv.xz"
                     )
-                    self.functions.to_csv(fun_table_file, sep="\t", index=False)
-
+                    with lzma.open(fun_table_file, "wt", preset=0) as out:
+                        self.functions.to_csv(out, sep="\t", index=False)
                     # Compute functional statistics
                     functional_stats = self.compute_ko_stats(
                         annot_file=db_filename,
@@ -637,9 +640,10 @@ class Profiler(Session):
                     logging.info("Save functional profiles table.")
                     fun_table_file = (
                         self.stage2_dir
-                        / f"{self.output_base_filename}_{db}_as_msp_sum.tsv"
+                        / f"{self.output_base_filename}_{db}_as_msp_sum.tsv.xz"
                     )
-                    self.functions.to_csv(fun_table_file, sep="\t", index=False)
+                    with lzma.open(fun_table_file, "wt", preset=0) as out:
+                        self.functions.to_csv(out, sep="\t", index=False)
 
                     # Compute functinal statistics
                     functional_stats = self.compute_ko_stats(
@@ -666,16 +670,16 @@ class Profiler(Session):
                 completeness=self.completeness,
             )
             module_table_file = (
-                self.stage2_dir / f"{self.output_base_filename}_modules.tsv"
+                self.stage2_dir / f"{self.output_base_filename}_modules.tsv.xz"
             )
-            self.mod_table.to_csv(module_table_file, sep="\t", index=False)
+            with lzma.open(module_table_file, "wt", preset=0) as out:
+                self.mod_table.to_csv(out, sep="\t", index=False)
             module_completeness_file = (
                 self.stage2_dir
-                / f"{self.output_base_filename}_modules_completeness.tsv"
+                / f"{self.output_base_filename}_modules_completeness.tsv.xz"
             )
-            self.mod_completeness.to_csv(
-                module_completeness_file, sep="\t", index=False
-            )
+            with lzma.open(module_completeness_file, "wt", preset=0) as out:
+                self.mod_completeness.to_csv(out, sep="\t", index=False)
             # Update config files
             config_param["modules_db"] = ",".join(module_db_filenames.keys())
             config_param["modules_db_filenames"] = ",".join(

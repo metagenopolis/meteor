@@ -40,7 +40,6 @@ test:
         - pandas
         - pyarrow
         - ete3
-        #- pyqt5-sip
         - packaging
 
 about:

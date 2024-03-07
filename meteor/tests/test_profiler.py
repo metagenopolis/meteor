@@ -413,7 +413,7 @@ def test_compute_module_abundance(profiler_standard: Profiler, datadir: Path) ->
     ].round(6)
     # Check module abundance matrix
     expected_output = pd.read_table(
-        datadir / "expected_output" / "sample_no_rf_no_norm_modules.tsv"
+        datadir / "expected_output" / "sample_no_rf_no_norm_modules.tsv.xz"
     )
     assert profiler_standard.mod_table.equals(expected_output)
     expected_output = pd.read_table(
@@ -429,18 +429,18 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     # Check symlink file (raw data)
     raw_gene_table_file = (
         profiler_standard.stage2_dir
-        / f"{profiler_standard.output_base_filename}_raw.tsv"
+        / f"{profiler_standard.output_base_filename}_raw.tsv.xz"
     )
     assert raw_gene_table_file.exists()
     assert raw_gene_table_file.is_symlink()
-    expected_output = pd.read_table(datadir / "mapping" / "sample.tsv")
+    expected_output = pd.read_table(datadir / "mapping" / "sample.tsv.xz")
     assert pd.read_table(raw_gene_table_file).equals(expected_output)
     # Check gene file
     gene_table_file = (
         profiler_standard.stage2_dir
-        / f"{profiler_standard.output_base_filename}_genes.tsv"
+        / f"{profiler_standard.output_base_filename}_genes.tsv.xz"
     )
-    gene_table = pd.read_table(gene_table_file)
+    gene_table = pd.read_table(gene_table_file, compression="xz")
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rarefaction.tsv"
     )
@@ -448,9 +448,9 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     # Check MSP file
     msp_table_file = (
         profiler_standard.stage2_dir
-        / f"{profiler_standard.output_base_filename}_msp.tsv"
+        / f"{profiler_standard.output_base_filename}_msp.tsv.xz"
     )
-    msp_table = pd.read_table(msp_table_file)
+    msp_table = pd.read_table(msp_table_file, compression="xz")
     msp_table["value"] = msp_table["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_msp.tsv"
@@ -459,9 +459,9 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     # Check functions as sum of genes (mustard only)
     fun_table_file = (
         profiler_standard.stage2_dir
-        / f"{profiler_standard.output_base_filename}_mustard_as_genes_sum.tsv"
+        / f"{profiler_standard.output_base_filename}_mustard_as_genes_sum.tsv.xz"
     )
-    fun_table = pd.read_table(fun_table_file)
+    fun_table = pd.read_table(fun_table_file, compression="xz")
     fun_table["value"] = fun_table["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_mustard.tsv"
@@ -470,9 +470,9 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     # Check functions as sum of MSP
     fun_table_file = (
         profiler_standard.stage2_dir
-        / f"{profiler_standard.output_base_filename}_dbcan_as_msp_sum.tsv"
+        / f"{profiler_standard.output_base_filename}_dbcan_as_msp_sum.tsv.xz"
     )
-    fun_table = pd.read_table(fun_table_file)
+    fun_table = pd.read_table(fun_table_file, compression="xz")
     fun_table["value"] = fun_table["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_dbcan_by_msp.tsv"
@@ -482,9 +482,9 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     # 1. Module abundance table
     module_table_file = (
         profiler_standard.stage2_dir
-        / f"{profiler_standard.output_base_filename}_modules.tsv"
+        / f"{profiler_standard.output_base_filename}_modules.tsv.xz"
     )
-    module_table = pd.read_table(module_table_file)
+    module_table = pd.read_table(module_table_file, compression="xz")
     module_table["value"] = module_table["value"].round(6)
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_modules_kegg_only.tsv"
@@ -493,9 +493,9 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
     # 2. Module completeness table
     module_completeness_file = (
         profiler_standard.stage2_dir
-        / f"{profiler_standard.output_base_filename}_modules_completeness.tsv"
+        / f"{profiler_standard.output_base_filename}_modules_completeness.tsv.xz"
     )
-    module_completeness = pd.read_table(module_completeness_file)
+    module_completeness = pd.read_table(module_completeness_file, compression="xz")
     module_completeness["value"] = module_completeness["value"].round(6)
     expected_output = pd.read_table(
         datadir

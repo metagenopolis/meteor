@@ -471,7 +471,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-m",
         dest="min_msp_coverage",
         default=50,
-        choices=range(1, 100),
+        choices=range(1, 101),
         metavar="MIN_MSP_COVERAGE",
         type=int,
         help="""Minimum number of genes from the MSP that are covered (default >=50).
