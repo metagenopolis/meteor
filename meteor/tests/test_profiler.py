@@ -413,7 +413,7 @@ def test_compute_module_abundance(profiler_standard: Profiler, datadir: Path) ->
     ].round(6)
     # Check module abundance matrix
     expected_output = pd.read_table(
-        datadir / "expected_output" / "sample_no_rf_no_norm_modules.tsv.xz"
+        datadir / "expected_output" / "sample_no_rf_no_norm_modules.tsv"
     )
     assert profiler_standard.mod_table.equals(expected_output)
     expected_output = pd.read_table(

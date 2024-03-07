@@ -64,17 +64,17 @@ def test_find_files_to_merge(merging_profiles: Merging) -> None:
         "sample2": merging_profiles.meteor.profile_dir / "sample2",
         "sample3": merging_profiles.meteor.profile_dir / "sample3",
     }
-    list_files = merging_profiles.find_files_to_merge(path_dict, "_genes.tsv")
+    list_files = merging_profiles.find_files_to_merge(path_dict, "_genes.tsv.xz")
     assert list_files == {
         "sample1": merging_profiles.meteor.profile_dir
         / "sample1"
-        / "sample1_genes.tsv",
+        / "sample1_genes.tsv.xz",
         "sample2": merging_profiles.meteor.profile_dir
         / "sample2"
-        / "sample2_genes.tsv",
+        / "sample2_genes.tsv.xz",
         "sample3": merging_profiles.meteor.profile_dir
         / "sample3"
-        / "sample3_genes.tsv",
+        / "sample3_genes.tsv.xz",
     }
 
 
