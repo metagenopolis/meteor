@@ -4,7 +4,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/metagenopolis/meteor)](https://forgemia.inra.fr/metagenopolis/meteor/-/releases)
 [![dockerhub](https://img.shields.io/docker/v/aghozlane/meteor?label=aghozlane/meteor&logo=docker)](https://hub.docker.com/r/aghozlane/meteor/)
 ![Github Actions](https://github.com/metagenopolis/meteor/actions/workflows/main.yml/badge.svg)
-![Code Coverage](hhttps://img.shields.io/badge/Code%20Coverage-83%25-success?style=flat)
+<!-- ![Code Coverage](hhttps://img.shields.io/badge/Code%20Coverage-83%25-success?style=flat) -->
 
 ## Introduction
 
