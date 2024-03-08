@@ -9,11 +9,7 @@
 ## Introduction
 
 Meteor is a plateform for quantitative metagenomics profiling of complex ecosystems.
-Meteor relies on genes catalogue to perform species-level taxonomic profiling and functional analysis.
-
-Check the [wiki](https://forgemia.inra.fr/metagenopolis/meteor/-/wikis/home) for more information.
-If you use meteor, please cite:
-
+Meteor relies on genes catalogue to perform species-level taxonomic profiling, functional analysis and strain-level population structure inference.
 
 
 ## Dependencies
@@ -106,7 +102,7 @@ meteor fastq -i ./  -m SAMPLE_\\d+ -n projectname -o outputdir
 ----------------
 The raw fastq files are mapped against a catalogue to generate a gene count table with the following command:
 ```
-meteor mapping -i <fastqdir> -r <refdir> -o <mappingdir>
+meteor mapping -i <fastqdir/sampledir> -r <refdir> -o <mappingdir>
 ```
 We recommend to first filter out reads with low-quality, length < 60nt or belonging to the host.
 

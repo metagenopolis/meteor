@@ -239,6 +239,7 @@ class VariantCalling(Session):
             with NamedTemporaryFile(
                 mode="wt", dir=self.meteor.tmp_dir, delete=False
             ) as temp_vcf:
+                startpileup = perf_counter()
                 check_call(
                     [
                         "bcftools",
@@ -257,10 +258,16 @@ class VariantCalling(Session):
                         temp_vcf_pileup.name,
                     ]
                 )
+                logging.info(
+                    "Completed pileup step in %f seconds", perf_counter() - startpileup
+                )
+                startcall = perf_counter()
                 check_call(
                     [
                         "bcftools",
                         "call",
+                        "-R",
+                        str(bed_file.resolve()),
                         "-v",
                         "-c",
                         "--ploidy",
@@ -275,8 +282,15 @@ class VariantCalling(Session):
                         temp_vcf_pileup.name,
                     ]
                 )
+                logging.info(
+                    "Completed calling step in %f seconds", perf_counter() - startcall
+                )
                 check_call(["bcftools", "index", temp_vcf.name])
                 # Only SNP from 100 core genes
+                logging.info(
+                    "Completed pileup step in %f seconds", perf_counter() - startpileup
+                )
+                startview = perf_counter()
                 check_call(
                     [
                         "bcftools",
@@ -295,12 +309,17 @@ class VariantCalling(Session):
                         temp_vcf.name,
                     ]
                 )
+                logging.info(
+                    "Completed SNP filtering step in %f seconds",
+                    perf_counter() - startview,
+                )
                 check_call(["bcftools", "index", str(vcf_file.resolve())])
                 # The columns of the tab-delimited BED file are also CHROM, POS
                 # and END (trailing columns are ignored), but coordinates are
                 # 0-based, half-open. To indicate that a file be treated as BED
                 # rather than the 1-based tab-delimited file, the file must have
                 # the ".bed" or ".bed.gz" suffix (case-insensitive).
+                startlowcov = perf_counter()
                 with NamedTemporaryFile(
                     mode="wt", dir=self.meteor.tmp_dir, delete=False, suffix=".bed"
                 ) as temp_low_cov_sites:
@@ -320,6 +339,10 @@ class VariantCalling(Session):
                             str(vcf_file.resolve()),
                         ]
                     )
+                logging.info(
+                    "Completed low coverage regions filtering step in %f seconds",
+                    perf_counter() - startview,
+                )
         logging.info("Completed SNP calling in %f seconds", perf_counter() - start)
         config = self.set_variantcalling_config(
             cram_file, vcf_file, consensus_file, bcftools_version

@@ -435,9 +435,9 @@ def get_arguments() -> Namespace:  # pragma: no cover
     strain_parser.add_argument(
         "-d",
         dest="max_depth",
-        default=10000,
+        default=100,
         type=int,
-        help="Maximum depth taken in account (default 10000).",
+        help="Maximum depth taken in account (default 100).",
     )
     strain_parser.add_argument(
         "-t", dest="threads", default=1, type=int, help="Threads count."
