@@ -97,7 +97,7 @@ class Phylogeny(Session):
                     "Error, the FastTree version %s is outdated for meteor. Please update FastTree to >=1.9.0.",
                     fasttree_version,
                 )
-                sys.exit()
+                sys.exit(1)
         else:
             fasttree_version = "UNK"
             logging.error("Failed to determine the FastTree version.")

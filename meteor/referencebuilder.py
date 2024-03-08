@@ -137,13 +137,13 @@ class ReferenceBuilder(Session):
                 "Checking bowtie2 version failed:\n%s",
                 bowtie_exec.stderr.decode("utf-8"),
             )
-            sys.exit()
+            sys.exit(1)
         elif parse(bowtie_version) < Version("2.3.5"):
             logging.error(
                 "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.",
                 bowtie_version,
             )
-            sys.exit()
+            sys.exit(1)
         # Build the index with bowtie2
         check_call(
             [

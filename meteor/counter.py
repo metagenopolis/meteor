@@ -378,7 +378,7 @@ class Counter(Session):
                 "Sam file %s is not available to perform a new counting. Please consider to re-map with --ks option.",
                 sam_file,
             )
-            sys.exit()
+            sys.exit(1)
         else:
             logging.info("Launch counting")
         with AlignmentFile(str(sam_file.resolve())) as samdesc:
@@ -468,7 +468,7 @@ class Counter(Session):
                 "One *_reference.json is expected",
                 self.meteor.ref_dir,
             )
-            sys.exit()
+            sys.exit(1)
         try:
             census_json_files = list(
                 self.meteor.fastq_dir.glob("*_census_stage_0.json")
@@ -525,7 +525,7 @@ class Counter(Session):
                 "Error, no *_census_stage_0.json file found in %s",
                 self.meteor.fastq_dir,
             )
-            sys.exit()
+            sys.exit(1)
         else:
             # Not sure if it's a good idea to delete a temporary file
             rmtree(self.meteor.tmp_dir, ignore_errors=True)

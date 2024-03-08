@@ -68,7 +68,7 @@ class Session(Protocol):
                 filename,
                 ", ".join(expected_colnames - real_colnames),
             )
-            sys.exit()
+            sys.exit(1)
         return True
 
     def save_config(self, config: Dict, config_path: Path) -> None:  # pragma: no cover
@@ -91,7 +91,7 @@ class Session(Protocol):
                 config = json.load(json_data)
         except FileNotFoundError:
             logging.error("The file %s does not exist.", input_json)
-            sys.exit()
+            sys.exit(1)
         return config
 
     def get_reference_info(self, ref_dir: Path) -> Dict:
@@ -107,7 +107,7 @@ class Session(Protocol):
                 "One *_reference.json is expected",
                 ref_dir.name,
             )
-            sys.exit()
+            sys.exit(1)
         return ref_json
 
     def get_census_stage(self, mapping_dir: Path, stage: int) -> Dict:
@@ -129,7 +129,7 @@ class Session(Protocol):
                 stage,
                 mapping_dir,
             )
-            sys.exit()
+            sys.exit(1)
         return census_json
 
     def update_json(
@@ -142,7 +142,7 @@ class Session(Protocol):
                     logging.error(
                         "The field %s is already present in the json file.", my_field
                     )
-                    sys.exit()
+                    sys.exit(1)
                 else:
                     config[section][my_field] = my_value
         else:

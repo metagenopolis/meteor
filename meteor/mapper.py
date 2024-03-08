@@ -111,13 +111,13 @@ class Mapper(Session):
                 "Checking bowtie2 version failed:\n%s",
                 bowtie_exec.stderr.decode("utf-8"),
             )
-            sys.exit()
+            sys.exit(1)
         elif parse(bowtie_version) < Version("2.3.5"):
             logging.error(
                 "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2 to >=2.3.5.",
                 bowtie_version,
             )
-            sys.exit()
+            sys.exit(1)
         # Start mapping
         start = perf_counter()
         mapping_exec = run(
@@ -137,14 +137,14 @@ class Mapper(Session):
         mapping_result = mapping_exec.stderr.decode("utf-8")
         if mapping_exec.returncode != 0:
             logging.error("bowtie2 failed:\n%s" % mapping_result)
-            sys.exit()
+            sys.exit(1)
         try:
             mapping_log = findall(r"([0-9]+)\s+\(", mapping_result)
             assert len(mapping_log) == 4
             mapping_data = [int(i) for i in mapping_log]
         except AssertionError:
             logging.error("Error, could not access the mapping result from bowtie2")
-            sys.exit()
+            sys.exit(1)
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
         config = self.set_mapping_config(sam_file, bowtie_version, mapping_data)
         self.save_config(config, self.census["Stage1FileName"])

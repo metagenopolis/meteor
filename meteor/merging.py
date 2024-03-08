@@ -82,7 +82,7 @@ class Merging(Session):
             assert all([my_section in config for my_section in list(param_dict.keys())])
         except AssertionError:
             logging.error("Missing required section in census json file.")
-            sys.exit()
+            sys.exit(1)
         # If fields is empty, consider all fields of the section
         param_dict = {
             key: list(config[key]) if value == [""] else value
@@ -99,7 +99,7 @@ class Merging(Session):
             )
         except AssertionError:
             logging.error("Missing required fields in census ini file.")
-            sys.exit()
+            sys.exit(1)
         # Get values of each field (remove the section information)
         information = {
             my_field: config[my_section][my_field]
@@ -171,7 +171,7 @@ class Merging(Session):
         all_census = list(Path(self.meteor.profile_dir).glob("**/*census_stage_2.json"))
         if len(all_census) == 0:
             logging.error("No census stage 2 found in the specified repository.")
-            sys.exit()
+            sys.exit(1)
         else:
             logging.info("%s census files have been detected.", str(len(all_census)))
         # Create the dict: path -> Dict
@@ -183,7 +183,7 @@ class Merging(Session):
             assert len(all_census_dict) == len(all_census)
         except AssertionError:
             logging.error("There are several census files in the same directory.")
-            sys.exit()
+            sys.exit(1)
         # Create the dict: sample_name -> path
         all_samples_dict = {
             my_config["sample_info"]["sample_name"]: my_path
@@ -194,7 +194,7 @@ class Merging(Session):
             assert len(all_samples_dict) == len(all_census)
         except AssertionError:
             logging.error("Several census files refer to the same sample.")
-            sys.exit()
+            sys.exit(1)
         # Check that the json match for mapping parameters
         logging.info("Checking that census parameters match...")
         param_to_check = {

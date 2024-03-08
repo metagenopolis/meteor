@@ -76,7 +76,7 @@ class TreeBuilder(Session):
         all_census = list(Path(self.meteor.strain_dir).glob("**/*census_stage_3.json"))
         if len(all_census) == 0:
             logging.error("No census stage found in the specified repository.")
-            sys.exit()
+            sys.exit(1)
         else:
             logging.info("%s samples have been detected.", str(len(all_census)))
         msp_file_dict = defaultdict(list)

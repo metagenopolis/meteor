@@ -152,7 +152,7 @@ class Strain(Session):
                 Please consider to use strain with --kc option.""",
                 consensus_file,
             )
-            sys.exit()
+            sys.exit(1)
         gene_dict = {
             gene_id: seq for gene_id, seq in self.get_sequences(consensus_file)
         }
@@ -204,7 +204,7 @@ class Strain(Session):
                 "One *_reference.json is expected",
                 self.meteor.ref_dir,
             )
-            sys.exit()
+            sys.exit(1)
         try:
             census_json = self.get_census_stage(self.meteor.mapped_sample_dir, 1)
             sample_info = census_json["sample_info"]
@@ -278,4 +278,4 @@ class Strain(Session):
                 "Error, no *_census_stage_0.json file found in %s",
                 self.meteor.fastq_dir,
             )
-            sys.exit()
+            sys.exit(1)

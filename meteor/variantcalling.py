@@ -225,13 +225,13 @@ class VariantCalling(Session):
             logging.error(
                 "Checking bcftools failed:\n%s" % bcftools_exec.stderr.decode("utf-8")
             )
-            sys.exit()
+            sys.exit(1)
         elif parse(bcftools_version) < Version("0.1.19"):
             logging.error(
                 "Error, the bcftools version %s is outdated for meteor. Please update bcftools to >= 0.1.19.",
                 bcftools_version,
             )
-            sys.exit()
+            sys.exit(1)
         start = perf_counter()
         with NamedTemporaryFile(
             mode="wt", dir=self.meteor.tmp_dir, delete=False

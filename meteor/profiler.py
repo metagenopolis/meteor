@@ -80,7 +80,7 @@ class Profiler(Session):
             assert self.input_count_table.is_file()
         except AssertionError:
             logging.error("The count table %s does not exist.", self.input_count_table)
-            sys.exit()
+            sys.exit(1)
 
         # Add a symlink to get the raw count table in the profile directory (for merging purpose)
         raw_count_table_symlink = (
@@ -154,7 +154,7 @@ class Profiler(Session):
             assert rarefaction_level > 0
         except AssertionError:
             logging.error("You are trying to rarefy with a null or negative number.")
-            sys.exit()
+            sys.exit(1)
         # Add the unmapped count
         self.gene_count.loc[len(self.gene_count)] = {
             "gene_id": -1,
