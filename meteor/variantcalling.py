@@ -266,8 +266,6 @@ class VariantCalling(Session):
                     [
                         "bcftools",
                         "call",
-                        "-R",
-                        str(bed_file.resolve()),
                         "-v",
                         "-c",
                         "--ploidy",
