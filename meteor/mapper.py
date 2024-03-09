@@ -12,7 +12,7 @@
 
 """Effective mapping"""
 
-from subprocess import run
+from subprocess import run, Popen, PIPE
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
@@ -21,8 +21,11 @@ from packaging.version import Version, parse
 from re import findall
 from meteor.session import Session, Component
 from time import perf_counter
+from tempfile import mkstemp
+import pysam
 import logging
 import sys
+
 
 # from memory_profiler import profile
 # import os
@@ -88,6 +91,15 @@ class Mapper(Session):
             self.census["directory"]
             / f"{self.census['census']['sample_info']['sample_name']}.sam"
         )
+        cram_file = (
+            self.census["directory"]
+            / f"{self.census['census']['sample_info']['sample_name']}.cram"
+        )
+        reference = (
+            self.meteor.ref_dir
+            / self.census["reference"]["reference_file"]["fasta_dir"]
+            / self.census["reference"]["reference_file"]["fasta_filename"]
+        )
         bowtie_index = (
             self.meteor.ref_dir
             / self.census["reference"]["reference_file"]["fasta_dir"]
@@ -120,7 +132,7 @@ class Mapper(Session):
             sys.exit(1)
         # Start mapping
         start = perf_counter()
-        mapping_exec = run(
+        mapping_exec = Popen(
             [
                 "bowtie2",
                 parameters,
@@ -129,13 +141,43 @@ class Mapper(Session):
                 str(bowtie_index.resolve()),
                 "-U",
                 ",".join(self.fastq_list),
-                "-S",
-                str(sam_file.resolve()),
             ],
-            capture_output=True,
+            stdout=PIPE,
+            stderr=PIPE,
         )
-        mapping_result = mapping_exec.stderr.decode("utf-8")
-        if mapping_exec.returncode != 0:
+        cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+        with pysam.AlignmentFile(
+            mapping_exec.stdout,
+            "r",
+        ) as samdesc:
+            with pysam.AlignmentFile(
+                cramfile_unsorted,
+                "wc",
+                template=samdesc,
+                reference_filename=str(reference.resolve()),
+            ) as cram:
+                for element in samdesc:
+                    cram.write(element)
+        pysam.sort(
+            "-o",
+            str(cram_file.resolve()),
+            "-@",
+            str(self.meteor.threads),
+            "-O",
+            "cram",
+            str(cramfile_unsorted.resolve()),
+            catch_stdout=False,
+        )
+        pysam.index(str(cram_file.resolve()))
+        # Read standard error from the process (non-blocking read)
+        mapping_result = mapping_exec.stderr.read().decode()
+        mapping_exec.stderr.close()
+
+        # Wait for the process to finish and get the exit code
+        exit_code = mapping_exec.wait()
+
+        # Check for errors and print the error output if necessary
+        if exit_code != 0:
             logging.error("bowtie2 failed:\n%s" % mapping_result)
             sys.exit(1)
         try:

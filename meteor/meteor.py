@@ -297,16 +297,10 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Number alignments considered for each read (default 10000)",
     )
     mapping_parser.add_argument(
-        "--ks",
-        dest="keep_sam",
-        action="store_true",
-        help="Save the sam files. Required for recounting.",
-    )
-    mapping_parser.add_argument(
-        "--kb",
+        "-k",
         dest="keep_cram",
         action="store_true",
-        help="Save the cram files. Required for strain analysis.",
+        help="Save the cram files. Required for re-counting or strain analysis.",
     )
     mapping_parser.add_argument(
         "--tmp",
@@ -618,7 +612,6 @@ def main() -> None:  # pragma: no cover
             args.trim,
             args.identity_threshold,
             args.alignment_number,
-            args.keep_sam,
             args.keep_cram,
         )
         counter.execute()

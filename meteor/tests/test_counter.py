@@ -114,8 +114,8 @@ def test_launch_mapping(counter_total: Counter):
     # Fail with changing day
     # with counter_best.json_data[census_ini_file]["Stage1FileName"].open("rb") as stage1:
     #    assert md5(stage1.read()).hexdigest() == "a8a5b5e400dafb226ce3bab1a2cee69d"
-    sam = stage1_dir / "part1.sam"
-    assert sam.exists()
+    cram = stage1_dir / "part1.cram"
+    assert cram.exists()
     # cram = stage1_dir / "part1.cram"
     # bai = stage1_dir / "part1.cram.bai"
     # assert cram.exists()

@@ -73,8 +73,8 @@ def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper:
 
 def test_execute(mapping_builder: Mapper) -> None:
     mapping_builder.execute()
-    output_sam = (
+    output_cram = (
         mapping_builder.census["directory"]
-        / f"{mapping_builder.census['census']['sample_info']['sample_name']}.sam"
+        / f"{mapping_builder.census['census']['sample_info']['sample_name']}.cram"
     )
-    assert output_sam.exists()
+    assert output_cram.exists()
