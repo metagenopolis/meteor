@@ -387,27 +387,30 @@ class Counter(Session):
                     # if int(element.reference_name) in ref_json["reference_file"]:
                     total_reads.write(element)
 
-    # def launch_counting(self, cram_file: Path, count_file: Path) -> bool:
     def launch_counting(
-        self, raw_cram_file: Path, cram_file: Path, count_file: Path, ref_json: dict
+        self,
+        raw_cramfile: Path,
+        cramfile_strain: Path,
+        count_file: Path,
+        ref_json: dict,
     ):
         """Function that count reads from a cram file, using the given methods in count:
         "total" or "shared" or "unique".
 
-        :param raw_cram_file: (Path) A path to the input cram file
-        :param cram_file: (Path) A path to the output cram file
+        :param raw_cramfile: (Path) A path to the input cram file
+        :param cramfile_strain: (Path) A path to the output cram file for strain analysis
         :param count_file: (Path) A path to the output count file
         """
-        if not raw_cram_file.exists():
+        if not raw_cramfile.exists():
             logging.error(
                 "Cram file %s is not available to perform a new counting. Please consider to re-map with --ka option.",
-                raw_cram_file,
+                raw_cramfile,
             )
             sys.exit(1)
         else:
             logging.info("Launch counting")
         pysam.set_verbosity(0)
-        with AlignmentFile(str(raw_cram_file.resolve())) as cramdesc:
+        with AlignmentFile(str(raw_cramfile.resolve())) as cramdesc:
             # create a dictionary containing the length of reference genes
             # get name of reference sequence
             references = [int(ref) for ref in cramdesc.references]
@@ -421,11 +424,6 @@ class Counter(Session):
             # genes mapped by multiple reads
             unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(
                 reads, genes, database
-            )
-            cramfile_strain = (
-                cram_file.resolve()
-                if self.keep_filtered_alignments
-                else Path(mkstemp(dir=self.meteor.tmp_dir)[1])
             )
             if self.counting_type == "smart_shared":
                 # For multiple reads compute Co
