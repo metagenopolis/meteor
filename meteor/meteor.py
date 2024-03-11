@@ -13,7 +13,6 @@
 
 """Meteor - A plateform for quantitative metagenomic profiling of complex ecosystems"""
 
-__version__ = "3.4.0"
 
 import sys
 import logging
@@ -29,7 +28,7 @@ from meteor.merging import Merging
 from meteor.strain import Strain
 from meteor.treebuilder import TreeBuilder
 from tempfile import TemporaryDirectory
-import importlib.metadata
+from importlib.metadata import version
 
 
 class Color:
@@ -122,7 +121,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     """
     parser = ArgumentParser(description=Color.BOLD + __doc__ + Color.END, prog="Meteor")
     parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
+        "--version", action="version", version=f"%(prog)s version { version('meteor')}"
     )
     subparsers = parser.add_subparsers(
         title="positional arguments",
