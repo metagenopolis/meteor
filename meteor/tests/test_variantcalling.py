@@ -16,6 +16,7 @@ from ..variantcalling import VariantCalling
 from pathlib import Path
 import pytest
 import json
+import pandas as pd
 
 
 @pytest.fixture
@@ -55,8 +56,10 @@ def vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
 #     reads_in_gene = vc_builder.count_reads_in_gene("ENSG00000279457")
 
 
-# def test_filter_low_cov_sites(vc_builder: VariantCalling) -> None:
+# def test_filter_low_cov_sites(vc_builder: VariantCalling, datadir: Path) -> None:
 #     vc_builder.filter_low_cov_sites(cram_file)
+#     expected_output = pd.read_table(datadir / "expected_output" / "D15B1_low_cov.tsv")
+#     assert profiler_standard.gene_count.equals(expected_output)
 
 
 def test_execute(vc_builder: VariantCalling) -> None:

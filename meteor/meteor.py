@@ -297,10 +297,16 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Number alignments considered for each read (default 10000)",
     )
     mapping_parser.add_argument(
-        "-k",
-        dest="keep_cram",
+        "--ka",
+        dest="keep_all_alignments",
         action="store_true",
-        help="Save the cram files. Required for re-counting or strain analysis.",
+        help="Raw bowtie2 output in cram format. Required for re-counting analysis.",
+    )
+    mapping_parser.add_argument(
+        "--kf",
+        dest="keep_filtered_alignments",
+        action="store_true",
+        help="Keep processed alignements. Required for strain analysis.",
     )
     mapping_parser.add_argument(
         "--tmp",
@@ -612,7 +618,8 @@ def main() -> None:  # pragma: no cover
             args.trim,
             args.identity_threshold,
             args.alignment_number,
-            args.keep_cram,
+            args.keep_all_alignments,
+            args.keep_filtered_alignments,
         )
         counter.execute()
     # Run strain

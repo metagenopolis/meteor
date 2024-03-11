@@ -27,7 +27,7 @@ from collections import defaultdict
 from itertools import chain
 from pysam import index, idxstats, AlignmentFile, sort, AlignedSegment  # type: ignore[attr-defined]
 from time import perf_counter
-from shutil import rmtree, copy
+from shutil import rmtree
 
 
 @dataclass
@@ -40,7 +40,8 @@ class Counter(Session):
     trim: int
     identity_threshold: float
     alignment_number: int
-    keep_cram: bool = False
+    keep_all_alignments: bool = False
+    keep_filtered_alignments: bool = False
     # pysam_test: bool = True
     json_data: dict = field(default_factory=dict)
 
@@ -76,7 +77,7 @@ class Counter(Session):
             )
             mapping_process.execute()
 
-    def write_table(self, cramfile: Path, outfile: Path) -> bool:
+    def write_table(self, cramfile: Path, outfile: Path):
         """Function that create a count table using pysam. First index the cram file,
         then count reads using the function idxstats from pysam, and output a count
         table.
@@ -97,7 +98,6 @@ class Counter(Session):
             for line in table.split("\n")[:-2]:
                 s = "\t".join(line.split("\t")[0:3])
                 out.write(f"{s}\n")
-        return True
 
     def get_aligned_nucleotides(self, element) -> Iterator[int]:
         """Select aligned nucleotides
@@ -327,7 +327,7 @@ class Counter(Session):
             genes: unique_dict[genes] + multiple_dict[genes] for genes in unique_dict
         }
 
-    def write_stat(self, output: Path, abundance_dict: dict, database: dict):
+    def write_stat(self, output: Path, abundance_dict: dict, database: dict) -> None:
         """Write count table.
 
         :param output: [STRING] = output filename
@@ -338,7 +338,6 @@ class Counter(Session):
             out.write("gene_id\tgene_length\tvalue\n")
             for genes, abundance in sorted(abundance_dict.items()):
                 out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
-        return True
 
     def save_cram(
         self, outcramfile: Path, samdesc: AlignmentFile, read_list: list, ref_json: dict
@@ -365,24 +364,24 @@ class Counter(Session):
 
     # def launch_counting(self, cram_file: Path, count_file: Path) -> bool:
     def launch_counting(
-        self, cram_file: Path, count_file: Path, ref_json: dict
-    ) -> bool:
+        self, raw_cram_file: Path, cram_file: Path, count_file: Path, ref_json: dict
+    ):
         """Function that count reads from a cram file, using the given methods in count:
         "total" or "shared" or "unique".
 
-        :param cram_file: (Path) A path to the input cram file
+        :param raw_cram_file: (Path) A path to the input cram file
+        :param cram_file: (Path) A path to the output cram file
         :param count_file: (Path) A path to the output count file
-        :return: (bool)
         """
-        if not cram_file.exists():
+        if not raw_cram_file.exists():
             logging.error(
-                "Cram file %s is not available to perform a new counting. Please consider to re-map with -k option.",
-                cram_file,
+                "Cram file %s is not available to perform a new counting. Please consider to re-map with --ka option.",
+                raw_cram_file,
             )
             sys.exit(1)
         else:
             logging.info("Launch counting")
-        with AlignmentFile(str(cram_file.resolve())) as cramdesc:
+        with AlignmentFile(str(raw_cram_file.resolve())) as cramdesc:
             # create a dictionary containing the length of reference genes
             # get name of reference sequence
             references = [int(ref) for ref in cramdesc.references]
@@ -397,6 +396,11 @@ class Counter(Session):
             unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(
                 reads, genes, database
             )
+            cramfile_sorted = (
+                cram_file.resolve()
+                if self.keep_filtered_alignments
+                else Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+            )
             if self.counting_type == "smart_shared":
                 # For multiple reads compute Co
                 read_dict, coef_read = self.compute_co(genes_mult, unique_on_gene)
@@ -405,9 +409,8 @@ class Counter(Session):
                 # Calculate reference abundance & write count table
                 abundance = self.compute_abs_meteor(database, unique_on_gene, multiple)
                 # abundance = self.compute_abs(unique_on_gene, multiple)
-                if self.keep_cram:
+                if self.keep_filtered_alignments:
                     cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                    cramfile_sorted = cram_file.resolve()
                     self.save_cram(
                         cramfile_unsorted,
                         cramdesc,
@@ -425,16 +428,18 @@ class Counter(Session):
                         catch_stdout=False,
                     )
                     index(str(cramfile_sorted.resolve()))
-                return self.write_stat(count_file, abundance, database)
+                else:
+                    logging.info(
+                        "Cram file is not kept (--kf). Strain analysis will require a new mapping."
+                    )
+                self.write_stat(count_file, abundance, database)
+
             else:
                 if self.counting_type == "unique":
                     reads = unique_reads
                 cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                cramfile_sorted = cramfile_sorted = (
-                    cram_file.resolve()
-                    if self.keep_cram
-                    else Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                )
+                # self.json_data[library]["directory"]
+                #     / f"{sample_info['sample_name']}_raw.cram"
                 self.save_cram(
                     cramfile_unsorted, cramdesc, list(chain(*reads.values())), ref_json
                 )
@@ -448,13 +453,13 @@ class Counter(Session):
                     str(cramfile_unsorted.resolve()),
                     catch_stdout=False,
                 )
-                if self.keep_cram:
+                if self.keep_filtered_alignments:
                     index(str(cramfile_sorted.resolve()))
                 else:
                     logging.info(
-                        "cram file is not kept. Strain analysis will require a new mapping."
+                        "Cram file is not kept (--kf). Strain analysis will require a new mapping."
                     )
-                return self.write_table(cramfile_sorted, count_file)
+                self.write_table(cramfile_sorted, count_file)
 
     def execute(self) -> None:
         """Compute the mapping"""
@@ -507,6 +512,10 @@ class Counter(Session):
                     logging.info("Launch mapping")
                     self.launch_mapping()
                 # running counter
+                raw_cram_file = (
+                    self.json_data[library]["directory"]
+                    / f"{sample_info['sample_name']}_raw.cram"
+                )
                 cram_file = (
                     self.json_data[library]["directory"]
                     / f"{sample_info['sample_name']}.cram"
@@ -516,13 +525,14 @@ class Counter(Session):
                     / f"{sample_info['sample_name']}.tsv.xz"
                 )
                 start = perf_counter()
-                self.launch_counting(cram_file, count_file, ref_json)
+                self.launch_counting(raw_cram_file, cram_file, count_file, ref_json)
                 logging.info("Completed counting in %f seconds", perf_counter() - start)
-                if not self.keep_cram:
+                if not self.keep_all_alignments:
                     logging.info(
-                        "Cram file is not kept. Re-counting operation will need to be performed from scratch."
+                        "Raw cram file is not kept (--ka). Re-counting operation will need to be performed from scratch."
                     )
-                    cram_file.unlink(missing_ok=True)
+                    raw_cram_file.unlink(missing_ok=True)
+                    raw_cram_file.with_suffix(".cram.crai").unlink(missing_ok=True)
             logging.info("Done ! Job finished without errors ...")
         except AssertionError:
             logging.error(

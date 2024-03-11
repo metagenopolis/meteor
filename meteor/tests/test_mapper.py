@@ -75,6 +75,6 @@ def test_execute(mapping_builder: Mapper) -> None:
     mapping_builder.execute()
     output_cram = (
         mapping_builder.census["directory"]
-        / f"{mapping_builder.census['census']['sample_info']['sample_name']}.cram"
+        / f"{mapping_builder.census['census']['sample_info']['sample_name']}_raw.cram"
     )
     assert output_cram.exists()

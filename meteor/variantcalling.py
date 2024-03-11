@@ -141,7 +141,12 @@ class VariantCalling(Session):
 
     def filter_low_cov_sites(
         self, cram_file: Path, temp_low_cov_sites: tempfile._TemporaryFileWrapper
-    ):
+    ) -> None:
+        """Create a bed file reporting a list of positions below coverage threshold
+
+        :param cram_file:   Path to the input cram file
+        :param temp_low_cov_sites: File handle to write low coverage sites
+        """
         # Get list of genes
         gene_interest = pd.read_csv(
             self.matrix_file,

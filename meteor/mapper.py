@@ -47,14 +47,14 @@ class Mapper(Session):
 
     def set_mapping_config(
         self,
-        sam_file: Path,
+        cram_file: Path,
         bowtie_version: str,
         mapping_data: List[int],
     ) -> Dict:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
-        :param cram_file: A path to the sam file
+        :param cram_file: A path to the raw cram file
         :return: (Dict) A dict object with the census 1 config
         """
         config = {
@@ -79,7 +79,7 @@ class Mapper(Session):
                 "fastq_files": ",".join(self.fastq_list),
             },
             "mapping_file": {
-                "bowtie_file": sam_file.name,
+                "bowtie_file": cram_file.name,
             },
         }
         return config
@@ -87,13 +87,9 @@ class Mapper(Session):
     # @profile(stream=fp)
     def execute(self) -> None:
         """Map reads"""
-        sam_file = (
-            self.census["directory"]
-            / f"{self.census['census']['sample_info']['sample_name']}.sam"
-        )
         cram_file = (
             self.census["directory"]
-            / f"{self.census['census']['sample_info']['sample_name']}.cram"
+            / f"{self.census['census']['sample_info']['sample_name']}_raw.cram"
         )
         reference = (
             self.meteor.ref_dir
@@ -188,5 +184,5 @@ class Mapper(Session):
             logging.error("Error, could not access the mapping result from bowtie2")
             sys.exit(1)
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
-        config = self.set_mapping_config(sam_file, bowtie_version, mapping_data)
+        config = self.set_mapping_config(cram_file, bowtie_version, mapping_data)
         self.save_config(config, self.census["Stage1FileName"])
