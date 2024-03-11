@@ -12,6 +12,9 @@
 
 """Effective variant calling"""
 
+import logging
+import sys
+import tempfile
 from subprocess import check_call, run
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,14 +22,11 @@ from datetime import datetime
 from typing import Type, Dict, List
 from meteor.session import Session, Component
 from time import perf_counter
-import tempfile
 from tempfile import NamedTemporaryFile
 from packaging.version import Version, parse
 from pysam import AlignmentFile
 from collections import defaultdict
 import pandas as pd
-import logging
-import sys
 
 
 @dataclass
@@ -125,6 +125,7 @@ class VariantCalling(Session):
             end=gene_length,
             stepper="all",
             max_depth=self.max_depth,
+            multiple_iterators=False,
         ):
             read_count = sum(
                 1
@@ -157,6 +158,7 @@ class VariantCalling(Session):
                 "coverage",
             ],
             header=1,
+            compression="xz",
         )
         # We need to do more work for these genes
         # their total count is above the min_snp_depth
@@ -202,7 +204,7 @@ class VariantCalling(Session):
         )
         self.matrix_file = (
             self.census["mapped_sample_dir"]
-            / f"{self.census['census']['sample_info']['sample_name']}.tsv"
+            / f"{self.census['census']['sample_info']['sample_name']}.tsv.xz"
         )
         vcf_file = (
             self.census["directory"]
@@ -291,7 +293,7 @@ class VariantCalling(Session):
                 check_call(["bcftools", "index", temp_vcf.name])
                 # Only SNP from 100 core genes
                 logging.info(
-                    "Completed pileup step in %f seconds", perf_counter() - startpileup
+                    "Completed index step in %f seconds", perf_counter() - startpileup
                 )
                 startview = perf_counter()
                 check_call(

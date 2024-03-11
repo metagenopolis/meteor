@@ -141,32 +141,33 @@ class Mapper(Session):
             stdout=PIPE,
             stderr=PIPE,
         )
-        cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+        # cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
         with pysam.AlignmentFile(
             mapping_exec.stdout,
             "r",
         ) as samdesc:
             with pysam.AlignmentFile(
-                cramfile_unsorted,
+                str(cram_file.resolve()),
+                # cramfile_unsorted,
                 "wc",
                 template=samdesc,
                 reference_filename=str(reference.resolve()),
             ) as cram:
                 for element in samdesc:
                     cram.write(element)
-        pysam.sort(
-            "-o",
-            str(cram_file.resolve()),
-            "-@",
-            str(self.meteor.threads),
-            "-O",
-            "cram",
-            str(cramfile_unsorted.resolve()),
-            catch_stdout=False,
-        )
-        pysam.index(str(cram_file.resolve()))
+        # pysam.sort(
+        #     "-o",
+        #     str(cram_file.resolve()),
+        #     "-@",
+        #     str(self.meteor.threads),
+        #     "-O",
+        #     "cram",
+        #     str(cramfile_unsorted.resolve()),
+        #     catch_stdout=False,
+        # )
+        # pysam.index(str(cram_file.resolve()))
         # Read standard error from the process (non-blocking read)
-        mapping_result = mapping_exec.stderr.read().decode()
+        mapping_result = mapping_exec.stderr.read().decode("utf-8")
         mapping_exec.stderr.close()
 
         # Wait for the process to finish and get the exit code

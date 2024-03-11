@@ -17,6 +17,7 @@ import logging
 import sys
 import pysam
 import lzma
+import pandas as pd
 from dataclasses import dataclass, field
 from tempfile import mkdtemp, mkstemp
 from pathlib import Path
@@ -339,13 +340,17 @@ class Counter(Session):
             for genes, abundance in sorted(abundance_dict.items()):
                 out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
 
-    def save_cram(
-        self, outcramfile: Path, samdesc: AlignmentFile, read_list: list, ref_json: dict
+    def save_cram_strain(
+        self,
+        outcramfile: Path,
+        cramdesc: AlignmentFile,
+        read_list: list,
+        ref_json: dict,
     ):
-        """Writing the filtered SAM file.
+        """Writing the filtered CRAM file for strain analysis.
 
         :param outsamfile: [Path] Temporary cram file
-        :param samdesc: Pysam sam descriptor
+        :param cramdesc: Pysam cram descriptor
         :param read_list: [List] List of pysam reads objects
         """
         reference = (
@@ -353,14 +358,34 @@ class Counter(Session):
             / ref_json["reference_file"]["fasta_dir"]
             / ref_json["reference_file"]["fasta_filename"]
         )
+        msp_file = (
+            self.meteor.ref_dir
+            / ref_json["reference_file"]["database_dir"]
+            / ref_json["annotation"]["msp"]["filename"]
+        )
+        msp_content = (
+            pd.read_csv(
+                msp_file,
+                sep="\t",
+                names=["msp_name", "gene_id", "gene_name", "gene_category"],
+                header=1,
+            )
+            .query("gene_category == 'core'")
+            .groupby("msp_name", as_index=False)
+            .head(100)
+        )
+        # Sort the 'gene_id' values and convert directly to a list
+        gene_id_set = set(msp_content["gene_id"])
         with AlignmentFile(
             str(outcramfile.resolve()),
             "wc",
-            template=samdesc,
+            template=cramdesc,
             reference_filename=str(reference.resolve()),
         ) as total_reads:
             for element in read_list:
-                total_reads.write(element)
+                if int(element.reference_name) in gene_id_set:
+                    # if int(element.reference_name) in ref_json["reference_file"]:
+                    total_reads.write(element)
 
     # def launch_counting(self, cram_file: Path, count_file: Path) -> bool:
     def launch_counting(
@@ -381,6 +406,7 @@ class Counter(Session):
             sys.exit(1)
         else:
             logging.info("Launch counting")
+        pysam.set_verbosity(0)
         with AlignmentFile(str(raw_cram_file.resolve())) as cramdesc:
             # create a dictionary containing the length of reference genes
             # get name of reference sequence
@@ -396,7 +422,7 @@ class Counter(Session):
             unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(
                 reads, genes, database
             )
-            cramfile_sorted = (
+            cramfile_strain = (
                 cram_file.resolve()
                 if self.keep_filtered_alignments
                 else Path(mkstemp(dir=self.meteor.tmp_dir)[1])
@@ -411,7 +437,7 @@ class Counter(Session):
                 # abundance = self.compute_abs(unique_on_gene, multiple)
                 if self.keep_filtered_alignments:
                     cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                    self.save_cram(
+                    self.save_cram_strain(
                         cramfile_unsorted,
                         cramdesc,
                         list(chain(*reads.values())),
@@ -419,7 +445,7 @@ class Counter(Session):
                     )
                     sort(
                         "-o",
-                        str(cramfile_sorted.resolve()),
+                        str(cramfile_strain.resolve()),
                         "-@",
                         str(self.meteor.threads),
                         "-O",
@@ -427,7 +453,7 @@ class Counter(Session):
                         str(cramfile_unsorted.resolve()),
                         catch_stdout=False,
                     )
-                    index(str(cramfile_sorted.resolve()))
+                    index(str(cramfile_strain.resolve()))
                 else:
                     logging.info(
                         "Cram file is not kept (--kf). Strain analysis will require a new mapping."
@@ -438,11 +464,28 @@ class Counter(Session):
                 if self.counting_type == "unique":
                     reads = unique_reads
                 cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                cramfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                 # self.json_data[library]["directory"]
                 #     / f"{sample_info['sample_name']}_raw.cram"
-                self.save_cram(
-                    cramfile_unsorted, cramdesc, list(chain(*reads.values())), ref_json
+                # self.save_cram(
+                #     cramfile_unsorted, cramdesc, list(chain(*reads.values())), ref_json
+                # )
+                reference = (
+                    self.meteor.ref_dir
+                    / ref_json["reference_file"]["fasta_dir"]
+                    / ref_json["reference_file"]["fasta_filename"]
                 )
+                read_list = list(chain(*reads.values()))
+                # Save a temporary cram for the counting
+                with AlignmentFile(
+                    str(cramfile_unsorted.resolve()),
+                    "wc",
+                    template=cramdesc,
+                    reference_filename=str(reference.resolve()),
+                ) as total_reads:
+                    for element in read_list:
+                        # if int(element.reference_name) in ref_json["reference_file"]:
+                        total_reads.write(element)
                 sort(
                     "-o",
                     str(cramfile_sorted.resolve()),
@@ -454,7 +497,24 @@ class Counter(Session):
                     catch_stdout=False,
                 )
                 if self.keep_filtered_alignments:
-                    index(str(cramfile_sorted.resolve()))
+                    cramfile_strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                    self.save_cram_strain(
+                        cramfile_strain_unsorted,
+                        cramdesc,
+                        list(chain(*reads.values())),
+                        ref_json,
+                    )
+                    sort(
+                        "-o",
+                        str(cramfile_strain.resolve()),
+                        "-@",
+                        str(self.meteor.threads),
+                        "-O",
+                        "cram",
+                        str(cramfile_strain_unsorted.resolve()),
+                        catch_stdout=False,
+                    )
+                    index(str(cramfile_strain.resolve()))
                 else:
                     logging.info(
                         "Cram file is not kept (--kf). Strain analysis will require a new mapping."

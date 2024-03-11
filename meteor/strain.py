@@ -178,7 +178,7 @@ class Strain(Session):
         # Remove consensus file
         if not self.keep_consensus:
             logging.info(
-                "Consensus catalogue is not kept. Re-counting strain will need to be performed from scratch."
+                "Consensus catalogue is not kept (--kc). Re-counting strain will need to be performed from scratch."
             )
             consensus_file.unlink(missing_ok=True)
         # for gene_id, seq in self.get_gene_consensus(consensus_file):

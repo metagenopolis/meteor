@@ -287,7 +287,7 @@ def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> No
         read_list = list(chain(reads.values()))
         merged_list = list(chain.from_iterable(read_list))
         tmpcramfile = tmp_path / "test"
-        counter_unique.save_cram(tmpcramfile, cramdesc, merged_list, ref_json)
+        counter_unique.save_cram_strain(tmpcramfile, cramdesc, merged_list, ref_json)
         assert tmpcramfile.exists()
         # issues at testing content
         # with tmpcramfile.open("rb") as out:
