@@ -30,7 +30,7 @@ conda create --name meteor -c conda-forge -c bioconda  -c aghozlane meteor
 
 Or with pip with a recent Python>=3.10 from the cloned directory:
 ```
-pip install .
+pip install meteor
 ```
 You can test the installation of meteor with:
 ```
