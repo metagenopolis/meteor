@@ -128,7 +128,7 @@ def test_launch_mapping(counter_total: Counter):
 
 
 def test_write_table(counter_total: Counter, datadir: Path, tmp_path: Path) -> None:
-    cramfile = datadir / "total.cram"
+    cramfile = datadir / "total_raw.cram"
     output = tmp_path / "total.tsv.xz"
     counter_total.write_table(cramfile, output)
     assert output.exists()
@@ -144,7 +144,7 @@ def test_write_table(counter_total: Counter, datadir: Path, tmp_path: Path) -> N
 #     49 (2.45%) aligned >1 times
 # 75.15% overall alignment rate
 def test_filter_alignments(counter_total: Counter, datadir: Path) -> None:
-    cramfile = datadir / "total.cram"
+    cramfile = datadir / "total_raw.cram"
     with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_total.filter_alignments(cramdesc)
         # We check that genes and reads are correctly associated
@@ -162,7 +162,7 @@ def test_filter_alignments(counter_total: Counter, datadir: Path) -> None:
 
 
 def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
-    cramfile = datadir / "total.cram"
+    cramfile = datadir / "total_raw.cram"
     with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_unique.filter_alignments(cramdesc)
         # print(genes)
@@ -183,7 +183,7 @@ def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
 
 
 def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
-    cramfile = datadir / "total.cram"
+    cramfile = datadir / "total_raw.cram"
     with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_smart_shared.filter_alignments(cramdesc)
         references = map(int, cramdesc.references)
@@ -206,7 +206,7 @@ def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
 
 
 def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> None:
-    cramfile = datadir / "total.cram"
+    cramfile = datadir / "total_raw.cram"
     with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_smart_shared.filter_alignments(cramdesc)
         references = map(int, cramdesc.references)
@@ -226,7 +226,7 @@ def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> Non
 
 
 def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
-    cramfile = datadir / "total.cram"
+    cramfile = datadir / "total_raw.cram"
     with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_smart_shared.filter_alignments(cramdesc)
         references = map(int, cramdesc.references)
@@ -246,7 +246,7 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
 
 
 def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
-    cramfile = datadir / "total.cram"
+    cramfile = datadir / "total_raw.cram"
     with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_smart_shared.filter_alignments(cramdesc)
         references = map(int, cramdesc.references)
@@ -276,7 +276,7 @@ def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
 
 
 def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> None:
-    cramfile = datadir / "total.cram"
+    cramfile = datadir / "total_raw.cram"
     ref_json = counter_unique.read_json(
         counter_unique.meteor.ref_dir / "mock_reference.json"
     )

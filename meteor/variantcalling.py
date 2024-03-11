@@ -344,7 +344,7 @@ class VariantCalling(Session):
                     )
                 logging.info(
                     "Completed low coverage regions filtering step in %f seconds",
-                    perf_counter() - startview,
+                    perf_counter() - startlowcov,
                 )
         logging.info("Completed SNP calling in %f seconds", perf_counter() - start)
         config = self.set_variantcalling_config(
