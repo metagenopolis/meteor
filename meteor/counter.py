@@ -344,14 +344,14 @@ class Counter(Session):
         self,
         outcramfile: Path,
         cramdesc: AlignmentFile,
-        read_list: list,
+        read_chain: chain,
         ref_json: dict,
     ):
         """Writing the filtered CRAM file for strain analysis.
 
         :param outsamfile: [Path] Temporary cram file
         :param cramdesc: Pysam cram descriptor
-        :param read_list: [List] List of pysam reads objects
+        :param read_chain: [chain] Chain of pysam reads objects
         """
         reference = (
             self.meteor.ref_dir
@@ -382,7 +382,7 @@ class Counter(Session):
             template=cramdesc,
             reference_filename=str(reference.resolve()),
         ) as total_reads:
-            for element in read_list:
+            for element in read_chain:
                 if int(element.reference_name) in gene_id_set:
                     # if int(element.reference_name) in ref_json["reference_file"]:
                     total_reads.write(element)
@@ -452,7 +452,6 @@ class Counter(Session):
                     / ref_json["reference_file"]["fasta_dir"]
                     / ref_json["reference_file"]["fasta_filename"]
                 )
-                read_list = list(chain(*reads.values()))
                 # Save a temporary cram for the counting
                 with AlignmentFile(
                     str(cramfile_unsorted.resolve()),
@@ -460,7 +459,7 @@ class Counter(Session):
                     template=cramdesc,
                     reference_filename=str(reference.resolve()),
                 ) as total_reads:
-                    for element in read_list:
+                    for element in chain(*reads.values()):
                         # if int(element.reference_name) in ref_json["reference_file"]:
                         total_reads.write(element)
                 sort(
@@ -479,7 +478,7 @@ class Counter(Session):
                 self.save_cram_strain(
                     cramfile_strain_unsorted,
                     cramdesc,
-                    list(chain(*reads.values())),
+                    chain(*reads.values()),
                     ref_json,
                 )
                 sort(
