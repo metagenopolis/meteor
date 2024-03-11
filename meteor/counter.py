@@ -230,9 +230,11 @@ class Counter(Session):
         read_dict: Dict[str, List[str]] = {}
         for read_id in genes_mult:
             # for a multiple read, gets nb of unique reads from each genes
-            s = [unique_on_gene[genes] for genes in genes_mult[read_id]]
             # total number of unique reads
-            som = reduce(lambda x, y: x + y, s)
+            som = sum(
+                unique_on_gene[genes] for genes in genes_mult[read_id]
+            )  # Sum the values directly
+            # som = reduce(lambda x, y: x + y, s)
             # No unique counts on these genes
             # If no unique counts:
             if som == 0:
