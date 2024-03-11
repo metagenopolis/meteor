@@ -435,29 +435,6 @@ class Counter(Session):
                 # Calculate reference abundance & write count table
                 abundance = self.compute_abs_meteor(database, unique_on_gene, multiple)
                 # abundance = self.compute_abs(unique_on_gene, multiple)
-                if self.keep_filtered_alignments:
-                    cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                    self.save_cram_strain(
-                        cramfile_unsorted,
-                        cramdesc,
-                        list(chain(*reads.values())),
-                        ref_json,
-                    )
-                    sort(
-                        "-o",
-                        str(cramfile_strain.resolve()),
-                        "-@",
-                        str(self.meteor.threads),
-                        "-O",
-                        "cram",
-                        str(cramfile_unsorted.resolve()),
-                        catch_stdout=False,
-                    )
-                    index(str(cramfile_strain.resolve()))
-                else:
-                    logging.info(
-                        "Cram file is not kept (--kf). Strain analysis will require a new mapping."
-                    )
                 self.write_stat(count_file, abundance, database)
 
             else:
@@ -496,30 +473,30 @@ class Counter(Session):
                     str(cramfile_unsorted.resolve()),
                     catch_stdout=False,
                 )
-                if self.keep_filtered_alignments:
-                    cramfile_strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                    self.save_cram_strain(
-                        cramfile_strain_unsorted,
-                        cramdesc,
-                        list(chain(*reads.values())),
-                        ref_json,
-                    )
-                    sort(
-                        "-o",
-                        str(cramfile_strain.resolve()),
-                        "-@",
-                        str(self.meteor.threads),
-                        "-O",
-                        "cram",
-                        str(cramfile_strain_unsorted.resolve()),
-                        catch_stdout=False,
-                    )
-                    index(str(cramfile_strain.resolve()))
-                else:
-                    logging.info(
-                        "Cram file is not kept (--kf). Strain analysis will require a new mapping."
-                    )
                 self.write_table(cramfile_sorted, count_file)
+            if self.keep_filtered_alignments:
+                cramfile_strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+                self.save_cram_strain(
+                    cramfile_strain_unsorted,
+                    cramdesc,
+                    list(chain(*reads.values())),
+                    ref_json,
+                )
+                sort(
+                    "-o",
+                    str(cramfile_strain.resolve()),
+                    "-@",
+                    str(self.meteor.threads),
+                    "-O",
+                    "cram",
+                    str(cramfile_strain_unsorted.resolve()),
+                    catch_stdout=False,
+                )
+                index(str(cramfile_strain.resolve()))
+            else:
+                logging.info(
+                    "Cram file is not kept (--kf). Strain analysis will require a new mapping."
+                )
 
     def execute(self) -> None:
         """Compute the mapping"""
