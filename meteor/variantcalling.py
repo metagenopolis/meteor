@@ -235,7 +235,7 @@ class VariantCalling(Session):
             sys.exit(1)
         elif parse(bcftools_version) < Version("0.1.19"):
             logging.error(
-                "Error, the bcftools version %s is outdated for meteor. Please update bcftools to >= 0.1.19.",
+                "The bcftools version %s is outdated for meteor. Please update bcftools to >= 0.1.19.",
                 bcftools_version,
             )
             sys.exit(1)

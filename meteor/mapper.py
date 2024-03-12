@@ -122,7 +122,7 @@ class Mapper(Session):
             sys.exit(1)
         elif parse(bowtie_version) < Version("2.3.5"):
             logging.error(
-                "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2 to >=2.3.5.",
+                "The bowtie2 version %s is outdated for meteor. Please update bowtie2 to >=2.3.5.",
                 bowtie_version,
             )
             sys.exit(1)
@@ -182,7 +182,7 @@ class Mapper(Session):
             assert len(mapping_log) == 4
             mapping_data = [int(i) for i in mapping_log]
         except AssertionError:
-            logging.error("Error, could not access the mapping result from bowtie2")
+            logging.error("Could not access the mapping result from bowtie2")
             sys.exit(1)
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
         config = self.set_mapping_config(cram_file, bowtie_version, mapping_data)

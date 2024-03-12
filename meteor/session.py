@@ -29,6 +29,7 @@ class Component:
     fastq_dir: Path = field(default_factory=Path)
     mapping_dir: Path = field(default_factory=Path)
     profile_dir: Path = field(default_factory=Path)
+    merging_dir: Path = field(default_factory=Path)
     mapped_sample_dir: Path = field(default_factory=Path)
     strain_dir: Path = field(default_factory=Path)
     tree_dir: Path = field(default_factory=Path)
@@ -103,7 +104,7 @@ class Session(Protocol):
             ref_json = self.read_json(ref_json_file)
         except AssertionError:
             logging.error(
-                "Error, no *_reference.json file found in %s. "
+                "No *_reference.json file found in %s. "
                 "One *_reference.json is expected",
                 ref_dir.name,
             )
@@ -125,7 +126,7 @@ class Session(Protocol):
             census_json = self.read_json(census_json_file)
         except AssertionError:
             logging.error(
-                "Error, no *_census_stage_%d.json file found in %s.",
+                "No *_census_stage_%d.json file found in %s.",
                 stage,
                 mapping_dir,
             )

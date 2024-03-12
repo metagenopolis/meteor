@@ -332,7 +332,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     )
     profiling_parser.add_argument(
         "-o",
-        dest="output_dir",
+        dest="profiled_sample_dir",
         type=isdir,
         required=True,
         help="Path to the profile output directory.",
@@ -363,8 +363,9 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-n",
         dest="normalization",
         type=str,
-        choices=["coverage", "fpkm"],
-        help="Normalization applied to gene abundance.",
+        choices=["coverage", "fpkm", "raw"],
+        default="coverage",
+        help="Normalization applied to gene abundance (default coverage).",
     )
     profiling_parser.add_argument(
         "--core_size",
@@ -394,13 +395,71 @@ def get_arguments() -> Namespace:  # pragma: no cover
     )
     merging_parser.add_argument(
         "-i",
-        dest="input_dir",
+        dest="profile_dir",
         required=True,
         type=isdir,
         help="Directory containing files that should be merged.",
     )
     merging_parser.add_argument(
-        "-o", dest="output", required=True, help="Path to the output directory."
+        "-r",
+        dest="ref_dir",
+        type=isdir,
+        required=True,
+        help="Path to reference directory (containing *_reference.json)",
+    )
+    merging_parser.add_argument(
+        "-a",
+        dest="min_msp_abundance",
+        type=float,
+        default=0.0,
+        help="Minimum msp abundance (default >=0.0).",
+    )
+    merging_parser.add_argument(
+        "-n",
+        dest="min_msp_occurrence",
+        type=int,
+        default=1,
+        help="Minimum msp occurrence (default >=1).",
+    )
+    merging_parser.add_argument(
+        "-s",
+        dest="remove_sample_with_no_msp",
+        action="store_true",
+        help="Remove sample with no detected msp (default False).",
+    )
+    merging_parser.add_argument(
+        "-m",
+        dest="output_mpa",
+        action="store_true",
+        help="Output result in mpa format (default False).",
+    )
+    merging_parser.add_argument(
+        "-b",
+        dest="output_biom",
+        action="store_true",
+        help="Output result in biom format (default False).",
+    )
+    merging_parser.add_argument(
+        "--tax_lev",
+        dest="taxonomic_level",
+        choices=["a", "k", "p", "c", "o", "f", "g", "s", "t"],
+        help="""The taxonomic level for mpa output:
+                        'a' : all taxonomic levels
+                        'k' : kingdoms
+                        'p' : phyla only
+                        'c' : classes only
+                        'o' : orders only
+                        'f' : families only
+                        'g' : genera only
+                        's' : species only
+                        't' : MSPs only""",
+    )
+    merging_parser.add_argument(
+        "-o",
+        dest="merging_dir",
+        required=True,
+        type=isdir,
+        help="Path to the output directory.",
     )
     merging_parser.add_argument(
         "-p",
@@ -409,10 +468,10 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Prefix to give to output. Default to 'output'.",
     )
     merging_parser.add_argument(
-        "--fast",
-        dest="fast",
+        "-g",
+        dest="output_gene_matrix",
         action="store_true",
-        help="Fast merging, do not merge gene tables.",
+        help="Merge gene tables.",
     )
     strain_parser = subparsers.add_parser(
         "strain", help="Identifies strains from metagenomic samples"
@@ -486,7 +545,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     )
     strain_parser.add_argument(
         "-o",
-        dest="output_dir",
+        dest="strain_dir",
         type=isdir,
         required=True,
         help="Path to output directory.",
@@ -551,7 +610,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     )
     tree_parser.add_argument(
         "-o",
-        dest="output_dir",
+        dest="tree_dir",
         type=isdir,
         required=True,
         help="Path to output directory.",
@@ -627,7 +686,7 @@ def main() -> None:  # pragma: no cover
         meteor.ref_dir = args.ref_dir
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
-        meteor.strain_dir = args.output_dir
+        meteor.strain_dir = args.strain_dir
         strain_id = Strain(
             meteor,
             args.max_depth,
@@ -642,7 +701,7 @@ def main() -> None:  # pragma: no cover
     # Compute trees
     elif args.command == "tree":
         meteor.strain_dir = args.strain_dir
-        meteor.tree_dir = args.output_dir
+        meteor.tree_dir = args.tree_dir
         meteor.threads = args.threads
         meteor.tmp_path = args.tmp_path
         trees = TreeBuilder(
@@ -663,7 +722,7 @@ def main() -> None:  # pragma: no cover
     # Run profiling
     elif args.command == "profile":
         meteor.mapping_dir = args.mapped_sample_dir
-        meteor.profile_dir = args.output_dir
+        meteor.profile_dir = args.profiled_sample_dir
         meteor.ref_dir = args.ref_dir
         profiler = Profiler(
             meteor,
@@ -674,12 +733,23 @@ def main() -> None:  # pragma: no cover
             args.msp_filter,
             args.completeness,
         )
-        # Run merging
         profiler.execute()
-
+    # Run merging
     elif args.command == "merge":
-        meteor.profile_dir = args.input_dir
-        merging = Merging(meteor, Path(args.output), args.prefix, args.fast)
+        meteor.ref_dir = args.ref_dir
+        meteor.profile_dir = args.profile_dir
+        meteor.merging_dir = args.merging_dir
+        merging = Merging(
+            meteor,
+            args.prefix,
+            args.min_msp_abundance,
+            args.min_msp_occurrence,
+            args.remove_sample_with_no_msp,
+            args.output_mpa,
+            args.taxonomic_level,
+            args.output_biom,
+            args.output_gene_matrix,
+        )
         merging.execute()
     # Testing
     else:

@@ -200,7 +200,7 @@ class Strain(Session):
             self.meteor.ref_name = ref_json["reference_info"]["reference_name"]
         except AssertionError:
             logging.error(
-                "Error, no *_reference.json file found in %s. "
+                "No *_reference.json file found in %s. "
                 "One *_reference.json is expected",
                 self.meteor.ref_dir,
             )
@@ -275,7 +275,7 @@ class Strain(Session):
             )
         except AssertionError:
             logging.error(
-                "Error, no *_census_stage_0.json file found in %s",
+                "No *_census_stage_0.json file found in %s",
                 self.meteor.fastq_dir,
             )
             sys.exit(1)

@@ -140,7 +140,7 @@ class ReferenceBuilder(Session):
             sys.exit(1)
         elif parse(bowtie_version) < Version("2.3.5"):
             logging.error(
-                "Error, the bowtie2 version %s is outdated for meteor. Please update bowtie2.",
+                "The bowtie2 version %s is outdated for meteor. Please update bowtie2.",
                 bowtie_version,
             )
             sys.exit(1)

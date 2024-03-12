@@ -25,7 +25,18 @@ import json
 def merging_profiles(datadir: Path, tmp_path: Path) -> Merging:
     meteor = Component
     meteor.profile_dir = datadir / "profiles"
-    return Merging(meteor=meteor, output=tmp_path, prefix="my_test", fast=False)
+    meteor.merging_dir = tmp_path
+    meteor.ref_dir = datadir / "ref_dir"
+    return Merging(
+        meteor=meteor,
+        prefix="my_test",
+        min_msp_abundance=0.0,
+        min_msp_occurrence=0,
+        remove_sample_with_no_msp=False,
+        output_mpa=False,
+        output_biom=False,
+        output_gene_matrix=False,
+    )
 
 
 # @pytest.fixture
@@ -39,7 +50,18 @@ def merging_profiles(datadir: Path, tmp_path: Path) -> Merging:
 def merging_fast(datadir: Path, tmp_path: Path) -> Merging:
     meteor = Component
     meteor.profile_dir = datadir / "profiles"
-    return Merging(meteor=meteor, output=tmp_path, prefix="my_test", fast=True)
+    meteor.merging_dir = tmp_path
+    meteor.ref_dir = datadir / "ref_dir"
+    return Merging(
+        meteor=meteor,
+        prefix="my_test",
+        min_msp_abundance=0.0,
+        min_msp_occurrence=0,
+        remove_sample_with_no_msp=False,
+        output_mpa=False,
+        output_biom=False,
+        output_gene_matrix=False,
+    )
 
 
 # def test_extract_census_stage_1(merging_mapping: Merging) -> None:
@@ -237,7 +259,7 @@ def test_execute2(merging_fast: Merging, datadir: Path) -> None:
     merging_fast.execute()
 
     # Check report
-    real_output = merging_fast.output / "my_test_report.tsv"
+    real_output = merging_fast.meteor.merging_dir / "my_test_report.tsv"
     assert real_output.exists()
     expected_output = (
         datadir / "expected_output" / "test_project_census_stage_2_report.tsv"
@@ -267,7 +289,7 @@ def test_execute2(merging_fast: Merging, datadir: Path) -> None:
         "modules_completeness.tsv",
     ]
     for my_file in list_files:
-        real_output = merging_fast.output / f"my_test_{my_file}"
+        real_output = merging_fast.meteor.merging_dir / f"my_test_{my_file}"
         expected_output = datadir / "expected_output" / f"test_project_{my_file}"
         if my_file in ["genes.tsv", "raw.tsv"]:
             assert not real_output.exists()

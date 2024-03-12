@@ -78,7 +78,7 @@ class Counter(Session):
             )
             mapping_process.execute()
 
-    def write_table(self, cramfile: Path, outfile: Path):
+    def write_table(self, cramfile: Path, outfile: Path) -> None:
         """Function that create a count table using pysam. First index the cram file,
         then count reads using the function idxstats from pysam, and output a count
         table.
@@ -86,9 +86,6 @@ class Counter(Session):
         :param cramfile: (Path) cram file to count
         :param outfile: (Path) count table
         """
-        if not cramfile.with_suffix(".cram.bai").exists():
-            # index the cram file
-            index(str(cramfile.resolve()))
         # indStats = pd.read_csv(StringIO(pysam.idxstats(cramfile)), sep = '\t',
         # header = None, names = ['contig', 'length', 'mapped', 'unmapped'])
         # create count table
@@ -97,6 +94,12 @@ class Counter(Session):
         with lzma.open(outfile, "wt", preset=0) as out:
             out.write("gene_id\tgene_length\tvalue\n")
             for line in table.split("\n")[:-2]:
+                # print(int(line.split("\t")[0]))
+                # print(unique_on_gene[int(line.split("\t")[0])])
+                # print(line.split("\t")[2])
+                # assert unique_on_gene[int(line.split("\t")[0])] == int(
+                #     line.split("\t")[2]
+                # ), "Gene length does not match counted nucleotides"
                 s = "\t".join(line.split("\t")[0:3])
                 out.write(f"{s}\n")
 
@@ -509,7 +512,7 @@ class Counter(Session):
             self.meteor.ref_name = ref_json["reference_info"]["reference_name"]
         except AssertionError:
             logging.error(
-                "Error, no *_reference.json file found in %s. "
+                "No *_reference.json file found in %s. "
                 "One *_reference.json is expected",
                 self.meteor.ref_dir,
             )
@@ -572,7 +575,7 @@ class Counter(Session):
             logging.info("Done ! Job finished without errors ...")
         except AssertionError:
             logging.error(
-                "Error, no *_census_stage_0.json file found in %s",
+                "No *_census_stage_0.json file found in %s",
                 self.meteor.fastq_dir,
             )
             sys.exit(1)
