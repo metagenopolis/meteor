@@ -12,7 +12,6 @@
 
 """Run mapping and performs counting"""
 
-from functools import reduce
 import logging
 import sys
 import pysam
