@@ -111,7 +111,7 @@ class Counter(Session):
 
     def filter_alignments(
         self, cramdesc: AlignmentFile
-    ) -> tuple[defaultdict, defaultdict]:
+    ) -> tuple[Dict[str, List[AlignedSegment]], Dict[str, List[int]]]:
         """Filter read according to their identity with reference and reads with multiple
         alignments with different score. We keep the best scoring reads when total count is
         applied.
@@ -125,9 +125,9 @@ class Counter(Session):
                                     key : read_id
         """
         tmp_score: Dict[str, float] = {}
-        genes: defaultdict[str, List[int]] = defaultdict(list)
+        genes: Dict[str, List[int]] = {}
         # contains a list of alignment of each read
-        reads: defaultdict[str, List[AlignedSegment]] = defaultdict(list)
+        reads: Dict[str, List[AlignedSegment]] = {}
         for element in cramdesc:
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
             # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
@@ -141,7 +141,7 @@ class Counter(Session):
             # Only if we use score
             # if not element.has_tag("AS"):
             #     raise ValueError("Missing 'AS' field.")
-            read_id: str | None = element.query_name
+            read_id: str = element.query_name
             # print(read_id, element.query_alignment_length)
             # get alignment score
             # Meteor do not take in account the alignement score
@@ -158,19 +158,19 @@ class Counter(Session):
             if prev_score == score:
                 # add the genes to the list if it doesn't exist
                 reads[read_id].append(element)
-                genes[read_id].append(int(element.reference_name))
+                genes[read_id].append(int(read_id))
             # case new score is higher
             elif prev_score < score:
                 # set the new score
                 tmp_score[read_id] = score
                 # We keep the new score and forget the previous one
                 reads[read_id] = [element]
-                genes[read_id] = [int(element.reference_name)]
+                genes[read_id] = [int(read_id)]
         return reads, genes
 
     def uniq_from_mult(
-        self, reads: defaultdict, genes: defaultdict, database: dict
-    ) -> tuple[defaultdict, defaultdict, dict]:
+        self, reads: dict, genes: dict, database: dict
+    ) -> tuple[defaultdict, dict, dict]:
         """
         Function that filter unique reads from all reads. Multiple reads are
         reads that map to more than one genes. And Unique reads are reads that map
@@ -209,7 +209,7 @@ class Counter(Session):
         return unique_reads, genes, unique_on_gene
 
     def compute_co(
-        self, genes_mult: defaultdict, unique_on_gene: dict
+        self, genes_mult: dict, unique_on_gene: dict
     ) -> tuple[Dict, Dict]:
         """Compute genes specific coefficient "Co" for each multiple read.
 
