@@ -14,12 +14,12 @@ Meteor relies on genes catalogue to perform species-level taxonomic profiling, f
 
 ## Dependencies
 
-Meteor requires:
+Besides python packages dependencies, Meteor requires:
 - python>=3.10
-- [bowtie2](https://github.com/BenLangmead/bowtie2)
-- [bcftools](https://samtools.github.io/bcftools/)
-- [FastTree](http://www.microbesonline.org/fasttree/)
-- [ete3](http://etetoolkit.org/)
+- [bowtie2 >=2.3.5](https://github.com/BenLangmead/bowtie2)
+- [bcftools >=0.1.19](https://samtools.github.io/bcftools/)
+- [bedtools >=2.18.0](https://bedtools.readthedocs.io/en/latest/index.html)
+- [FastTree >=1.9.0](http://www.microbesonline.org/fasttree/)
 
 ## Installation
 
