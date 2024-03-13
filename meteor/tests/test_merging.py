@@ -35,7 +35,7 @@ def merging_profiles(datadir: Path, tmp_path: Path) -> Merging:
         remove_sample_with_no_msp=False,
         output_mpa=False,
         output_biom=False,
-        output_gene_matrix=False,
+        output_gene_matrix=True,
     )
 
 
@@ -206,6 +206,7 @@ def test_merge_df(merging_profiles: Merging, datadir: Path):
     expected_output = pd.read_table(
         datadir / "expected_output" / "test_project_modules_completeness.tsv"
     )
+    merged_df = merged_df.sort_values(by=["msp_name", "mod_id"]).reset_index(drop=True)
     assert merged_df.equals(expected_output)
 
 
@@ -213,7 +214,7 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
     merging_profiles.execute()
 
     # Check report
-    real_output = merging_profiles.output / "my_test_report.tsv"
+    real_output = merging_profiles.meteor.merging_dir / "my_test_report.tsv"
     assert real_output.exists()
     expected_output = (
         datadir / "expected_output" / "test_project_census_stage_2_report.tsv"
@@ -243,7 +244,7 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
         "modules_completeness.tsv",
     ]
     for my_file in list_files:
-        real_output = merging_profiles.output / f"my_test_{my_file}"
+        real_output = merging_profiles.meteor.merging_dir / f"my_test_{my_file}"
         expected_output = datadir / "expected_output" / f"test_project_{my_file}"
         assert real_output.exists()
         real_output_df = pd.read_table(real_output).reindex(

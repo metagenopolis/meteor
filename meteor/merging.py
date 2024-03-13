@@ -360,26 +360,15 @@ class Merging(Session):
                 if self.output_biom:
                     sample_ids = filtered_df.columns.drop("msp_name").tolist()
                     observ_ids = filtered_df["msp_name"].tolist()
-                    print(len(sample_ids))
-                    print(len(observ_ids))
                     # Apply the prefixes to each taxonomic rank
                     for rank, prefix in self.ranks.items():
                         annotation[rank] = annotation[rank].apply(
                             lambda x: f"{prefix}{x}"
                         )
-                    #  + [row.iloc[0]]
                     observ_metadata = [
                         {"taxonomy": row.iloc[1:].tolist()}
                         for index, row in annotation.iterrows()
                     ]
-                    print(
-                        np.round(filtered_df.drop(columns=["msp_name"]).to_numpy())
-                        .astype(int)
-                        .shape
-                    )
-                    print(len(observ_metadata))
-                    # test = np.arange(1140).reshape(95, 12)
-                    # print(test)
                     biom_table = Table(
                         data=filtered_df.drop(columns=["msp_name"]).to_numpy(),
                         observation_ids=observ_ids,
