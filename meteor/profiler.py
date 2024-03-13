@@ -37,6 +37,7 @@ class Profiler(Session):
     core_size: int
     msp_filter: float
     completeness: float
+    coverage_factor: float = 100.0
 
     def __post_init__(self):
         # Get the json file
@@ -199,11 +200,11 @@ class Profiler(Session):
         ]
 
         choicelist = [
-            (100.0 * self.gene_count["value"])
+            (self.coverage_factor * self.gene_count["value"])
             / (self.gene_count["gene_length"] - trim_length + 1),
-            (100.0 * self.gene_count["value"] * 4 * trim_length)
+            (self.coverage_factor * self.gene_count["value"] * 4 * trim_length)
             / (self.gene_count["gene_length"] * (self.gene_count["gene_length"] + 2)),
-            (100.0 * self.gene_count["value"] * 4 * trim_length)
+            (self.coverage_factor * self.gene_count["value"] * 4 * trim_length)
             / (self.gene_count["gene_length"] + 1) ** 2,
         ]
         self.gene_count["value"] = np.select(condlist, choicelist)

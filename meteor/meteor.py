@@ -368,6 +368,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Normalization applied to gene abundance (default coverage).",
     )
     profiling_parser.add_argument(
+        "-c",
+        dest="coverage_factor",
+        type=float,
+        default=100.0,
+        help="Multiplication factor for coverage normalization (Default 100.0).",
+    )
+    profiling_parser.add_argument(
         "--core_size",
         dest="core_size",
         type=int,
@@ -732,6 +739,7 @@ def main() -> None:  # pragma: no cover
             args.core_size,
             args.msp_filter,
             args.completeness,
+            args.coverage_factor,
         )
         profiler.execute()
     # Run merging

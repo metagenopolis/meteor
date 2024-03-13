@@ -338,7 +338,7 @@ class Merging(Session):
             ]
             if self.remove_sample_with_no_msp:
                 # Filter the DataFrame to keep only columns with a non-zero sum
-                filtered_df = filtered_df.loc[:, (merged_df.sum() != 0)]
+                filtered_df = filtered_df.loc[:, (filtered_df.sum(axis=0) != 0)]
             if my_pattern == "msp":
                 annotation = pd.read_csv(
                     self.meteor.ref_dir
