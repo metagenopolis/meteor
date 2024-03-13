@@ -110,14 +110,14 @@ class Counter(Session):
         yield from (item[1] for item in element.cigartuples if item[0] < 3)
 
     def filter_alignments(
-        self, samdesc: AlignmentFile
+        self, cramdesc: AlignmentFile
     ) -> tuple[defaultdict, defaultdict]:
         """Filter read according to their identity with reference and reads with multiple
         alignments with different score. We keep the best scoring reads when total count is
         applied.
         Shared count keeps multiple alignments when score are equal
 
-        :param samdesc [STR] = SAM file to count
+        :param cramdesc [STR] = CRAM file to count
         :return: A tuple with database [DICT] = contains length of reference genes.
                                         key :
                                         value : reference gene
@@ -128,7 +128,7 @@ class Counter(Session):
         genes: defaultdict[str, List[int]] = defaultdict(list)
         # contains a list of alignment of each read
         reads: defaultdict[str, List[AlignedSegment]] = defaultdict(list)
-        for element in samdesc:
+        for element in cramdesc:
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
             # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
             ali = sum(self.get_aligned_nucleotides(element))
