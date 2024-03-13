@@ -142,8 +142,6 @@ class Counter(Session):
             # if not element.has_tag("AS"):
             #     raise ValueError("Missing 'AS' field.")
             read_id: str | None = element.query_name
-            if not read_id:
-                continue
             # print(read_id, element.query_alignment_length)
             # get alignment score
             # Meteor do not take in account the alignement score
@@ -160,8 +158,6 @@ class Counter(Session):
             if prev_score == score:
                 tmp_score[read_id] = score
                 # add the genes to the list if it doesn't exist
-                if not element.reference_name:
-                    continue
                 reads[read_id].append(element)
                 genes[read_id].append(int(element.reference_name))
             # case new score is higher
@@ -169,8 +165,6 @@ class Counter(Session):
                 # set the new score
                 tmp_score[read_id] = score
                 # We keep the new score and forget the previous one
-                if not element.reference_name:
-                    continue
                 reads[read_id] = [element]
                 genes[read_id] = [int(element.reference_name)]
         return reads, genes
