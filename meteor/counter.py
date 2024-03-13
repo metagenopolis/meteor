@@ -56,7 +56,7 @@ class Counter(Session):
         list_fastq_path = []
         # loop on each library
         for (
-            library,
+            _,
             dict_data,
         ) in self.json_data.items():  # pylint: disable=unused-variable
             census = dict_data["census"]
@@ -110,14 +110,14 @@ class Counter(Session):
         yield from (item[1] for item in element.cigartuples if item[0] < 3)
 
     def filter_alignments(
-        self, samdesc: AlignmentFile
-    ) -> tuple[defaultdict, defaultdict]:
+        self, cramdesc: AlignmentFile
+    ) -> tuple[Dict[str, List[AlignedSegment]], Dict[str, List[int]]]:
         """Filter read according to their identity with reference and reads with multiple
         alignments with different score. We keep the best scoring reads when total count is
         applied.
         Shared count keeps multiple alignments when score are equal
 
-        :param samdesc [STR] = SAM file to count
+        :param cramdesc [STR] = CRAM file to count
         :return: A tuple with database [DICT] = contains length of reference genes.
                                         key :
                                         value : reference gene
@@ -125,10 +125,10 @@ class Counter(Session):
                                     key : read_id
         """
         tmp_score: Dict[str, float] = {}
-        genes: defaultdict[str, List[int]] = defaultdict(list)
+        genes: Dict[str, List[int]] = {}
         # contains a list of alignment of each read
-        reads: defaultdict[str, List[AlignedSegment]] = defaultdict(list)
-        for element in samdesc:
+        reads: Dict[str, List[AlignedSegment]] = {}
+        for element in cramdesc:
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
             # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
             ali = sum(self.get_aligned_nucleotides(element))
@@ -141,9 +141,7 @@ class Counter(Session):
             # Only if we use score
             # if not element.has_tag("AS"):
             #     raise ValueError("Missing 'AS' field.")
-            read_id: str | None = element.query_name
-            if not read_id:
-                continue
+            read_id: str = element.query_name
             # print(read_id, element.query_alignment_length)
             # get alignment score
             # Meteor do not take in account the alignement score
@@ -151,17 +149,14 @@ class Counter(Session):
             score = identity
             # score = element.get_tag("AS")
             # get previous score for the read
-            prev_score = tmp_score.get(read_id, score)
+            prev_score = tmp_score.get(read_id, 0)
             # higher = more similar
             # https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#scores-higher-more-similar
             # With 1.0 identity, score is 0
             # With 0.975 identity, score is -16...
             # if same score
             if prev_score == score:
-                tmp_score[read_id] = score
                 # add the genes to the list if it doesn't exist
-                if not element.reference_name:
-                    continue
                 reads[read_id].append(element)
                 genes[read_id].append(int(element.reference_name))
             # case new score is higher
@@ -169,15 +164,13 @@ class Counter(Session):
                 # set the new score
                 tmp_score[read_id] = score
                 # We keep the new score and forget the previous one
-                if not element.reference_name:
-                    continue
                 reads[read_id] = [element]
                 genes[read_id] = [int(element.reference_name)]
         return reads, genes
 
     def uniq_from_mult(
-        self, reads: defaultdict, genes: defaultdict, database: dict
-    ) -> tuple[defaultdict, defaultdict, dict]:
+        self, reads: dict, genes: dict, database: dict
+    ) -> tuple[defaultdict, dict, dict]:
         """
         Function that filter unique reads from all reads. Multiple reads are
         reads that map to more than one genes. And Unique reads are reads that map
@@ -216,7 +209,7 @@ class Counter(Session):
         return unique_reads, genes, unique_on_gene
 
     def compute_co(
-        self, genes_mult: defaultdict, unique_on_gene: dict
+        self, genes_mult: dict, unique_on_gene: dict
     ) -> tuple[Dict, Dict]:
         """Compute genes specific coefficient "Co" for each multiple read.
 
@@ -567,7 +560,8 @@ class Counter(Session):
                 logging.info("Completed counting in %f seconds", perf_counter() - start)
                 if not self.keep_all_alignments:
                     logging.info(
-                        "Raw cram file is not kept (--ka). Re-counting operation will need to be performed from scratch."
+                        "Raw cram file is not kept (--ka). " \
+                        "Re-counting operation will need to be performed from scratch."
                     )
                     raw_cram_file.unlink(missing_ok=True)
                     raw_cram_file.with_suffix(".cram.crai").unlink(missing_ok=True)
