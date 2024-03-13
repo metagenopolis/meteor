@@ -45,7 +45,6 @@ class Parser(Session):
 
         :param mod_def: a single module definition (e.g. K01+K02 (K03, K04))
         """
-        "Remove from the module definition components '-XXX' or ' -- '"
         # Remove ' -- '
         mod_def = re.sub(r"\s?--\s?", r" ", mod_def).strip()
         # Remove '-XXX'
