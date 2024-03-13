@@ -56,7 +56,7 @@ class Counter(Session):
         list_fastq_path = []
         # loop on each library
         for (
-            library,
+            _,
             dict_data,
         ) in self.json_data.items():  # pylint: disable=unused-variable
             census = dict_data["census"]
@@ -560,7 +560,8 @@ class Counter(Session):
                 logging.info("Completed counting in %f seconds", perf_counter() - start)
                 if not self.keep_all_alignments:
                     logging.info(
-                        "Raw cram file is not kept (--ka). Re-counting operation will need to be performed from scratch."
+                        "Raw cram file is not kept (--ka). " \
+                        "Re-counting operation will need to be performed from scratch."
                     )
                     raw_cram_file.unlink(missing_ok=True)
                     raw_cram_file.with_suffix(".cram.crai").unlink(missing_ok=True)
