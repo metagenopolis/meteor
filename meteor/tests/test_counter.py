@@ -191,8 +191,8 @@ def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
         lengths = cramdesc.lengths
         database = dict(zip(references, lengths))
         (
-            unique_reads,
-            genes_mult,  # pylint: disable=unused-variable
+            _,
+            genes_mult,
             unique_on_gene,
         ) = counter_smart_shared.uniq_from_mult(reads, genes, database)
         read_dict, co = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
@@ -214,7 +214,7 @@ def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> Non
         lengths = cramdesc.lengths
         database = dict(zip(references, lengths))
         (
-            unique_reads,
+            _,
             genes_mult,  # pylint: disable=unused-variable
             unique_on_gene,
         ) = counter_smart_shared.uniq_from_mult(reads, genes, database)
@@ -234,7 +234,7 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
         lengths = cramdesc.lengths
         database = dict(zip(references, lengths))
         (
-            unique_reads,
+            _,
             genes_mult,  # pylint: disable=unused-variable
             unique_on_gene,
         ) = counter_smart_shared.uniq_from_mult(reads, genes, database)
@@ -254,7 +254,7 @@ def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
         lengths = cramdesc.lengths
         database = dict(zip(references, lengths))
         (
-            unique_reads,
+            _,
             genes_mult,  # pylint: disable=unused-variable
             unique_on_gene,
         ) = counter_smart_shared.uniq_from_mult(reads, genes, database)
@@ -281,7 +281,7 @@ def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> No
         counter_unique.meteor.ref_dir / "mock_reference.json"
     )
     with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
-        reads, genes = counter_unique.filter_alignments(
+        reads, _ = counter_unique.filter_alignments(
             cramdesc
         )  # pylint: disable=unused-variable
         read_list = list(chain(reads.values()))
