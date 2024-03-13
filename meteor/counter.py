@@ -149,14 +149,13 @@ class Counter(Session):
             score = identity
             # score = element.get_tag("AS")
             # get previous score for the read
-            prev_score = tmp_score.get(read_id, score)
+            prev_score = tmp_score.get(read_id, 0)
             # higher = more similar
             # https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#scores-higher-more-similar
             # With 1.0 identity, score is 0
             # With 0.975 identity, score is -16...
             # if same score
             if prev_score == score:
-                tmp_score[read_id] = score
                 # add the genes to the list if it doesn't exist
                 reads[read_id].append(element)
                 genes[read_id].append(int(element.reference_name))
