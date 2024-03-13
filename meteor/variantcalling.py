@@ -274,10 +274,12 @@ class VariantCalling(Session):
             sys.exit()
         start = perf_counter()
         with NamedTemporaryFile(
-            mode="wt", dir=self.meteor.tmp_dir, delete=False
+            mode="wt",
+            dir=self.meteor.tmp_dir,  # delete=False
         ) as temp_vcf_pileup:
             with NamedTemporaryFile(
-                mode="wt", dir=self.meteor.tmp_dir, delete=False
+                mode="wt",
+                dir=self.meteor.tmp_dir,  # delete=False
             ) as temp_vcf:
                 startpileup = perf_counter()
                 check_call(
