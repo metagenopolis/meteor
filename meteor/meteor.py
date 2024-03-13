@@ -594,26 +594,26 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Gap character (default -).",
     )
     tree_parser.add_argument(
+        "-f",
+        dest="format",
+        default="txt",
+        choices=["png", "svg", "pdf", "txt"],
+        type=str,
+        help="Output image format (default txt).",
+    )
+    tree_parser.add_argument(
         "-w",
         dest="width",
-        default=200,
+        default=500,
         type=int,
-        help="Output image width (default 200px).",
+        help="Output image width (default 500px).",
     )
     tree_parser.add_argument(
         "-H",
         dest="height",
-        default=200,
+        default=500,
         type=int,
-        help="Output image height (default 200px).",
-    )
-    tree_parser.add_argument(
-        "-f",
-        dest="format",
-        default="png",
-        choices=["png", "svg", "pdf"],
-        type=str,
-        help="Output image format (default png).",
+        help="Output image height (default 500px).",
     )
     tree_parser.add_argument(
         "-o",

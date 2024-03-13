@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from typing import Type, Dict, List
 from tempfile import mkdtemp
 import ete3  # type: ignore[import]
-from ete3 import Tree  # , TreeStyle
+from ete3 import Tree, TreeStyle
 from meteor.phylogeny import Phylogeny
 import logging
 import sys
@@ -92,19 +92,23 @@ class TreeBuilder(Session):
         # Analyze tree data
         for msp_file in msp_file_list:
             tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
-            # img_file = self.meteor.tree_dir / f"{msp_file.stem}.{self.format}"
+            img_file = self.meteor.tree_dir / f"{msp_file.stem}.{self.format}"
             msp_tree = Tree(str(tree_file.resolve()))
             # Generate a distance msp by msp
             matrix = self.get_msp_distance(msp_tree)
             matrix.to_csv(self.meteor.tree_dir / f"{msp_file.stem}.tsv", sep="\t")
             # Draw trees
-            # ts = TreeStyle()
-            # ts.show_leaf_name = True
-            # ts.show_branch_length = True
-            # msp_tree.render(
-            #     str(img_file.resolve()),
-            #     w=self.width,
-            #     h=self.height,
-            #     units="px",
-            #     dpi=300,
-            # )
+            if self.format == "txt":
+                with img_file.open("wt", encoding="UTF-8") as outfile:
+                    outfile.write(msp_tree.get_ascii(show_internal=True))
+            else:
+                ts = TreeStyle()
+                ts.show_leaf_name = True
+                ts.show_branch_length = True
+                msp_tree.render(
+                    str(img_file.resolve()),
+                    w=self.width,
+                    h=self.height,
+                    units="px",
+                    dpi=300,
+                )
