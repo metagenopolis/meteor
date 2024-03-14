@@ -15,11 +15,11 @@ Meteor relies on genes catalogue to perform species-level taxonomic profiling, f
 ## Dependencies
 
 Besides python packages dependencies, Meteor requires:
-- python>=3.10
-- [bowtie2 >=2.3.5](https://github.com/BenLangmead/bowtie2)
-- [bcftools >=0.1.19](https://samtools.github.io/bcftools/)
-- [bedtools >=2.18.0](https://bedtools.readthedocs.io/en/latest/index.html)
-- [FastTree >=1.9.0](http://www.microbesonline.org/fasttree/)
+- python 3.10+
+- [bowtie2 2.3.5+](https://github.com/BenLangmead/bowtie2)
+- [bcftools 0.1.19+](https://samtools.github.io/bcftools/)
+- [bedtools 2.18.0+](https://bedtools.readthedocs.io/en/latest/index.html)
+- [FastTree 1.9.0+](http://www.microbesonline.org/fasttree/)
 
 ## Installation
 
@@ -28,7 +28,7 @@ Meteor is available with conda which includes all its dependencies:
 conda create --name meteor -c conda-forge -c bioconda  -c aghozlane meteor
 ```
 
-Or with pip with a recent Python>=3.10 from the cloned directory:
+Or with pip with a recent Python 3.10+:
 ```
 pip install meteor
 ```

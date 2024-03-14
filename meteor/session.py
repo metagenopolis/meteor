@@ -19,6 +19,7 @@ import logging
 import sys
 import json
 import lzma
+from importlib.metadata import version
 
 
 @dataclass(kw_only=True)
@@ -42,6 +43,7 @@ class Component:
     sequence: tuple = ("_R", ".R", "_", ".", "")
     extension: tuple = (".fq", ".fastq")
     compression: tuple = (".gz", ".bz2", ".xz", "")
+    version: str = version("meteor")
 
 
 class Session(Protocol):

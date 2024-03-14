@@ -71,12 +71,13 @@ class Phylogeny(Session):
         :return: (Dict) A dict object with the census 1 config
         """
         config = {
+            "meteor_version": self.meteor.version,
             "phylogeny": {
                 "phylogeny_tool": "FastTree",
                 "phylogeny_version": fasttree_version,
                 "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
                 "tree_files": ",".join([tree.name for tree in tree_files]),
-            }
+            },
         }
         return config
 
