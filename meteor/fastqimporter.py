@@ -17,7 +17,7 @@ import re
 from itertools import product
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Type, Iterator, Dict
+from typing import Iterator
 from meteor.session import Session, Component
 
 
@@ -25,7 +25,7 @@ from meteor.session import Session, Component
 class FastqImporter(Session):
     """FastqImporter handle the fastq import"""
 
-    meteor: Type[Component]
+    meteor: type[Component]
     input_fastq_dir: Path
     ispaired: bool
     mask_sample_name: str | None
@@ -95,7 +95,7 @@ class FastqImporter(Session):
 
     def set_fastq_config(
         self, sample_name: str, tag: str, fastq_file: Path, full_sample_name: str
-    ) -> Dict:  # pragma: no cover
+    ) -> dict:  # pragma: no cover
         """Set configuration for fastq
 
         :param sample_name: Sample name

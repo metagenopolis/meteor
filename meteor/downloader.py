@@ -19,7 +19,6 @@ from meteor.session import Session, Component
 from pathlib import Path
 from hashlib import md5
 from urllib.request import urlretrieve
-from typing import Type
 from time import time
 import tarfile
 import json
@@ -29,7 +28,7 @@ import json
 class Downloader(Session):
     """Download and prepare catalogues"""
 
-    meteor: Type[Component]
+    meteor: type[Component]
     choice: str
     taxonomy: bool
     check_md5: bool

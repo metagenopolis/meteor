@@ -16,7 +16,6 @@ from subprocess import run, Popen, PIPE
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
-from typing import Type, List, Dict
 from packaging.version import Version, parse
 from re import findall
 from meteor.session import Session, Component
@@ -26,17 +25,11 @@ import pysam
 import logging
 import sys
 
-
-# from memory_profiler import profile
-# import os
-# fp=open('memory_profiler.log','w+')
-
-
 @dataclass
 class Mapper(Session):
     """Run the bowtie"""
 
-    meteor: Type[Component]
+    meteor: type[Component]
     census: dict
     fastq_list: list[str]
     mapping_type: str
@@ -49,8 +42,8 @@ class Mapper(Session):
         self,
         cram_file: Path,
         bowtie_version: str,
-        mapping_data: List[int],
-    ) -> Dict:  # pragma: no cover
+        mapping_data: list[int],
+    ) -> dict:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters
