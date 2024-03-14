@@ -19,7 +19,6 @@ from subprocess import check_call, run
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
-from typing import Type, Dict  # , List
 from meteor.session import Session, Component
 from time import perf_counter
 from tempfile import NamedTemporaryFile
@@ -35,7 +34,7 @@ from io import StringIO
 class VariantCalling(Session):
     """Run bcftools"""
 
-    meteor: Type[Component]
+    meteor: type[Component]
     census: dict
     max_depth: int
     min_snp_depth: int
@@ -47,7 +46,7 @@ class VariantCalling(Session):
         vcf_file: Path,
         consensus_file: Path,
         bcftool_version: str,
-    ) -> Dict:  # pragma: no cover
+    ) -> dict:  # pragma: no cover
         """Define the census 1 configuration
 
         :param cmd: A string of the specific parameters

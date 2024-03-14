@@ -14,7 +14,6 @@
 
 from meteor.session import Session, Component
 from dataclasses import dataclass, field
-from typing import Type, Dict, List
 import pandas as pd
 from pathlib import Path
 import logging
@@ -33,7 +32,7 @@ class Merging(Session):
     Merge profiled outputs.
     """
 
-    meteor: Type[Component]
+    meteor: type[Component]
     prefix: str
     min_msp_abundance: float = 0.0
     min_msp_occurrence: int = 1
@@ -42,7 +41,7 @@ class Merging(Session):
     taxonomical_level: str = "a"
     output_biom: bool = False
     output_gene_matrix: bool = False
-    ranks: Dict[str, str] = field(
+    ranks: dict[str, str] = field(
         default_factory=lambda: {
             "superkingdom": "k__",
             "phylum": "p__",
@@ -91,7 +90,7 @@ class Merging(Session):
         return files_to_merge
 
     def extract_json_info(
-        self, config: Dict, param_dict: Dict[str, List[str]]
+        self, config: dict, param_dict: dict[str, list[str]]
     ) -> dict[str, str]:
         """Get information from the required section and fields
 

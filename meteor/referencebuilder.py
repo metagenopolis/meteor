@@ -23,7 +23,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from packaging.version import Version, parse
 from textwrap import fill
-from typing import Type, Dict
 from meteor.session import Session, Component
 from typing import Iterator, Tuple
 
@@ -32,7 +31,7 @@ from typing import Iterator, Tuple
 class ReferenceBuilder(Session):
     """Index the database with bowtie2 using meteor style"""
 
-    meteor: Type[Component]
+    meteor: type[Component]
     input_fasta: Path
     fasta_dir: Path = field(default_factory=Path)
     database_dir: Path = field(default_factory=Path)
@@ -66,7 +65,7 @@ class ReferenceBuilder(Session):
         )
         self.save_config(config_ref, config_path)
 
-    def set_reference_config(self) -> Dict:  # pragma: no cover
+    def set_reference_config(self) -> dict:  # pragma: no cover
         """Write configuration file for reference genome"""
         config = {
             "meteor_version": self.meteor.version,

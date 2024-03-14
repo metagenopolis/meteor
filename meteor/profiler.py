@@ -15,7 +15,6 @@
 from meteor.session import Session, Component
 from meteor.parser import Parser
 from dataclasses import dataclass
-from typing import Type
 import pandas as pd
 from pathlib import Path
 import importlib.resources
@@ -30,7 +29,7 @@ from datetime import datetime
 class Profiler(Session):
     """Profile session for abundance and annotation"""
 
-    meteor: Type[Component]
+    meteor: type[Component]
     rarefaction_level: int
     seed: int
     normalization: str

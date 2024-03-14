@@ -14,7 +14,6 @@
 from dataclasses import dataclass
 from meteor.session import Session, Component
 from subprocess import call, run
-from typing import Type, List, Dict
 from time import perf_counter
 from pathlib import Path
 import tempfile
@@ -31,12 +30,12 @@ import sys
 class Phylogeny(Session):
     """Run the fastree"""
 
-    meteor: Type[Component]
-    msp_file_list: List[Path]
+    meteor: type[Component]
+    msp_file_list: list[Path]
     max_gap: float
     gap_char: str
 
-    def compute_site_info(self, sequences: List[str]) -> List[float]:
+    def compute_site_info(self, sequences: list[str]) -> list[float]:
         """Calculate the percentage of "_" at each position
         :param sequences: (List) A list of sequence
         :return: (List) A list of the ratio of gap at each position
@@ -62,8 +61,8 @@ class Phylogeny(Session):
             print(f">{gene_id}\n{output_seq}\n", file=output)
 
     def set_tree_config(
-        self, fasttree_version: str, tree_files: List[Path]
-    ) -> Dict:  # pragma: no cover
+        self, fasttree_version: str, tree_files: list[Path]
+    ) -> dict:  # pragma: no cover
         """Define the census configuration
 
         :param cmd: A string of the specific parameters
@@ -104,7 +103,7 @@ class Phylogeny(Session):
             logging.error("Failed to determine the FastTree version.")
         # Start phylogenies
         start = perf_counter()
-        tree_files: List[Path] = []
+        tree_files: list[Path] = []
         for msp_file in self.msp_file_list:
             with NamedTemporaryFile(
                 mode="wt", dir=self.meteor.tmp_dir, suffix=".fasta", delete=False
