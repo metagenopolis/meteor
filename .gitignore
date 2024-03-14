@@ -11,3 +11,5 @@ test
 *.code-workspace
 *.log
 .vscode
+.pytest_cache
+.dmypy.json
