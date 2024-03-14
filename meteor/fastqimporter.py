@@ -105,6 +105,7 @@ class FastqImporter(Session):
         :return: (Dict) A dict configuration
         """
         config = {
+            "meteor_version": self.meteor.version,
             "sample_info": {
                 "sample_name": sample_name,
                 "tag": tag,

@@ -45,7 +45,12 @@ class Profiler(Session):
 
         # Add session info
         config_session = {}
-        config_session["date_profiling"] = str(datetime.now().strftime("%Y-%m-%d"))
+        config_session.update(
+            {
+                "meteor_version": self.meteor.version,
+                "date_profiling": str(datetime.now().strftime("%Y-%m-%d")),
+            }
+        )
         self.sample_config = self.update_json(
             self.sample_config, "profiling_session", config_session
         )
@@ -565,9 +570,13 @@ class Profiler(Session):
         with lzma.open(gene_table_file, "wt", preset=0) as out:
             self.gene_count.to_csv(out, sep="\t", index=False)
         # Update config dictionnary
-        config_param["normalization"] = str(self.normalization)
-        config_param["rarefaction_level"] = str(self.rarefaction_level)
-        config_param["seed"] = str(self.seed)
+        config_param.update(
+            {
+                "normalization": str(self.normalization),
+                "rarefaction_level": str(self.rarefaction_level),
+                "seed": str(self.seed),
+            }
+        )
         config_stats["gene_count"] = str(
             len(
                 self.gene_count.loc[
@@ -576,7 +585,6 @@ class Profiler(Session):
                 ]
             )
         )
-
         # Part 2: TAXONOMIC PROFILING
         # Restrict to MSP of interest
         logging.info("Get MSP core genes.")
@@ -593,19 +601,26 @@ class Profiler(Session):
         logging.info("Compute MSP stats.")
         msp_stats = self.compute_msp_stats(self.msp_filename)
         # Update and save config file
-        config_param["msp_core_size"] = str(self.core_size)
-        config_param["msp_filter"] = str(self.msp_filter)
-        config_param["msp_def"] = self.msp_filename.name
-        config_stats["msp_count"] = str(
-            len(
-                self.msp_table.loc[
-                    self.msp_table["value"] > 0,
-                    "msp_name",
-                ]
-            )
+        config_param.update(
+            {
+                "msp_core_size": str(self.core_size),
+                "msp_filter": str(self.msp_filter),
+                "msp_def": self.msp_filename.name,
+            }
         )
-        config_stats["msp_signal"] = str(msp_stats)
-
+        config_stats.update(
+            {
+                "msp_count": str(
+                    len(
+                        self.msp_table.loc[
+                            self.msp_table["value"] > 0,
+                            "msp_name",
+                        ]
+                    )
+                ),
+                "msp_signal": str(msp_stats),
+            }
+        )
         # Part 3: FUNCTIONAL PROFILING
         if self.database_type == "complete":
             single_fun_db = ["mustard"]

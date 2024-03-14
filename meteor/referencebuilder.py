@@ -69,6 +69,7 @@ class ReferenceBuilder(Session):
     def set_reference_config(self) -> Dict:  # pragma: no cover
         """Write configuration file for reference genome"""
         config = {
+            "meteor_version": self.meteor.version,
             "reference_info": {
                 "reference_name": self.meteor.ref_name,
                 "reference_date": datetime.now().strftime("%Y-%m-%d"),
