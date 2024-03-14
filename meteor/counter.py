@@ -22,7 +22,7 @@ from tempfile import mkdtemp, mkstemp
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
-from typing import Type, Dict, Generator, List, Tuple, Iterator
+from typing import Generator, Iterator
 from collections import defaultdict
 from itertools import chain
 from pysam import index, idxstats, AlignmentFile, sort, AlignedSegment  # type: ignore[attr-defined]
@@ -34,7 +34,7 @@ from shutil import rmtree
 class Counter(Session):
     """Counter session map and count"""
 
-    meteor: Type[Component]
+    meteor: type[Component]
     counting_type: str
     mapping_type: str
     trim: int
@@ -111,7 +111,7 @@ class Counter(Session):
 
     def filter_alignments(
         self, cramdesc: AlignmentFile
-    ) -> tuple[Dict[str, List[AlignedSegment]], Dict[str, List[int]]]:
+    ) -> tuple[dict[str, list[AlignedSegment]], dict[str, list[int]]]:
         """Filter read according to their identity with reference and reads with multiple
         alignments with different score. We keep the best scoring reads when total count is
         applied.
@@ -124,10 +124,10 @@ class Counter(Session):
                 And  genes [DICT] = contains the set of reference genes.
                                     key : read_id
         """
-        tmp_score: Dict[str, float] = {}
-        genes: Dict[str, List[int]] = {}
+        tmp_score: dict[str, float] = {}
+        genes: dict[str, list[int]] = {}
         # contains a list of alignment of each read
-        reads: Dict[str, List[AlignedSegment]] = {}
+        reads: dict[str, list[AlignedSegment]] = {}
         for element in cramdesc:
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
             # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
@@ -186,10 +186,10 @@ class Counter(Session):
             unique [DICT] = nb of unique read of each reference genes
         """
         unique_reads: defaultdict[
-            str, List[pysam.libcalignedsegment.AlignedSegment]
+            str, list[pysam.libcalignedsegment.AlignedSegment]
         ] = defaultdict(list)
         unique_reads_list = []
-        unique_on_gene: Dict[int, int] = dict.fromkeys(database, 0)
+        unique_on_gene: dict[int, int] = dict.fromkeys(database, 0)
         for read_id in genes:
             # if read map to several gene
             if len(genes[read_id]) != 1:
@@ -210,7 +210,7 @@ class Counter(Session):
 
     def compute_co(
         self, genes_mult: dict, unique_on_gene: dict
-    ) -> tuple[Dict, Dict]:
+    ) -> tuple[dict, dict]:
         """Compute genes specific coefficient "Co" for each multiple read.
 
         :param genes_mult: [DICT] = Contains for each multiple read, all the reference
@@ -221,8 +221,8 @@ class Counter(Session):
                                 read_id : genes
                                 value : list a multiple reads
         """
-        co_dict: Dict[Tuple[str, int], float] = {}
-        read_dict: Dict[str, List[str]] = {}
+        co_dict: dict[tuple[str, int], float] = {}
+        read_dict: dict[str, list[str]] = {}
         for read_id in genes_mult:
             # for a multiple read, gets nb of unique reads from each genes
             # total number of unique reads

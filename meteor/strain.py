@@ -18,7 +18,6 @@ import pandas as pd
 from dataclasses import dataclass, field
 from meteor.variantcalling import VariantCalling
 from meteor.session import Session, Component
-from typing import Type
 from tempfile import mkdtemp
 from pathlib import Path
 from time import perf_counter
@@ -30,7 +29,7 @@ import pysam
 class Strain(Session):
     """Counter session map and count"""
 
-    meteor: Type[Component]
+    meteor: type[Component]
     max_depth: int
     # min_gene_count: int
     min_snp_depth: int
