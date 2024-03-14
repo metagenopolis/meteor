@@ -15,7 +15,6 @@ from pathlib import Path
 from collections import defaultdict
 from meteor.session import Session, Component
 from dataclasses import dataclass
-from typing import Type, Dict, List
 from tempfile import mkdtemp
 import ete3  # type: ignore[import]
 from ete3 import Tree, TreeStyle
@@ -29,7 +28,7 @@ import pandas as pd
 class TreeBuilder(Session):
     """Counter session map and count"""
 
-    meteor: Type[Component]
+    meteor: type[Component]
     max_gap: float
     width: int
     height: int
@@ -40,7 +39,7 @@ class TreeBuilder(Session):
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.tree_dir.mkdir(exist_ok=True, parents=True)
 
-    def concatenate(self, msp_file_dict: Dict[str, List[Path]]) -> List[Path]:
+    def concatenate(self, msp_file_dict: dict[str, list[Path]]) -> list[Path]:
         """Concatenate fasta file from distinct samples
         :param msp_file_dict: (dict) A dictionnary of each msp version in the different samples
         :return: (list) A list of all concatenated fasta

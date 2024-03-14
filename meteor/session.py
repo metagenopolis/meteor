@@ -14,7 +14,7 @@
 
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Protocol, Iterator, Tuple, Dict
+from typing import Protocol, Iterator
 import logging
 import sys
 import json
@@ -72,7 +72,7 @@ class Session(Protocol):
             sys.exit(1)
         return True
 
-    def save_config(self, config: Dict, config_path: Path) -> None:  # pragma: no cover
+    def save_config(self, config: dict, config_path: Path) -> None:  # pragma: no cover
         """Save a configuration file
 
         :param config: A Dict object
@@ -81,7 +81,7 @@ class Session(Protocol):
         with config_path.open("wt", encoding="utf-8") as configfile:
             json.dump(config, configfile)
 
-    def read_json(self, input_json: Path) -> Dict:  # pragma: no cover
+    def read_json(self, input_json: Path) -> dict:  # pragma: no cover
         """Read json file
         :param input_json: (Path) An input path to the json file
         :return: A Dict object of the json file
@@ -95,7 +95,7 @@ class Session(Protocol):
             sys.exit(1)
         return config
 
-    def get_reference_info(self, ref_dir: Path) -> Dict:
+    def get_reference_info(self, ref_dir: Path) -> dict:
         # Get the json ref
         try:
             ref_json_file_list = list(ref_dir.glob("**/*_reference.json"))
@@ -111,7 +111,7 @@ class Session(Protocol):
             sys.exit(1)
         return ref_json
 
-    def get_census_stage(self, mapping_dir: Path, stage: int) -> Dict:
+    def get_census_stage(self, mapping_dir: Path, stage: int) -> dict:
         """Find census_stage_X.json file of a given repertory
 
         :param mapping_dir: A directory containing one census_stage file
@@ -134,8 +134,8 @@ class Session(Protocol):
         return census_json
 
     def update_json(
-        self, config: Dict, section: str, new_fields: Dict[str, str]
-    ) -> Dict:
+        self, config: dict, section: str, new_fields: dict[str, str]
+    ) -> dict:
         """Add information in the ini configuaration"""
         if section in config:
             for my_field, my_value in new_fields.items():
@@ -150,7 +150,7 @@ class Session(Protocol):
             config[section] = new_fields
         return config
 
-    def get_sequences(self, fasta_file: Path) -> Iterator[Tuple[int, str]]:
+    def get_sequences(self, fasta_file: Path) -> Iterator[tuple[int, str]]:
         """Get genes sequences
         :param fasta_file: (Path) A path to fasta file
         :return: A generator providing each header and gene sequence
@@ -169,7 +169,7 @@ class Session(Protocol):
             if len(seq) > 0:
                 yield int(gene_id), seq
 
-    def get_sequences_class(self, fasta_file: Path) -> Iterator[Tuple[str, str]]:
+    def get_sequences_class(self, fasta_file: Path) -> Iterator[tuple[str, str]]:
         """Get genes sequences
         :param fasta_file: (Path) A path to fasta file
         :return: A generator providing each header and gene sequence
