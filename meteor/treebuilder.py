@@ -77,7 +77,7 @@ class TreeBuilder(Session):
             logging.error("No census stage found in the specified repository.")
             sys.exit(1)
         else:
-            logging.info("%s samples have been detected.", str(len(all_census)))
+            logging.info("%d samples have been detected.", len(all_census))
         msp_file_dict = defaultdict(list)
         for filepath in self.meteor.strain_dir.glob("**/" + "msp_*"):
             msp_file_dict[filepath.name].append(filepath)
