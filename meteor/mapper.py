@@ -126,7 +126,7 @@ class Mapper(Session):
             [
                 "bowtie2",
                 parameters,
-                "--mm --no-unal",
+                "--mm", "--no-unal",
                 "-x",
                 str(bowtie_index.resolve()),
                 "-U",
