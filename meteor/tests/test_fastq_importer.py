@@ -86,10 +86,8 @@ def test_replace_ext(builder: FastqImporter, fastq_filename: str, name: str) -> 
         pytest.param("pretty.complex_pain.fasta", "", id="fasta"),
     ),
 )
-def test_get_tag_raise(builder: FastqImporter, fastq_filename: str, tag: str) -> None:
-    with pytest.raises(ValueError):
-        assert builder.get_tag(fastq_filename) == tag
-
+def test_get_tag_none(builder: FastqImporter, fastq_filename: str, tag: str) -> None:
+    assert builder.get_tag(fastq_filename) is None
 
 @pytest.mark.parametrize(
     ("fastq_filename", "tag"),

@@ -12,12 +12,14 @@
 
 """Import and prepare fastq"""
 
+import sys
 import logging
 import re
 from itertools import product
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Iterator
+from itertools import chain
 from meteor.session import Session, Component
 
 
@@ -39,7 +41,7 @@ class FastqImporter(Session):
         self.ext = tuple(self.short_extension())
 
     def extension(self, pair: str) -> Iterator[str]:  # pragma: no cover
-        """Get all possible extension for a given fastq including pairing info
+        """Get all possible extensions for a given fastq including pairing info
 
         :param pair: A string giving the strand
         :return: (Generator) A generator of a string from a given combination
@@ -50,7 +52,7 @@ class FastqImporter(Session):
             yield "".join(ext)
 
     def short_extension(self) -> Iterator[str]:  # pragma: no cover
-        """Get all possible extension for a given fastq
+        """Get all possible extensions for a given fastq
 
         :return: (Generator) A generator of a string from a given combination
         """
@@ -81,7 +83,7 @@ class FastqImporter(Session):
         """Find all fastq file in the given input"""
         yield from self.input_fastq_dir.glob("*.f*q*")
 
-    def get_tag(self, fastq_filename: str) -> str:
+    def get_tag(self, fastq_filename: str) -> str|None:
         """Extract paired-end info
 
         :param fastq_filename: Name of the fastq file
@@ -91,7 +93,8 @@ class FastqImporter(Session):
             return "1"
         elif fastq_filename.endswith(self.ext_r2):
             return "2"
-        raise ValueError("Pairing tag (1 or 2) is not detect in the fastq name.")
+        else:
+            return None
 
     def set_fastq_config(
         self, sample_name: str, tag: str, fastq_file: Path, full_sample_name: str
@@ -118,15 +121,19 @@ class FastqImporter(Session):
     def execute(self) -> None:
         """Dispatch the fastq file"""
         logging.info("Start importing task")
-        if len(list(self.get_fastq_file())) == 0:
+        fastq_files = list(self.get_fastq_file())
+        if not fastq_files:
             logging.error("No fastq file detected in %s", self.input_fastq_dir)
-            raise ValueError("No fastq file detected")
-        for fastq_file in self.get_fastq_file():
+            sys.exit(1)
+        for fastq_file in fastq_files:
             # Get rid of all possible extension
             full_sample_name = self.replace_ext(fastq_file.name)
             if self.ispaired:
                 # Extract paired-end info
                 tag = self.get_tag(fastq_file.name)
+                if not tag:
+                    logging.error('Pairing tag (1 or 2) is not detected in %s', fastq_file)
+                    sys.exit(1)
             else:
                 tag = "single"
             # split full sample name (in fact library/run name) in order
