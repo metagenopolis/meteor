@@ -17,7 +17,7 @@ from meteor.session import Session, Component
 from dataclasses import dataclass
 from tempfile import mkdtemp
 import ete3  # type: ignore[import]
-from ete3 import Tree, TreeStyle
+from ete3 import Tree  # , TreeStyle
 from meteor.phylogeny import Phylogeny
 import logging
 import sys
@@ -101,9 +101,9 @@ class TreeBuilder(Session):
                 with img_file.open("wt", encoding="UTF-8") as outfile:
                     outfile.write(msp_tree.get_ascii(show_internal=True))
             else:
-                ts = TreeStyle()
-                ts.show_leaf_name = True
-                ts.show_branch_length = True
+                # ts = TreeStyle()
+                # ts.show_leaf_name = True
+                # ts.show_branch_length = True
                 msp_tree.render(
                     str(img_file.resolve()),
                     w=self.width,

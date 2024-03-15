@@ -51,6 +51,7 @@ class Mapper(Session):
         :return: (Dict) A dict object with the census 1 config
         """
         config = {
+            "meteor_version": self.meteor.version,
             "sample_info": self.census["census"]["sample_info"],
             "sample_file": self.census["census"]["sample_file"],
             "mapping": {
