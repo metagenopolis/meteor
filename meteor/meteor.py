@@ -67,10 +67,10 @@ def isfile(path: str) -> Path:  # pragma: no cover
     """
     myfile = Path(path)
     if not myfile.is_file():
-        if myfile.is_dir():
-            msg = f"{myfile.name} is a directory."
-        else:
+        if not myfile.exists():
             msg = f"{myfile.name} does not exist."
+        else:
+            msg = f"{myfile.name} is not a regular file."
         raise ArgumentTypeError(msg)
     return myfile
 
@@ -86,11 +86,13 @@ def isdir(path: str) -> Path:  # pragma: no cover
     """
     mydir = Path(path)
     # if not mydir.is_dir():
-    if mydir.is_file():
-        msg = f"{mydir.name} is a file."
+    if not mydir.is_dir():
+        if not mydir.exists() : 
+            msg = f"{mydir.name} does not exist."
+        else:
+            msg = f"{mydir.name} is not a directory."
         raise ArgumentTypeError(msg)
-        # else:
-        #     msg = f"{mydir.name} does not exist."
+
     return mydir
 
 

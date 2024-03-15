@@ -79,9 +79,11 @@ class FastqImporter(Session):
             fastq_filename = fastq_filename.replace(e, "")
         return fastq_filename
 
-    def get_fastq_file(self):  # pragma: no cover
-        """Find all fastq file in the given input"""
-        yield from self.input_fastq_dir.glob("*.f*q*")
+    def get_fastq_files(self) -> Iterator:  # pragma: no cover
+        """Find all fastq files in the given input"""
+        return chain.from_iterable(
+            self.input_fastq_dir.glob("*" + e) for e in self.short_extension()
+        )
 
     def get_tag(self, fastq_filename: str) -> str|None:
         """Extract paired-end info
@@ -121,7 +123,7 @@ class FastqImporter(Session):
     def execute(self) -> None:
         """Dispatch the fastq file"""
         logging.info("Start importing task")
-        fastq_files = list(self.get_fastq_file())
+        fastq_files = list(self.get_fastq_files())
         if not fastq_files:
             logging.error("No fastq file detected in %s", self.input_fastq_dir)
             sys.exit(1)
