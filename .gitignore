@@ -13,4 +13,3 @@ test
 .vscode
 .pytest_cache
 .dmypy.json
-poetry.lock
