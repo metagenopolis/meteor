@@ -85,14 +85,12 @@ def isdir(path: str) -> Path:  # pragma: no cover
     :return: (str) Path object of the directory
     """
     mydir = Path(path)
-    # if not mydir.is_dir():
     if not mydir.is_dir():
         if not mydir.exists() : 
             msg = f"{mydir.name} does not exist."
         else:
             msg = f"{mydir.name} is not a directory."
         raise ArgumentTypeError(msg)
-
     return mydir
 
 

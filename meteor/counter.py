@@ -454,7 +454,7 @@ class Counter(Session):
                     template=cramdesc,
                     reference_filename=str(reference.resolve()),
                 ) as total_reads:
-                    for element in chain(*reads.values()):
+                    for element in chain.from_iterable(reads.values()):
                         # if int(element.reference_name) in ref_json["reference_file"]:
                         total_reads.write(element)
                 sort(
@@ -473,7 +473,7 @@ class Counter(Session):
                 self.save_cram_strain(
                     cramfile_strain_unsorted,
                     cramdesc,
-                    chain(*reads.values()),
+                    chain.from_iterable(reads.values()),
                     ref_json,
                 )
                 sort(

@@ -153,8 +153,8 @@ class Merging(Session):
         }
         if len(problematic_config) > 0:
             logging.warning(
-                "There was %s files that do not match the reference json file",
-                str(len(problematic_config)),
+                "There was %d files that do not match the reference json file",
+                len(problematic_config),
             )
             for i in problematic_config:
                 logging.warning(
@@ -213,7 +213,7 @@ class Merging(Session):
             logging.error("No census stage 2 found in the specified repository.")
             sys.exit(1)
         else:
-            logging.info("%s census files have been detected.", str(len(all_census)))
+            logging.info("%d census files have been detected.", len(all_census))
         # Create the dict: path -> Dict
         all_census_dict = {
             my_census.parent: self.read_json(my_census) for my_census in all_census

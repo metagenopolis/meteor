@@ -15,11 +15,10 @@
 import sys
 import logging
 import re
-from itertools import product
+from itertools import product, chain
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Iterator
-from itertools import chain
 from meteor.session import Session, Component
 
 
@@ -79,13 +78,14 @@ class FastqImporter(Session):
             fastq_filename = fastq_filename.replace(e, "")
         return fastq_filename
 
-    def get_fastq_files(self) -> Iterator:  # pragma: no cover
+    def get_fastq_files(self) -> Iterator[Path]:  # pragma: no cover
         """Find all fastq files in the given input"""
-        return chain.from_iterable(
+        files_expected_ext = chain.from_iterable(
             self.input_fastq_dir.glob("*" + e) for e in self.short_extension()
         )
+        return (f for f in files_expected_ext if f.is_file())
 
-    def get_tag(self, fastq_filename: str) -> str|None:
+    def get_tag(self, fastq_filename: str) -> str | None:
         """Extract paired-end info
 
         :param fastq_filename: Name of the fastq file
@@ -122,11 +122,16 @@ class FastqImporter(Session):
 
     def execute(self) -> None:
         """Dispatch the fastq file"""
-        logging.info("Start importing task")
+        logging.info("Starting import of fastq files from %s", self.input_fastq_dir)
         fastq_files = list(self.get_fastq_files())
         if not fastq_files:
-            logging.error("No fastq file detected in %s", self.input_fastq_dir)
+            logging.error("No fastq file detected")
             sys.exit(1)
+        else:
+            logging.info("%d fastq files detected", len(fastq_files))
+
+        num_imported_fastq_files = 0
+        samples_names = set()
         for fastq_file in fastq_files:
             # Get rid of all possible extension
             full_sample_name = self.replace_ext(fastq_file.name)
@@ -134,7 +139,9 @@ class FastqImporter(Session):
                 # Extract paired-end info
                 tag = self.get_tag(fastq_file.name)
                 if not tag:
-                    logging.error('Pairing tag (1 or 2) is not detected in %s', fastq_file)
+                    logging.error(
+                        "Pairing tag (1 or 2) is not detected in %s", fastq_file
+                    )
                     sys.exit(1)
             else:
                 tag = "single"
@@ -145,18 +152,18 @@ class FastqImporter(Session):
                     self.mask_sample_name, full_sample_name
                 )
                 if full_sample_name_array:
-                    logging.info("Import %s", fastq_file)
                     sample_name = full_sample_name_array[0]
                 else:
-                    # sample do not match the mask
+                    logging.warning("Regular expression does not match %s", fastq_file)
                     continue
             else:
                 if self.ispaired:
                     sample_name = self.get_paired_dirname(fastq_file.name, tag)
                 else:
                     sample_name = full_sample_name
-                logging.info("Import %s", fastq_file)
+            logging.info("Importing %s in sample %s", fastq_file, sample_name)
             # Create directory for the sample and symlink fastq file into
+            samples_names.add(sample_name)
             sample_dir = self.meteor.fastq_dir / sample_name
             sample_dir.mkdir(exist_ok=True, parents=True)
             sym_fastq = Path(sample_dir / fastq_file.name)
@@ -168,3 +175,10 @@ class FastqImporter(Session):
             )
             config_path = sample_dir / f"{full_sample_name}_census_stage_0.json"
             self.save_config(config_fastq, config_path)
+            num_imported_fastq_files += 1
+        logging.info(
+            "%d/%d fastq files imported in %d samples",
+            num_imported_fastq_files,
+            len(fastq_files),
+            len(samples_names),
+        )
