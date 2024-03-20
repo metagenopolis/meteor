@@ -112,9 +112,6 @@ def isborned01(x: str) -> float:
 
 
 def num_threads(value):
-    import multiprocessing
-
-    max_num_threads = multiprocessing.cpu_count()
 
     try:
         value = int(value)
@@ -125,11 +122,6 @@ def num_threads(value):
 
     if value <= 0:
         raise ArgumentTypeError("the minimum number of threads is 1")
-    if value > max_num_threads:
-        raise ArgumentTypeError(
-            f"the maximum number of threads should not exceed the number of CPU cores ({max_num_threads})"
-        )
-
     return value
 
 
@@ -533,7 +525,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-g",
         dest="output_gene_matrix",
         action="store_true",
-        help="Merge gene abudance tables (Very slow. Use with caution).",
+        help="Merge gene abundance tables.",
     )
     strain_parser = subparsers.add_parser(
         "strain", help="Identifies strains from metagenomic samples"
