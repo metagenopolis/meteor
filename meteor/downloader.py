@@ -112,22 +112,25 @@ class Downloader(Session):
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
             print(flush=True)
             if self.choice == "test":
-                logging.info("Download test fastq file")
-                url_fastq = self.catalogues_config[self.choice]["fastq_info"][
-                    "catalogue"
-                ]
-                fastq_test = (
-                    self.meteor.tmp_dir
-                    / self.catalogues_config[self.choice]["fastq_info"]["filename"]
-                )
-                md5fastq_expect = self.catalogues_config[self.choice]["fastq_info"][
-                    "md5"
-                ]
-                urlretrieve(
-                    url_fastq, filename=fastq_test, reporthook=self.show_progress
-                )
-                print(flush=True)
-                assert md5fastq_expect == self.getmd5(fastq_test)
+                for sample in self.catalogues_config[self.choice]["samples"]:
+                    logging.info(f"Download {sample} fastq file")
+                    url_fastq = self.catalogues_config[self.choice]["samples"][sample][
+                        "catalogue"
+                    ]
+                    fastq_test = (
+                        self.meteor.tmp_dir
+                        / self.catalogues_config[self.choice]["samples"][sample][
+                            "filename"
+                        ]
+                    )
+                    md5fastq_expect = self.catalogues_config[self.choice]["samples"][
+                        sample
+                    ]["md5"]
+                    urlretrieve(
+                        url_fastq, filename=fastq_test, reporthook=self.show_progress
+                    )
+                    print(flush=True)
+                    assert md5fastq_expect == self.getmd5(fastq_test)
             if self.check_md5:
                 assert md5_expect == self.getmd5(catalogue)
             self.extract_tar(catalogue)

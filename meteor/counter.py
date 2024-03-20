@@ -208,9 +208,7 @@ class Counter(Session):
             del genes[read_id]
         return unique_reads, genes, unique_on_gene
 
-    def compute_co(
-        self, genes_mult: dict, unique_on_gene: dict
-    ) -> tuple[dict, dict]:
+    def compute_co(self, genes_mult: dict, unique_on_gene: dict) -> tuple[dict, dict]:
         """Compute genes specific coefficient "Co" for each multiple read.
 
         :param genes_mult: [DICT] = Contains for each multiple read, all the reference
@@ -560,7 +558,7 @@ class Counter(Session):
                 logging.info("Completed counting in %f seconds", perf_counter() - start)
                 if not self.keep_all_alignments:
                     logging.info(
-                        "Raw cram file is not kept (--ka). " \
+                        "Raw cram file is not kept (--ka). "
                         "Re-counting operation will need to be performed from scratch."
                     )
                     raw_cram_file.unlink(missing_ok=True)

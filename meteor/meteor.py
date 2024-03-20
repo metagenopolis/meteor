@@ -85,11 +85,8 @@ def isdir(path: str) -> Path:  # pragma: no cover
     :return: (str) Path object of the directory
     """
     mydir = Path(path)
-    if not mydir.is_dir():
-        if not mydir.exists() : 
-            msg = f"{mydir.name} does not exist."
-        else:
-            msg = f"{mydir.name} is not a directory."
+    if mydir.is_file():
+        msg = f"{mydir.name} is a file."
         raise ArgumentTypeError(msg)
     return mydir
 
@@ -596,7 +593,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     tree_parser.add_argument(
         "-f",
         dest="format",
-        default="txt",
+        default=None,
         choices=["png", "svg", "pdf", "txt"],
         type=str,
         help="Output image format (default txt).",
@@ -775,9 +772,32 @@ def main() -> None:  # pragma: no cover
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
             meteor.ref_dir = meteor.ref_dir / "mock"
-            counter = Counter(meteor, "smart_shared", "end-to-end", 80, 1, 100)
+            counter = Counter(
+                meteor, "smart_shared", "end-to-end", 80, 1, 100, False, True
+            )
             counter.execute()
-            # TODO Add strain analysis
+            meteor.fastq_dir = Path(tmpdirname) / "test2"
+            counter = Counter(
+                meteor, "smart_shared", "end-to-end", 80, 1, 100, False, True
+            )
+            counter.execute()
+            meteor.mapped_sample_dir = meteor.mapping_dir / "test"
+            meteor.strain_dir = Path(tmpdirname) / "strain"
+            strain_detector = Strain(meteor, 100, 10, 0.8, 10, 0.5, False)
+            strain_detector.execute()
+            meteor.mapped_sample_dir = meteor.mapping_dir / "test2"
+            strain_detector = Strain(meteor, 100, 10, 0.8, 10, 0.5, False)
+            strain_detector.execute()
+            meteor.tree_dir = Path(tmpdirname) / "tree"
+            trees = TreeBuilder(
+                meteor,
+                0.1,
+                800,
+                600,
+                None,
+                "-",
+            )
+            trees.execute()
     # Close logging
     logger.handlers[0].close()
 
