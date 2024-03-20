@@ -16,7 +16,7 @@
 
 import sys
 import logging
-from argparse import ArgumentParser, ArgumentTypeError, Namespace
+from argparse import ArgumentParser, ArgumentTypeError, Namespace, RawTextHelpFormatter
 from pathlib import Path
 from meteor.session import Component
 from meteor.fastqimporter import FastqImporter
@@ -86,7 +86,7 @@ def isdir(path: str) -> Path:  # pragma: no cover
     """
     mydir = Path(path)
     if not mydir.is_dir():
-        if not mydir.exists() : 
+        if not mydir.exists():
             msg = f"{mydir.name} does not exist."
         else:
             msg = f"{mydir.name} is not a directory."
@@ -111,6 +111,20 @@ def isborned01(x: str) -> float:
     return x_float
 
 
+def num_threads(value):
+
+    try:
+        value = int(value)
+    except ValueError as value_err:
+        raise ArgumentTypeError(
+            "the number of threads is not an integer"
+        ) from value_err
+
+    if value <= 0:
+        raise ArgumentTypeError("the minimum number of threads is 1")
+    return value
+
+
 def get_arguments() -> Namespace:  # pragma: no cover
     """
     Meteor help and arguments
@@ -129,8 +143,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="command",
         required=True,
     )
-    # Mappping commands
-    download_parser = subparsers.add_parser("download", help="Download catalog")
+    # Define download argument parsing
+    download_parser = subparsers.add_parser("download", help="Download a catalogue")
     download_parser.add_argument(
         "-i",
         dest="user_choice",
@@ -151,34 +165,41 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Select the catalogue to download.",
     )
     download_parser.add_argument(
-        "-c",
-        dest="check_md5",
-        action="store_true",
-        help="Check the md5sum of the catalogue.",
-    )
-    download_parser.add_argument(
         "--fast",
         dest="taxonomy",
         action="store_true",
-        help="Select the short catalogue version for taxonomical analysis.",
+        help="Select the short catalogue variant (only for taxonomic profiling).",
     )
     download_parser.add_argument(
-        "-o", dest="ref_dir", type=isdir, required=True, help="Output directory."
+        "-o",
+        dest="ref_dir",
+        type=isdir,
+        required=True,
+        help="Directory where the downloaded catalogue is saved.",
     )
-    reference_parser = subparsers.add_parser("build", help="Index reference")
+    download_parser.add_argument(
+        "-c",
+        dest="check_md5",
+        action="store_true",
+        help="Check the md5sum of the catalogue after download.",
+    )
+    # Define download argument parsing
+    reference_parser = subparsers.add_parser(
+        "build", help="Import a custom gene catalogue"
+    )
     reference_parser.add_argument(
         "-i",
         dest="input_fasta_file",
         type=isfile,
         required=True,
-        help="Input fasta filename (compressed format accepted).",
+        help="Fasta file of the custom gene catalogue (gzip, bzip2 and xz compression accepted).",
     )
     reference_parser.add_argument(
         "-o",
         dest="ref_dir",
         type=isdir,
         required=True,
-        help="Output path of the reference repository.",
+        help="Directory where the catalogue and its index are saved.",
     )
     reference_parser.add_argument(
         "-n",
@@ -186,26 +207,28 @@ def get_arguments() -> Namespace:  # pragma: no cover
         metavar="REFERENCE_NAME",
         type=str,
         required=True,
-        help="Name of the reference (ansi-string without space).",
+        help="Name of the gene catalogue (ansi-string without space).",
     )
     reference_parser.add_argument(
-        "-t", dest="threads", default=1, type=int, help="Threads count."
+        "-t",
+        dest="threads",
+        default=1,
+        type=num_threads,
+        help="Number of threads to launch while indexing the catalogue (default: %(default)d).",
     )
-    # reference_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
-    #                               help="Execute original meteor")
-    fastq_parser = subparsers.add_parser("fastq", help="Import fastq files")
+    # Define fastq argument parsing
+    fastq_parser = subparsers.add_parser(
+        "fastq", formatter_class=RawTextHelpFormatter, help="Import fastq files"
+    )
     fastq_parser.add_argument(
         "-i",
         dest="input_fastq_dir",
         type=isdir,
         required=True,
-        help="""Path to a directory containing all input fastq files.
-                                        FASTQ files must have the extension .fastq or .fq.
-                                        For paired-ends files must be named :
-                                            file_R1.[fastq/fq] & file_R2.[fastq/fq]
-                                                            or
-                                            file_1.[fastq/fq] & file_2.[fastq/fq].
-                                        If compressed, [gz,bz2,xz] are accepted.""",
+        help="Directory containing all input fastq files with .fastq or .fq. extensions "
+        "(gzip, bzip2 and xz compression accepted).\n"
+        "Paired-end files must be named : file_R1.[fastq/fq] & file_R2.[fastq/fq] "
+        "or file_1.[fastq/fq] & file_2.[fastq/fq]",
     )
     fastq_parser.add_argument(
         "-p",
@@ -218,52 +241,43 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-m",
         dest="mask_sample_name",
         type=str,
-        help="Regular expression for extracting sample name.",
+        help="Regular expression (between quotes) for extracting sample name.",
     )
     fastq_parser.add_argument(
         "-o",
         dest="fastq_dir",
         type=isdir,
         required=True,
-        help="Output path of the fastq repository.",
+        help="Directory where the fastq repository is created.",
     )
-    # fastq_parser.add_argument("-c", dest="iscompressed", default=False,
-    #     action="store_true", help = "Fastq files are compressed.")
-    # fastq_parser.add_argument("-d", dest="isdispatched", default=False, action="store_true",
-    #                           help="Fastq files are already dispatched in directories.")
+    # Define mapping argument parsing
     mapping_parser = subparsers.add_parser(
-        "mapping", help="Map reads against a gene catalog"
+        "mapping",
+        formatter_class=RawTextHelpFormatter,
+        help="Map reads against a gene catalogue and compute raw gene counts",
     )
     mapping_parser.add_argument(
         "-i",
         dest="fastq_dir",
         type=isdir,
         required=True,
-        help="""Path to sample directory, containing the sample sequencing metadata
-                                        (files ending with _census_stage_0.json)""",
+        help="Directory corresponding to the sample to process.\n"
+        "(contains sequencing metadata files ending with _census_stage_0.json)",
     )
     mapping_parser.add_argument(
         "-r",
         dest="ref_dir",
         type=isdir,
         required=True,
-        help="Path to reference directory (Path containing *_reference.json)",
+        help="Directory corresponding to the gene catalog against which reads are mapped.\n"
+        "(contains a file ending with *_reference.json)",
     )
     mapping_parser.add_argument(
         "-o",
         dest="mapping_dir",
         type=isdir,
         required=True,
-        help="Path to output directory",
-    )
-    mapping_parser.add_argument(
-        "-c",
-        dest="counting_type",
-        type=str,
-        default="smart_shared",
-        # "shared_reads",
-        choices=["total", "smart_shared", "unique"],
-        help="Counting type string (default smart_shared_reads).",
+        help="Directory where mapping and raw gene counts of the sample are saved.",
     )
     mapping_parser.add_argument(
         "-p",
@@ -271,93 +285,110 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=str,
         choices=["local", "end-to-end"],
         default="end-to-end",
-        help="Counting type (Default end-to-end)",
+        help="Strategy to map reads against the catalogue (default: %(default)s).",
     )
     mapping_parser.add_argument(
         "--trim",
         dest="trim",
         type=int,
         default=80,
-        help="Trim reads for mapping (default 80. If 0, no trim)",
-    )
-    mapping_parser.add_argument(
-        "--id",
-        dest="identity_threshold",
-        type=isborned01,
-        default=0.95,
-        help="Aligned reads should have an identity to reference > 0.95 (default)."
-        "If 0, no filtering)",
+        help="Trim reads exceeding TRIM bases before mapping "
+        "(default: %(default)d).\nIf 0, no trim.",
     )
     mapping_parser.add_argument(
         "--align",
         dest="alignment_number",
         type=int,
         default=10000,
-        help="Number alignments considered for each read (default 10000)",
+        help="Maximum number alignments to report for each read (default: %(default)d)",
+    )
+    mapping_parser.add_argument(
+        "-c",
+        dest="counting_type",
+        type=str,
+        default="smart_shared",
+        choices=["total", "smart_shared", "unique"],
+        help="Strategy to calculate raw gene counts (default: %(default)s).",
+    )
+    mapping_parser.add_argument(
+        "--id",
+        dest="identity_threshold",
+        type=isborned01,
+        default=0.95,
+        help="Select only read alignments with a nucleotide identity >= IDENTITY_THRESHOLD "
+        "(default: %(default).2f).\nIf 0, no filtering.",
     )
     mapping_parser.add_argument(
         "--ka",
         dest="keep_all_alignments",
         action="store_true",
-        help="Raw bowtie2 output in cram format. Required for re-counting analysis.",
+        help="Keep raw bowtie2 output in cram format. "
+        "Required for calculating gene counts with another strategy.",
     )
     mapping_parser.add_argument(
         "--kf",
         dest="keep_filtered_alignments",
         action="store_true",
-        help="Keep processed alignements. Required for strain analysis.",
+        help="Keep filtered alignments on marker genes. Required for strain analysis.",
     )
     mapping_parser.add_argument(
         "--tmp",
         dest="tmp_path",
         type=isdir,
-        help="Path to the directory where temporary files (e.g. cram) are stored",
+        help="Directory where temporary files (e.g. cram) are stored",
     )
     mapping_parser.add_argument(
-        "-t", dest="threads", default=1, type=int, help="Threads count."
+        "-t",
+        dest="threads",
+        type=num_threads,
+        default=1,
+        help="Number of alignment threads to launch (default: %(default)d).",
     )
-    # mapping_parser.add_argument("-no_pysam", dest="pysam_test", action="store_false",
-    #                             help="Execute original meteor")
-    # Define profiler argument parsing
     # Define profiler argument parsing
     profiling_parser = subparsers.add_parser(
-        "profile", help="Compute species and functional abundance tables"
+        "profile",
+        formatter_class=RawTextHelpFormatter,
+        help="Compute species and functional abundance tables",
     )
     profiling_parser.add_argument(
         "-i",
         dest="mapped_sample_dir",
         required=True,
         type=isdir,
-        help="Path to the mapped sample directory.",
-    )
-    profiling_parser.add_argument(
-        "-o",
-        dest="profiled_sample_dir",
-        type=isdir,
-        required=True,
-        help="Path to the profile output directory.",
+        help="Directory with raw gene counts of the sample to process.\n"
+        "(contains a metadata file ending with _census_stage_1.json)",
     )
     profiling_parser.add_argument(
         "-r",
         dest="ref_dir",
         type=isdir,
         required=True,
-        help="Path to reference directory (containing *_reference.json)",
+        help="Directory corresponding to the catalog used to generate raw gene counts.\n"
+        "(contains a file ending with *_reference.json)",
+    )
+    profiling_parser.add_argument(
+        "-o",
+        dest="profiled_sample_dir",
+        type=isdir,
+        required=True,
+        help="Directory where species and functional abundance tables of the sample are saved.",
     )
     profiling_parser.add_argument(
         "-l",
         dest="rarefaction_level",
         type=int,
         default=-1,
-        help="""Rarefaction level. If negative: no rarefation is performed.
-                                          Default to -1""",
+        help="Rarefaction level. If negative: no rarefation is performed "
+        "(default: %(default)d)."
+        ,
     )
     profiling_parser.add_argument(
         "--seed",
         dest="seed",
         type=int,
         default=1234,
-        help="Seed for reads randomly selection during rarefaction (Default 1234).",
+        help="Seed of the random number generator used for rarefaction "
+        "(default: %(default)d).",
     )
     profiling_parser.add_argument(
         "-n",
@@ -365,54 +396,62 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=str,
         choices=["coverage", "fpkm", "raw"],
         default="coverage",
-        help="Normalization applied to gene abundance (default coverage).",
+        help="Normalization applied to raw gene counts "
+        "(default: %(default)s).",
     )
     profiling_parser.add_argument(
         "-c",
         dest="coverage_factor",
         type=float,
         default=100.0,
-        help="Multiplication factor for coverage normalization (Default 100.0).",
+        help="Multiplication factor for coverage normalization "
+        "(default: %(default).0f).",
     )
     profiling_parser.add_argument(
         "--core_size",
         dest="core_size",
         type=int,
         default=100,
-        help="Number of core genes to be used for MSP computation (Default 100).",
+        help="Number of core genes per species (MSP) used to estimate their respective abundance "
+        "(default: %(default)d).",
     )
     profiling_parser.add_argument(
         "--msp_filter",
         dest="msp_filter",
         type=isborned01,
         default=0.1,
-        help="Ratio of MSP core genes detected in a sample, under which "
-        "the MSP abundance is set to 0. Default to 0.1",
+        help="Minimal proportion of core genes detected in a sample to consider a species (MSP) as present "
+        "(default: %(default).1f).",
     )
     profiling_parser.add_argument(
         "--completeness",
         type=isborned01,
         default=0.9,
-        help="""Threshold above which a module is considered as present
-                                          in an MSP. Comprised in [0,1] (Default 0.9).""",
+        help="Cutoff above which a module is considered as present in a species.\n"
+        "Value between 0.0 and 1.0 (default: %(default).1f).""",
     )
     # Define merging argument parsing
     merging_parser = subparsers.add_parser(
-        "merge", help="Merge the individual sample count table"
+        "merge",
+        formatter_class=RawTextHelpFormatter,
+        help="Merge gene, species and functional abundance tables from multiple samples",
     )
     merging_parser.add_argument(
         "-i",
         dest="profile_dir",
         required=True,
         type=isdir,
-        help="Directory containing files that should be merged.",
+        help="Directory containing subdirectories (one per sample) with abundance tables to be merged.\n"
+        "(each subdirectory contains a metadata file ending with _census_stage_2.json)"
+        ,
     )
     merging_parser.add_argument(
         "-r",
         dest="ref_dir",
         type=isdir,
         required=True,
-        help="Path to reference directory (containing *_reference.json)",
+        help="Directory corresponding to the gene catalog used to generate the abundance tables.\n"
+        "(contains a file ending with *_reference.json)",
     )
     merging_parser.add_argument(
         "-a",
@@ -426,31 +465,36 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="min_msp_occurrence",
         type=int,
         default=1,
-        help="Minimum msp occurrence (default >=1).",
+        help="Report only species (MSPs) occuring in at least n samples "
+        "(default: %(default)d).",
     )
     merging_parser.add_argument(
         "-s",
         dest="remove_sample_with_no_msp",
         action="store_true",
-        help="Remove sample with no detected msp (default False).",
+        help="Remove samples with no detected species (MSPs) "
+        "(default: %(default)s).",
     )
     merging_parser.add_argument(
         "-m",
         dest="output_mpa",
         action="store_true",
-        help="Output result in mpa format (default False).",
+        help="Save the merged species abundance table in the style of MetaPhlan "
+        "(default: %(default)s).",
     )
     merging_parser.add_argument(
         "-b",
         dest="output_biom",
         action="store_true",
-        help="Output result in biom format (default False).",
+        help="Save the merged species abundance table in biom format "
+        "(default: %(default)s).",
     )
     merging_parser.add_argument(
         "--tax_lev",
         dest="taxonomic_level",
+        default="a",
         choices=["a", "k", "p", "c", "o", "f", "g", "s", "t"],
-        help="""The taxonomic level for mpa output:
+        help="""The taxonomic level for mpa output (default: %(default)s):
                         'a' : all taxonomic levels
                         'k' : kingdoms
                         'p' : phyla only
@@ -459,26 +503,29 @@ def get_arguments() -> Namespace:  # pragma: no cover
                         'f' : families only
                         'g' : genera only
                         's' : species only
-                        't' : MSPs only""",
+                        't' : MSPs only"""
+                        ,
     )
     merging_parser.add_argument(
         "-o",
         dest="merging_dir",
         required=True,
         type=isdir,
-        help="Path to the output directory.",
+        help="Directory where the merged abundance tables are saved.",
     )
     merging_parser.add_argument(
         "-p",
         dest="prefix",
         default="output",
-        help="Prefix to give to output. Default to 'output'.",
+        help="Prefix added to output filenames "
+        "(default: %(default)s)."
+        ,
     )
     merging_parser.add_argument(
         "-g",
         dest="output_gene_matrix",
         action="store_true",
-        help="Merge gene tables.",
+        help="Merge gene abundance tables.",
     )
     strain_parser = subparsers.add_parser(
         "strain", help="Identifies strains from metagenomic samples"
