@@ -16,6 +16,7 @@
 
 import sys
 import logging
+import shutil
 from argparse import ArgumentParser, ArgumentTypeError, Namespace, RawTextHelpFormatter
 from pathlib import Path
 from meteor.session import Component
@@ -819,6 +820,9 @@ def main() -> None:  # pragma: no cover
             meteor.fastq_dir = Path(tmpdirname) / "test2"
             counter = Counter(meteor, "best", "end-to-end", 80, 0.97, 100, False, True)
             counter.execute()
+            # Remove the mapping directory and its contents
+            shutil.rmtree(Path(tmpdirname) / "test")
+            shutil.rmtree(Path(tmpdirname) / "test2")
             meteor.mapped_sample_dir = meteor.mapping_dir / "test"
             meteor.strain_dir = Path(tmpdirname) / "strain"
             strain_detector = Strain(meteor, 100, 2, 0.2, 10, 0.2, False)
@@ -826,6 +830,8 @@ def main() -> None:  # pragma: no cover
             meteor.mapped_sample_dir = meteor.mapping_dir / "test2"
             strain_detector = Strain(meteor, 100, 2, 0.2, 10, 0.2, False)
             strain_detector.execute()
+            # Remove the mapping directory and its contents
+            shutil.rmtree(meteor.mapping_dir)
             meteor.tree_dir = Path(tmpdirname) / "tree"
             trees = TreeBuilder(
                 meteor,
@@ -836,6 +842,9 @@ def main() -> None:  # pragma: no cover
                 "-",
             )
             trees.execute()
+            shutil.rmtree(meteor.strain_dir)
+            shutil.rmtree(meteor.tree_dir)
+            shutil.rmtree(meteor.ref_dir)
     # Close logging
     logger.handlers[0].close()
 
