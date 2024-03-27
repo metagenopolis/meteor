@@ -814,17 +814,17 @@ def main() -> None:  # pragma: no cover
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
             meteor.ref_dir = meteor.ref_dir / "mock"
-            counter = Counter(meteor, "best", "end-to-end", 80, 0.97, 100, True, True)
+            counter = Counter(meteor, "best", "end-to-end", 80, 0.97, 100, False, True)
             counter.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test2"
-            counter = Counter(meteor, "best", "end-to-end", 80, 0.97, 100, True, True)
+            counter = Counter(meteor, "best", "end-to-end", 80, 0.97, 100, False, True)
             counter.execute()
             meteor.mapped_sample_dir = meteor.mapping_dir / "test"
             meteor.strain_dir = Path(tmpdirname) / "strain"
-            strain_detector = Strain(meteor, 100, 2, 0.2, 10, 0.2, True)
+            strain_detector = Strain(meteor, 100, 2, 0.2, 10, 0.2, False)
             strain_detector.execute()
             meteor.mapped_sample_dir = meteor.mapping_dir / "test2"
-            strain_detector = Strain(meteor, 100, 2, 0.2, 10, 0.2, True)
+            strain_detector = Strain(meteor, 100, 2, 0.2, 10, 0.2, False)
             strain_detector.execute()
             meteor.tree_dir = Path(tmpdirname) / "tree"
             trees = TreeBuilder(
