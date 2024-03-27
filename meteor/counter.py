@@ -563,7 +563,6 @@ class Counter(Session):
                     )
                     raw_cram_file.unlink(missing_ok=True)
                     raw_cram_file.with_suffix(".cram.crai").unlink(missing_ok=True)
-            logging.info("Done ! Job finished without errors ...")
         except AssertionError:
             logging.error(
                 "No *_census_stage_0.json file found in %s",

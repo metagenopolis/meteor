@@ -93,7 +93,6 @@ class TreeBuilder(Session):
         for msp_file in msp_file_list:
             tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
             img_file = self.meteor.tree_dir / f"{msp_file.stem}.{self.format}"
-            print(tree_file)
             try:
                 msp_tree = Tree(str(tree_file.resolve()))
                 # Generate a distance msp by msp

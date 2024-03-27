@@ -121,20 +121,20 @@
     },
     "test": {
         "file_info": {
-            "catalogue": "https://zenodo.org/records/10845018/files/mock.tar.xz",
+            "catalogue": "https://zenodo.org/records/10886229/files/mock.tar.xz",
             "filename": "mock.tar.xz",
             "md5": "ea36ba5e144144d659b757d1aaef5143"
         },
         "samples": {
             "test": {
-                "catalogue": "https://zenodo.org/records/10845018/files/test.fastq.gz",
+                "catalogue": "https://zenodo.org/records/10886229/files/test.fastq.gz",
                 "filename": "test.fastq.gz",
-                "md5": "b6d2dad808256b8718a4a3bf30688ac7"
+                "md5": "cc2914c400413c20606a939a24523cdf"
             },
             "test2": {
-                "catalogue": "https://zenodo.org/records/10845018/files/test2.fastq.gz",
+                "catalogue": "https://zenodo.org/records/10886229/files/test2.fastq.gz",
                 "filename": "test2.fastq.gz",
-                "md5": "318327bd099a6025f2d1d646088548d7"
+                "md5": "7a03f8e694fcbec4536c563731a0d611"
             }
         }
     }
