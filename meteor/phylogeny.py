@@ -11,6 +11,11 @@
 #    http://www.gnu.org/licenses/gpl-3.0.html
 
 """Effective phylogeny"""
+import re
+import logging
+import sys
+import os
+import subprocess
 from dataclasses import dataclass
 from meteor.session import Session, Component
 from subprocess import call, run
@@ -22,10 +27,6 @@ from packaging.version import Version, parse
 from collections import OrderedDict
 from datetime import datetime
 from typing import Iterable
-import re
-import logging
-import sys
-import os
 
 
 @dataclass
@@ -84,14 +85,33 @@ class Phylogeny(Session):
 
     def execute(self) -> None:
         logging.info("Launch phylogeny analysis")
-        os.environ["OMP_NUM_THREADS"] = str(self.meteor.threads)
         # Define the regex pattern to match the version number
         version_pattern = re.compile(r"FastTree version (\d+\.\d+\.\d+)")
         logging.info("Test FastTree version")
-        fasttree_help = str(run(["FastTree"], capture_output=True).stderr).split("\\n")[
-            0
-        ]
-        print(fasttree_help)
+        # Print environment variables and PATH
+        print("Environment variables:", os.environ)
+        print("PATH:", os.environ.get("PATH"))
+
+        # Print the location of FastTree
+        try:
+            fasttree_location = subprocess.check_output(["which", "FastTree"])
+            print("FastTree location:", fasttree_location)
+        except subprocess.CalledProcessError:
+            print("FastTree not found in PATH.")
+
+        # Set the environment variable
+        os.environ["OMP_NUM_THREADS"] = str(self.meteor.threads)
+
+        # Print the FastTree help message
+        try:
+            fasttree_help = str(
+                subprocess.run(["FastTree"], capture_output=True, timeout=30).stderr
+            ).split("\\n")[0]
+            print("FastTree help message:", fasttree_help)
+        except subprocess.TimeoutExpired:
+            print("FastTree command timed out.")
+        except Exception as e:
+            print("Error running FastTree:", e)
         # Use findall to extract the version number
         matches = version_pattern.findall(fasttree_help)
 
