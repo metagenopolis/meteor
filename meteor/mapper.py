@@ -20,10 +20,12 @@ from packaging.version import Version, parse
 from re import findall
 from meteor.session import Session, Component
 from time import perf_counter
-from tempfile import mkstemp
+
+# from tempfile import mkstemp
 import pysam
 import logging
 import sys
+
 
 @dataclass
 class Mapper(Session):
@@ -126,7 +128,8 @@ class Mapper(Session):
             [
                 "bowtie2",
                 parameters,
-                "--mm", "--no-unal",
+                "--mm",
+                "--no-unal",
                 "-x",
                 str(bowtie_index.resolve()),
                 "-U",

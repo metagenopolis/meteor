@@ -111,7 +111,9 @@ class Phylogeny(Session):
             with NamedTemporaryFile(
                 mode="wt", dir=self.meteor.tmp_dir, suffix=".fasta", delete=False
             ) as temp_clean:
-                tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
+                tree_file = self.meteor.tree_dir / f"{msp_file.name}".replace(
+                    ".fasta", ".tree"
+                )
                 # Clean sites
                 self.clean_sites(msp_file, temp_clean)
                 with tree_file.open("wt", encoding="UTF-8") as tree:

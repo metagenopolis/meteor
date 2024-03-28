@@ -15,7 +15,8 @@
 import logging
 import sys
 import tempfile
-from subprocess import check_call, run
+import lzma
+from subprocess import check_call, run, Popen, PIPE
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
@@ -232,7 +233,7 @@ class VariantCalling(Session):
         )
         consensus_file = (
             self.census["directory"]
-            / f"{self.census['census']['sample_info']['sample_name']}_consensus.fasta"
+            / f"{self.census['census']['sample_info']['sample_name']}_consensus.fasta.xz"
         )
         reference_file = (
             self.meteor.ref_dir
@@ -388,7 +389,7 @@ class VariantCalling(Session):
                         perf_counter() - startlowcovbed,
                     )
                     startlowcov = perf_counter()
-                    check_call(
+                    bcftools_process = Popen(
                         [
                             "bcftools",
                             "consensus",
@@ -398,11 +399,19 @@ class VariantCalling(Session):
                             "-",
                             "-f",
                             str(reference_file.resolve()),
-                            "-o",
-                            str(consensus_file.resolve()),
                             str(vcf_file.resolve()),
-                        ]
+                        ],
+                        stdout=PIPE,
                     )
+                    # capture output of bcftools_process
+                    bcftools_output = bcftools_process.communicate()[0]
+
+                    # compress output using lzma
+                    compressed_output = lzma.compress(bcftools_output)
+
+                    # write compressed output to file
+                    with open(str(consensus_file.resolve()), "wb") as f:
+                        f.write(compressed_output)
                 logging.info(
                     "Completed low coverage regions filtering step in %f seconds",
                     perf_counter() - startlowcov,

@@ -71,6 +71,6 @@ def test_execute(vc_builder: VariantCalling) -> None:
     assert output_vcf.exists()
     output_consensus = (
         vc_builder.census["directory"]
-        / f"{vc_builder.census['census']['sample_info']['sample_name']}_consensus.fasta"
+        / f"{vc_builder.census['census']['sample_info']['sample_name']}_consensus.fasta.xz"
     )
     assert output_consensus.exists()
