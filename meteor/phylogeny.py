@@ -25,6 +25,7 @@ from typing import Iterable
 import re
 import logging
 import sys
+import os
 
 
 @dataclass
@@ -113,6 +114,7 @@ class Phylogeny(Session):
                 # Clean sites
                 self.clean_sites(msp_file, temp_clean)
                 with tree_file.open("wt", encoding="UTF-8") as tree:
+                    os.environ["OMP_NUM_THREADS"] = str(self.meteor.threads)
                     # Compute trees
                     call(
                         [
