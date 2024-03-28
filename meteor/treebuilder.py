@@ -23,7 +23,7 @@ import logging
 import sys
 import pandas as pd
 import lzma
-
+from shutil import rmtree
 
 @dataclass
 class TreeBuilder(Session):
@@ -121,3 +121,4 @@ class TreeBuilder(Session):
                     )
             except ete3.parser.newick.NewickError:
                 logging.info("Not sufficient info in %s.", str(tree_file.resolve()))
+        rmtree(self.meteor.tmp_dir, ignore_errors=True)
