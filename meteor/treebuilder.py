@@ -32,7 +32,7 @@ class TreeBuilder(Session):
     max_gap: float
     width: int
     height: int
-    format: str
+    format: str | None
     gap_char: str
 
     def __post_init__(self) -> None:
@@ -79,8 +79,9 @@ class TreeBuilder(Session):
         else:
             logging.info("%d samples have been detected.", len(all_census))
         msp_file_dict = defaultdict(list)
-        for filepath in self.meteor.strain_dir.glob("**/" + "msp_*"):
-            msp_file_dict[filepath.name].append(filepath)
+        for filepath in self.meteor.strain_dir.glob("**/*.fasta"):
+            if not filepath.name.endswith("_consensus.fasta"):
+                msp_file_dict[filepath.name].append(filepath)
         # Concatenate msp files
         msp_file_list = self.concatenate(msp_file_dict)
         # Compute phylogenies
@@ -92,22 +93,27 @@ class TreeBuilder(Session):
         for msp_file in msp_file_list:
             tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
             img_file = self.meteor.tree_dir / f"{msp_file.stem}.{self.format}"
-            msp_tree = Tree(str(tree_file.resolve()))
-            # Generate a distance msp by msp
-            matrix = self.get_msp_distance(msp_tree)
-            matrix.to_csv(self.meteor.tree_dir / f"{msp_file.stem}.tsv", sep="\t")
-            # Draw trees
-            if self.format == "txt":
-                with img_file.open("wt", encoding="UTF-8") as outfile:
-                    outfile.write(msp_tree.get_ascii(show_internal=True))
-            else:
-                # ts = TreeStyle()
-                # ts.show_leaf_name = True
-                # ts.show_branch_length = True
-                msp_tree.render(
-                    str(img_file.resolve()),
-                    w=self.width,
-                    h=self.height,
-                    units="px",
-                    dpi=300,
-                )
+            try:
+                msp_tree = Tree(str(tree_file.resolve()))
+                # Generate a distance msp by msp
+                matrix = self.get_msp_distance(msp_tree)
+                matrix.to_csv(self.meteor.tree_dir / f"{msp_file.stem}.tsv", sep="\t")
+                # Draw trees
+                if not self.format:
+                    pass
+                elif self.format == "txt":
+                    with img_file.open("wt", encoding="UTF-8") as outfile:
+                        outfile.write(msp_tree.get_ascii(show_internal=True))
+                else:
+                    # ts = TreeStyle()
+                    # ts.show_leaf_name = True
+                    # ts.show_branch_length = True
+                    msp_tree.render(
+                        str(img_file.resolve()),
+                        w=self.width,
+                        h=self.height,
+                        units="px",
+                        dpi=300,
+                    )
+            except ete3.parser.newick.NewickError:
+                logging.info("Not sufficient info in %s.", str(tree_file.resolve()))

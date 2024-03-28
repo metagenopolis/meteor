@@ -16,6 +16,7 @@
 
 import sys
 import logging
+import shutil
 from argparse import ArgumentParser, ArgumentTypeError, Namespace, RawTextHelpFormatter
 from pathlib import Path
 from meteor.session import Component
@@ -85,11 +86,8 @@ def isdir(path: str) -> Path:  # pragma: no cover
     :return: (str) Path object of the directory
     """
     mydir = Path(path)
-    if not mydir.is_dir():
-        if not mydir.exists():
-            msg = f"{mydir.name} does not exist."
-        else:
-            msg = f"{mydir.name} is not a directory."
+    if mydir.is_file():
+        msg = f"{mydir.name} is a file."
         raise ArgumentTypeError(msg)
     return mydir
 
@@ -112,9 +110,6 @@ def isborned01(x: str) -> float:
 
 
 def num_threads(value):
-    import multiprocessing
-
-    max_num_threads = multiprocessing.cpu_count()
 
     try:
         value = int(value)
@@ -125,11 +120,6 @@ def num_threads(value):
 
     if value <= 0:
         raise ArgumentTypeError("the minimum number of threads is 1")
-    if value > max_num_threads:
-        raise ArgumentTypeError(
-            f"the maximum number of threads should not exceed the number of CPU cores ({max_num_threads})"
-        )
-
     return value
 
 
@@ -387,8 +377,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=int,
         default=-1,
         help="Rarefaction level. If negative: no rarefation is performed "
-        "(default: %(default)d)."
-        ,
+        "(default: %(default)d).",
     )
     profiling_parser.add_argument(
         "--seed",
@@ -404,8 +393,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=str,
         choices=["coverage", "fpkm", "raw"],
         default="coverage",
-        help="Normalization applied to raw gene counts "
-        "(default: %(default)s).",
+        help="Normalization applied to raw gene counts " "(default: %(default)s).",
     )
     profiling_parser.add_argument(
         "-c",
@@ -436,7 +424,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=isborned01,
         default=0.9,
         help="Cutoff above which a module is considered as present in a species.\n"
-        "Value between 0.0 and 1.0 (default: %(default).1f).""",
+        "Value between 0.0 and 1.0 (default: %(default).1f)."
+        "",
     )
     # Define merging argument parsing
     merging_parser = subparsers.add_parser(
@@ -450,8 +439,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         required=True,
         type=isdir,
         help="Directory containing subdirectories (one per sample) with abundance tables to be merged.\n"
-        "(each subdirectory contains a metadata file ending with _census_stage_2.json)"
-        ,
+        "(each subdirectory contains a metadata file ending with _census_stage_2.json)",
     )
     merging_parser.add_argument(
         "-r",
@@ -511,8 +499,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
                         'f' : families only
                         'g' : genera only
                         's' : species only
-                        't' : MSPs only"""
-                        ,
+                        't' : MSPs only""",
     )
     merging_parser.add_argument(
         "-o",
@@ -525,15 +512,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-p",
         dest="prefix",
         default="output",
-        help="Prefix added to output filenames "
-        "(default: %(default)s)."
-        ,
+        help="Prefix added to output filenames " "(default: %(default)s).",
     )
     merging_parser.add_argument(
         "-g",
         dest="output_gene_matrix",
         action="store_true",
-        help="Merge gene abudance tables (Very slow. Use with caution).",
+        help="Merge gene abundance tables.",
     )
     strain_parser = subparsers.add_parser(
         "strain", help="Identifies strains from metagenomic samples"
@@ -651,7 +636,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     tree_parser.add_argument(
         "-f",
         dest="format",
-        default="txt",
+        default=None,
         choices=["png", "svg", "pdf", "txt"],
         type=str,
         help="Output image format (default txt).",
@@ -830,9 +815,36 @@ def main() -> None:  # pragma: no cover
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
             meteor.ref_dir = meteor.ref_dir / "mock"
-            counter = Counter(meteor, "smart_shared", "end-to-end", 80, 1, 100)
+            counter = Counter(meteor, "best", "end-to-end", 80, 0.97, 100, False, True)
             counter.execute()
-            # TODO Add strain analysis
+            meteor.fastq_dir = Path(tmpdirname) / "test2"
+            counter = Counter(meteor, "best", "end-to-end", 80, 0.97, 100, False, True)
+            counter.execute()
+            # Remove the mapping directory and its contents
+            shutil.rmtree(Path(tmpdirname) / "test")
+            shutil.rmtree(Path(tmpdirname) / "test2")
+            meteor.mapped_sample_dir = meteor.mapping_dir / "test"
+            meteor.strain_dir = Path(tmpdirname) / "strain"
+            strain_detector = Strain(meteor, 100, 2, 0.2, 10, 0.2, False)
+            strain_detector.execute()
+            meteor.mapped_sample_dir = meteor.mapping_dir / "test2"
+            strain_detector = Strain(meteor, 100, 2, 0.2, 10, 0.2, False)
+            strain_detector.execute()
+            # Remove the mapping directory and its contents
+            shutil.rmtree(meteor.mapping_dir)
+            meteor.tree_dir = Path(tmpdirname) / "tree"
+            trees = TreeBuilder(
+                meteor,
+                0.1,
+                800,
+                600,
+                None,
+                "-",
+            )
+            trees.execute()
+            shutil.rmtree(meteor.strain_dir)
+            shutil.rmtree(meteor.tree_dir)
+            shutil.rmtree(meteor.ref_dir)
     # Close logging
     logger.handlers[0].close()
 
