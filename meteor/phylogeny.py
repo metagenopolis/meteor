@@ -14,11 +14,9 @@
 import re
 import logging
 import sys
-import os
-import subprocess
 from dataclasses import dataclass
 from meteor.session import Session, Component
-from subprocess import call, run
+from subprocess import check_call, run
 from time import perf_counter
 from pathlib import Path
 import tempfile
@@ -47,24 +45,36 @@ class Phylogeny(Session):
 
     def clean_sites(
         self, msp_file: Path, output: tempfile._TemporaryFileWrapper
-    ) -> None:
+    ) -> dict[str, str]:
         """Clean msp sequence according to a certain level of gap at each sites.
         :param msp_file: (Path) Fasta file
         :param output_file: (Path) Output cleaned fasta file
+        :return: Dict of cleaned sequences
         """
         gene_dict = OrderedDict(
             (gene_id, seq) for gene_id, seq in self.get_sequences_class(msp_file)
         )
         info_ratio = self.compute_site_info(gene_dict.values())
+        resultdict = {}
         for gene_id, seq in gene_dict.items():
             # assert len(info_ratio) == len(seq)
             output_seq = "".join(
                 seq[i] for i, perc in enumerate(info_ratio) if perc <= self.max_gap
             )
             print(f">{gene_id}\n{output_seq}\n", file=output)
+            resultdict[gene_id] = output_seq
+        return resultdict
+
+    def compute_mutation_rate(self, seq1, seq2):
+        """Compute mutation rate between two sequences."""
+        if len(seq1) != len(seq2):
+            raise ValueError("Sequences must be of the same length.")
+
+        mutations = sum(nuc1 != nuc2 for nuc1, nuc2 in zip(seq1, seq2))
+        return mutations / len(seq1)
 
     def set_tree_config(
-        self, fasttree_version: str, tree_files: list[Path]
+        self, raxml_ng_version: str, tree_files: list[Path]
     ) -> dict:  # pragma: no cover
         """Define the census configuration
 
@@ -75,8 +85,8 @@ class Phylogeny(Session):
         config = {
             "meteor_version": self.meteor.version,
             "phylogeny": {
-                "phylogeny_tool": "FastTree",
-                "phylogeny_version": fasttree_version,
+                "phylogeny_tool": "raxml-ng",
+                "phylogeny_version": raxml_ng_version,
                 "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
                 "tree_files": ",".join([tree.name for tree in tree_files]),
             },
@@ -86,47 +96,22 @@ class Phylogeny(Session):
     def execute(self) -> None:
         logging.info("Launch phylogeny analysis")
         # Define the regex pattern to match the version number
-        version_pattern = re.compile(r"FastTree version (\d+\.\d+\.\d+)")
-        logging.info("Test FastTree version")
-        # Print environment variables and PATH
-        print("Environment variables:", os.environ)
-        print("PATH:", os.environ.get("PATH"))
-
-        # Print the location of FastTree
-        try:
-            fasttree_location = subprocess.check_output(["which", "FastTree"])
-            print("FastTree location:", fasttree_location)
-        except subprocess.CalledProcessError:
-            print("FastTree not found in PATH.")
-
-        # Set the environment variable
-        os.environ["OMP_NUM_THREADS"] = str(self.meteor.threads)
-
-        # Print the FastTree help message
-        try:
-            fasttree_help = str(
-                subprocess.run(["FastTree"], capture_output=True, timeout=30).stderr
-            ).split("\\n")[0]
-            print("FastTree help message:", fasttree_help)
-        except subprocess.TimeoutExpired:
-            print("FastTree command timed out.")
-        except Exception as e:
-            print("Error running FastTree:", e)
-        # Use findall to extract the version number
-        matches = version_pattern.findall(fasttree_help)
-
+        version_pattern = re.compile(r"RAxML-NG v\. (\d+\.\d+\.\d+)")
+        raxml_ng_help = run(
+            ["raxml-ng", "--version"], capture_output=True
+        ).stdout.decode("utf-8")
+        match = version_pattern.search(raxml_ng_help)
         # Check if a match is found
-        if matches:
-            fasttree_version = matches[0]
-            if parse(fasttree_version) < Version("1.9.0"):
+        if match:
+            raxml_ng_version = match.group(1)
+            if parse(raxml_ng_version) < Version("1.0.0"):
                 logging.error(
-                    "The FastTree version %s is outdated for meteor. Please update FastTree to >=1.9.0.",
-                    fasttree_version,
+                    "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >=1.0.0.",
+                    raxml_ng_version,
                 )
                 sys.exit(1)
         else:
-            fasttree_version = "UNK"
-            logging.error("Failed to determine the FastTree version.")
+            logging.error("Failed to determine the raxml-ng version.")
         # Start phylogenies
         start = perf_counter()
         tree_files: list[Path] = []
@@ -139,26 +124,64 @@ class Phylogeny(Session):
                 mode="wt", dir=self.meteor.tmp_dir, suffix=".fasta"
             ) as temp_clean:
                 tree_file = self.meteor.tree_dir / f"{msp_file.name}".replace(
-                    ".fasta", ".tree"
+                    ".fasta", ""
                 )
                 # Clean sites
-                self.clean_sites(msp_file, temp_clean)
+                cleaned_seqs = self.clean_sites(msp_file, temp_clean)
                 logging.info("Clean sites for MSP %d/%d", idx, msp_count)
-                with tree_file.open("wt", encoding="UTF-8") as tree:
+                if len(cleaned_seqs) >= 4:
                     # Compute trees
-                    result = call(
+                    result = check_call(
                         [
-                            "FastTree",
-                            "-nt",
-                            "-gtr",
+                            "raxml-ng",
+                            "--threads",
+                            str(self.meteor.threads),
+                            "--msa",
                             temp_clean.name,
-                        ],
-                        stdout=tree,
+                            "--model",
+                            "GTR+G",
+                            "--redo",
+                            "--prefix",
+                            str(tree_file.resolve()),
+                        ]
                     )
                     if result != 0:
-                        logging.error("FastTree failed with return code %d", result)
-                    tree_files.append(tree_file)
+                        logging.error("raxml-ng failed with return code %d", result)
+                else:
+                    logging.info(
+                        "MSP %s have less than 4 sequences, we compute the mutation rate",
+                        msp_file.name,
+                    )
+                    with open(tree_file.parent / "cleaned_sequences.fasta", "w") as f:
+                        for seq_name, sequence in cleaned_seqs.items():
+                            f.write(f">{seq_name}\n{sequence}\n")
+                    mutation_rate = []
+                    seq_ids = list(cleaned_seqs.keys())
+                    for i in range(len(seq_ids)):
+                        for j in range(i + 1, len(seq_ids)):
+                            seq1 = cleaned_seqs[seq_ids[i]]
+                            seq2 = cleaned_seqs[seq_ids[j]]
+                            mutation_rate += [self.compute_mutation_rate(seq1, seq2)]
+                    # Construct Newick format string
+                    with open(tree_file.with_suffix(".tree"), "wt") as tree:
+                        if len(seq_ids) == 2:
+                            tree.write(
+                                f"({seq_ids[0]}:{mutation_rate[0]}, {seq_ids[1]}:{mutation_rate[0]});"
+                            )
+                        else:  # case 3
+                            min_rate_idx = mutation_rate.index(min(mutation_rate))
+                            if (
+                                min_rate_idx == 0
+                            ):  # seq1 and seq2 have the smallest distance
+                                tree.write(
+                                    f"(({seq_ids[0]}:{mutation_rate[0]}, {seq_ids[1]}:{mutation_rate[0]}):{mutation_rate[1]}, {seq_ids[2]}:{mutation_rate[1]});"
+                                )
+                            else:  # seq1 and seq3 have the smallest distance
+                                tree.write(
+                                    f"(({seq_ids[0]}:{mutation_rate[1]}, {seq_ids[2]}:{mutation_rate[1]}):{mutation_rate[0]}, {seq_ids[1]}:{mutation_rate[0]});"
+                                )
+                tree_files.append(tree_file)
             logging.info("Completed MSP tree %d/%d", idx, msp_count)
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
-        config = self.set_tree_config(fasttree_version, tree_files)
+        config = self.set_tree_config(raxml_ng_version, tree_files)
         self.save_config(config, self.meteor.tree_dir / "census_stage_4.json")
