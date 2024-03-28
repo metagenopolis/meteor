@@ -231,7 +231,6 @@ def get_arguments() -> Namespace:  # pragma: no cover
     fastq_parser.add_argument(
         "-p",
         dest="ispaired",
-        default=False,
         action="store_true",
         help="Fastq files are paired.",
     )
