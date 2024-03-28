@@ -113,7 +113,7 @@ class Phylogeny(Session):
                 "Start analysis of MSP %s: %d/%d", msp_file.name, idx, msp_count
             )
             with NamedTemporaryFile(
-                mode="wt", dir=self.meteor.tmp_dir, suffix=".fasta", delete=False
+                mode="wt", dir=self.meteor.tmp_dir, suffix=".fasta"
             ) as temp_clean:
                 tree_file = self.meteor.tree_dir / f"{msp_file.name}".replace(
                     ".fasta", ".tree"
