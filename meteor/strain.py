@@ -24,6 +24,7 @@ from pathlib import Path
 from time import perf_counter
 from io import StringIO
 import pysam
+from shutil import rmtree
 
 
 @dataclass
@@ -279,3 +280,5 @@ class Strain(Session):
                 self.meteor.fastq_dir,
             )
             sys.exit(1)
+        else:
+            rmtree(self.meteor.tmp_dir, ignore_errors=True)
