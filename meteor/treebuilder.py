@@ -94,7 +94,6 @@ class TreeBuilder(Session):
         phylogeny_process.execute()
         # Analyze tree data
         for msp_file in msp_file_list:
-            print("here WTF:", msp_file)
             tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
             img_file = self.meteor.tree_dir / f"{msp_file.stem}.{self.format}"
             try:
