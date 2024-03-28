@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "meteor"
-version = "2.0.5"
+version = "2.0.6"
 description = "Meteor - A plateform for quantitative metagenomic profiling of complex ecosystems"
 authors = ["Amine Ghozlane <amine.ghozlane@pasteur.fr>", "Florence Thirion <florence.thirion@inrae.fr>"]
 license = "GPL-3.0-or-later"
