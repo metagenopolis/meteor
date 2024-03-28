@@ -231,7 +231,6 @@ def get_arguments() -> Namespace:  # pragma: no cover
     fastq_parser.add_argument(
         "-p",
         dest="ispaired",
-        default=False,
         action="store_true",
         help="Fastq files are paired.",
     )
@@ -542,10 +541,10 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="max_depth",
         default=100,
         type=int,
-        help="Maximum depth taken in account (default 100).",
+        help="Maximum depth taken in account (default: %(default)d).",
     )
     strain_parser.add_argument(
-        "-t", dest="threads", default=1, type=int, help="Threads count."
+        "-t", dest="threads", default=1, type=num_threads, help="Threads count."
     )
     # strain_parser.add_argument(
     #     "-c",
@@ -561,7 +560,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         choices=range(1, 10000),
         metavar="MIN_SNP_DEPTH",
         type=int,
-        help="""Minimum snp depth (default >=3).
+        help="""Minimum snp depth (default: >= %(default)d).
         Values should be comprised between 1 and the maximum depth
         (10000 reads are taken in account).""",
     )
@@ -570,7 +569,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="min_frequency_non_reference",
         default=0.8,
         type=isborned01,
-        help="Minimum frequency for non reference allele (default >=0.8).",
+        help="Minimum frequency for non reference allele (default: >= %(default).1f).",
     )
     strain_parser.add_argument(
         "-m",
@@ -579,7 +578,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         choices=range(1, 101),
         metavar="MIN_MSP_COVERAGE",
         type=int,
-        help="""Minimum number of genes from the MSP that are covered (default >=50).
+        help="""Minimum number of genes from the MSP that are covered (default: >= %(default)d).
         Values should be comprised between 1 and 100
         (maximum number of core genes taken in account).""",
     )
@@ -588,7 +587,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="min_gene_coverage",
         default=0.8,
         type=isborned01,
-        help="Minimum gene coverage from 0 to 1 (default >=0.5).",
+        help="Minimum gene coverage from 0 to 1 (default: >= %(default).1f).",
     )
     strain_parser.add_argument(
         "-o",
@@ -601,7 +600,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--kc",
         dest="keep_consensus",
         action="store_true",
-        help="Keep consensus marker genes (default False, set to True to recompute strain)",
+        help="Keep consensus marker genes (default: False, set to True to recompute strain)",
     )
     strain_parser.add_argument(
         "--tmp",
@@ -624,14 +623,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="max_gap",
         default=0.5,
         type=isborned01,
-        help="Removes sites constitued of >= cutoff gap character (default >=0.5).",
+        help="Removes sites constitued of >= cutoff gap character (default: >= %(default).1f).",
     )
     tree_parser.add_argument(
         "-c",
         dest="gap_char",
         default="-",
         type=str,
-        help="Gap character (default -).",
+        help="Gap character (default: %(default)s).",
     )
     tree_parser.add_argument(
         "-f",
@@ -639,21 +638,21 @@ def get_arguments() -> Namespace:  # pragma: no cover
         default=None,
         choices=["png", "svg", "pdf", "txt"],
         type=str,
-        help="Output image format (default txt).",
+        help="Output image format (default: %(default)s).",
     )
     tree_parser.add_argument(
         "-w",
         dest="width",
         default=500,
         type=int,
-        help="Output image width (default 500px).",
+        help="Output image width (default: %(default)dpx).",
     )
     tree_parser.add_argument(
         "-H",
         dest="height",
         default=500,
         type=int,
-        help="Output image height (default 500px).",
+        help="Output image height (default: %(default)dpx).",
     )
     tree_parser.add_argument(
         "-o",
@@ -663,7 +662,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Path to output directory.",
     )
     tree_parser.add_argument(
-        "-t", dest="threads", default=1, type=int, help="Threads count."
+        "-t", dest="threads", default=num_threads, type=int, help="Threads count."
     )
     tree_parser.add_argument(
         "--tmp",
