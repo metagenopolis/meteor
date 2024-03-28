@@ -84,11 +84,14 @@ class Phylogeny(Session):
 
     def execute(self) -> None:
         logging.info("Launch phylogeny analysis")
+        os.environ["OMP_NUM_THREADS"] = str(self.meteor.threads)
         # Define the regex pattern to match the version number
         version_pattern = re.compile(r"FastTree version (\d+\.\d+\.\d+)")
+        logging.info("Test FastTree version")
         fasttree_help = str(run(["FastTree"], capture_output=True).stderr).split("\\n")[
             0
         ]
+        print(fasttree_help)
         # Use findall to extract the version number
         matches = version_pattern.findall(fasttree_help)
 
@@ -122,7 +125,6 @@ class Phylogeny(Session):
                 self.clean_sites(msp_file, temp_clean)
                 logging.info("Clean sites for MSP %d/%d", idx, msp_count)
                 with tree_file.open("wt", encoding="UTF-8") as tree:
-                    os.environ["OMP_NUM_THREADS"] = str(self.meteor.threads)
                     # Compute trees
                     result = call(
                         [
