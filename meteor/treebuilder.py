@@ -22,6 +22,7 @@ from meteor.phylogeny import Phylogeny
 import logging
 import sys
 import pandas as pd
+import lzma
 
 
 @dataclass
@@ -48,10 +49,12 @@ class TreeBuilder(Session):
         # Concatenate files that occur in more than one directory
         for filename, paths in msp_file_dict.items():
             if len(paths) > 1:
-                res = self.meteor.tree_dir / f"{filename}"
+                res = self.meteor.tree_dir / f"{filename}".replace(
+                    ".fasta.xz", ".fasta"
+                )
                 with res.open("wt", encoding="UTF-8") as outfile:
                     for path in paths:
-                        with open(path, "r") as infile:
+                        with lzma.open(path, "rt") as infile:
                             outfile.write(infile.read())
                 msp_list += [res]
         return msp_list
@@ -79,7 +82,7 @@ class TreeBuilder(Session):
         else:
             logging.info("%d samples have been detected.", len(all_census))
         msp_file_dict = defaultdict(list)
-        for filepath in self.meteor.strain_dir.glob("**/*.fasta"):
+        for filepath in self.meteor.strain_dir.glob("**/*.fasta.xz"):
             if not filepath.name.endswith("_consensus.fasta"):
                 msp_file_dict[filepath.name].append(filepath)
         # Concatenate msp files

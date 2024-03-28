@@ -159,7 +159,7 @@ class Session(Protocol):
         """
         gene_id: int = 0
         seq: str = ""
-        with fasta_file.open("rt", encoding="UTF-8") as fasta:
+        with lzma.open(fasta_file, "rt") as fasta:
             for line in fasta:
                 if line.startswith(">"):
                     if len(seq) > 0:

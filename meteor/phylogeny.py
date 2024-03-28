@@ -106,17 +106,20 @@ class Phylogeny(Session):
         # Start phylogenies
         start = perf_counter()
         tree_files: list[Path] = []
-        for msp_file in self.msp_file_list:
+        msp_count = len(self.msp_file_list)
+        for idx, msp_file in enumerate(self.msp_file_list, start=1):
             with NamedTemporaryFile(
                 mode="wt", dir=self.meteor.tmp_dir, suffix=".fasta", delete=False
             ) as temp_clean:
-                tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
+                tree_file = self.meteor.tree_dir / f"{msp_file.name}".replace(
+                    ".fasta", ".tree"
+                )
                 # Clean sites
                 self.clean_sites(msp_file, temp_clean)
                 with tree_file.open("wt", encoding="UTF-8") as tree:
                     os.environ["OMP_NUM_THREADS"] = str(self.meteor.threads)
                     # Compute trees
-                    call(
+                    result = call(
                         [
                             "FastTree",
                             "-nt",
@@ -125,7 +128,10 @@ class Phylogeny(Session):
                         ],
                         stdout=tree,
                     )
+                    if result != 0:
+                        logging.error("FastTree failed with return code %d", result)
                     tree_files.append(tree_file)
+            logging.info("Completed MSP tree %d/%d", idx, msp_count)
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
         config = self.set_tree_config(fasttree_version, tree_files)
         self.save_config(config, self.meteor.tree_dir / "census_stage_4.json")

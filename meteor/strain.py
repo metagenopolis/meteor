@@ -14,6 +14,7 @@
 
 import sys
 import logging
+import lzma
 import pandas as pd
 from dataclasses import dataclass, field
 from meteor.variantcalling import VariantCalling
@@ -160,7 +161,7 @@ class Strain(Session):
             len(msp_with_overlapping_genes["msp_name"].values),
         )
         for msp_name in msp_with_overlapping_genes["msp_name"].values:
-            msp_file = self.json_data["directory"] / Path(msp_name + ".fasta")
+            msp_file = self.json_data["directory"] / Path(msp_name + ".fasta.xz")
             msp_seq = ""
             for gene_id in msp_content[msp_content["msp_name"] == msp_name][
                 "gene_id"
@@ -169,7 +170,7 @@ class Strain(Session):
                     msp_seq += gene_dict[gene_id]
                 else:
                     msp_seq += "-" * len(gene_dict[gene_id])
-            with msp_file.open("wt", encoding="UTF-8") as msp:
+            with lzma.open(msp_file, "wt", preset=0) as msp:
                 print(
                     f">{self.json_data['census']['sample_info']['sample_name']}\n{msp_seq}\n",
                     file=msp,
@@ -247,7 +248,7 @@ class Strain(Session):
                 )
             consensus_file = (
                 self.json_data["directory"]
-                / f"{sample_info['sample_name']}_consensus.fasta"
+                / f"{sample_info['sample_name']}_consensus.fasta.xz"
             )
             # count_file = (
             #     self.json_data["mapped_sample_dir"] / f"{sample_info['sample_name']}.tsv"
