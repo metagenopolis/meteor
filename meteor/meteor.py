@@ -805,7 +805,7 @@ def main() -> None:  # pragma: no cover
             meteor.ref_name = "test"
             meteor.ref_dir = Path(tmpdirname) / "ref"
             meteor.threads = 1
-            meteor.tmp_path = Path("")
+            meteor.tmp_path = Path(tmpdirname)
             meteor.tmp_dir = Path(tmpdirname)
             meteor.mapping_dir = Path(tmpdirname) / "map"
             meteor.fastq_dir = Path(tmpdirname)
