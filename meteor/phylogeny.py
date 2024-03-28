@@ -83,6 +83,7 @@ class Phylogeny(Session):
         return config
 
     def execute(self) -> None:
+        logging.info("Launch phylogeny analysis")
         # Define the regex pattern to match the version number
         version_pattern = re.compile(r"FastTree version (\d+\.\d+\.\d+)")
         fasttree_help = str(run(["FastTree"], capture_output=True).stderr).split("\\n")[

@@ -57,6 +57,7 @@ class TreeBuilder(Session):
                         with lzma.open(path, "rt") as infile:
                             outfile.write(infile.read())
                 msp_list += [res]
+        logging.info(f"{len(msp_list)} MSPs are available for tree analysis.")
         return msp_list
 
     def get_msp_distance(self, tree: ete3.TreeNode) -> pd.DataFrame:
@@ -83,7 +84,7 @@ class TreeBuilder(Session):
             logging.info("%d samples have been detected.", len(all_census))
         msp_file_dict = defaultdict(list)
         for filepath in self.meteor.strain_dir.glob("**/*.fasta.xz"):
-            if not filepath.name.endswith("_consensus.fasta"):
+            if not filepath.name.endswith("_consensus.fasta.xz"):
                 msp_file_dict[filepath.name].append(filepath)
         # Concatenate msp files
         msp_file_list = self.concatenate(msp_file_dict)
