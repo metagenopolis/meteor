@@ -109,6 +109,9 @@ class Phylogeny(Session):
         tree_files: list[Path] = []
         msp_count = len(self.msp_file_list)
         for idx, msp_file in enumerate(self.msp_file_list, start=1):
+            logging.info(
+                "Start analysis of MSP %s: %d/%d", msp_file.name, idx, msp_count
+            )
             with NamedTemporaryFile(
                 mode="wt", dir=self.meteor.tmp_dir, suffix=".fasta", delete=False
             ) as temp_clean:
@@ -117,6 +120,7 @@ class Phylogeny(Session):
                 )
                 # Clean sites
                 self.clean_sites(msp_file, temp_clean)
+                logging.info("Clean sites for MSP %d/%d", idx, msp_count)
                 with tree_file.open("wt", encoding="UTF-8") as tree:
                     os.environ["OMP_NUM_THREADS"] = str(self.meteor.threads)
                     # Compute trees
