@@ -21,6 +21,7 @@ from tempfile import NamedTemporaryFile
 from packaging.version import Version, parse
 from collections import OrderedDict
 from datetime import datetime
+from typing import Iterable
 import re
 import logging
 import sys
@@ -35,7 +36,7 @@ class Phylogeny(Session):
     max_gap: float
     gap_char: str
 
-    def compute_site_info(self, sequences: list[str]) -> list[float]:
+    def compute_site_info(self, sequences: Iterable[str]) -> list[float]:
         """Calculate the percentage of "_" at each position
         :param sequences: (List) A list of sequence
         :return: (List) A list of the ratio of gap at each position
@@ -52,11 +53,11 @@ class Phylogeny(Session):
         gene_dict = OrderedDict(
             (gene_id, seq) for gene_id, seq in self.get_sequences_class(msp_file)
         )
-        info_ratio = self.compute_site_info(list(gene_dict.values()))
+        info_ratio = self.compute_site_info(gene_dict.values())
         for gene_id, seq in gene_dict.items():
             # assert len(info_ratio) == len(seq)
             output_seq = "".join(
-                [seq[i] for i, perc in enumerate(info_ratio) if perc <= self.max_gap]
+                seq[i] for i, perc in enumerate(info_ratio) if perc <= self.max_gap
             )
             print(f">{gene_id}\n{output_seq}\n", file=output)
 
