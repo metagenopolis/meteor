@@ -667,10 +667,10 @@ def main() -> None:  # pragma: no cover
     """
     Main program function
     """
-    # Get arguments
-    args = get_arguments()
     # Let us logging
     logger = get_logging()
+    # Get arguments
+    args = get_arguments()
     # version = importlib.metadata.version("meteor")
     # print("Meteor version", version)
     # Create a meteor dataset

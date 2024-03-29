@@ -23,6 +23,7 @@ from time import time
 import tarfile
 import json
 from typing import ClassVar
+import sys
 
 
 @dataclass
@@ -47,8 +48,9 @@ class Downloader(Session):
             with importlib.resources.as_file(config_data) as configuration_path:
                 with configuration_path.open("rt", encoding="UTF-8") as config:
                     return json.load(config)
-        except AssertionError:
+        except FileNotFoundError:
             logging.error("The file %s is missing in meteor source", Downloader.CONFIG_DATA_FILE.name)
+            sys.exit(1)
     
     @staticmethod
     def get_available_catalogues() -> list[str]:
