@@ -157,3 +157,4 @@ class Downloader(Session):
             )
         except AssertionError:
             logging.error("MD5sum of %s has a different value than expected", catalogue)
+            sys.exit(1)
