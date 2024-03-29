@@ -104,7 +104,13 @@ class TreeBuilder(Session):
         phylogeny_process.execute()
         # Analyze tree data
         for msp_file in msp_file_list:
-            tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
+            # Check for a .raxml.bestTree file
+            raxml_tree_file = self.meteor.tree_dir / f"{msp_file.stem}.raxml.bestTree"
+            if raxml_tree_file.exists():
+                tree_file = raxml_tree_file
+            else:
+                # If no .raxml.bestTree file exists, check for a .tree file
+                tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
             img_file = self.meteor.tree_dir / f"{msp_file.stem}.{self.format}"
             try:
                 msp_tree = Tree(str(tree_file.resolve()))

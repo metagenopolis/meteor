@@ -31,7 +31,7 @@ requirements:
         - packaging
         - biom-format
         - bcftools>=0.1.19
-        - fasttree>=1.9.0
+        - raxml-ng>=1.0.0
         - bedtools>=2.18.0
 test:
     commands:
