@@ -36,7 +36,7 @@ class Counter(Session):
 
     COUNTING_TYPES: ClassVar[list[str]] = ["total", "smart_shared", "unique"]
     DEFAULT_COUNTING_TYPE: ClassVar[str] = "smart_shared"
-    NO_IDENTITY_THRESHOLD: ClassVar[float] = 0.95
+    NO_IDENTITY_THRESHOLD: ClassVar[float] = 0.0
     DEFAULT_IDENTITY_THRESHOLD: ClassVar[float] = 0.95
 
     meteor: type[Component]
