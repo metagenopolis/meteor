@@ -148,18 +148,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="user_choice",
         type=str,
         required=True,
-        choices=[
-            "cat_gut",
-            "chicken_caecal",
-            "dog_gut",
-            "human_gut",
-            "human_oral",
-            "human_skin",
-            "mouse_gut",
-            "rabbit_gut",
-            "rat_gut",
-            "pig_gut",
-        ],
+        choices=Downloader.get_available_catalogues(),
         help="Select the catalogue to download.",
     )
     download_parser.add_argument(
