@@ -34,6 +34,7 @@ def merging_profiles(datadir: Path, tmp_path: Path) -> Merging:
         min_msp_occurrence=0,
         remove_sample_with_no_msp=False,
         output_mpa=False,
+        mpa_taxonomic_level=None,
         output_biom=False,
         output_gene_matrix=True,
     )
@@ -59,6 +60,7 @@ def merging_fast(datadir: Path, tmp_path: Path) -> Merging:
         min_msp_occurrence=0,
         remove_sample_with_no_msp=False,
         output_mpa=False,
+        mpa_taxonomic_level=None,
         output_biom=False,
         output_gene_matrix=False,
     )

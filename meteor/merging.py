@@ -39,11 +39,11 @@ class Merging(Session):
     prefix: str
     min_msp_abundance: float
     min_msp_occurrence: int
-    remove_sample_with_no_msp: bool = True
-    output_mpa: bool = False
+    remove_sample_with_no_msp: bool
+    output_mpa: bool
     mpa_taxonomic_level: str
-    output_biom: bool = False
-    output_gene_matrix: bool = False
+    output_biom: bool
+    output_gene_matrix: bool
     ranks: dict[str, str] = field(
         default_factory=lambda: {
             "superkingdom": "k__",
