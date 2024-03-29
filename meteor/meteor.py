@@ -22,6 +22,7 @@ from pathlib import Path
 from meteor.session import Component
 from meteor.fastqimporter import FastqImporter
 from meteor.referencebuilder import ReferenceBuilder
+from meteor.mapper import Mapper
 from meteor.counter import Counter
 from meteor.downloader import Downloader
 from meteor.profiler import Profiler
@@ -199,7 +200,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     reference_parser.add_argument(
         "-t",
         dest="threads",
-        default=1,
+        default=ReferenceBuilder.DEFAULT_NUM_THREADS,
         type=num_threads,
         help="Number of threads to launch while indexing the catalogue (default: %(default)d).",
     )
@@ -269,40 +270,40 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-p",
         dest="mapping_type",
         type=str,
-        choices=["local", "end-to-end"],
-        default="end-to-end",
+        choices=Mapper.MAPPING_TYPES,
+        default=Mapper.DEFAULT_MAPPING_TYPE,
         help="Strategy to map reads against the catalogue (default: %(default)s).",
     )
     mapping_parser.add_argument(
         "--trim",
         dest="trim",
         type=int,
-        default=80,
+        default=Mapper.DEFAULT_TRIM,
         help="Trim reads exceeding TRIM bases before mapping "
-        "(default: %(default)d).\nIf 0, no trim.",
+        f"(default: %(default)d).\nIf {Mapper.NO_TRIM}, no trim.",
     )
     mapping_parser.add_argument(
         "--align",
         dest="alignment_number",
         type=int,
-        default=10000,
+        default=Mapper.DEFAULT_ALIGNMENT_NUMBER,
         help="Maximum number alignments to report for each read (default: %(default)d)",
     )
     mapping_parser.add_argument(
         "-c",
         dest="counting_type",
         type=str,
-        default="smart_shared",
-        choices=["total", "smart_shared", "unique"],
+        default=Counter.DEFAULT_COUNTING_TYPE,
+        choices=Counter.COUNTING_TYPES,
         help="Strategy to calculate raw gene counts (default: %(default)s).",
     )
     mapping_parser.add_argument(
         "--id",
         dest="identity_threshold",
         type=isborned01,
-        default=0.95,
+        default=Counter.DEFAULT_IDENTITY_THRESHOLD,
         help="Select only read alignments with a nucleotide identity >= IDENTITY_THRESHOLD "
-        "(default: %(default).2f).\nIf 0, no filtering.",
+        f"(default: %(default).2f).\nIf {Counter.NO_IDENTITY_THRESHOLD}, no filtering.",
     )
     mapping_parser.add_argument(
         "--ka",
@@ -327,7 +328,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-t",
         dest="threads",
         type=num_threads,
-        default=1,
+        default=Mapper.DEFAULT_NUM_THREADS,
         help="Number of alignment threads to launch (default: %(default)d).",
     )
     # Define profiler argument parsing
@@ -363,15 +364,15 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-l",
         dest="rarefaction_level",
         type=int,
-        default=-1,
-        help="Rarefaction level. If negative: no rarefation is performed "
+        default=Profiler.DEFAULT_RAREFACTION_LEVEL,
+        help=f"Rarefaction level. If <= {Profiler.NO_RAREFACTION}, no rarefation is performed "
         "(default: %(default)d).",
     )
     profiling_parser.add_argument(
         "--seed",
         dest="seed",
         type=int,
-        default=1234,
+        default=Profiler.DEFAULT_RANDOM_SEED,
         help="Seed of the random number generator used for rarefaction "
         "(default: %(default)d).",
     )
@@ -379,15 +380,15 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-n",
         dest="normalization",
         type=str,
-        choices=["coverage", "fpkm", "raw"],
-        default="coverage",
-        help="Normalization applied to raw gene counts " "(default: %(default)s).",
+        choices=Profiler.NORMALIZATIONS,
+        default=Profiler.DEFAULT_NORMALIZATION,
+        help="Normalization applied to raw gene counts (default: %(default)s).",
     )
     profiling_parser.add_argument(
         "-c",
         dest="coverage_factor",
         type=float,
-        default=100.0,
+        default=Profiler.DEFAULT_COVERAGE_FACTOR,
         help="Multiplication factor for coverage normalization "
         "(default: %(default).0f).",
     )
@@ -395,7 +396,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--core_size",
         dest="core_size",
         type=int,
-        default=100,
+        default=Profiler.DEFAULT_CORE_SIZE,
         help="Number of core genes per species (MSP) used to estimate their respective abundance "
         "(default: %(default)d).",
     )
@@ -403,14 +404,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--msp_filter",
         dest="msp_filter",
         type=isborned01,
-        default=0.1,
+        default=Profiler.DEFAULT_MSP_FILTER,
         help="Minimal proportion of core genes detected in a sample to consider a species (MSP) as present "
         "(default: %(default).1f).",
     )
     profiling_parser.add_argument(
         "--completeness",
         type=isborned01,
-        default=0.9,
+        default=Profiler.DEFAULT_COMPLETENESS,
         help="Cutoff above which a module is considered as present in a species.\n"
         "Value between 0.0 and 1.0 (default: %(default).1f)."
         "",
@@ -441,14 +442,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-a",
         dest="min_msp_abundance",
         type=float,
-        default=0.0,
-        help="Minimum msp abundance (default >=0.0).",
+        default=Merging.DEFAULT_MIN_MSP_ABUNDANCE,
+        help="Minimum msp abundance (default >= %(default).1f)",
     )
     merging_parser.add_argument(
         "-n",
         dest="min_msp_occurrence",
         type=int,
-        default=1,
+        default=Merging.DEFAULT_MIN_MSP_OCCURRENCE,
         help="Report only species (MSPs) occuring in at least n samples "
         "(default: %(default)d).",
     )
@@ -476,8 +477,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
     merging_parser.add_argument(
         "--tax_lev",
         dest="taxonomic_level",
-        default="a",
-        choices=["a", "k", "p", "c", "o", "f", "g", "s", "t"],
+        default=Merging.DEFAULT_MPA_TAXONOMIC_LEVEL,
+        choices=Merging.MPA_TAXONOMIC_LEVELS,
         help="""The taxonomic level for mpa output (default: %(default)s):
                         'a' : all taxonomic levels
                         'k' : kingdoms
@@ -499,7 +500,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     merging_parser.add_argument(
         "-p",
         dest="prefix",
-        default="output",
+        default=Merging.DEFAULT_PREFIX,
         help="Prefix added to output filenames " "(default: %(default)s).",
     )
     merging_parser.add_argument(
@@ -528,53 +529,43 @@ def get_arguments() -> Namespace:  # pragma: no cover
     strain_parser.add_argument(
         "-d",
         dest="max_depth",
-        default=100,
+        default=Strain.DEFAULT_MAX_DEPTH,
         type=int,
         help="Maximum depth taken in account (default: %(default)d).",
     )
     strain_parser.add_argument(
-        "-t", dest="threads", default=1, type=num_threads, help="Threads count."
-    )
-    # strain_parser.add_argument(
-    #     "-c",
-    #     dest="min_gene_count",
-    #     default=3,
-    #     type=int,
-    #     help="Minimum gene count (default 3).",
-    # )
-    strain_parser.add_argument(
         "-s",
         dest="min_snp_depth",
-        default=3,
-        choices=range(1, 10000),
+        default=Strain.DEFAULT_MIN_SNP_DEPTH,
+        choices=range(Strain.MIN_MIN_SNP_DEPTH, Strain.MAX_MIN_SNP_DEPTH+1),
         metavar="MIN_SNP_DEPTH",
         type=int,
-        help="""Minimum snp depth (default: >= %(default)d).
-        Values should be comprised between 1 and the maximum depth
-        (10000 reads are taken in account).""",
+        help=f"""Minimum snp depth (default: >= %(default)d).
+        Values should be comprised between {Strain.MIN_MIN_SNP_DEPTH} and the maximum depth
+        ({Strain.MAX_MIN_SNP_DEPTH} reads are taken in account).""",
     )
     strain_parser.add_argument(
         "-f",
         dest="min_frequency_non_reference",
-        default=0.8,
+        default=Strain.DEFAULT_MIN_FREQUENCY_NON_REFERENCE,
         type=isborned01,
         help="Minimum frequency for non reference allele (default: >= %(default).1f).",
     )
     strain_parser.add_argument(
         "-m",
         dest="min_msp_coverage",
-        default=50,
-        choices=range(1, 101),
+        default=Strain.DEFAULT_MIN_MSP_COVERAGE,
+        choices=range(Strain.MIN_MIN_MSP_COVERAGE, Strain.MAX_MIN_MSP_COVERAGE+1),
         metavar="MIN_MSP_COVERAGE",
         type=int,
-        help="""Minimum number of genes from the MSP that are covered (default: >= %(default)d).
-        Values should be comprised between 1 and 100
+        help=f"""Minimum number of genes from the MSP that are covered (default: >= %(default)d).
+        Values should be comprised between {Strain.MIN_MIN_MSP_COVERAGE} and {Strain.MAX_MIN_MSP_COVERAGE}
         (maximum number of core genes taken in account).""",
     )
     strain_parser.add_argument(
         "-c",
         dest="min_gene_coverage",
-        default=0.8,
+        default=Strain.DEFAULT_MIN_GENE_COVERAGE,
         type=isborned01,
         help="Minimum gene coverage from 0 to 1 (default: >= %(default).1f).",
     )
@@ -597,6 +588,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=isdir,
         help="Path to the directory where temporary files are stored",
     )
+    strain_parser.add_argument(
+        "-t",
+        dest="threads",
+        default=Strain.DEFAULT_NUM_THREADS,
+        type=num_threads,
+        help="Number of threads to perform variant calling (default: %(default)d)."
+    )
     tree_parser = subparsers.add_parser(
         "tree", help="Compute phylogenetical tree from detected strains"
     )
@@ -610,36 +608,36 @@ def get_arguments() -> Namespace:  # pragma: no cover
     tree_parser.add_argument(
         "-g",
         dest="max_gap",
-        default=0.5,
+        default=TreeBuilder.DEFAULT_MAX_GAP,
         type=isborned01,
         help="Removes sites constitued of >= cutoff gap character (default: >= %(default).1f).",
     )
     tree_parser.add_argument(
         "-c",
         dest="gap_char",
-        default="-",
+        default=TreeBuilder.DEFAULT_GAP_CHAR,
         type=str,
         help="Gap character (default: %(default)s).",
     )
     tree_parser.add_argument(
         "-f",
         dest="format",
-        default=None,
-        choices=["png", "svg", "pdf", "txt"],
+        default=TreeBuilder.DEFAULT_OUTPUT_FORMAT,
+        choices=TreeBuilder.OUTPUT_FORMATS,
         type=str,
         help="Output image format (default: %(default)s).",
     )
     tree_parser.add_argument(
         "-w",
         dest="width",
-        default=500,
+        default=TreeBuilder.DEFAULT_WIDTH,
         type=int,
         help="Output image width (default: %(default)dpx).",
     )
     tree_parser.add_argument(
         "-H",
         dest="height",
-        default=500,
+        default=TreeBuilder.DEFAULT_HEIGHT,
         type=int,
         help="Output image height (default: %(default)dpx).",
     )
@@ -651,13 +649,17 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Path to output directory.",
     )
     tree_parser.add_argument(
-        "-t", dest="threads", default=num_threads, type=int, help="Threads count."
-    )
-    tree_parser.add_argument(
         "--tmp",
         dest="tmp_path",
         type=isdir,
         help="Path to the directory where temporary files are stored",
+    )
+    tree_parser.add_argument(
+        "-t",
+        dest="threads",
+        default=TreeBuilder.DEFAULT_NUM_THREADS,
+        type=num_threads,
+        help="Number of threads when infering each tree (default: %(default)d)."
     )
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])

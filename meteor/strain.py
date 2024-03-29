@@ -24,12 +24,24 @@ from pathlib import Path
 from time import perf_counter
 from io import StringIO
 import pysam
+from typing import ClassVar
 from shutil import rmtree
 
 
 @dataclass
 class Strain(Session):
     """Counter session map and count"""
+    
+    DEFAULT_MAX_DEPTH: ClassVar[int] = 100
+    MIN_MIN_SNP_DEPTH: ClassVar[int] = 1
+    MAX_MIN_SNP_DEPTH: ClassVar[int] = 10000
+    DEFAULT_MIN_SNP_DEPTH: ClassVar[int] = 3
+    DEFAULT_MIN_FREQUENCY_NON_REFERENCE : ClassVar[float] = 0.8
+    MIN_MIN_MSP_COVERAGE: ClassVar[int] = 1
+    MAX_MIN_MSP_COVERAGE: ClassVar[int] = 100
+    DEFAULT_MIN_MSP_COVERAGE: ClassVar[int] = 50
+    DEFAULT_MIN_GENE_COVERAGE: ClassVar[float] = 0.8
+    DEFAULT_NUM_THREADS: ClassVar[int] = 1
 
     meteor: type[Component]
     max_depth: int

@@ -20,6 +20,7 @@ from packaging.version import Version, parse
 from re import findall
 from meteor.session import Session, Component
 from time import perf_counter
+from typing import ClassVar
 
 # from tempfile import mkstemp
 import pysam
@@ -30,6 +31,13 @@ import sys
 @dataclass
 class Mapper(Session):
     """Run the bowtie"""
+
+    DEFAULT_NUM_THREADS : ClassVar[int] = 1
+    MAPPING_TYPES: ClassVar[list[str]] = ['end_to_end', 'local']
+    DEFAULT_MAPPING_TYPE: ClassVar[str] = 'end-to-end'
+    DEFAULT_TRIM: ClassVar[int] = 80
+    NO_TRIM: ClassVar[int] = 0
+    DEFAULT_ALIGNMENT_NUMBER: ClassVar[int] = 10000
 
     meteor: type[Component]
     census: dict
@@ -102,7 +110,7 @@ class Mapper(Session):
             parameters = f"-p {self.meteor.threads} --local --sensitive-local "
         else:
             parameters = f"-p {self.meteor.threads} --end-to-end --sensitive "
-        if self.trim > 0:
+        if self.trim > Mapper.NO_TRIM:
             parameters += f"--trim-to {self.trim} "
         if self.alignment_number > 1:
             # and self.counting_type != "best"

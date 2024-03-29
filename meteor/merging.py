@@ -19,11 +19,8 @@ from pathlib import Path
 import logging
 import sys
 import numpy as np
-
-# from functools import reduce
 from biom.table import Table
-
-# import h5py
+from typing import ClassVar
 
 
 @dataclass
@@ -32,13 +29,19 @@ class Merging(Session):
     Merge profiled outputs.
     """
 
+    DEFAULT_MIN_MSP_ABUNDANCE: ClassVar[float] = 0.0
+    DEFAULT_MIN_MSP_OCCURRENCE: ClassVar[int] = 1
+    MPA_TAXONOMIC_LEVELS: ClassVar[list[str]] = ["a", "k", "p", "c", "o", "f", "g", "s", "t"]
+    DEFAULT_MPA_TAXONOMIC_LEVEL: ClassVar[str] = "a"
+    DEFAULT_PREFIX: ClassVar[str] = "output"
+
     meteor: type[Component]
     prefix: str
-    min_msp_abundance: float = 0.0
-    min_msp_occurrence: int = 1
+    min_msp_abundance: float
+    min_msp_occurrence: int
     remove_sample_with_no_msp: bool = True
     output_mpa: bool = False
-    taxonomical_level: str = "a"
+    mpa_taxonomic_level: str
     output_biom: bool = False
     output_gene_matrix: bool = False
     ranks: dict[str, str] = field(
