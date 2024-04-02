@@ -33,7 +33,7 @@ class Mapper(Session):
     """Run the bowtie"""
 
     DEFAULT_NUM_THREADS : ClassVar[int] = 1
-    MAPPING_TYPES: ClassVar[list[str]] = ['end_to_end', 'local']
+    MAPPING_TYPES: ClassVar[list[str]] = ['end-to-end', 'local']
     DEFAULT_MAPPING_TYPE: ClassVar[str] = 'end-to-end'
     DEFAULT_TRIM: ClassVar[int] = 80
     NO_TRIM: ClassVar[int] = 0
@@ -47,6 +47,10 @@ class Mapper(Session):
     alignment_number: int
     counting_type: str
     identity_threshold: float
+
+    def __post_init__(self) -> None:
+        if self.mapping_type not in Mapper.MAPPING_TYPES:
+            raise ValueError(f'{self.mapping_type} is not a valid mapping type')
 
     def set_mapping_config(
         self,
@@ -147,6 +151,7 @@ class Mapper(Session):
             stderr=PIPE,
         )
         # cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+        assert mapping_exec.stdout is not None and mapping_exec.stderr is not None
         with pysam.AlignmentFile(
             mapping_exec.stdout,
             "r",

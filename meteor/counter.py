@@ -50,6 +50,9 @@ class Counter(Session):
     json_data: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        if self.counting_type not in Counter.COUNTING_TYPES:
+            raise ValueError(f'{self.counting_type} is not a valid counting type')
+
         if self.meteor.tmp_path:
             self.meteor.tmp_path.mkdir(exist_ok=True)
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
@@ -133,6 +136,8 @@ class Counter(Session):
         # contains a list of alignment of each read
         reads: dict[str, list[AlignedSegment]] = {}
         for element in cramdesc:
+            assert element.query_name is not None and element.reference_name is not None
+
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
             # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
             ali = sum(self.get_aligned_nucleotides(element))

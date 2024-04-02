@@ -782,8 +782,8 @@ def main() -> None:  # pragma: no cover
             args.min_msp_abundance,
             args.min_msp_occurrence,
             args.remove_sample_with_no_msp,
-            None,
-            None,
+            False,
+            "a",
             #args.output_mpa,
             #args.taxonomic_level,
             args.output_biom,
@@ -806,10 +806,10 @@ def main() -> None:  # pragma: no cover
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
             meteor.ref_dir = meteor.ref_dir / "mock"
-            counter = Counter(meteor, "best", "end-to-end", 80, 0.97, 100, False, True)
+            counter = Counter(meteor, "total", "end-to-end", 80, 0.97, 100, False, True)
             counter.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test2"
-            counter = Counter(meteor, "best", "end-to-end", 80, 0.97, 100, False, True)
+            counter = Counter(meteor, "total", "end-to-end", 80, 0.97, 100, False, True)
             counter.execute()
             # Remove the mapping directory and its contents
             shutil.rmtree(Path(tmpdirname) / "test")
