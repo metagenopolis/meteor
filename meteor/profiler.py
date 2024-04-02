@@ -23,11 +23,22 @@ import logging
 import sys
 import lzma
 from datetime import datetime
+from typing import ClassVar
 
 
 @dataclass
 class Profiler(Session):
     """Profile session for abundance and annotation"""
+
+    NO_RAREFACTION: ClassVar[int] = 0
+    DEFAULT_RAREFACTION_LEVEL: ClassVar[int] = NO_RAREFACTION
+    DEFAULT_RANDOM_SEED: ClassVar[int] = 1234
+    NORMALIZATIONS: ClassVar[list[str]] = ["coverage", "fpkm", "raw"]
+    DEFAULT_NORMALIZATION: ClassVar[str] = "coverage"
+    DEFAULT_COVERAGE_FACTOR: ClassVar[float] = 100.0
+    DEFAULT_CORE_SIZE: ClassVar[int] = 100
+    DEFAULT_MSP_FILTER: ClassVar[float] = 0.1
+    DEFAULT_COMPLETENESS: ClassVar[float] = 0.9
 
     meteor: type[Component]
     rarefaction_level: int
@@ -36,7 +47,7 @@ class Profiler(Session):
     core_size: int
     msp_filter: float
     completeness: float
-    coverage_factor: float = 100.0
+    coverage_factor: float
 
     def __post_init__(self):
         # Get the json file
@@ -156,7 +167,7 @@ class Profiler(Session):
         :param seed: seed to reproduce the random selection of reads.
         """
         try:
-            assert rarefaction_level > 0
+            assert rarefaction_level > Profiler.NO_RAREFACTION
         except AssertionError:
             logging.error("You are trying to rarefy with a null or negative number.")
             sys.exit(1)
@@ -220,7 +231,7 @@ class Profiler(Session):
         :param unmapped_reads: Value of the unmapped reads
         """
         # Compute the unmapped reads after rarefaction
-        if rarefaction_level > 0:
+        if rarefaction_level > Profiler.NO_RAREFACTION:
             # Force to 0 if the result is negative (ie, no rarefaction was performed)
             unmapped_reads_after_rf = min(
                 rarefaction_level - self.gene_count["value"].sum(), unmapped_reads
@@ -541,7 +552,7 @@ class Profiler(Session):
         config_stats = {}
         config_mapping = {"database_type": self.database_type}
         # Part 1: NORMALIZATION
-        if self.rarefaction_level > 0:
+        if self.rarefaction_level > Profiler.NO_RAREFACTION:
             logging.info("Run rarefaction.")
             self.rarefy(
                 rarefaction_level=self.rarefaction_level,

@@ -24,10 +24,19 @@ import sys
 import pandas as pd
 import lzma
 from shutil import rmtree
+from typing import ClassVar
 
 @dataclass
 class TreeBuilder(Session):
     """Counter session map and count"""
+
+    DEFAULT_MAX_GAP: ClassVar[float] = 0.5
+    DEFAULT_GAP_CHAR: ClassVar[str] = "-"
+    OUTPUT_FORMATS: ClassVar[list[str]] = ["png", "svg", "pdf", "txt"]
+    DEFAULT_OUTPUT_FORMAT: ClassVar[str|None] = None
+    DEFAULT_WIDTH: ClassVar[int] = 500
+    DEFAULT_HEIGHT: ClassVar[int] = 500
+    DEFAULT_NUM_THREADS: ClassVar[int] = 1
 
     meteor: type[Component]
     max_gap: float
