@@ -24,12 +24,14 @@ from datetime import datetime
 from packaging.version import Version, parse
 from textwrap import fill
 from meteor.session import Session, Component
-from typing import Iterator, Tuple
+from typing import Iterator, Tuple, ClassVar
 
 
 @dataclass
 class ReferenceBuilder(Session):
     """Index the database with bowtie2 using meteor style"""
+
+    DEFAULT_NUM_THREADS: ClassVar[int] = 1
 
     meteor: type[Component]
     input_fasta: Path

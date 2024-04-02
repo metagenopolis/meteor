@@ -22,7 +22,7 @@ from tempfile import mkdtemp, mkstemp
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
-from typing import Generator, Iterator
+from typing import Generator, Iterator, ClassVar
 from collections import defaultdict
 from itertools import chain
 from pysam import index, idxstats, AlignmentFile, sort, AlignedSegment  # type: ignore[attr-defined]
@@ -34,6 +34,11 @@ from shutil import rmtree
 class Counter(Session):
     """Counter session map and count"""
 
+    COUNTING_TYPES: ClassVar[list[str]] = ["total", "smart_shared", "unique"]
+    DEFAULT_COUNTING_TYPE: ClassVar[str] = "smart_shared"
+    NO_IDENTITY_THRESHOLD: ClassVar[float] = 0.0
+    DEFAULT_IDENTITY_THRESHOLD: ClassVar[float] = 0.95
+
     meteor: type[Component]
     counting_type: str
     mapping_type: str
@@ -42,7 +47,6 @@ class Counter(Session):
     alignment_number: int
     keep_all_alignments: bool = False
     keep_filtered_alignments: bool = False
-    # pysam_test: bool = True
     json_data: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:

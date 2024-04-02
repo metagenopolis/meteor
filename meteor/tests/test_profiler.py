@@ -30,6 +30,7 @@ def profiler_standard(datadir: Path, tmp_path: Path) -> Profiler:
         meteor=meteor,
         rarefaction_level=-1,
         seed=12345,
+        coverage_factor=100.0,
         normalization="",
         core_size=4,
         msp_filter=0.5,

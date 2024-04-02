@@ -22,11 +22,16 @@ from urllib.request import urlretrieve
 from time import time
 import tarfile
 import json
+from typing import ClassVar
+import sys
 
 
 @dataclass
 class Downloader(Session):
     """Download and prepare catalogues"""
+
+    CONFIG_DATA_FILE: ClassVar[Path] = Path("data/zenodo.json")
+    TEST_CATALOGUE: ClassVar[str] = "test"
 
     meteor: type[Component]
     choice: str
@@ -36,14 +41,26 @@ class Downloader(Session):
     catalogues_config: dict = field(default_factory=dict)
     start_time: float = field(default_factory=float)
 
-    def __post_init__(self) -> None:
+    @staticmethod
+    def load_catalogues_config() -> dict:
         try:
-            config_data = importlib.resources.files("meteor") / "data/zenodo.json"
+            config_data = importlib.resources.files("meteor") / str(Downloader.CONFIG_DATA_FILE)
             with importlib.resources.as_file(config_data) as configuration_path:
                 with configuration_path.open("rt", encoding="UTF-8") as config:
-                    self.catalogues_config = json.load(config)
-        except AssertionError:
-            logging.error("The file zenodo.json is missing in meteor source")
+                    return json.load(config)
+        except FileNotFoundError:
+            logging.error("The file %s is missing in meteor source", Downloader.CONFIG_DATA_FILE.name)
+            sys.exit(1)
+    
+    @staticmethod
+    def get_available_catalogues() -> list[str]:
+        catalogues_config = Downloader.load_catalogues_config()
+        available_catalogues = list(catalogues_config.keys())
+        available_catalogues.remove(Downloader.TEST_CATALOGUE)
+        return available_catalogues
+
+    def __post_init__(self) -> None:
+        self.catalogues_config = Downloader.load_catalogues_config()
         self.meteor.ref_dir.mkdir(exist_ok=True, parents=True)
         if self.taxonomy:
             self.data_type = "taxonomy_info"
@@ -111,7 +128,7 @@ class Downloader(Session):
             )
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
             print(flush=True)
-            if self.choice == "test":
+            if self.choice == Downloader.TEST_CATALOGUE:
                 for sample in self.catalogues_config[self.choice]["samples"]:
                     logging.info(f"Download {sample} fastq file")
                     url_fastq = self.catalogues_config[self.choice]["samples"][sample][
@@ -140,3 +157,4 @@ class Downloader(Session):
             )
         except AssertionError:
             logging.error("MD5sum of %s has a different value than expected", catalogue)
+            sys.exit(1)
