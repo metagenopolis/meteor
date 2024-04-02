@@ -33,7 +33,7 @@ class Profiler(Session):
     NO_RAREFACTION: ClassVar[int] = 0
     DEFAULT_RAREFACTION_LEVEL: ClassVar[int] = NO_RAREFACTION
     DEFAULT_RANDOM_SEED: ClassVar[int] = 1234
-    NORMALIZATIONS: ClassVar[list[str]] = ["coverage", "fpkm", "raw"]
+    NORMALIZATIONS: ClassVar[list[str|None]] = [None, "coverage", "fpkm", "raw"]
     DEFAULT_NORMALIZATION: ClassVar[str] = "coverage"
     DEFAULT_COVERAGE_FACTOR: ClassVar[float] = 100.0
     DEFAULT_CORE_SIZE: ClassVar[int] = 100
@@ -50,6 +50,9 @@ class Profiler(Session):
     coverage_factor: float
 
     def __post_init__(self):
+        if self.normalization not in Profiler.NORMALIZATIONS:
+            raise ValueError(f'{self.normalization} is not a valid normalization')
+        
         # Get the json file
         self.sample_config = self.get_census_stage(self.meteor.mapping_dir, 1)
 

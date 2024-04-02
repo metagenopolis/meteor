@@ -33,8 +33,8 @@ class Mapper(Session):
     """Run the bowtie"""
 
     DEFAULT_NUM_THREADS : ClassVar[int] = 1
-    MAPPING_TYPES: ClassVar[list[str]] = ['end-to-end', 'local']
-    DEFAULT_MAPPING_TYPE: ClassVar[str] = 'end-to-end'
+    MAPPING_TYPES: ClassVar[list[str]] = ["end-to-end", "local"]
+    DEFAULT_MAPPING_TYPE: ClassVar[str] = "end-to-end"
     DEFAULT_TRIM: ClassVar[int] = 80
     NO_TRIM: ClassVar[int] = 0
     DEFAULT_ALIGNMENT_NUMBER: ClassVar[int] = 10000
