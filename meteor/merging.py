@@ -19,7 +19,7 @@ from pathlib import Path
 import logging
 import sys
 import numpy as np
-from biom.table import Table
+from biom.table import Table # type: ignore
 from typing import ClassVar
 
 
@@ -348,7 +348,7 @@ class Merging(Session):
                     / ref_json["annotation"]["taxonomy"]["filename"],
                     sep="\t",
                     header=0,
-                    usecols=self.ranks.keys(),
+                    usecols=list(self.ranks.keys()),
                 )
 
                 annotation = annotation[
