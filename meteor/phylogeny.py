@@ -98,7 +98,7 @@ class Phylogeny(Session):
         # Define the regex pattern to match the version number
         version_pattern = re.compile(r"RAxML-NG v\. (\d+\.\d+\.\d+)")
         raxml_ng_help = run(
-            ["raxml-ng", "--version"], capture_output=True
+            ["raxml-ng", "--version"], check=False, capture_output=True
         ).stdout.decode("utf-8")
         match = version_pattern.search(raxml_ng_help)
         # Check if a match is found
@@ -152,7 +152,7 @@ class Phylogeny(Session):
                         "MSP %s have less than 4 sequences, we compute the mutation rate",
                         msp_file.name,
                     )
-                    with open(tree_file.parent / "cleaned_sequences.fasta", "w") as f:
+                    with open(tree_file.parent / "cleaned_sequences.fasta", "w", encoding="UTF-8") as f:
                         for seq_name, sequence in cleaned_seqs.items():
                             f.write(f">{seq_name}\n{sequence}\n")
                     mutation_rate = []
@@ -163,7 +163,7 @@ class Phylogeny(Session):
                             seq2 = cleaned_seqs[seq_ids[j]]
                             mutation_rate += [self.compute_mutation_rate(seq1, seq2)]
                     # Construct Newick format string
-                    with open(tree_file.with_suffix(".tree"), "wt") as tree:
+                    with open(tree_file.with_suffix(".tree"), "wt", encoding="UTF-8") as tree:
                         if len(seq_ids) == 2:
                             tree.write(
                                 f"({seq_ids[0]}:{mutation_rate[0]}, {seq_ids[1]}:{mutation_rate[0]});"
@@ -174,11 +174,15 @@ class Phylogeny(Session):
                                 min_rate_idx == 0
                             ):  # seq1 and seq2 have the smallest distance
                                 tree.write(
-                                    f"(({seq_ids[0]}:{mutation_rate[0]}, {seq_ids[1]}:{mutation_rate[0]}):{mutation_rate[1]}, {seq_ids[2]}:{mutation_rate[1]});"
+                                    f"(({seq_ids[0]}:{mutation_rate[0]}, "
+                                    f"{seq_ids[1]}:{mutation_rate[0]}):{mutation_rate[1]}, "
+                                    f"{seq_ids[2]}:{mutation_rate[1]});"
                                 )
                             else:  # seq1 and seq3 have the smallest distance
                                 tree.write(
-                                    f"(({seq_ids[0]}:{mutation_rate[1]}, {seq_ids[2]}:{mutation_rate[1]}):{mutation_rate[0]}, {seq_ids[1]}:{mutation_rate[0]});"
+                                    f"(({seq_ids[0]}:{mutation_rate[1]}, "
+                                    f"{seq_ids[2]}:{mutation_rate[1]}):{mutation_rate[0]}, "
+                                    f"{seq_ids[1]}:{mutation_rate[0]});"
                                 )
                 tree_files.append(tree_file)
             logging.info("Completed MSP tree %d/%d", idx, msp_count)

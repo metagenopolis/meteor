@@ -51,7 +51,7 @@ class Downloader(Session):
         except FileNotFoundError:
             logging.error("The file %s is missing in meteor source", Downloader.CONFIG_DATA_FILE.name)
             sys.exit(1)
-    
+
     @staticmethod
     def get_available_catalogues() -> list[str]:
         catalogues_config = Downloader.load_catalogues_config()
@@ -130,7 +130,7 @@ class Downloader(Session):
             print(flush=True)
             if self.choice == Downloader.TEST_CATALOGUE:
                 for sample in self.catalogues_config[self.choice]["samples"]:
-                    logging.info(f"Download {sample} fastq file")
+                    logging.info("Download %s fastq file", sample)
                     url_fastq = self.catalogues_config[self.choice]["samples"][sample][
                         "catalogue"
                     ]

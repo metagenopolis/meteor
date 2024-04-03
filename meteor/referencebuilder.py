@@ -132,7 +132,7 @@ class ReferenceBuilder(Session):
         # Prepare the reference for meteor
         self.create_reference()
         # Check the bowtie2 version
-        bowtie_exec = run(["bowtie2", "--version"], capture_output=True)
+        bowtie_exec = run(["bowtie2", "--version"], check=False, capture_output=True)
         bowtie_version = bowtie_exec.stdout.decode("utf-8").split(" ")[2].split("\n")[0]
         if bowtie_exec.returncode != 0:
             logging.error(

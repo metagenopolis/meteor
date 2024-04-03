@@ -16,11 +16,10 @@ from ..variantcalling import VariantCalling
 from pathlib import Path
 import pytest
 import json
-import pandas as pd
 
 
-@pytest.fixture
-def vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
+@pytest.fixture(name="vc_builder")
+def fixture_vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
     meteor = Component
     meteor.ref_dir = datadir / "eva71"
     meteor.ref_name = "test"

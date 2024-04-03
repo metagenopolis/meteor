@@ -31,7 +31,7 @@ from shutil import rmtree
 @dataclass
 class Strain(Session):
     """Counter session map and count"""
-    
+
     DEFAULT_MAX_DEPTH: ClassVar[int] = 100
     MIN_MIN_SNP_DEPTH: ClassVar[int] = 1
     MAX_MIN_SNP_DEPTH: ClassVar[int] = 10000
@@ -166,9 +166,7 @@ class Strain(Session):
                 consensus_file,
             )
             sys.exit(1)
-        gene_dict = {
-            gene_id: seq for gene_id, seq in self.get_sequences(consensus_file)
-        }
+        gene_dict = dict(self.get_sequences(consensus_file))
         logging.info(
             "%s MSPs have sufficient signal for SNP analysis ",
             len(msp_with_overlapping_genes["msp_name"].values),
