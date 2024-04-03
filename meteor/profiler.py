@@ -43,7 +43,7 @@ class Profiler(Session):
     meteor: type[Component]
     rarefaction_level: int
     seed: int
-    normalization: str
+    normalization: str|None
     core_size: int
     msp_filter: float
     completeness: float

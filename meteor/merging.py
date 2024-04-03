@@ -41,7 +41,7 @@ class Merging(Session):
     min_msp_occurrence: int
     remove_sample_with_no_msp: bool
     output_mpa: bool
-    mpa_taxonomic_level: str
+    mpa_taxonomic_level: str|None
     output_biom: bool
     output_gene_matrix: bool
     ranks: dict[str, str] = field(

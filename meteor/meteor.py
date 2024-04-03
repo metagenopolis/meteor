@@ -783,7 +783,7 @@ def main() -> None:  # pragma: no cover
             args.min_msp_occurrence,
             args.remove_sample_with_no_msp,
             False,
-            "a",
+            None,
             #args.output_mpa,
             #args.taxonomic_level,
             args.output_biom,
