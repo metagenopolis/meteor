@@ -5,6 +5,7 @@
 [![dockerhub](https://img.shields.io/docker/v/aghozlane/meteor?label=aghozlane/meteor&logo=docker)](https://hub.docker.com/r/aghozlane/meteor/)
 ![Github Actions](https://github.com/metagenopolis/meteor/actions/workflows/main.yml/badge.svg)
 [![codecov](https://codecov.io/gh/metagenopolis/meteor/graph/badge.svg?token=AXAEIUY7DX)](https://codecov.io/gh/metagenopolis/meteor)
+[![DOI](https://zenodo.org/badge/722959292.svg)](https://zenodo.org/doi/10.5281/zenodo.10912587)
 
 ## Introduction
 
