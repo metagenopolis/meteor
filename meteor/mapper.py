@@ -45,7 +45,6 @@ class Mapper(Session):
     mapping_type: str
     trim: int
     alignment_number: int
-    counting_type: str
     identity_threshold: float
 
     def __post_init__(self) -> None:
@@ -117,7 +116,6 @@ class Mapper(Session):
         if self.trim > Mapper.NO_TRIM:
             parameters += f"--trim-to {self.trim} "
         if self.alignment_number > 1:
-            # and self.counting_type != "best"
             parameters += f"-k {self.alignment_number} "
         # Check the bowtie2 version
         bowtie_exec = run(["bowtie2", "--version"], capture_output=True)
