@@ -32,7 +32,7 @@ class TreeBuilder(Session):
 
     DEFAULT_MAX_GAP: ClassVar[float] = 0.5
     DEFAULT_GAP_CHAR: ClassVar[str] = "-"
-    OUTPUT_FORMATS: ClassVar[list[str]] = ["png", "svg", "pdf", "txt"]
+    OUTPUT_FORMATS: ClassVar[list[str|None]] = [None, "png", "svg", "pdf", "txt"]
     DEFAULT_OUTPUT_FORMAT: ClassVar[str|None] = None
     DEFAULT_WIDTH: ClassVar[int] = 500
     DEFAULT_HEIGHT: ClassVar[int] = 500
@@ -46,6 +46,9 @@ class TreeBuilder(Session):
     gap_char: str
 
     def __post_init__(self) -> None:
+        if self.format not in TreeBuilder.OUTPUT_FORMATS:
+            raise ValueError(f'{self.format} is not a valid output format')
+
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.tree_dir.mkdir(exist_ok=True, parents=True)
 

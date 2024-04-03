@@ -31,7 +31,7 @@ def profiler_standard(datadir: Path, tmp_path: Path) -> Profiler:
         rarefaction_level=-1,
         seed=12345,
         coverage_factor=100.0,
-        normalization="",
+        normalization=None,
         core_size=4,
         msp_filter=0.5,
         completeness=0.6,
