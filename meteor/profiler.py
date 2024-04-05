@@ -43,7 +43,7 @@ class Profiler(Session):
     meteor: type[Component]
     rarefaction_level: int
     seed: int
-    normalization: str
+    normalization: str|None
     core_size: int
     msp_filter: float
     completeness: float
@@ -51,8 +51,8 @@ class Profiler(Session):
 
     def __post_init__(self):
         if self.normalization not in Profiler.NORMALIZATIONS:
-            raise ValueError(f'{self.normalization} is not a valid normalization')
-        
+            raise ValueError(f"{self.normalization} is not a valid normalization")
+
         # Get the json file
         self.sample_config = self.get_census_stage(self.meteor.mapping_dir, 1)
 

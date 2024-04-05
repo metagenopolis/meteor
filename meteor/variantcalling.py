@@ -245,13 +245,13 @@ class VariantCalling(Session):
             / self.census["reference"]["reference_file"]["database_dir"]
             / self.census["reference"]["annotation"]["bed"]["filename"]
         )
-        bcftools_exec = run(["bcftools", "--version"], capture_output=True)
+        bcftools_exec = run(["bcftools", "--version"], check=False, capture_output=True)
         bcftools_version = (
             bcftools_exec.stdout.decode("utf-8").split("\n")[0].split(" ")[1]
         )
         if bcftools_exec.returncode != 0:
             logging.error(
-                "Checking bcftools failed:\n%s" % bcftools_exec.stderr.decode("utf-8")
+                "Checking bcftools failed:\n%s", bcftools_exec.stderr.decode("utf-8")
             )
             sys.exit(1)
         elif parse(bcftools_version) < Version("0.1.19"):
@@ -260,11 +260,11 @@ class VariantCalling(Session):
                 bcftools_version,
             )
             sys.exit(1)
-        bedtools_exec = run(["bedtools", "--version"], capture_output=True)
+        bedtools_exec = run(["bedtools", "--version"], check=False, capture_output=True)
         bedtools_version = bedtools_exec.stdout.decode("utf-8").split(" ")[1][1:]
         if bedtools_exec.returncode != 0:
             logging.error(
-                "Check bedtools failed:\n%s" % bedtools_exec.stderr.decode("utf-8")
+                "Check bedtools failed:\n%s", bedtools_exec.stderr.decode("utf-8")
             )
             sys.exit()
         elif parse(bedtools_version) < Version("2.18"):
@@ -381,7 +381,7 @@ class VariantCalling(Session):
                             "-ibam",
                             str(cram_file.resolve()),
                         ],
-                        capture_output=True,
+                        check=False, capture_output=True,
                     ).stdout.decode("utf-8")
                     self.filter_low_cov_sites(output, temp_low_cov_sites)
                     logging.info(
@@ -389,7 +389,7 @@ class VariantCalling(Session):
                         perf_counter() - startlowcovbed,
                     )
                     startlowcov = perf_counter()
-                    bcftools_process = Popen(
+                    with Popen(
                         [
                             "bcftools",
                             "consensus",
@@ -402,16 +402,16 @@ class VariantCalling(Session):
                             str(vcf_file.resolve()),
                         ],
                         stdout=PIPE,
-                    )
-                    # capture output of bcftools_process
-                    bcftools_output = bcftools_process.communicate()[0]
+                    ) as bcftools_process:
+                        # capture output of bcftools_process
+                        bcftools_output = bcftools_process.communicate()[0]
 
-                    # compress output using lzma
-                    compressed_output = lzma.compress(bcftools_output)
+                        # compress output using lzma
+                        compressed_output = lzma.compress(bcftools_output)
 
-                    # write compressed output to file
-                    with open(str(consensus_file.resolve()), "wb") as f:
-                        f.write(compressed_output)
+                        # write compressed output to file
+                        with open(str(consensus_file.resolve()), "wb") as f:
+                            f.write(compressed_output)
                 logging.info(
                     "Completed low coverage regions filtering step in %f seconds",
                     perf_counter() - startlowcov,

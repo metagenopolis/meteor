@@ -18,9 +18,9 @@ import pandas as pd
 from pathlib import Path
 import logging
 import sys
-import numpy as np
 from biom.table import Table # type: ignore
 from typing import ClassVar
+from functools import partial
 
 
 @dataclass
@@ -41,7 +41,7 @@ class Merging(Session):
     min_msp_occurrence: int
     remove_sample_with_no_msp: bool
     output_mpa: bool
-    mpa_taxonomic_level: str
+    mpa_taxonomic_level: str|None
     output_biom: bool
     output_gene_matrix: bool
     ranks: dict[str, str] = field(
@@ -84,7 +84,7 @@ class Merging(Session):
             for my_sample, my_dir in input_dir.items()
         }
         # Check that there is exactly one element in each list
-        len_list = list(set([len(value) for value in list(dict_to_merge.values())]))
+        len_list = list({len(value) for value in list(dict_to_merge.values())})
         assert len(len_list) == 1
         assert len_list[0] == 1
         files_to_merge = {
@@ -103,7 +103,7 @@ class Merging(Session):
         """
         # Check that sections are present
         try:
-            assert all([my_section in config for my_section in list(param_dict.keys())])
+            assert all(my_section in config for my_section in param_dict.keys())
         except AssertionError:
             logging.error("Missing required section in census json file.")
             sys.exit(1)
@@ -115,11 +115,9 @@ class Merging(Session):
         # Check that required fields are present
         try:
             assert all(
-                [
-                    my_field in config[my_section]
-                    for my_section in param_dict
-                    for my_field in param_dict[my_section]
-                ]
+                my_field in config[my_section]
+                for my_section in param_dict
+                for my_field in param_dict[my_section]
             )
         except AssertionError:
             logging.error("Missing required fields in census ini file.")
@@ -259,12 +257,7 @@ class Merging(Session):
         # Save database_type for later use
         try:
             database_type_all = list(
-                set(
-                    [
-                        my_info["database_type"]
-                        for my_info in list(all_information.values())
-                    ]
-                )
+                {my_info["database_type"] for my_info in list(all_information.values())}
             )
             assert len(database_type_all) == 1
             database_type = database_type_all[0]
@@ -365,7 +358,7 @@ class Merging(Session):
                     # Apply the prefixes to each taxonomic rank
                     for rank, prefix in self.ranks.items():
                         annotation[rank] = annotation[rank].apply(
-                            lambda x: f"{prefix}{x}"
+                            partial(lambda prefix, x: f"{prefix}{x}", prefix)
                         )
                     observ_metadata = [
                         {"taxonomy": row.iloc[1:].tolist()}
@@ -382,7 +375,7 @@ class Merging(Session):
                     # Generate JSON representation of the BIOM table
                     biom_json = biom_table.to_json(generated_by="Meteor")
                     # Write the JSON to a file
-                    with open(output_name.with_suffix(".biom"), "wt") as f:
+                    with open(output_name.with_suffix(".biom"), "wt", encoding="UTF-8") as f:
                         f.write(biom_json)
                     # with h5py.File(output_name.with_suffix(".biom"), "w") as f:
                     #     table.to_hdf5(f, generated_by="Meteor", compress=True)
