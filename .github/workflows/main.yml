@@ -15,8 +15,8 @@ jobs:
         with:
           brew: bowtie2 bcftools bedtools raxml-ng
           apt: bowtie2 bcftools bedtools
-      -  name: Fetch GitHub Release Assets
-       uses: amkozlov/raxml-ng@master
+      - name: Fetch GitHub Release Assets
+        uses: amkozlov/raxml-ng@master
         with:
           repo: 'amkozlov/raxml-ng'
           version: 'tags/1.2.1'
@@ -24,12 +24,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
         if: matrix.os == 'ubuntu-22.04'
       - name: Extract zip
-        run: unzip raxml-ng_v1.2.1_linux_x86_64 -d /usr/local/bin
+        run: unzip raxml-ng_v1.2.1_linux_x86_64.zip -d /usr/local/bin
         if: matrix.os == 'ubuntu-22.04'
       - name: Install Python
         uses: actions/setup-python@v4
-        # see details (matrix, python-version, python-version-file, etc.)
-        # https://github.com/actions/setup-python
       - name: Install poetry
         uses: abatilo/actions-poetry@v2
       - name: Install the project dependencies
