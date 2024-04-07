@@ -16,7 +16,7 @@ jobs:
           brew: bowtie2 bcftools bedtools raxml-ng
           apt: bowtie2 bcftools bedtools
       - name: Fetch GitHub Release Assets
-        uses: amkozlov/raxml-ng@master
+        uses: dsaltares/fetch-gh-release-asset@master
         with:
           repo: 'amkozlov/raxml-ng'
           version: 'tags/1.2.1'
