@@ -25,6 +25,10 @@ from packaging.version import Version, parse
 from collections import OrderedDict
 from datetime import datetime
 from typing import Iterable
+from cogent3 import load_aligned_seqs
+from cogent3.evolve.distance import EstimateDistances
+from cogent3.evolve.models import GTR
+from cogent3.cluster.UPGMA import upgma
 
 
 @dataclass
@@ -149,37 +153,18 @@ class Phylogeny(Session):
                         logging.error("raxml-ng failed with return code %d", result)
                 else:
                     logging.info(
-                        "MSP %s have less than 4 sequences, we compute the mutation rate",
+                        "MSP %s have less than 4 sequences, distance will be calculated with cogent3",
                         msp_file.name,
                     )
-                    with open(tree_file.parent / "cleaned_sequences.fasta", "w") as f:
-                        for seq_name, sequence in cleaned_seqs.items():
-                            f.write(f">{seq_name}\n{sequence}\n")
-                    mutation_rate = []
-                    seq_ids = list(cleaned_seqs.keys())
-                    for i in range(len(seq_ids)):
-                        for j in range(i + 1, len(seq_ids)):
-                            seq1 = cleaned_seqs[seq_ids[i]]
-                            seq2 = cleaned_seqs[seq_ids[j]]
-                            mutation_rate += [self.compute_mutation_rate(seq1, seq2)]
-                    # Construct Newick format string
-                    with open(tree_file.with_suffix(".tree"), "wt") as tree:
-                        if len(seq_ids) == 2:
-                            tree.write(
-                                f"({seq_ids[0]}:{mutation_rate[0]}, {seq_ids[1]}:{mutation_rate[0]});"
-                            )
-                        else:  # case 3
-                            min_rate_idx = mutation_rate.index(min(mutation_rate))
-                            if (
-                                min_rate_idx == 0
-                            ):  # seq1 and seq2 have the smallest distance
-                                tree.write(
-                                    f"(({seq_ids[0]}:{mutation_rate[0]}, {seq_ids[1]}:{mutation_rate[0]}):{mutation_rate[1]}, {seq_ids[2]}:{mutation_rate[1]});"
-                                )
-                            else:  # seq1 and seq3 have the smallest distance
-                                tree.write(
-                                    f"(({seq_ids[0]}:{mutation_rate[1]}, {seq_ids[2]}:{mutation_rate[1]}):{mutation_rate[0]}, {seq_ids[1]}:{mutation_rate[0]});"
-                                )
+                    aligned_seqs = load_aligned_seqs(
+                        temp_clean.name,
+                        moltype="dna",
+                    )
+                    d = EstimateDistances(aligned_seqs, submodel=GTR())
+                    d.run(show_progress=False)
+                    mycluster = upgma(d.get_pairwise_distances())
+                    mycluster = mycluster.unrooted_deepcopy()
+                    mycluster.write(tree_file.with_suffix(".tree"))
                 tree_files.append(tree_file)
             logging.info("Completed MSP tree %d/%d", idx, msp_count)
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)

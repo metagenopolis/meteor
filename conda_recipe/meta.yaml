@@ -29,6 +29,7 @@ requirements:
         - pandas
         - ete3
         - packaging
+        - cogent3
         - biom-format
         - bcftools>=0.1.19
         - raxml-ng>=1.0.0
@@ -43,6 +44,7 @@ test:
         - ete3
         - packaging
         - biom
+        - cogent3
 
 about:
   home: https://github.com/metagenopolis/meteor

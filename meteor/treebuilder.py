@@ -26,14 +26,15 @@ import lzma
 from shutil import rmtree
 from typing import ClassVar
 
+
 @dataclass
 class TreeBuilder(Session):
     """Counter session map and count"""
 
     DEFAULT_MAX_GAP: ClassVar[float] = 0.5
     DEFAULT_GAP_CHAR: ClassVar[str] = "-"
-    OUTPUT_FORMATS: ClassVar[list[str|None]] = [None, "png", "svg", "pdf", "txt"]
-    DEFAULT_OUTPUT_FORMAT: ClassVar[str|None] = None
+    OUTPUT_FORMATS: ClassVar[list[str | None]] = [None, "png", "svg", "pdf", "txt"]
+    DEFAULT_OUTPUT_FORMAT: ClassVar[str | None] = None
     DEFAULT_WIDTH: ClassVar[int] = 500
     DEFAULT_HEIGHT: ClassVar[int] = 500
     DEFAULT_NUM_THREADS: ClassVar[int] = 1
@@ -47,7 +48,7 @@ class TreeBuilder(Session):
 
     def __post_init__(self) -> None:
         if self.format not in TreeBuilder.OUTPUT_FORMATS:
-            raise ValueError(f'{self.format} is not a valid output format')
+            raise ValueError(f"{self.format} is not a valid output format")
 
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.tree_dir.mkdir(exist_ok=True, parents=True)
@@ -115,28 +116,28 @@ class TreeBuilder(Session):
                 # If no .raxml.bestTree file exists, check for a .tree file
                 tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
             img_file = self.meteor.tree_dir / f"{msp_file.stem}.{self.format}"
-            try:
-                msp_tree = Tree(str(tree_file.resolve()))
-                # Generate a distance msp by msp
-                matrix = self.get_msp_distance(msp_tree)
-                matrix.to_csv(self.meteor.tree_dir / f"{msp_file.stem}.tsv", sep="\t")
-                # Draw trees
-                if not self.format:
-                    pass
-                elif self.format == "txt":
-                    with img_file.open("wt", encoding="UTF-8") as outfile:
-                        outfile.write(msp_tree.get_ascii(show_internal=True))
-                else:
-                    # ts = TreeStyle()
-                    # ts.show_leaf_name = True
-                    # ts.show_branch_length = True
-                    msp_tree.render(
-                        str(img_file.resolve()),
-                        w=self.width,
-                        h=self.height,
-                        units="px",
-                        dpi=300,
-                    )
-            except ete3.parser.newick.NewickError:
-                logging.info("Not sufficient info in %s.", str(tree_file.resolve()))
+            # try:
+            msp_tree = Tree(str(tree_file.resolve()))
+            # Generate a distance msp by msp
+            matrix = self.get_msp_distance(msp_tree)
+            matrix.to_csv(self.meteor.tree_dir / f"{msp_file.stem}.tsv", sep="\t")
+            # Draw trees
+            if not self.format:
+                pass
+            elif self.format == "txt":
+                with img_file.open("wt", encoding="UTF-8") as outfile:
+                    outfile.write(msp_tree.get_ascii(show_internal=True))
+            else:
+                # ts = TreeStyle()
+                # ts.show_leaf_name = True
+                # ts.show_branch_length = True
+                msp_tree.render(
+                    str(img_file.resolve()),
+                    w=self.width,
+                    h=self.height,
+                    units="px",
+                    dpi=300,
+                )
+            # except ete3.parser.newick.NewickError:
+            #     logging.info("Not sufficient info in %s.", str(tree_file.resolve()))
         rmtree(self.meteor.tmp_dir, ignore_errors=True)
