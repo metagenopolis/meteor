@@ -74,7 +74,7 @@ def test_find_all_alt(parser_standard: Parser) -> None:
     mod_dict = {"M01": "K01", "M03": "K0123+K0124"}
     real_alt = parser_standard.find_all_alt("K01 K02+K03+(K04,K05)", mod_dict)
     true_alt = [{"K01", "K02", "K03", "K04"}, {"K01", "K02", "K03", "K05"}]
-    assert all([x in true_alt for x in real_alt])
+    assert all(x in true_alt for x in real_alt)
     assert len(real_alt) == len(true_alt)
     real_alt = parser_standard.find_all_alt("(K01,K02) K03+(K04,K05)", mod_dict)
     true_alt = [
@@ -83,7 +83,7 @@ def test_find_all_alt(parser_standard: Parser) -> None:
         {"K02", "K03", "K04"},
         {"K02", "K03", "K05"},
     ]
-    assert all([x in true_alt for x in real_alt])
+    assert all(x in true_alt for x in real_alt)
     assert len(real_alt) == len(true_alt)
     real_alt = parser_standard.find_all_alt(
         "((K16154+K16155),(K16157+K16158),K08684)", mod_dict
@@ -93,7 +93,7 @@ def test_find_all_alt(parser_standard: Parser) -> None:
         {"K16157", "K16158"},
         {"K08684"},
     ]
-    assert all([x in true_alt for x in real_alt])
+    assert all(x in true_alt for x in real_alt)
     assert len(real_alt) == len(true_alt)
     real_alt = parser_standard.find_all_alt(
         "(K13811,(K00957+K00956)) ((K00394+K00395)) ((K11180+K11181))", mod_dict
@@ -102,7 +102,7 @@ def test_find_all_alt(parser_standard: Parser) -> None:
         {"K13811", "K00394", "K00395", "K11180", "K11181"},
         {"K00957", "K00956", "K00394", "K00395", "K11180", "K11181"},
     ]
-    assert all([x in true_alt for x in real_alt])
+    assert all(x in true_alt for x in real_alt)
     assert len(real_alt) == len(true_alt)
 
 

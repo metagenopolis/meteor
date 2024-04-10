@@ -102,7 +102,7 @@ class Phylogeny(Session):
         # Define the regex pattern to match the version number
         version_pattern = re.compile(r"RAxML-NG v\. (\d+\.\d+\.\d+)")
         raxml_ng_help = run(
-            ["raxml-ng", "--version"], capture_output=True
+            ["raxml-ng", "--version"], check=False, capture_output=True
         ).stdout.decode("utf-8")
         match = version_pattern.search(raxml_ng_help)
         # Check if a match is found

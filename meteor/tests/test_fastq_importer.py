@@ -80,13 +80,13 @@ def test_replace_ext(builder: FastqImporter, fastq_filename: str, name: str) -> 
 
 
 @pytest.mark.parametrize(
-    ("fastq_filename", "tag"),
+    ("fastq_filename"),
     (
-        ("test.fastq.gz", ""),
-        pytest.param("pretty.complex_pain.fasta", "", id="fasta"),
+        ("test.fastq.gz"),
+        pytest.param("pretty.complex_pain.fasta", id="fasta"),
     ),
 )
-def test_get_tag_none(builder: FastqImporter, fastq_filename: str, tag: str) -> None:
+def test_get_tag_none(builder: FastqImporter, fastq_filename: str) -> None:
     assert builder.get_tag(fastq_filename) is None
 
 @pytest.mark.parametrize(

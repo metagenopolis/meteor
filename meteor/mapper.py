@@ -45,12 +45,11 @@ class Mapper(Session):
     mapping_type: str
     trim: int
     alignment_number: int
-    counting_type: str
     identity_threshold: float
 
     def __post_init__(self) -> None:
         if self.mapping_type not in Mapper.MAPPING_TYPES:
-            raise ValueError(f'{self.mapping_type} is not a valid mapping type')
+            raise ValueError(f"{self.mapping_type} is not a valid mapping type")
 
     def set_mapping_config(
         self,
@@ -117,11 +116,10 @@ class Mapper(Session):
         if self.trim > Mapper.NO_TRIM:
             parameters += f"--trim-to {self.trim} "
         if self.alignment_number > 1:
-            # and self.counting_type != "best"
             parameters += f"-k {self.alignment_number} "
         # Check the bowtie2 version
-        bowtie_exec = run(["bowtie2", "--version"], capture_output=True)
-        bowtie_version = str(bowtie_exec.stdout).split("\\n")[0].split(" ")[2]
+        bowtie_exec = run(["bowtie2", "--version"], check=False, capture_output=True)
+        bowtie_version = str(bowtie_exec.stdout).split("\\n", maxsplit=1)[0].split(" ")[2]
         if bowtie_exec.returncode != 0:
             logging.error(
                 "Checking bowtie2 version failed:\n%s",
@@ -136,7 +134,7 @@ class Mapper(Session):
             sys.exit(1)
         # Start mapping
         start = perf_counter()
-        mapping_exec = Popen(
+        with Popen(
             [
                 "bowtie2",
                 parameters,
@@ -149,51 +147,37 @@ class Mapper(Session):
             ],
             stdout=PIPE,
             stderr=PIPE,
-        )
-        # cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-        assert mapping_exec.stdout is not None and mapping_exec.stderr is not None
-        with pysam.AlignmentFile(
-            mapping_exec.stdout,
-            "r",
-        ) as samdesc:
+        ) as mapping_exec:
+            assert mapping_exec.stdout is not None and mapping_exec.stderr is not None
             with pysam.AlignmentFile(
-                str(cram_file.resolve()),
-                # cramfile_unsorted,
-                "wc",
-                template=samdesc,
-                reference_filename=str(reference.resolve()),
-            ) as cram:
-                for element in samdesc:
-                    cram.write(element)
-        # pysam.sort(
-        #     "-o",
-        #     str(cram_file.resolve()),
-        #     "-@",
-        #     str(self.meteor.threads),
-        #     "-O",
-        #     "cram",
-        #     str(cramfile_unsorted.resolve()),
-        #     catch_stdout=False,
-        # )
-        # pysam.index(str(cram_file.resolve()))
-        # Read standard error from the process (non-blocking read)
-        mapping_result = mapping_exec.stderr.read().decode("utf-8")
-        mapping_exec.stderr.close()
-
-        # Wait for the process to finish and get the exit code
-        exit_code = mapping_exec.wait()
-
-        # Check for errors and print the error output if necessary
-        if exit_code != 0:
-            logging.error("bowtie2 failed:\n%s" % mapping_result)
-            sys.exit(1)
-        try:
-            mapping_log = findall(r"([0-9]+)\s+\(", mapping_result)
-            assert len(mapping_log) == 4
-            mapping_data = [int(i) for i in mapping_log]
-        except AssertionError:
-            logging.error("Could not access the mapping result from bowtie2")
-            sys.exit(1)
+                mapping_exec.stdout,
+                "r",
+            ) as samdesc:
+                with pysam.AlignmentFile(
+                    str(cram_file.resolve()),
+                    # cramfile_unsorted,
+                    "wc",
+                    template=samdesc,
+                    reference_filename=str(reference.resolve()),
+                ) as cram:
+                    for element in samdesc:
+                        cram.write(element)
+            # Read standard error from the process (non-blocking read)
+            mapping_result = mapping_exec.stderr.read().decode("utf-8")
+            mapping_exec.stderr.close()
+            # Wait for the process to finish and get the exit code
+            exit_code = mapping_exec.wait()
+            # Check for errors and print the error output if necessary
+            if exit_code != 0:
+                logging.error("bowtie2 failed:\n%s", mapping_result)
+                sys.exit(1)
+            try:
+                mapping_log = findall(r"([0-9]+)\s+\(", mapping_result)
+                assert len(mapping_log) == 4
+                mapping_data = [int(i) for i in mapping_log]
+            except AssertionError:
+                logging.error("Could not access the mapping result from bowtie2")
+                sys.exit(1)
         logging.info("Completed mapping creation in %f seconds", perf_counter() - start)
         config = self.set_mapping_config(cram_file, bowtie_version, mapping_data)
         self.save_config(config, self.census["Stage1FileName"])

@@ -14,11 +14,11 @@
 from pathlib import Path
 from collections import defaultdict
 from meteor.session import Session, Component
+from meteor.phylogeny import Phylogeny
 from dataclasses import dataclass
 from tempfile import mkdtemp
 import ete3  # type: ignore[import]
 from ete3 import Tree  # , TreeStyle
-from meteor.phylogeny import Phylogeny
 import logging
 import sys
 import pandas as pd
@@ -70,11 +70,11 @@ class TreeBuilder(Session):
                         with lzma.open(path, "rt") as infile:
                             outfile.write(infile.read())
                 msp_list += [res]
-        logging.info(f"{len(msp_list)} MSPs are available for tree analysis.")
+        logging.info("%d MSPs are available for tree analysis.", len(msp_list))
         return msp_list
 
     def get_msp_distance(self, tree: ete3.TreeNode) -> pd.DataFrame:
-        samples = [leaf for leaf in tree]
+        samples = list(tree)
         distance_matrix = pd.DataFrame(
             index=[n.name for n in samples], columns=[n.name for n in samples]
         )

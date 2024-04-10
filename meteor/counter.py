@@ -51,7 +51,7 @@ class Counter(Session):
 
     def __post_init__(self) -> None:
         if self.counting_type not in Counter.COUNTING_TYPES:
-            raise ValueError(f'{self.counting_type} is not a valid counting type')
+            raise ValueError(f"{self.counting_type} is not a valid counting type")
 
         if self.meteor.tmp_path:
             self.meteor.tmp_path.mkdir(exist_ok=True)
@@ -79,7 +79,6 @@ class Counter(Session):
                 self.mapping_type,
                 self.trim,
                 self.alignment_number,
-                self.counting_type,
                 self.identity_threshold,
             )
             mapping_process.execute()
