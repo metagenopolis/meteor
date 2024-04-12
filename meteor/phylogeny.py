@@ -97,11 +97,11 @@ class Phylogeny(Session):
         }
         return config
 
-    def remove_edge_labels(self, newick: str) -> str:
-        # This regular expression matches the edge labels (like "edge.0:")
-        pattern = r"\b(edge\.\d+):\b"
-        # Replace matched patterns with ":" (effectively removing the edge label)
-        return re.sub(pattern, ":", newick)
+    # def remove_edge_labels(self, newick: str) -> str:
+    #     # This regular expression matches the edge labels (like "edge.0:")
+    #     pattern = r"\b(edge\.\d+):\b"
+    #     # Replace matched patterns with ":" (effectively removing the edge label)
+    #     return re.sub(pattern, ":", newick)
 
     def execute(self) -> None:
         logging.info("Launch phylogeny analysis")
@@ -167,21 +167,20 @@ class Phylogeny(Session):
                         temp_clean.name,
                         moltype="dna",
                     )
-                    aligned_seqs.quick_tree()
                     d = EstimateDistances(aligned_seqs, submodel=GTR())
                     d.run(show_progress=False)
                     mycluster = upgma(d.get_pairwise_distances())
                     mycluster = mycluster.unrooted_deepcopy()
-                    with tree_file.with_suffix(".tree").open("w") as f:
-                        f.write(
-                            self.remove_edge_labels(
-                                mycluster.get_newick(with_distances=True)
-                            )
-                        )
-                    # Add egde.x which is not accepted by ete3
-                    # mycluster.write(
-                    #     tree_file.with_suffix(".tree"),
-                    # )
+                    mycluster.prune()
+                    # with tree_file.with_suffix(".tree").open("w") as f:
+                    #     f.write(
+                    #         self.remove_edge_labels(
+                    #             mycluster.get_newick(with_distances=True)
+                    #         )
+                    #     )
+                    mycluster.write(
+                        tree_file.with_suffix(".tree"),
+                    )
                 tree_files.append(tree_file)
             logging.info("Completed MSP tree %d/%d", idx, msp_count)
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
