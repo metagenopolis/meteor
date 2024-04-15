@@ -36,7 +36,7 @@ class Strain(Session):
     MIN_MIN_SNP_DEPTH: ClassVar[int] = 1
     MAX_MIN_SNP_DEPTH: ClassVar[int] = 10000
     DEFAULT_MIN_SNP_DEPTH: ClassVar[int] = 3
-    DEFAULT_MIN_FREQUENCY_NON_REFERENCE : ClassVar[float] = 0.8
+    DEFAULT_MIN_FREQUENCY_NON_REFERENCE: ClassVar[float] = 0.8
     MIN_MIN_MSP_COVERAGE: ClassVar[int] = 1
     MAX_MIN_MSP_COVERAGE: ClassVar[int] = 100
     DEFAULT_MIN_MSP_COVERAGE: ClassVar[int] = 50
@@ -57,7 +57,9 @@ class Strain(Session):
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.strain_dir.mkdir(exist_ok=True, parents=True)
 
-    def filter_coverage(self, cram_file: Path, bed_file: Path) -> pd.DataFrame:
+    def filter_coverage(
+        self, cram_file: Path, bed_file: Path, reference_file: Path
+    ) -> pd.DataFrame:
         """Filter gene coverage
         :param cram_file: (Path) Path to the cram file
         :param bed_file: (Path) Path to the bed file
@@ -76,7 +78,13 @@ class Strain(Session):
         )
         cov_df = pd.read_csv(
             StringIO(
-                pysam.coverage("-d", str(self.max_depth), str(cram_file.resolve()))  # type: ignore[attr-defined]
+                pysam.coverage(
+                    "--reference",
+                    str(reference_file.resolve()),
+                    "-d",
+                    str(self.max_depth),
+                    str(cram_file.resolve()),
+                )  # type: ignore[attr-defined]
             ),
             sep="\t",
             header=1,
@@ -109,6 +117,7 @@ class Strain(Session):
         msp_file: Path,
         cram_file: Path,
         bed_file: Path,
+        reference_file: Path,
     ) -> None:
         """Produce meaning full msp variants
         :param consensus_file: (Path) A path to consensus file
@@ -134,7 +143,9 @@ class Strain(Session):
         # filtered_count = count[count["value"] >= self.min_gene_count]
         # Filter for gene with a minimum count
         if self.min_gene_coverage:
-            filtered_coverage = self.filter_coverage(cram_file, bed_file)
+            filtered_coverage = self.filter_coverage(
+                cram_file, bed_file, reference_file
+            )
             joined_df = msp_content.merge(filtered_coverage, on="gene_id")
             # filtered_coverage = filtered_count.groupby("gene_id")
             # Join the two DataFrames based on gene_id
@@ -273,6 +284,11 @@ class Strain(Session):
                 self.json_data["mapped_sample_dir"]
                 / f"{sample_info['sample_name']}.cram"
             )
+            reference_file = (
+                self.meteor.ref_dir
+                / self.json_data["reference"]["reference_file"]["fasta_dir"]
+                / self.json_data["reference"]["reference_file"]["fasta_filename"]
+            )
             bed_file = (
                 self.meteor.ref_dir
                 / self.json_data["reference"]["reference_file"]["database_dir"]
@@ -280,7 +296,9 @@ class Strain(Session):
             )
             start = perf_counter()
             # count_file,
-            self.get_msp_variant(consensus_file, msp_file, cram_file, bed_file)
+            self.get_msp_variant(
+                consensus_file, msp_file, cram_file, bed_file, reference_file
+            )
             logging.info(
                 "Completed strain analysis in %f seconds", perf_counter() - start
             )
