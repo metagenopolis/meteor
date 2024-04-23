@@ -120,9 +120,9 @@ class Phylogeny(Session):
             logging.error("Failed to determine the raxml-ng version.")
             sys.exit(1)
         raxml_ng_version = match.group(1)
-        if parse(raxml_ng_version) < Version("1.0.0"):
+        if parse(raxml_ng_version) < Version("1.0.1"):
             logging.error(
-                "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >=1.0.0.",
+                "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >=1.0.1.",
                 raxml_ng_version,
             )
             sys.exit(1)
