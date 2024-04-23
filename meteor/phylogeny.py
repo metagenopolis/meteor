@@ -105,23 +105,28 @@ class Phylogeny(Session):
 
     def execute(self) -> None:
         logging.info("Launch phylogeny analysis")
+        raxml_ng_exec = run(["raxml-ng", "--version"], check=False, capture_output=True)
+        if raxml_ng_exec.returncode != 0:
+            logging.error(
+                "Checking raxml-ng failed:\n%s", raxml_ng_exec.stderr.decode("utf-8")
+            )
+            sys.exit(1)
+        raxml_ng_help = raxml_ng_exec.stdout.decode("utf-8")
         # Define the regex pattern to match the version number
         version_pattern = re.compile(r"RAxML-NG v\. (\d+\.\d+\.\d+)")
-        raxml_ng_help = run(
-            ["raxml-ng", "--version"], check=False, capture_output=True
-        ).stdout.decode("utf-8")
         match = version_pattern.search(raxml_ng_help)
         # Check if a match is found
-        if match:
-            raxml_ng_version = match.group(1)
-            if parse(raxml_ng_version) < Version("1.0.0"):
-                logging.error(
-                    "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >=1.0.0.",
-                    raxml_ng_version,
-                )
-                sys.exit(1)
-        else:
+        if not match:
             logging.error("Failed to determine the raxml-ng version.")
+            sys.exit(1)
+        raxml_ng_version = match.group(1)
+        if parse(raxml_ng_version) < Version("1.0.1"):
+            logging.error(
+                "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >=1.0.1.",
+                raxml_ng_version,
+            )
+            sys.exit(1)
+            
         # Start phylogenies
         start = perf_counter()
         tree_files: list[Path] = []

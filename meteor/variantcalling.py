@@ -246,33 +246,33 @@ class VariantCalling(Session):
             / self.census["reference"]["annotation"]["bed"]["filename"]
         )
         bcftools_exec = run(["bcftools", "--version"], check=False, capture_output=True)
-        bcftools_version = (
-            bcftools_exec.stdout.decode("utf-8").split("\n")[0].split(" ")[1]
-        )
         if bcftools_exec.returncode != 0:
             logging.error(
                 "Checking bcftools failed:\n%s", bcftools_exec.stderr.decode("utf-8")
             )
             sys.exit(1)
-        elif parse(bcftools_version) < Version("0.1.19"):
+        bcftools_version = (
+            bcftools_exec.stdout.decode("utf-8").split("\n")[0].split(" ")[1]
+        )
+        if parse(bcftools_version) < Version("0.1.19"):
             logging.error(
                 "The bcftools version %s is outdated for meteor. Please update bcftools to >= 0.1.19.",
                 bcftools_version,
             )
             sys.exit(1)
         bedtools_exec = run(["bedtools", "--version"], check=False, capture_output=True)
-        bedtools_version = bedtools_exec.stdout.decode("utf-8").split(" ")[1][1:]
         if bedtools_exec.returncode != 0:
             logging.error(
-                "Check bedtools failed:\n%s", bedtools_exec.stderr.decode("utf-8")
+                "Checking bedtools failed:\n%s", bedtools_exec.stderr.decode("utf-8")
             )
-            sys.exit()
-        elif parse(bedtools_version) < Version("2.18"):
+            sys.exit(1)
+        bedtools_version = bedtools_exec.stdout.decode("utf-8").split(" ")[1][1:]
+        if parse(bedtools_version) < Version("2.18"):
             logging.error(
                 "Error, the bedtools version %s is outdated for meteor. Please update bedtools to >= 2.18.",
                 bedtools_version,
             )
-            sys.exit()
+            sys.exit(1)
         start = perf_counter()
         with NamedTemporaryFile(
             mode="wt",
