@@ -14,17 +14,23 @@
 
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Protocol, Iterator
+from typing import Protocol, Iterator, ClassVar
 import logging
 import sys
 import json
 import lzma
 from importlib.metadata import version
+from packaging.version import Version
 
 
 @dataclass(kw_only=True)
 class Component:
     """Set of important constant for meteor"""
+
+    MIN_BOWTIE2_VERSION : ClassVar[Version] = Version('2.3.5')
+    MIN_BCFTOOLS_VERSION : ClassVar[Version] = Version('0.1.19')
+    MIN_BEDTOOLS_VERSION : ClassVar[Version] = Version('2.18')
+    MIN_RAXML_NG_VERSION : ClassVar[Version] = Version("1.0.1")
 
     threads: int | None
     fastq_dir: Path = field(default_factory=Path)

@@ -23,7 +23,7 @@ from datetime import datetime
 from meteor.session import Session, Component
 from time import perf_counter
 from tempfile import NamedTemporaryFile
-from packaging.version import Version, parse
+from packaging.version import parse
 
 # from pysam import AlignmentFile
 # from collections import defaultdict
@@ -254,10 +254,10 @@ class VariantCalling(Session):
         bcftools_version = (
             bcftools_exec.stdout.decode("utf-8").split("\n")[0].split(" ")[1]
         )
-        if parse(bcftools_version) < Version("0.1.19"):
+        if parse(bcftools_version) < self.meteor.MIN_BCFTOOLS_VERSION:
             logging.error(
-                "The bcftools version %s is outdated for meteor. Please update bcftools to >= 0.1.19.",
-                bcftools_version,
+                "The bcftools version %s is outdated for meteor. Please update bcftools to >= %s.",
+                bcftools_version, self.meteor.MIN_BCFTOOLS_VERSION
             )
             sys.exit(1)
         bedtools_exec = run(["bedtools", "--version"], check=False, capture_output=True)
@@ -267,10 +267,10 @@ class VariantCalling(Session):
             )
             sys.exit(1)
         bedtools_version = bedtools_exec.stdout.decode("utf-8").split(" ")[1][1:]
-        if parse(bedtools_version) < Version("2.18"):
+        if parse(bedtools_version) < self.meteor.MIN_BEDTOOLS_VERSION:
             logging.error(
-                "Error, the bedtools version %s is outdated for meteor. Please update bedtools to >= 2.18.",
-                bedtools_version,
+                "The bedtools version %s is outdated for meteor. Please update bedtools to >= %s.",
+                bedtools_version, self.meteor.MIN_BEDTOOLS_VERSION
             )
             sys.exit(1)
         start = perf_counter()

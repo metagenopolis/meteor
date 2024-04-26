@@ -16,7 +16,7 @@ from subprocess import run, Popen, PIPE
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime
-from packaging.version import Version, parse
+from packaging.version import parse
 from re import findall
 from meteor.session import Session, Component
 from time import perf_counter
@@ -126,10 +126,10 @@ class Mapper(Session):
             )
             sys.exit(1)
         bowtie_version = str(bowtie_exec.stdout).split("\\n", maxsplit=1)[0].split(" ")[2]
-        if parse(bowtie_version) < Version("2.3.5"):
+        if parse(bowtie_version) < self.meteor.MIN_BOWTIE2_VERSION:
             logging.error(
-                "The bowtie2 version %s is outdated for meteor. Please update bowtie2 to >=2.3.5.",
-                bowtie_version,
+                "The bowtie2 version %s is outdated for meteor. Please update bowtie2 to >= %s.",
+                bowtie_version, self.meteor.MIN_BOWTIE2_VERSION
             )
             sys.exit(1)
         # Start mapping
