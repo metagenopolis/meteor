@@ -21,7 +21,7 @@ from time import perf_counter
 from pathlib import Path
 import tempfile
 from tempfile import NamedTemporaryFile
-from packaging.version import Version, parse
+from packaging.version import parse
 from collections import OrderedDict
 from datetime import datetime
 from typing import Iterable
@@ -120,10 +120,10 @@ class Phylogeny(Session):
             logging.error("Failed to determine the raxml-ng version.")
             sys.exit(1)
         raxml_ng_version = match.group(1)
-        if parse(raxml_ng_version) < Version("1.0.1"):
+        if parse(raxml_ng_version) < self.meteor.MIN_RAXML_NG_VERSION:
             logging.error(
-                "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >=1.0.1.",
-                raxml_ng_version,
+                "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >= %s.",
+                raxml_ng_version, self.meteor.MIN_RAXML_NG_VERSION
             )
             sys.exit(1)
             

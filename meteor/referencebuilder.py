@@ -21,7 +21,7 @@ from subprocess import check_call, run
 from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import datetime
-from packaging.version import Version, parse
+from packaging.version import parse
 from textwrap import fill
 from meteor.session import Session, Component
 from typing import Iterator, Tuple, ClassVar
@@ -140,10 +140,11 @@ class ReferenceBuilder(Session):
             )
             sys.exit(1)
         bowtie_version = bowtie_exec.stdout.decode("utf-8").split(" ")[2].split("\n")[0]
-        if parse(bowtie_version) < Version("2.3.5"):
+        if parse(bowtie_version) < self.meteor.MIN_BOWTIE2_VERSION:
             logging.error(
-                "The bowtie2 version %s is outdated for meteor. Please update bowtie2.",
+                "The bowtie2 version %s is outdated for meteor. Please update bowtie2 to >= %s.",
                 bowtie_version,
+                self.meteor.MIN_BOWTIE2_VERSION,
             )
             sys.exit(1)
         # Build the index with bowtie2

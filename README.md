@@ -1,6 +1,6 @@
 # Meteor
 
-[![install with conda](https://img.shields.io/conda/vn/aghozlane/meteor?color=green&label=aghozlane%2Fmeteor&logo=anaconda)](https://anaconda.org/aghozlane/meteor)
+[![install with conda](https://img.shields.io/conda/vn/bioconda/meteor?color=green&label=bioconda%2Fmeteor&logo=anaconda)](https://anaconda.org/bioconda/meteor)
 [![PyPI](https://img.shields.io/pypi/v/METEOR?label=pypi%20package)](https://pypi.org/project/meteor/)
 [![dockerhub](https://img.shields.io/docker/v/aghozlane/meteor?label=aghozlane/meteor&logo=docker)](https://hub.docker.com/r/aghozlane/meteor/)
 ![Github Actions](https://github.com/metagenopolis/meteor/actions/workflows/main.yml/badge.svg)
