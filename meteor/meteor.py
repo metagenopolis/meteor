@@ -825,10 +825,10 @@ def main() -> None:  # pragma: no cover
             shutil.rmtree(Path(tmpdirname) / "test2")
             meteor.mapped_sample_dir = meteor.mapping_dir / "test"
             meteor.strain_dir = Path(tmpdirname) / "strain"
-            strain_detector = Strain(meteor, 100, 2, 0.2, 10, 0.2, False)
+            strain_detector = Strain(meteor, 100, 2, 2, 0.2, 10, 0.2, False)
             strain_detector.execute()
             meteor.mapped_sample_dir = meteor.mapping_dir / "test2"
-            strain_detector = Strain(meteor, 100, 2, 0.2, 10, 0.2, False)
+            strain_detector = Strain(meteor, 100, 2, 2, 0.2, 10, 0.2, False)
             strain_detector.execute()
             # Remove the mapping directory and its contents
             shutil.rmtree(meteor.mapping_dir)
