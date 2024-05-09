@@ -19,14 +19,18 @@
     "total_read_count": 15000000,
     "mapped_read_count": 10000000,
     "overall_alignment_rate": 66.67,
-    "fastq_files": ["fastq1.fastq.gz", "fastq2.fastq.gz"],
+    "fastq_files": [
+      "fastq1.fastq.gz",
+      "fastq2.fastq.gz"
+    ],
     "database_type": "complete"
   },
   "mapping_file": {
     "bowtie_file": "sample2.sam"
   },
   "profiling_session": {
-    "date": "2023-11-25"
+    "meteor_version": "2.0.9",
+    "profiling_date": "2023-11-17"
   },
   "profiling_parameters": {
     "normalization": "fpkm",

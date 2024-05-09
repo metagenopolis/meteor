@@ -42,10 +42,12 @@ class Strain(Session):
     DEFAULT_MIN_MSP_COVERAGE: ClassVar[int] = 50
     DEFAULT_MIN_GENE_COVERAGE: ClassVar[float] = 0.8
     DEFAULT_NUM_THREADS: ClassVar[int] = 1
+    DEFAULT_MIN_DEPTH: ClassVar[int] = 3
+    MIN_DEPTH: ClassVar[int] = 1
 
     meteor: type[Component]
     max_depth: int
-    # min_gene_count: int
+    min_depth: int
     min_snp_depth: int
     min_frequency_non_reference: float
     min_msp_coverage: int
@@ -188,10 +190,10 @@ class Strain(Session):
             for gene_id in msp_content[msp_content["msp_name"] == msp_name][
                 "gene_id"
             ].values:
-                if gene_id in msp_covered["gene_id"].values:
-                    msp_seq += gene_dict[gene_id]
-                else:
-                    msp_seq += "-" * len(gene_dict[gene_id])
+                # if gene_id in msp_covered["gene_id"].values:
+                msp_seq += gene_dict[gene_id]
+                # else:
+                #     msp_seq += "?" * len(gene_dict[gene_id])
             with lzma.open(msp_file, "wt", preset=0) as msp:
                 print(
                     f">{self.json_data['census']['sample_info']['sample_name']}\n{msp_seq}\n",
@@ -248,6 +250,7 @@ class Strain(Session):
                 self.meteor,
                 self.json_data,
                 self.max_depth,
+                self.min_depth,
                 self.min_snp_depth,
                 self.min_frequency_non_reference,
             )

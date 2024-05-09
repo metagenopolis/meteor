@@ -460,13 +460,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Remove samples with no detected species (MSPs) "
         "(default: %(default)s).",
     )
-    #merging_parser.add_argument(
+    # merging_parser.add_argument(
     #    "-m",
     #    dest="output_mpa",
     #    action="store_true",
     #    help="Save the merged species abundance table in the style of MetaPhlan "
     #    "(default: %(default)s).",
-    #)
+    # )
     merging_parser.add_argument(
         "-b",
         dest="output_biom",
@@ -474,7 +474,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Save the merged species abundance table in biom format "
         "(default: %(default)s).",
     )
-    #merging_parser.add_argument(
+    # merging_parser.add_argument(
     #    "--tax_lev",
     #    dest="taxonomic_level",
     #    default=Merging.DEFAULT_MPA_TAXONOMIC_LEVEL,
@@ -489,7 +489,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     #                    'g' : genera only
     #                    's' : species only
     #                    't' : MSPs only""",
-    #)
+    # )
     merging_parser.add_argument(
         "-o",
         dest="merging_dir",
@@ -531,13 +531,22 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="max_depth",
         default=Strain.DEFAULT_MAX_DEPTH,
         type=int,
-        help="Maximum depth taken in account (default: %(default)d).",
+        help="Maximum number of reads taken in account (default: %(default)d).",
+    )
+    strain_parser.add_argument(
+        "-p",
+        dest="min_depth",
+        default=Strain.DEFAULT_MIN_DEPTH,
+        type=int,
+        help=f"""Minimum depth (default: >= %(default)d).
+        Values should be comprised between {Strain.MIN_DEPTH} and the maximum depth
+        ({Strain.MAX_MIN_SNP_DEPTH} reads are taken in account).""",
     )
     strain_parser.add_argument(
         "-s",
         dest="min_snp_depth",
         default=Strain.DEFAULT_MIN_SNP_DEPTH,
-        choices=range(Strain.MIN_MIN_SNP_DEPTH, Strain.MAX_MIN_SNP_DEPTH+1),
+        choices=range(Strain.MIN_MIN_SNP_DEPTH, Strain.MAX_MIN_SNP_DEPTH + 1),
         metavar="MIN_SNP_DEPTH",
         type=int,
         help=f"""Minimum snp depth (default: >= %(default)d).
@@ -555,11 +564,11 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-m",
         dest="min_msp_coverage",
         default=Strain.DEFAULT_MIN_MSP_COVERAGE,
-        choices=range(Strain.MIN_MIN_MSP_COVERAGE, Strain.MAX_MIN_MSP_COVERAGE+1),
+        choices=range(Strain.MIN_MIN_MSP_COVERAGE, Strain.MAX_MIN_MSP_COVERAGE + 1),
         metavar="MIN_MSP_COVERAGE",
         type=int,
         help=f"""Minimum number of genes from the MSP that are covered (default: >= %(default)d).
-        Values should be comprised between {Strain.MIN_MIN_MSP_COVERAGE} and {Strain.MAX_MIN_MSP_COVERAGE}"""
+        Values should be comprised between {Strain.MIN_MIN_MSP_COVERAGE} and {Strain.MAX_MIN_MSP_COVERAGE}""",
     )
     strain_parser.add_argument(
         "-c",
@@ -592,7 +601,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="threads",
         default=Strain.DEFAULT_NUM_THREADS,
         type=num_threads,
-        help="Number of threads to perform variant calling (default: %(default)d)."
+        help="Number of threads to perform variant calling (default: %(default)d).",
     )
     tree_parser = subparsers.add_parser(
         "tree", help="Compute phylogenetical tree from detected strains"
@@ -658,7 +667,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="threads",
         default=TreeBuilder.DEFAULT_NUM_THREADS,
         type=num_threads,
-        help="Number of threads when infering each tree (default: %(default)d)."
+        help="Number of threads when infering each tree (default: %(default)d).",
     )
     subparsers.add_parser("test", help="Test meteor installation")
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
@@ -726,7 +735,7 @@ def main() -> None:  # pragma: no cover
         strain_id = Strain(
             meteor,
             args.max_depth,
-            # args.min_gene_count,
+            args.min_depth,
             args.min_snp_depth,
             args.min_frequency_non_reference,
             args.min_msp_coverage,
@@ -784,8 +793,8 @@ def main() -> None:  # pragma: no cover
             args.remove_sample_with_no_msp,
             False,
             None,
-            #args.output_mpa,
-            #args.taxonomic_level,
+            # args.output_mpa,
+            # args.taxonomic_level,
             args.output_biom,
             args.output_gene_matrix,
         )

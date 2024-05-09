@@ -33,7 +33,7 @@ class Profiler(Session):
     NO_RAREFACTION: ClassVar[int] = 0
     DEFAULT_RAREFACTION_LEVEL: ClassVar[int] = NO_RAREFACTION
     DEFAULT_RANDOM_SEED: ClassVar[int] = 1234
-    NORMALIZATIONS: ClassVar[list[str|None]] = [None, "coverage", "fpkm", "raw"]
+    NORMALIZATIONS: ClassVar[list[str | None]] = [None, "coverage", "fpkm", "raw"]
     DEFAULT_NORMALIZATION: ClassVar[str] = "coverage"
     DEFAULT_COVERAGE_FACTOR: ClassVar[float] = 100.0
     DEFAULT_CORE_SIZE: ClassVar[int] = 100
@@ -43,7 +43,7 @@ class Profiler(Session):
     meteor: type[Component]
     rarefaction_level: int
     seed: int
-    normalization: str|None
+    normalization: str | None
     core_size: int
     msp_filter: float
     completeness: float
@@ -61,7 +61,7 @@ class Profiler(Session):
         config_session.update(
             {
                 "meteor_version": self.meteor.version,
-                "date_profiling": str(datetime.now().strftime("%Y-%m-%d")),
+                "profiling_date": str(datetime.now().strftime("%Y-%m-%d")),
             }
         )
         self.sample_config = self.update_json(

@@ -27,4 +27,4 @@ def strain_builder(datadir: Path, tmp_path: Path) -> Strain:
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.mapping_dir = tmp_path
-    return Strain(meteor, 100, 3, 0.5, 3, 0.8, True)
+    return Strain(meteor, 100, 3, 3, 0.5, 3, 0.8, True)

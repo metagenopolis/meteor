@@ -1,6 +1,6 @@
 # Meteor
 
-[![install with conda](https://img.shields.io/conda/vn/aghozlane/meteor?color=green&label=aghozlane%2Fmeteor&logo=anaconda)](https://anaconda.org/aghozlane/meteor)
+[![install with conda](https://img.shields.io/conda/vn/bioconda/meteor?color=green&label=bioconda%2Fmeteor&logo=anaconda)](https://anaconda.org/aghozlane/meteor)
 [![PyPI](https://img.shields.io/pypi/v/METEOR?label=pypi%20package)](https://pypi.org/project/meteor/)
 [![dockerhub](https://img.shields.io/docker/v/aghozlane/meteor?label=aghozlane/meteor&logo=docker)](https://hub.docker.com/r/aghozlane/meteor/)
 ![Github Actions](https://github.com/metagenopolis/meteor/actions/workflows/main.yml/badge.svg)
@@ -20,13 +20,13 @@ Besides python packages dependencies, Meteor requires:
 - [bowtie2 2.3.5+](https://github.com/BenLangmead/bowtie2)
 - [bcftools 0.1.19+](https://samtools.github.io/bcftools/)
 - [bedtools 2.18.0+](https://bedtools.readthedocs.io/en/latest/index.html)
-- [FastTree 1.9.0+](http://www.microbesonline.org/fasttree/)
+- [RAxML-NG 1.0.1+](https://github.com/amkozlov/raxml-ng)
 
 ## Installation
 
 Meteor is available with conda which includes all its dependencies:
 ```
-conda create --name meteor -c conda-forge -c bioconda  -c aghozlane meteor
+conda create --name meteor -c conda-forge -c bioconda meteor
 ```
 
 Or with pip with a recent Python 3.10+:
@@ -101,7 +101,7 @@ meteor fastq -i ./  -m SAMPLE_\\d+ -n projectname -o outputdir
 
 ### 3. Mapping
 ----------------
-The raw fastq files are mapped against a catalogue to generate a gene count table with the following command:
+The fastq files are mapped against a catalogue to generate a gene count table with the following command:
 ```
 meteor mapping -i <fastqdir/sampledir> -r <refdir> -o <mappingdir>
 ```
@@ -115,16 +115,16 @@ Genes from the catalogue are clustered into Metagenomic Species Pangeomes (MSP) 
  MSP and functional profiles are computed from the gene count table with the following command:
 
 ```
-meteor profile -i <mappingdir> -o <profiledir> -r <refdir> -n coverage
+meteor profile -i <mappingdir/sampledir> -o <profiledir> -r <refdir> -n coverage
 ```
 
 The "-n" parameter ensures read count normalization for gene length. If omitted, no normalization will be performed on the gene table.
 
 This profiling step will generate:
-- species abundance table;
-- ARD abundance table (full catalogue only);
-- DBCAN abundance table (full catalogue only);
-- Gut Metabolic Modules ([GMM](https://www.nature.com/articles/nmicrobiol201688)) abundance table (from the KO annotation) (full catalogue only).
+- a Species abundance table;
+- an ARD abundance table (full catalogue only);
+- a DBCAN abundance table (full catalogue only);
+- a Gut Metabolic Modules ([GMM](https://www.nature.com/articles/nmicrobiol201688)) abundance table (from the KO annotation) (full catalogue only).
 
 
 ### 5. Merging
@@ -132,14 +132,23 @@ This profiling step will generate:
 To merge output from different samples into a single table, use the following command:
 
 ```
-meteor merge -i <profiledir> -o <mergingdir> --fast
+meteor merge -i <profiledir> -o <mergingdir>
 ```
-
-The '--fast' parameter prevent merging of the gene count tables, so that only species and functions table will be merged.
 
 ### 5. Strain profiling
 -------------------------
 
+Meteor is capable of profiling strains in large metagenomic datasets. It identifies specific mutations from strains and applies them to the  gene catalog MSPs.
+
+To use Meteor for strain profiling, use the following command:
+```
+meteor strain -i <mappingdir/sampledir> -o <straindir> -r <refdir>
+```
+
+Meteor computes mutation rates and trees between strains from samples using a GTR+GAMMA model with the following command:
+```
+meteor tree -i <straindir> -o <treedir>
+```
 
 ## The METEOR team
 The main contributors to METEOR:

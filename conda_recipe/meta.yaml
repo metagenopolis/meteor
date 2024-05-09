@@ -19,11 +19,11 @@ build:
 
 requirements:
     host:
-        - python=3.10.13
+        - python >=3.10
         - poetry
     run:
-        - python=3.10.13
-        - bowtie2>=2.3.5
+        - python >=3.10
+        - bowtie2 >=2.3.5
         - pysam
         - pyarrow
         - pandas
@@ -31,9 +31,9 @@ requirements:
         - packaging
         - cogent3
         - biom-format
-        - bcftools>=0.1.19
-        - raxml-ng>=1.0.0
-        - bedtools>=2.18.0
+        - bcftools >=0.1.19
+        - raxml-ng >=1.0.1
+        - bedtools >=2.18.0
 test:
     commands:
         - meteor test

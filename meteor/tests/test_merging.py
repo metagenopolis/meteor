@@ -172,6 +172,8 @@ def test_merge_df(merging_profiles: Merging, datadir: Path):
     expected_output = pd.read_table(
         datadir / "expected_output" / "test_project_genes.tsv"
     )
+    for col in expected_output.select_dtypes(include=["float64"]).columns:
+        expected_output[col] = expected_output[col].astype(pd.SparseDtype(float, 0.0))
     assert merged_df.equals(expected_output)
     # Test module merging (1 key, different row numbers)
     files_to_merge = {
@@ -189,6 +191,8 @@ def test_merge_df(merging_profiles: Merging, datadir: Path):
     expected_output = pd.read_table(
         datadir / "expected_output" / "test_project_modules.tsv"
     )
+    for col in expected_output.select_dtypes(include=["float64"]).columns:
+        expected_output[col] = expected_output[col].astype(pd.SparseDtype(float, 0.0))
     assert merged_df.equals(expected_output)
     # Test module completeness merging (2 keys, different row numbers)
     files_to_merge = {
@@ -208,6 +212,8 @@ def test_merge_df(merging_profiles: Merging, datadir: Path):
     expected_output = pd.read_table(
         datadir / "expected_output" / "test_project_modules_completeness.tsv"
     )
+    for col in expected_output.select_dtypes(include=["float64"]).columns:
+        expected_output[col] = expected_output[col].astype(pd.SparseDtype(float, 0.0))
     merged_df = merged_df.sort_values(by=["msp_name", "mod_id"]).reset_index(drop=True)
     assert merged_df.equals(expected_output)
 

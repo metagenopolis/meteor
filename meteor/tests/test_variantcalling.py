@@ -43,7 +43,7 @@ def fixture_vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
             "Stage3FileName": stage3_dir / census_json_file.name,
             "reference": ref_json,
         }
-    return VariantCalling(meteor, data_dict, 100, 3, 0.5)
+    return VariantCalling(meteor, data_dict, 100, 3, 3, 0.5)
 
 
 # def test_get_regions(vc_builder: VariantCalling) -> None:

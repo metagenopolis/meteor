@@ -38,6 +38,7 @@ class VariantCalling(Session):
     meteor: type[Component]
     census: dict
     max_depth: int
+    min_depth: int
     min_snp_depth: int
     min_frequency_non_reference: float
 
@@ -212,7 +213,7 @@ class VariantCalling(Session):
                 "coverage",
             ],
         )
-        sum_cov_bed.query(f"coverage < {self.min_snp_depth}").to_csv(
+        sum_cov_bed.query(f"coverage < {self.min_depth}").to_csv(
             temp_low_cov_sites, sep="\t", header=False, index=False
         )
 
@@ -381,7 +382,8 @@ class VariantCalling(Session):
                             "-ibam",
                             str(cram_file.resolve()),
                         ],
-                        check=False, capture_output=True,
+                        check=False,
+                        capture_output=True,
                     ).stdout.decode("utf-8")
                     self.filter_low_cov_sites(output, temp_low_cov_sites)
                     logging.info(
@@ -396,7 +398,7 @@ class VariantCalling(Session):
                             "--mask",
                             temp_low_cov_sites.name,
                             "--mask-with",
-                            "-",
+                            "?",
                             "-f",
                             str(reference_file.resolve()),
                             str(vcf_file.resolve()),

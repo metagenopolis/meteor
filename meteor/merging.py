@@ -18,7 +18,7 @@ import pandas as pd
 from pathlib import Path
 import logging
 import sys
-from biom.table import Table # type: ignore
+from biom.table import Table  # type: ignore
 from typing import ClassVar
 from functools import partial
 
@@ -31,7 +31,17 @@ class Merging(Session):
 
     DEFAULT_MIN_MSP_ABUNDANCE: ClassVar[float] = 0.0
     DEFAULT_MIN_MSP_OCCURRENCE: ClassVar[int] = 1
-    MPA_TAXONOMIC_LEVELS: ClassVar[list[str]] = ["a", "k", "p", "c", "o", "f", "g", "s", "t"]
+    MPA_TAXONOMIC_LEVELS: ClassVar[list[str]] = [
+        "a",
+        "k",
+        "p",
+        "c",
+        "o",
+        "f",
+        "g",
+        "s",
+        "t",
+    ]
     DEFAULT_MPA_TAXONOMIC_LEVEL: ClassVar[str] = "a"
     DEFAULT_PREFIX: ClassVar[str] = "output"
 
@@ -41,7 +51,7 @@ class Merging(Session):
     min_msp_occurrence: int
     remove_sample_with_no_msp: bool
     output_mpa: bool
-    mpa_taxonomic_level: str|None
+    mpa_taxonomic_level: str | None
     output_biom: bool
     output_gene_matrix: bool
     ranks: dict[str, str] = field(
@@ -176,15 +186,17 @@ class Merging(Session):
         """
         # Load the data frames
         list_df = [
-            pd.read_table(my_path, compression="xz").rename(
-                columns={"value": my_sample}
-            )[key_merging + [my_sample]]
-            for (my_sample, my_path) in dict_path.items()
+            pd.read_table(my_path, compression="xz")
+            .rename(columns={"value": my_sample})[key_merging + [my_sample]]
+            .assign(
+                **{
+                    my_sample: lambda df: df[my_sample].astype(
+                        pd.SparseDtype("float", 0.0)
+                    )
+                }
+            )
+            for my_sample, my_path in dict_path.items()
         ]
-        # merged_df = reduce(
-        #     lambda left, right: pd.merge(left, right, how="outer"),
-        #     list_df,
-        # )
         for df in list_df:
             df.set_index(key_merging, inplace=True)
 
@@ -219,6 +231,10 @@ class Merging(Session):
         all_census_dict = {
             my_census.parent: self.read_json(my_census) for my_census in all_census
         }
+        # # The meteor version is not a constraint to matching
+        # print(all_census_dict)
+        # for my_census in all_census_dict:
+        #     del all_census_dict[my_census]["meteor_version"]
         # Check there is exactly one census file per subdirectory
         try:
             assert len(all_census_dict) == len(all_census)
@@ -272,6 +288,7 @@ class Merging(Session):
             key.name: {
                 option: value
                 for section in config_parser
+                if section != "meteor_version"
                 for option, value in config_parser[section].items()
             }
             for key, config_parser in all_census_dict.items()
@@ -375,7 +392,9 @@ class Merging(Session):
                     # Generate JSON representation of the BIOM table
                     biom_json = biom_table.to_json(generated_by="Meteor")
                     # Write the JSON to a file
-                    with open(output_name.with_suffix(".biom"), "wt", encoding="UTF-8") as f:
+                    with open(
+                        output_name.with_suffix(".biom"), "wt", encoding="UTF-8"
+                    ) as f:
                         f.write(biom_json)
                     # with h5py.File(output_name.with_suffix(".biom"), "w") as f:
                     #     table.to_hdf5(f, generated_by="Meteor", compress=True)
