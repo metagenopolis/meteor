@@ -123,10 +123,11 @@ class Phylogeny(Session):
         if parse(raxml_ng_version) < self.meteor.MIN_RAXML_NG_VERSION:
             logging.error(
                 "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >= %s.",
-                raxml_ng_version, self.meteor.MIN_RAXML_NG_VERSION
+                raxml_ng_version,
+                self.meteor.MIN_RAXML_NG_VERSION,
             )
             sys.exit(1)
-            
+
         # Start phylogenies
         start = perf_counter()
         tree_files: list[Path] = []
@@ -156,7 +157,7 @@ class Phylogeny(Session):
                             "--model",
                             "GTR+G",
                             "--redo",
-                            # "--force perf_threads", # only with raxml-ng-mpi
+                            "--force perf_threads",  # not working with raxml-ng-mpi
                             "--prefix",
                             str(tree_file.resolve()),
                         ]

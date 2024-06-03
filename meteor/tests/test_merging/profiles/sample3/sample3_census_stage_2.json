@@ -42,7 +42,7 @@
     "mustard_filename": "IGC2_mustard.tsv",
     "modules_db": "kegg",
     "modules_db_filenames": "IGC2_kegg_107.tsv",
-    "modules_def": "GMM_definition.tsv",
+    "modules_def": "modules_definition.tsv",
     "module_completeness": 0.9
   },
   "profiling_stats": {

@@ -158,7 +158,7 @@ class Profiler(Session):
 
             # Initialize the module definition file
             self.module_path = (
-                importlib.resources.files("meteor") / "data/GMM_definition.tsv"
+                importlib.resources.files("meteor") / "data/modules_definition.tsv"
             )
             assert self.module_path.is_file()
 
