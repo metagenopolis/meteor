@@ -158,7 +158,8 @@ class Phylogeny(Session):
                             "--model",
                             "GTR+G",
                             "--redo",
-                            "--force perf_threads",  # not working with raxml-ng-mpi
+                            "--force",
+                            "perf_threads",  # not working with raxml-ng-mpi
                             "--prefix",
                             str(tree_file.resolve()),
                         ]
