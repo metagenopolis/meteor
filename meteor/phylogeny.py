@@ -152,6 +152,7 @@ class Phylogeny(Session):
                             "raxml-ng",
                             "--threads",
                             str(self.meteor.threads),
+                            "--search1",
                             "--msa",
                             temp_clean.name,
                             "--model",
