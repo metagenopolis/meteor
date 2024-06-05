@@ -214,8 +214,9 @@ class Strain(Session):
                         file=msp,
                     )
             else:
-                print(
-                    f"{msp_name} contains only question mark characters according to depth thresholds. Skipping..."
+                logging.info(
+                    "%s contains only question mark characters according to depth thresholds. Skipping...",
+                    msp_name,
                 )
         # Remove consensus file
         if not self.keep_consensus:
