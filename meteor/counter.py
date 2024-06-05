@@ -371,7 +371,7 @@ class Counter(Session):
                 msp_file,
                 sep="\t",
                 # names=["msp_name", "gene_id", "gene_name", "gene_category"],
-                header=1,
+                header=0,
             )
             .query("gene_category == 'core'")
             .groupby("msp_name", as_index=False)
