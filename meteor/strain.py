@@ -112,6 +112,17 @@ class Strain(Session):
         #     a = cramdesc.count_coverage(str(gene), start=startpos, stop=endpos)
         #     print(a)
 
+    def is_only_question_mark(self, s):
+        return set(s).issubset("?")
+
+    def check_fasta_sequence(self, file_content):
+        """Check if the sequence part of a FASTA file contains only '?'."""
+        # Split content by lines
+        # lines = file_content.decode("utf-8").splitlines()
+        # Filter out header lines and join the rest
+        sequence = "".join([line for line in file_content if not line.startswith(">")])
+        return self.is_only_question_mark(sequence)
+
     def get_msp_variant(
         self,
         consensus_file: Path,
@@ -170,7 +181,7 @@ class Strain(Session):
         msp_with_overlapping_genes = overlapping_gene_counts[
             overlapping_gene_counts["overlapping_gene_count"] >= self.min_msp_coverage
         ]
-        msp_covered = joined_df.merge(msp_with_overlapping_genes, on="msp_name")
+        # msp_covered = joined_df.merge(msp_with_overlapping_genes, on="msp_name")
         # clear first ?
         if not consensus_file.exists():
             logging.error(
@@ -179,6 +190,7 @@ class Strain(Session):
                 consensus_file,
             )
             sys.exit(1)
+
         gene_dict = dict(self.get_sequences(consensus_file))
         logging.info(
             "%s MSPs have sufficient signal for SNP analysis ",
@@ -194,10 +206,16 @@ class Strain(Session):
                 msp_seq += gene_dict[gene_id]
                 # else:
                 #     msp_seq += "?" * len(gene_dict[gene_id])
-            with lzma.open(msp_file, "wt", preset=0) as msp:
+
+            if self.check_fasta_sequence(msp_seq):
+                with lzma.open(msp_file, "wt", preset=0) as msp:
+                    print(
+                        f">{self.json_data['census']['sample_info']['sample_name']}\n{msp_seq}\n",
+                        file=msp,
+                    )
+            else:
                 print(
-                    f">{self.json_data['census']['sample_info']['sample_name']}\n{msp_seq}\n",
-                    file=msp,
+                    f"{msp_name} contains only question mark characters according to depth thresholds. Skipping..."
                 )
         # Remove consensus file
         if not self.keep_consensus:

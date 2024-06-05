@@ -258,7 +258,8 @@ class VariantCalling(Session):
         if parse(bcftools_version) < self.meteor.MIN_BCFTOOLS_VERSION:
             logging.error(
                 "The bcftools version %s is outdated for meteor. Please update bcftools to >= %s.",
-                bcftools_version, self.meteor.MIN_BCFTOOLS_VERSION
+                bcftools_version,
+                self.meteor.MIN_BCFTOOLS_VERSION,
             )
             sys.exit(1)
         bedtools_exec = run(["bedtools", "--version"], check=False, capture_output=True)
@@ -271,7 +272,8 @@ class VariantCalling(Session):
         if parse(bedtools_version) < self.meteor.MIN_BEDTOOLS_VERSION:
             logging.error(
                 "The bedtools version %s is outdated for meteor. Please update bedtools to >= %s.",
-                bedtools_version, self.meteor.MIN_BEDTOOLS_VERSION
+                bedtools_version,
+                self.meteor.MIN_BEDTOOLS_VERSION,
             )
             sys.exit(1)
         start = perf_counter()
@@ -407,7 +409,6 @@ class VariantCalling(Session):
                     ) as bcftools_process:
                         # capture output of bcftools_process
                         bcftools_output = bcftools_process.communicate()[0]
-
                         # compress output using lzma
                         compressed_output = lzma.compress(bcftools_output)
 
