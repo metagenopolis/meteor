@@ -113,7 +113,7 @@ class Strain(Session):
         #     print(a)
 
     def is_only_question_mark(self, s):
-        return set(s).issubset("?")
+        return set(s) == {"?"}
 
     def check_fasta_sequence(self, file_content):
         """Check if the sequence part of a FASTA file contains only '?'."""
@@ -207,7 +207,7 @@ class Strain(Session):
                 # else:
                 #     msp_seq += "?" * len(gene_dict[gene_id])
 
-            if self.check_fasta_sequence(msp_seq):
+            if not self.check_fasta_sequence(msp_seq):
                 with lzma.open(msp_file, "wt", preset=0) as msp:
                     print(
                         f">{self.json_data['census']['sample_info']['sample_name']}\n{msp_seq}\n",

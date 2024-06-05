@@ -370,7 +370,7 @@ class Counter(Session):
             pd.read_csv(
                 msp_file,
                 sep="\t",
-                names=["msp_name", "gene_id", "gene_name", "gene_category"],
+                # names=["msp_name", "gene_id", "gene_name", "gene_category"],
                 header=1,
             )
             .query("gene_category == 'core'")
