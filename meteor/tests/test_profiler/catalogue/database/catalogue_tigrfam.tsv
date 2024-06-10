@@ -1,0 +1,13 @@
+gene_id	gene_name	annotation
+1	gene_1	T1
+2	gene_2	T2
+4	gene_4	T3
+5	gene_5	T4
+6	gene_6	T3
+6	gene_6	T5
+7	gene_7	T6
+10	gene_10	T7
+11	gene_11	T2
+13	gene_13	T8
+17	gene_17	T2
+20	gene_20	T8

@@ -8,20 +8,28 @@
   },
   "annotation": {
     "mustard": {
-        "filename": "catalogue_mustard.tsv",
-        "version": "2.0"
+      "filename": "catalogue_mustard.tsv",
+      "version": "2.0"
     },
     "msp": {
-        "filename": "catalogue_msp.tsv",
-        "version": "1.0"
+      "filename": "catalogue_msp.tsv",
+      "version": "1.0"
     },
     "kegg": {
-        "filename": "catalogue_kegg.tsv",
-        "version": "107"
+      "filename": "catalogue_kegg.tsv",
+      "version": "107"
     },
     "dbcan": {
-        "filename": "catalogue_dbcan.tsv",
-        "version": "3.0"
+      "filename": "catalogue_dbcan.tsv",
+      "version": "3.0"
+    },
+    "eggnog": {
+      "filename": "catalogue_eggnog.tsv",
+      "version": "3.0"
+    },
+    "tigrfam": {
+      "filename": "catalogue_tigrfam.tsv",
+      "version": "15.0"
     }
   }
 }

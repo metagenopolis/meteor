@@ -148,7 +148,7 @@ class Profiler(Session):
         # Get functional db filenames
         if self.database_type == "complete":
             self.db_filenames = {}
-            for db in ["kegg", "mustard", "dbcan"]:
+            for db in ["kegg", "mustard", "dbcan", "eggnog", "tigrfam"]:
                 self.db_filenames[db] = (
                     self.meteor.ref_dir
                     / self.ref_config["reference_file"]["database_dir"]
@@ -687,7 +687,9 @@ class Profiler(Session):
 
             # Part 4 Module computation
             # Get db filenames required for module computation
-            module_db_filenames = {db: self.db_filenames[db] for db in ["kegg"]}
+            module_db_filenames = {
+                db: self.db_filenames[db] for db in ["kegg", "eggnog", "tigrfam"]
+            }
             logging.info("Parse module definition file.")
             module_dict = Parser(self.module_path)
             module_dict.execute()
