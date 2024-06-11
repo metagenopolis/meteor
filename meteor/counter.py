@@ -37,17 +37,19 @@ class Counter(Session):
     COUNTING_TYPES: ClassVar[list[str]] = ["total", "smart_shared", "unique"]
     DEFAULT_COUNTING_TYPE: ClassVar[str] = "smart_shared"
     NO_IDENTITY_THRESHOLD: ClassVar[float] = 0.0
-    DEFAULT_IDENTITY_THRESHOLD: ClassVar[float] = 0.95
+    DEFAULT_IDENTITY_THRESHOLD_COMPLETE: ClassVar[float] = 0.95
+    DEFAULT_IDENTITY_THRESHOLD_TAXO: ClassVar[float] = 0.97
 
     meteor: type[Component]
     counting_type: str
     mapping_type: str
     trim: int
-    identity_threshold: float
+    identity_user: float | None
     alignment_number: int
     keep_all_alignments: bool = False
     keep_filtered_alignments: bool = False
     json_data: dict = field(default_factory=dict)
+    identity_threshold: float = field(default_factory=float)
 
     def __post_init__(self) -> None:
         if self.counting_type not in Counter.COUNTING_TYPES:
@@ -508,6 +510,13 @@ class Counter(Session):
             ref_json_file = ref_json_file_list[0]
             ref_json = self.read_json(ref_json_file)
             self.meteor.ref_name = ref_json["reference_info"]["reference_name"]
+            if not self.identity_user:
+                if ref_json["reference_info"]["database_type"] == "complete":
+                    self.identity_threshold = self.DEFAULT_IDENTITY_THRESHOLD_COMPLETE
+                else:
+                    self.identity_threshold = self.DEFAULT_IDENTITY_THRESHOLD_TAXO
+            else:
+                self.identity_threshold = self.identity_user
         except AssertionError:
             logging.error(
                 "No *_reference.json file found in %s. "

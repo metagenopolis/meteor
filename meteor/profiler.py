@@ -14,7 +14,7 @@
 
 from meteor.session import Session, Component
 from meteor.parser import Parser
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import pandas as pd
 from pathlib import Path
 import importlib.resources
@@ -37,7 +37,8 @@ class Profiler(Session):
     DEFAULT_NORMALIZATION: ClassVar[str] = "coverage"
     DEFAULT_COVERAGE_FACTOR: ClassVar[float] = 100.0
     DEFAULT_CORE_SIZE: ClassVar[int] = 100
-    DEFAULT_MSP_FILTER: ClassVar[float] = 0.1
+    DEFAULT_MSP_FILTER_COMPLETE: ClassVar[float] = 0.1
+    DEFAULT_MSP_FILTER_TAXO: ClassVar[float] = 0.2
     DEFAULT_COMPLETENESS: ClassVar[float] = 0.9
 
     meteor: type[Component]
@@ -45,9 +46,10 @@ class Profiler(Session):
     seed: int
     normalization: str | None
     core_size: int
-    msp_filter: float
+    msp_filter_user: float | None
     completeness: float
     coverage_factor: float
+    msp_filter: float = field(default_factory=float)
 
     def __post_init__(self):
         if self.normalization not in Profiler.NORMALIZATIONS:
@@ -91,6 +93,14 @@ class Profiler(Session):
         # Get the database type
         self.database_type = self.ref_config["reference_info"]["database_type"]
 
+        if not self.msp_filter_user:
+            if self.database_type == "complete":
+                self.msp_filter = Profiler.DEFAULT_MSP_FILTER_COMPLETE
+            else:
+                self.msp_filter = Profiler.DEFAULT_MSP_FILTER_TAXO
+        else:
+            self.msp_filter = self.msp_filter_user
+
         # Get the associated count table
         self.input_count_table = (
             self.meteor.mapping_dir / self.sample_name
@@ -124,7 +134,9 @@ class Profiler(Session):
 
         # Load the count table
         self.gene_count = pd.read_table(self.input_count_table)
-        self.gene_count["value"] = self.gene_count["value"].round(0).astype("int")
+        self.gene_count["value"] = self.gene_count["value"].astype(
+            pd.SparseDtype("float", fill_value=0.0)
+        )
 
         # Define output filenames
         self.output_base_filename = f"{self.sample_name}"
@@ -174,6 +186,9 @@ class Profiler(Session):
         except AssertionError:
             logging.error("You are trying to rarefy with a null or negative number.")
             sys.exit(1)
+        # Rarefaction must be performed on integer values
+        self.gene_count["value"] = self.gene_count["value"].astype(float).round(0)
+        self.gene_count["value"] = self.gene_count["value"].astype(int)
         # Add the unmapped count
         self.gene_count.loc[len(self.gene_count)] = {
             "gene_id": -1,
@@ -636,8 +651,8 @@ class Profiler(Session):
         )
         # Part 3: FUNCTIONAL PROFILING
         if self.database_type == "complete":
-            single_fun_db = ["mustard"]
-            single_fun_by_msp_db = ["dbcan"]
+            single_fun_db = ["mustard", "kegg", "dbcan"]
+            single_fun_by_msp_db = ["mustard", "kegg", "dbcan"]
             for db, db_filename in self.db_filenames.items():
                 # By sum of genes
                 if db in single_fun_db:

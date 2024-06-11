@@ -32,7 +32,7 @@ import sys
 class Mapper(Session):
     """Run the bowtie"""
 
-    DEFAULT_NUM_THREADS : ClassVar[int] = 1
+    DEFAULT_NUM_THREADS: ClassVar[int] = 1
     MAPPING_TYPES: ClassVar[list[str]] = ["end-to-end", "local"]
     DEFAULT_MAPPING_TYPE: ClassVar[str] = "end-to-end"
     DEFAULT_TRIM: ClassVar[int] = 80
@@ -125,11 +125,14 @@ class Mapper(Session):
                 bowtie_exec.stderr.decode("utf-8"),
             )
             sys.exit(1)
-        bowtie_version = str(bowtie_exec.stdout).split("\\n", maxsplit=1)[0].split(" ")[2]
+        bowtie_version = (
+            str(bowtie_exec.stdout).split("\\n", maxsplit=1)[0].split(" ")[2]
+        )
         if parse(bowtie_version) < self.meteor.MIN_BOWTIE2_VERSION:
             logging.error(
                 "The bowtie2 version %s is outdated for meteor. Please update bowtie2 to >= %s.",
-                bowtie_version, self.meteor.MIN_BOWTIE2_VERSION
+                bowtie_version,
+                self.meteor.MIN_BOWTIE2_VERSION,
             )
             sys.exit(1)
         # Start mapping

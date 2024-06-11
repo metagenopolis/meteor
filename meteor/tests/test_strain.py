@@ -16,15 +16,29 @@ from ..session import Component
 from ..strain import Strain
 from pathlib import Path
 import pytest
+import pandas as pd
 
 
 @pytest.fixture
 def strain_builder(datadir: Path, tmp_path: Path) -> Strain:
     meteor = Component
     meteor.tmp_path = tmp_path
-    meteor.fastq_dir = datadir / "part1"
+    meteor.strain_dir = datadir / "strain"
     meteor.ref_dir = datadir / "catalogue" / "mock"
     meteor.ref_name = "test"
     meteor.threads = 1
-    meteor.mapping_dir = tmp_path
+    # meteor.mapping_dir = tmp_path
     return Strain(meteor, 100, 3, 3, 0.5, 3, 0.8, True)
+
+
+def test_filter_coverage(
+    strain_builder: Strain,
+    datadir: Path,
+) -> None:
+    filtered_cov = strain_builder.filter_coverage(
+        strain_builder.meteor.strain_dir / "test.cram",
+        strain_builder.meteor.ref_dir / "database" / "mock.bed",
+        strain_builder.meteor.ref_dir / "fasta" / "mock.fasta.gz",
+    )
+    expected_output = pd.read_table(datadir / "expected_output" / "filtered_cov.tsv")
+    assert filtered_cov.reset_index(drop=True).equals(expected_output)

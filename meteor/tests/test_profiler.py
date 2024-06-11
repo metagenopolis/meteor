@@ -33,17 +33,16 @@ def profiler_standard(datadir: Path, tmp_path: Path) -> Profiler:
         coverage_factor=100.0,
         normalization=None,
         core_size=4,
-        msp_filter=0.5,
+        msp_filter_user=0.5,
         completeness=0.6,
+        msp_filter=0.5,
     )
 
 
 def test_rarefy(profiler_standard: Profiler, datadir: Path) -> None:
     # No rarefaction with 0 unmapped reads
     profiler_standard.rarefy(rarefaction_level=900, unmapped_reads=0, seed=12345)
-    expected_output = pd.read_table(
-        datadir / "expected_output" / "sample_no_rarefaction.tsv"
-    )
+    expected_output = pd.read_table(datadir / "expected_output" / "sample_rarefied.tsv")
     assert profiler_standard.gene_count.equals(expected_output)
 
 
@@ -68,9 +67,7 @@ def test_rarefy3(profiler_standard: Profiler, datadir: Path) -> None:
 def test_rarefy4(profiler_standard: Profiler, datadir: Path) -> None:
     # No rarefaction with unmapped reads
     profiler_standard.rarefy(rarefaction_level=900, unmapped_reads=80, seed=12345)
-    expected_output = pd.read_table(
-        datadir / "expected_output" / "sample_no_rarefaction.tsv"
-    )
+    expected_output = pd.read_table(datadir / "expected_output" / "sample_rarefied.tsv")
     assert profiler_standard.gene_count.equals(expected_output)
 
 
@@ -93,9 +90,10 @@ def test_normalize_fpkm1(profiler_standard: Profiler, datadir: Path) -> None:
     # No downsizing, no unmapped reads
     profiler_standard.normalize_fpkm(rarefaction_level=0, unmapped_reads=0)
     # Round the results to 6 digits, if not df are not equal
-    profiler_standard.gene_count["value"] = profiler_standard.gene_count["value"].round(
-        6
+    profiler_standard.gene_count["value"] = (
+        profiler_standard.gene_count["value"].astype(float).round(6)
     )
+
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_norm_fpkm_raref_0_unmapped_0.tsv"
     )
@@ -106,8 +104,8 @@ def test_normalize_fpkm2(profiler_standard: Profiler, datadir: Path) -> None:
     # No downsizing, 500 unmapped reads
     profiler_standard.normalize_fpkm(rarefaction_level=0, unmapped_reads=500)
     # Round the results to 6 digits, if not df are not equal
-    profiler_standard.gene_count["value"] = profiler_standard.gene_count["value"].round(
-        6
+    profiler_standard.gene_count["value"] = (
+        profiler_standard.gene_count["value"].astype(float).round(6)
     )
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_norm_fpkm_raref_0_unmapped_500.tsv"
@@ -165,7 +163,9 @@ def test_compute_msp(profiler_standard: Profiler, datadir: Path) -> None:
     # Compute MSP directly on the raw gene count (only rounded)
     profiler_standard.compute_msp(msp_dict=msp_set, filter_pc=0.5)
     # Round at 6 digits
-    profiler_standard.msp_table["value"] = profiler_standard.msp_table["value"].round(6)
+    profiler_standard.msp_table["value"] = (
+        profiler_standard.msp_table["value"].astype(float).round(6)
+    )
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_msp.tsv"
     )
@@ -174,7 +174,9 @@ def test_compute_msp(profiler_standard: Profiler, datadir: Path) -> None:
     profiler_standard.normalize_fpkm(rarefaction_level=0, unmapped_reads=0)
     profiler_standard.compute_msp(msp_dict=msp_set, filter_pc=0.5)
     # Round at 6 digits
-    profiler_standard.msp_table["value"] = profiler_standard.msp_table["value"].round(6)
+    profiler_standard.msp_table["value"] = (
+        profiler_standard.msp_table["value"].astype(float).round(6)
+    )
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_norm_fpkm_msp.tsv"
     )
@@ -217,6 +219,9 @@ def test_compute_ko_abundance(profiler_standard: Profiler, datadir: Path) -> Non
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_no_norm_kegg.tsv"
     )
+    profiler_standard.functions["value"] = (
+        profiler_standard.functions["value"].astype(float).round(6)
+    )
     assert profiler_standard.functions.equals(expected_output)
     # Compute KO on the fpkm gene matrix
     profiler_standard.normalize_fpkm(rarefaction_level=0, unmapped_reads=0)
@@ -224,7 +229,9 @@ def test_compute_ko_abundance(profiler_standard: Profiler, datadir: Path) -> Non
         annot_file=profiler_standard.db_filenames["kegg"]
     )
     # Round at 6 digits
-    profiler_standard.functions["value"] = profiler_standard.functions["value"].round(6)
+    profiler_standard.functions["value"] = (
+        profiler_standard.functions["value"].astype(float).round(6)
+    )
     expected_output = pd.read_table(
         datadir / "expected_output" / "sample_no_rf_norm_fpkm_kegg.tsv"
     )
@@ -333,7 +340,12 @@ def test_compute_completeness(profiler_standard: Profiler) -> None:
     )
     # Round the result to 2 digits
     completeness = {key: round(value, 2) for key, value in completeness.items()}
-    expected_output = {"msp_01_standard": 0.67, "msp_03_small": 0.5}
+    expected_output = {
+        "msp_01_standard": 0.67,
+        "msp_02_undetected": 0.5,
+        "msp_03_small": 0.5,
+        "msp_04_small_nd": 0.33,
+    }
     assert completeness == expected_output
 
 
@@ -381,10 +393,30 @@ def test_compute_completeness_all(profiler_standard: Profiler) -> None:
         all_mod=all_mod, annotated_msp=annotated_msp
     )
     expected_output = {
-        "mod1": {"msp_01_standard": 1, "msp_03_small": 0},
-        "mod2": {"msp_01_standard": 1, "msp_03_small": 1},
-        "mod3": {"msp_01_standard": 1, "msp_03_small": 0.5},
-        "mod4": {"msp_01_standard": 0, "msp_03_small": 0},
+        "mod1": {
+            "msp_01_standard": 1.0,
+            "msp_02_undetected": 0.0,
+            "msp_03_small": 0.0,
+            "msp_04_small_nd": 1.0,
+        },
+        "mod2": {
+            "msp_01_standard": 1.0,
+            "msp_02_undetected": 1.0,
+            "msp_03_small": 1.0,
+            "msp_04_small_nd": 0.0,
+        },
+        "mod3": {
+            "msp_01_standard": 1.0,
+            "msp_02_undetected": 0.5,
+            "msp_03_small": 0.5,
+            "msp_04_small_nd": 0.5,
+        },
+        "mod4": {
+            "msp_01_standard": 0.0,
+            "msp_02_undetected": 0.0,
+            "msp_03_small": 0.0,
+            "msp_04_small_nd": 0.0,
+        },
     }
     assert completeness == expected_output
 

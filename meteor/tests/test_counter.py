@@ -50,9 +50,10 @@ def counter_unique(datadir: Path, tmp_path: Path) -> Counter:
         counting_type="unique",
         mapping_type="end-to-end",
         trim=80,
-        identity_threshold=0.95,
+        identity_user=0.95,
         alignment_number=10000,
         keep_filtered_alignments=True,
+        identity_threshold=0.95,
     )
 
 
@@ -70,9 +71,10 @@ def counter_smart_shared(datadir: Path, tmp_path: Path) -> Counter:
         counting_type="smart_shared",
         mapping_type="end-to-end",
         trim=80,
-        identity_threshold=0.95,
+        identity_user=0.95,
         alignment_number=10000,
         keep_filtered_alignments=True,
+        identity_threshold=0.95,
     )
 
 
@@ -90,10 +92,11 @@ def counter_total(datadir: Path, tmp_path: Path) -> Counter:
         counting_type="total",
         mapping_type="end-to-end",
         trim=80,
-        identity_threshold=0.95,
+        identity_user=0.95,
         alignment_number=10000,
         keep_all_alignments=False,
         keep_filtered_alignments=True,
+        identity_threshold=0.95,
     )
 
 

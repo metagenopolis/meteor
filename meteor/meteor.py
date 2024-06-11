@@ -301,9 +301,9 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--id",
         dest="identity_threshold",
         type=isborned01,
-        default=Counter.DEFAULT_IDENTITY_THRESHOLD,
+        # default=Counter.DEFAULT_IDENTITY_THRESHOLD,
         help="Select only read alignments with a nucleotide identity >= IDENTITY_THRESHOLD "
-        f"(default: %(default).2f).\nIf {Counter.NO_IDENTITY_THRESHOLD}, no filtering.",
+        f"(default: auto).\nIf {Counter.NO_IDENTITY_THRESHOLD}, no filtering.",
     )
     mapping_parser.add_argument(
         "--ka",
@@ -404,9 +404,9 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--msp_filter",
         dest="msp_filter",
         type=isborned01,
-        default=Profiler.DEFAULT_MSP_FILTER,
+        # default=Profiler.DEFAULT_MSP_FILTER,
         help="Minimal proportion of core genes detected in a sample to consider a species (MSP) as present "
-        "(default: %(default).1f).",
+        "(default: auto).",
     )
     profiling_parser.add_argument(
         "--completeness",

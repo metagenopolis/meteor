@@ -183,6 +183,8 @@ class Merging(Session):
         :param dict_path: dictionnary of path of files to merge, where key is sample name
         and will be used as colnames.
         :param key_merging: list of keys that should be used as pivot for merging.
+
+        :return: merged data frame
         """
         # Load the data frames
         list_df = [
