@@ -13,19 +13,26 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ConorMacBride/install-package@v1
         with:
-          brew: bowtie2 bcftools bedtools raxml-ng
+          brew: bowtie2 bcftools bedtools
           apt: bowtie2 bcftools bedtools
       - name: Fetch GitHub Release Assets
         uses: dsaltares/fetch-gh-release-asset@master
         with:
           repo: 'amkozlov/raxml-ng'
-          version: 'tags/1.2.1'
-          file: 'raxml-ng_v1.2.1_linux_x86_64.zip'
+          version: 'tags/1.2.2'
+          file: 'raxml-ng_v1.2.2_linux_x86_64.zip'
           token: ${{ secrets.GITHUB_TOKEN }}
         if: matrix.os == 'ubuntu-22.04'
+      - name: Fetch GitHub Release Assets
+        uses: dsaltares/fetch-gh-release-asset@master
+        with:
+          repo: 'amkozlov/raxml-ng'
+          version: 'tags/1.2.2'
+          file: 'raxml-ng_v1.2.2_macos.zip'
+          token: ${{ secrets.GITHUB_TOKEN }}
+        if: matrix.os == 'macos-latest'
       - name: Extract zip
-        run: unzip -o raxml-ng_v1.2.1_linux_x86_64.zip  -d /usr/local/bin && chmod +x /usr/local/bin/raxml-ng
-        if: matrix.os == 'ubuntu-22.04'
+        run: unzip -o raxml-ng_*.zip  -d /usr/local/bin && chmod +x /usr/local/bin/raxml-ng
       - name: Install Python
         uses: actions/setup-python@v4
       - name: Install poetry
