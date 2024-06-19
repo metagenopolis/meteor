@@ -24,7 +24,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
         if: matrix.os == 'ubuntu-22.04'
       - name: Extract zip
-        run: unzip -f -o raxml-ng_v1.2.1_linux_x86_64.zip  -d /usr/local/bin
+        run: unzip -f -o raxml-ng_v1.2.1_linux_x86_64.zip  -d /usr/local/bin && chmod +x /usr/local/bin/raxml-ng
         if: matrix.os == 'ubuntu-22.04'
       - name: Install Python
         uses: actions/setup-python@v4
