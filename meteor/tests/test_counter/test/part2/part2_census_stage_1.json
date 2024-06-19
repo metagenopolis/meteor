@@ -1,0 +1,38 @@
+{
+  "sample_info": {
+    "sample_name": "part2",
+    "condition_name": "NA",
+    "project_name": "test",
+    "sequencing_date": "1900-01-01",
+    "sequencing_device": "proton",
+    "census_status": 0,
+    "read_length": -1,
+    "tag": "single",
+    "full_sample_name": "part2"
+  },
+  "sample_file": {
+    "fastq_file": "part2.fastq.gz",
+    "is_compressed": 1
+  },
+  "mapping": {
+    "mapping_tool": "bowtie2",
+    "mapping_tool_version": "NA",
+    "mapping_date": "2023-03-23",
+    "reference_name": "mock",
+    "mapping_cmdline": "-p 10 --local --sensitive-local --trim-to 80 -k 10000",
+    "parameters": "l-1-m5",
+    "mapped_read_length": -1,
+    "mapped_read_length_type": "overall",
+    "mismatches": 5,
+    "is_mismatches_percentage": 1,
+    "matches": 10000,
+    "is_local_mapping": 1,
+    "mapping_software": "Meteor",
+    "mapping_software_version": "3.3"
+  },
+  "mapping_file": {
+    "mapping_file_count": 1,
+    "bowtie_file_1": "part2.bam",
+    "mapping_file_format": "sam"
+  }
+}
