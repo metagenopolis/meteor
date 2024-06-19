@@ -7,7 +7,6 @@ doc/_build/
 meteor.egg-info
 build
 dist
-test
 *.code-workspace
 *.log
 .vscode
