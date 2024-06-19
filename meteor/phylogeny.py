@@ -38,14 +38,16 @@ class Phylogeny(Session):
     meteor: type[Component]
     msp_file_list: list[Path]
     max_gap: float
-    gap_char: str
 
     def compute_site_info(self, sequences: Iterable[str]) -> list[float]:
         """Calculate the percentage of "_" at each position
         :param sequences: (List) A list of sequence
         :return: (List) A list of the ratio of gap at each position
         """
-        return [float(col.count(self.gap_char)) / len(col) for col in zip(*sequences)]
+        return [
+            float(col.count(self.meteor.DEFAULT_GAP_CHAR)) / len(col)
+            for col in zip(*sequences)
+        ]
 
     def clean_sites(
         self, msp_file: Path, output: tempfile._TemporaryFileWrapper
@@ -56,7 +58,7 @@ class Phylogeny(Session):
         :return: Dict of cleaned sequences
         """
         gene_dict = OrderedDict(
-            (gene_id, seq) for gene_id, seq in self.get_sequences_class(msp_file)
+            (gene_id, seq) for gene_id, seq in self.get_sequences(msp_file)
         )
         info_ratio = self.compute_site_info(gene_dict.values())
         resultdict = {}
@@ -68,14 +70,6 @@ class Phylogeny(Session):
             print(f">{gene_id}\n{output_seq}\n", file=output)
             resultdict[gene_id] = output_seq
         return resultdict
-
-    def compute_mutation_rate(self, seq1, seq2):
-        """Compute mutation rate between two sequences."""
-        if len(seq1) != len(seq2):
-            raise ValueError("Sequences must be of the same length.")
-
-        mutations = sum(nuc1 != nuc2 for nuc1, nuc2 in zip(seq1, seq2))
-        return mutations / len(seq1)
 
     def set_tree_config(
         self, raxml_ng_version: str, tree_files: list[Path]

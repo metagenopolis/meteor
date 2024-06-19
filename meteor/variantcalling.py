@@ -25,8 +25,10 @@ from time import perf_counter
 from tempfile import NamedTemporaryFile
 from packaging.version import parse
 
-# from pysam import AlignmentFile
-# from collections import defaultdict
+# import memory_profiler
+# import psutil
+from pysam import AlignmentFile, FastaFile
+from collections import defaultdict
 import pandas as pd
 from io import StringIO
 
@@ -78,126 +80,147 @@ class VariantCalling(Session):
         }
         return config
 
-    # def get_regions(self, gene_name: str, reads_dict: Dict[int, int]) -> pd.DataFrame:
-    #     """Give the"""
-    #     dico_inverse = defaultdict(list)
-    #     for position, count in reads_dict.items():
-    #         dico_inverse[count].append(position)
+    def group_consecutive_positions(
+        self, position_count_dict: dict, gene_name: str, gene_length: int
+    ):
+        # Initialize the result list
+        result = []
 
-    #     dico_regions: Dict[int, List[List[int]]] = {}
-    #     for count, positions in dico_inverse.items():
-    #         positions.sort()
-    #         regions = []
-    #         debut, fin = positions[0], positions[0]
+        # Initialize variables for tracking ranges
+        start = 0
+        current_count = position_count_dict.get(0, 0)
 
-    #         for pos in positions[1:]:
-    #             if pos == fin + 1:
-    #                 fin = pos
-    #             else:
-    #                 regions.append([debut, fin + 1])
-    #                 debut = fin = pos
-    #         regions.append([debut, fin + 1])
-    #         dico_regions[count] = regions
-    #     return pd.DataFrame(
-    #         [
-    #             (gene_name, region[0], region[1], count)
-    #             for count, regions in dico_regions.items()
-    #             for region in regions
-    #         ],
-    #         columns=["gene_id", "startpos", "endpos", "coverage"],
-    #     )
+        # Create a sorted list of all positions from 0 to gene_length
+        for pos in range(1, gene_length + 1):
+            # Get the count for the current position, defaulting to 0 if not present in the dictionary
+            count = position_count_dict.get(pos, 0)
+            if count != current_count:
+                # Append the current range to the result
+                result.append((start, pos, current_count))
+                # Start a new range
+                start = pos
+                current_count = count
 
-    # def count_reads_in_gene(
-    #     self, cram, gene_name: str, gene_length: int, reads_dict: Dict[int, int]
-    # ):
-    #     """
-    #     Counts the number of reads at each position in a specified gene from a BAM file,
-    #     ignoring reads with gaps or deletions at that position.
+        # Append the last range
+        if start != pos:
+            result.append((start, pos, current_count))
+        return pd.DataFrame(
+            [
+                (gene_name, start, end, count)
+                for start, end, count in result
+                if count < self.min_depth
+            ],
+            columns=["gene_id", "startpos", "endpos", "coverage"],
+        )
 
-    #     Parameters:
-    #     bam (pysam.AlignmentFile): A pysam AlignmentFile object representing the BAM file
-    #     gene_name (str): The name of the gene for which reads are to be counted
+    def count_reads_in_gene(
+        self,
+        cram: AlignmentFile,
+        gene_name: str,
+        gene_length: int,
+        reference_file: Path,
+    ):
+        """
+        Counts the number of reads at each position in a specified gene from a BAM file,
+        ignoring reads with gaps or deletions at that position.
 
-    #     Returns:
-    #     dict: A dictionary with positions (int) as keys and the number of reads (int) at each position as values.
-    #     """
-    #     # gene_length = bam.lengths[bam.references.index(gene_name)]
-    #     # Extraction of positions having at least one read
-    #     for pileupcolumn in cram.pileup(
-    #         contig=gene_name,
-    #         start=0,
-    #         end=gene_length,
-    #         stepper="all",
-    #         max_depth=self.max_depth,
-    #         multiple_iterators=False,
-    #     ):
-    #         read_count = sum(
-    #             1
-    #             for pileupread in pileupcolumn.pileups
-    #             if not pileupread.is_del and not pileupread.is_refskip
-    #         )
-    #         reads_dict[pileupcolumn.reference_pos] = read_count
-    #     # Add positions without reads
-    #     for position in range(gene_length):
-    #         if position not in reads_dict:
-    #             reads_dict[position] = 0
+        Parameters:
+        cram (pysam.AlignmentFile): A pysam AlignmentFile object representing the BAM file
+        gene_name (str): The name of the gene for which reads are to be counted
 
-    #     return reads_dict
+        Returns:
+        dict: A dictionary with positions (int) as keys and the number of reads (int) at each position as values.
+        """
+        reads_dict: dict[int, int] = defaultdict(int)
+        # gene_length = bam.lengths[bam.references.index(gene_name)]
+        # Extraction of positions having at least one read
+        with FastaFile(filename=str(reference_file.resolve())) as Fasta:
+            for pileupcolumn in cram.pileup(
+                contig=gene_name,
+                start=0,
+                end=gene_length,
+                stepper="all",
+                # stepper="samtools",
+                max_depth=self.max_depth,
+                fastafile=Fasta,
+                multiple_iterators=False,
+            ):
+                read_count = sum(
+                    1
+                    for pileupread in pileupcolumn.pileups
+                    if not pileupread.is_del and not pileupread.is_refskip
+                )
+                reads_dict[pileupcolumn.reference_pos] = read_count
 
-    # def filter_low_cov_sites(
-    #     self, cram_file: Path, temp_low_cov_sites: tempfile._TemporaryFileWrapper
-    # ) -> None:
-    #     """Create a bed file reporting a list of positions below coverage threshold
+        return reads_dict
 
-    #     :param cram_file:   Path to the input cram file
-    #     :param temp_low_cov_sites: File handle to write low coverage sites
-    #     """
-    #     # Get list of genes
-    #     gene_interest = pd.read_csv(
-    #         self.matrix_file,
-    #         sep="\t",
-    #         names=[
-    #             "gene_id",
-    #             "gene_length",
-    #             "coverage",
-    #         ],
-    #         header=1,
-    #         compression="xz",
-    #     )
-    #     # We need to do more work for these genes
-    #     # their total count is above the min_snp_depth
-    #     # but we need to find on which positions they do.
-    #     gene_tofilter = gene_interest[gene_interest["coverage"] >= self.min_snp_depth][
-    #         ["gene_id", "gene_length"]
-    #     ]
-    #     reads_dict: Dict = defaultdict(int)
-    #     dfs = []
-    #     with AlignmentFile(str(cram_file.resolve()), "rc") as cram:
-    #         # For genes with a count
-    #         for index, row in gene_tofilter.iterrows():
-    #             reads_dict = self.count_reads_in_gene(
-    #                 cram, str(row["gene_id"]), row["gene_length"], reads_dict
-    #             )
-    #             df = self.get_regions(str(row["gene_id"]), reads_dict)
-    #             dfs.append(df)
-    #     # All these genes are going to be replaced by gaps
-    #     # Their count is below the threshold level
-    #     gene_ignore = gene_interest[gene_interest["coverage"] < self.min_snp_depth]
-    #     dfs.append(
-    #         pd.DataFrame(
-    #             {
-    #                 "gene_id": gene_ignore["gene_id"],
-    #                 "startpos": 0,
-    #                 "gene_length": gene_ignore["gene_length"],
-    #                 "coverage": gene_ignore["coverage"],
-    #             }
-    #         )
-    #     )
-    #     sum_cov_bed = pd.concat(dfs, ignore_index=True)
-    #     #
-    #     sum_cov_bed.query(f"coverage < {self.min_snp_depth}").to_csv(
-    #         temp_low_cov_sites, sep="\t", header=False, index=False
-    #     )
+    # @memory_profiler.profile
+    def filter_low_cov_sites_python(
+        self,
+        cram_file: Path,
+        reference_file: Path,
+        temp_low_cov_sites: tempfile._TemporaryFileWrapper,
+    ) -> None:
+        """Create a bed file reporting a list of positions below coverage threshold
+
+        :param cram_file:   Path to the input cram file
+        :param temp_low_cov_sites: File handle to write low coverage sites
+        """
+        # Get list of genes
+        gene_interest = pd.read_csv(
+            self.matrix_file,
+            sep="\t",
+            names=[
+                "gene_id",
+                "gene_length",
+                "coverage",
+            ],
+            header=0,
+            compression="xz",
+        )
+        # Round the coverage column to 0 decimal places
+        gene_interest["coverage"] = gene_interest["coverage"].round(0)
+
+        # Optionally, if you want to convert the rounded values to integers
+        # gene_interest["coverage"] = gene_interest["coverage"].astype(int)
+        # Convert the 'coverage' column to a sparse column using SparseDtype
+        gene_interest["coverage"] = gene_interest["coverage"].astype(
+            pd.SparseDtype(int, 0)
+        )
+        # We need to do more work for these genes
+        # their total count is above the min_depth
+        # but we need to find on which positions they do.
+        gene_tofilter = gene_interest[gene_interest["coverage"] >= self.min_depth][
+            ["gene_id", "gene_length"]
+        ]
+        dfs = []
+        with AlignmentFile(str(cram_file.resolve()), "rc") as cram:
+            # For genes with a count
+            for _, row in gene_tofilter.iterrows():
+                reads_dict = self.count_reads_in_gene(
+                    cram, str(row["gene_id"]), row["gene_length"], reference_file
+                )
+                df = self.group_consecutive_positions(
+                    reads_dict, str(row["gene_id"]), row["gene_length"]
+                )
+                if len(df) > 0:
+                    dfs.append(df)
+        # All these genes are going to be replaced by gaps
+        # Their count is below the threshold level
+        gene_ignore = gene_interest[gene_interest["coverage"] < self.min_depth]
+        dfs.append(
+            pd.DataFrame(
+                {
+                    "gene_id": gene_ignore["gene_id"],
+                    "startpos": 0,
+                    "endpos": gene_ignore["gene_length"],
+                    "coverage": gene_ignore["coverage"],
+                }
+            )
+        )
+        sum_cov_bed = pd.concat(dfs, ignore_index=True)
+        # .query(f"coverage < {self.min_depth}")
+        sum_cov_bed.to_csv(temp_low_cov_sites, sep="\t", header=False, index=False)
 
     def filter_low_cov_sites(
         self, output: str, temp_low_cov_sites: tempfile._TemporaryFileWrapper
@@ -367,7 +390,9 @@ class VariantCalling(Session):
                 # with NamedTemporaryFile(
                 #     mode="wt", dir=self.meteor.tmp_dir, delete=False, suffix=".bed"
                 # ) as temp_low_cov_sites:
-                #     self.filter_low_cov_sites(cram_file, temp_low_cov_sites)
+                #     self.filter_low_cov_sites_python(
+                #         cram_file, reference_file, temp_low_cov_sites
+                #     )
                 # logging.info(
                 #     "Completed low coverage python regions filtering step in %f seconds",
                 #     perf_counter() - startlowcovpython,
@@ -376,6 +401,10 @@ class VariantCalling(Session):
                 with NamedTemporaryFile(
                     mode="wt", dir=self.meteor.tmp_dir, delete=False, suffix=".bed"
                 ) as temp_low_cov_sites:
+                    # process = psutil.Process()
+                    # mem_before = (
+                    #     process.memory_info().rss / 1024 / 1024
+                    # )  # Convert to MB
                     output = run(
                         [
                             "bedtools",
@@ -387,6 +416,11 @@ class VariantCalling(Session):
                         check=False,
                         capture_output=True,
                     ).stdout.decode("utf-8")
+                    # mem_after = process.memory_info().rss / 1024 / 1024  # Convert to MB
+                    # print(f"Memory usage before: {mem_before} MB")
+                    # print(f"Memory usage after: {mem_after} MB")
+                    # print(f"Memory usage during: {mem_after - mem_before} MB")
+
                     self.filter_low_cov_sites(output, temp_low_cov_sites)
                     logging.info(
                         "Completed low coverage bedtools regions filtering step in %f seconds",
@@ -400,7 +434,7 @@ class VariantCalling(Session):
                             "--mask",
                             temp_low_cov_sites.name,
                             "--mask-with",
-                            "?",
+                            self.meteor.DEFAULT_GAP_CHAR,
                             "-f",
                             str(reference_file.resolve()),
                             str(vcf_file.resolve()),

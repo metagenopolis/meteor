@@ -16,6 +16,9 @@ from ..variantcalling import VariantCalling
 from pathlib import Path
 import pytest
 import json
+from pysam import AlignmentFile
+import pandas as pd
+from subprocess import run
 
 
 @pytest.fixture(name="vc_builder")
@@ -46,19 +49,74 @@ def fixture_vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
     return VariantCalling(meteor, data_dict, 100, 3, 3, 0.5)
 
 
-# def test_get_regions(vc_builder: VariantCalling) -> None:
-#     regions = vc_builder.get_regions()
-#     print(regions)
+def test_count_reads_in_gene(vc_builder: VariantCalling, datadir) -> None:
+    cram_file = datadir / "eva71_bench" / "eva71_bench.cram"
+    reference_file = datadir / "eva71" / "fasta" / "eva71.fasta.gz"
+    with AlignmentFile(str(cram_file.resolve()), "rc") as cram:
+        reads_dict = vc_builder.count_reads_in_gene(cram, "1", 7408, reference_file)
+        result = pd.DataFrame(reads_dict.items(), columns=["Position", "Count"])
+    expected_output = pd.read_table(datadir / "expected_output" / "coverage_pos.tsv")
+    assert result.equals(expected_output)
 
 
-# def test_count_reads_in_gene(vc_builder: VariantCalling) -> None:
-#     reads_in_gene = vc_builder.count_reads_in_gene("ENSG00000279457")
+def test_group_consecutive_positions(vc_builder: VariantCalling, datadir) -> None:
+    results_df = pd.read_csv(datadir / "expected_output" / "coverage_pos.tsv", sep="\t")
+    reads_dict = dict(zip(results_df["Position"], results_df["Count"]))
+    expected_output = pd.read_table(
+        datadir / "expected_output" / "coverage_expected.tsv", header=0, sep="\t"
+    )
+    df = vc_builder.group_consecutive_positions(reads_dict, "1", 7408)
+    df = df.astype(
+        {"gene_id": "str", "startpos": "int64", "endpos": "int64", "coverage": "int64"}
+    )
+    expected_output = expected_output.astype(
+        {"gene_id": "str", "startpos": "int64", "endpos": "int64", "coverage": "int64"}
+    )
+    assert df.equals(expected_output)
 
 
-# def test_filter_low_cov_sites(vc_builder: VariantCalling, datadir: Path) -> None:
-#     vc_builder.filter_low_cov_sites(cram_file)
-#     expected_output = pd.read_table(datadir / "expected_output" / "D15B1_low_cov.tsv")
-#     assert profiler_standard.gene_count.equals(expected_output)
+def test_filter_low_cov_sites_python(
+    vc_builder: VariantCalling, datadir, tmpdir
+) -> None:
+    vc_builder.matrix_file = datadir / "eva71_bench" / "eva71_bench.tsv.xz"
+    cram_file = datadir / "eva71_bench" / "eva71_bench.cram"
+    reference_file = datadir / "eva71" / "fasta" / "eva71.fasta.gz"
+    result = tmpdir / "filt_cov.tsv"
+    with result.open("wt") as out:
+        vc_builder.filter_low_cov_sites_python(cram_file, reference_file, out)
+    result_df = pd.read_table(
+        result, names=["gene_id", "startpos", "endpos", "coverage"], sep="\t"
+    )
+    expected_output = pd.read_table(
+        datadir / "expected_output" / "coverage_expected.tsv", header=0, sep="\t"
+    )
+    assert result_df.equals(expected_output)
+
+
+def test_filter_low_cov_sites(vc_builder: VariantCalling, datadir, tmpdir) -> None:
+    vc_builder.matrix_file = datadir / "eva71_bench" / "eva71_bench.tsv.xz"
+    cram_file = datadir / "eva71_bench" / "eva71_bench.cram"
+    result = tmpdir / "filt_cov.tsv"
+    output = run(
+        [
+            "bedtools",
+            "genomecov",
+            "-bga",
+            "-ibam",
+            str(cram_file.resolve()),
+        ],
+        check=False,
+        capture_output=True,
+    ).stdout.decode("utf-8")
+    with result.open("wt") as out:
+        vc_builder.filter_low_cov_sites(output, out)
+    result_df = pd.read_table(
+        result, names=["gene_id", "startpos", "endpos", "coverage"], sep="\t"
+    )
+    expected_output = pd.read_table(
+        datadir / "expected_output" / "coverage_expected.tsv", header=0, sep="\t"
+    )
+    assert result_df.equals(expected_output)
 
 
 def test_execute(vc_builder: VariantCalling) -> None:

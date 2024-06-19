@@ -7,9 +7,12 @@
   "reference_file": {
     "database_dir": "database",
     "fasta_dir": "fasta",
-    "fasta_filename": "eva71.fasta"
+    "fasta_filename": "eva71.fasta.gz"
   },
   "annotation": {
-    "bed": { "filename": "eva71.bed", "version": "1.0" }
+    "bed": {
+      "filename": "eva71.bed",
+      "version": "1.0"
+    }
   }
 }

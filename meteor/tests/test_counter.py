@@ -20,6 +20,7 @@ from hashlib import md5
 from pysam import AlignmentFile
 from itertools import chain
 import pytest
+import pandas as pd
 
 # No more best count
 # @pytest.fixture
@@ -331,8 +332,13 @@ def test_launch_counting_smart_shared(
         counter_smart_shared.meteor.ref_dir / "mock_reference.json"
     )
     counter_smart_shared.launch_counting(raw_cramfile, cramfile, countfile, ref_json)
-    with countfile.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "4bdd7327cbad8e71d210feb0c6375077"
+    # with countfile.open("rb") as out:
+    #     assert md5(out.read()).hexdigest() == "4bdd7327cbad8e71d210feb0c6375077"
+    expected_output = pd.read_csv(
+        datadir / "expected_output" / "count.tsv.xz", sep="\t"
+    )
+    count_data = pd.read_csv(countfile, sep="\t")
+    assert count_data.equals(expected_output)
 
 
 def test_execute(counter_smart_shared: Counter, tmp_path: Path):

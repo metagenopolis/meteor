@@ -1,0 +1,1 @@
+{"reference_info": {"reference_name": "mock", "database_type": "complete", "reference_date": "2023-03-14"}, "reference_file": {"database_dir": "database", "fasta_dir": "fasta", "fasta_filename": "mock.fasta.gz"}, "annotation":{"bed": {"filename": "mock.bed", "version": "1.0"}, "msp": {"filename": "mock_genomes.tsv", "version": "1.0"}}}

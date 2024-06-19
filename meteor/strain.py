@@ -112,16 +112,12 @@ class Strain(Session):
         #     a = cramdesc.count_coverage(str(gene), start=startpos, stop=endpos)
         #     print(a)
 
-    def is_only_question_mark(self, s):
-        return set(s) == {"?"}
-
-    def check_fasta_sequence(self, file_content):
-        """Check if the sequence part of a FASTA file contains only '?'."""
-        # Split content by lines
-        # lines = file_content.decode("utf-8").splitlines()
-        # Filter out header lines and join the rest
-        sequence = "".join([line for line in file_content if not line.startswith(">")])
-        return self.is_only_question_mark(sequence)
+    def is_only_question_marks(self, s: str) -> bool:
+        """Check if a string is made of question marks
+        :param s: (str) A consensus string of MSPs
+        :return: (bool) Return True if the string is made of question marks only
+        """
+        return set(s) == {self.meteor.DEFAULT_GAP_CHAR}
 
     def get_msp_variant(
         self,
@@ -191,7 +187,9 @@ class Strain(Session):
             )
             sys.exit(1)
 
-        gene_dict = dict(self.get_sequences(consensus_file))
+        gene_dict = dict(
+            self.get_sequences(consensus_file, use_lzma=True, id_as_int=True)
+        )
         logging.info(
             "%s MSPs have sufficient signal for SNP analysis ",
             len(msp_with_overlapping_genes["msp_name"].values),
@@ -207,7 +205,7 @@ class Strain(Session):
                 # else:
                 #     msp_seq += "?" * len(gene_dict[gene_id])
 
-            if not self.check_fasta_sequence(msp_seq):
+            if not self.is_only_question_marks(msp_seq):
                 with lzma.open(msp_file, "wt", preset=0) as msp:
                     print(
                         f">{self.json_data['census']['sample_info']['sample_name']}\n{msp_seq}\n",

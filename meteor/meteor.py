@@ -621,13 +621,6 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Removes sites constitued of >= cutoff gap character (default: >= %(default).1f).",
     )
     tree_parser.add_argument(
-        "-c",
-        dest="gap_char",
-        default=TreeBuilder.DEFAULT_GAP_CHAR,
-        type=str,
-        help="Gap character (default: %(default)s).",
-    )
-    tree_parser.add_argument(
         "-f",
         dest="format",
         default=TreeBuilder.DEFAULT_OUTPUT_FORMAT,
@@ -755,7 +748,6 @@ def main() -> None:  # pragma: no cover
             args.width,
             args.height,
             args.format,
-            args.gap_char,
         )
         trees.execute()
     # Run download catalogues

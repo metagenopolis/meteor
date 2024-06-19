@@ -32,7 +32,6 @@ class TreeBuilder(Session):
     """Counter session map and count"""
 
     DEFAULT_MAX_GAP: ClassVar[float] = 0.5
-    DEFAULT_GAP_CHAR: ClassVar[str] = "-"
     OUTPUT_FORMATS: ClassVar[list[str | None]] = [None, "png", "svg", "pdf", "txt"]
     DEFAULT_OUTPUT_FORMAT: ClassVar[str | None] = None
     DEFAULT_WIDTH: ClassVar[int] = 500
@@ -44,7 +43,6 @@ class TreeBuilder(Session):
     width: int
     height: int
     format: str | None
-    gap_char: str
 
     def __post_init__(self) -> None:
         if self.format not in TreeBuilder.OUTPUT_FORMATS:
@@ -102,9 +100,7 @@ class TreeBuilder(Session):
         # Concatenate msp files
         msp_file_list = self.concatenate(msp_file_dict)
         # Compute phylogenies
-        phylogeny_process = Phylogeny(
-            self.meteor, msp_file_list, self.max_gap, self.gap_char
-        )
+        phylogeny_process = Phylogeny(self.meteor, msp_file_list, self.max_gap)
         phylogeny_process.execute()
         # Analyze tree data
         for msp_file in msp_file_list:

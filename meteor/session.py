@@ -14,7 +14,7 @@
 
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Protocol, Iterator, ClassVar
+from typing import Protocol, Iterator, ClassVar, Union
 import logging
 import sys
 import json
@@ -27,10 +27,11 @@ from packaging.version import Version
 class Component:
     """Set of important constant for meteor"""
 
-    MIN_BOWTIE2_VERSION : ClassVar[Version] = Version('2.3.5')
-    MIN_BCFTOOLS_VERSION : ClassVar[Version] = Version('0.1.19')
-    MIN_BEDTOOLS_VERSION : ClassVar[Version] = Version('2.18')
-    MIN_RAXML_NG_VERSION : ClassVar[Version] = Version("1.0.1")
+    MIN_BOWTIE2_VERSION: ClassVar[Version] = Version("2.3.5")
+    MIN_BCFTOOLS_VERSION: ClassVar[Version] = Version("0.1.19")
+    MIN_BEDTOOLS_VERSION: ClassVar[Version] = Version("2.18")
+    MIN_RAXML_NG_VERSION: ClassVar[Version] = Version("1.0.1")
+    DEFAULT_GAP_CHAR: ClassVar[str] = "?"
 
     threads: int | None
     fastq_dir: Path = field(default_factory=Path)
@@ -61,9 +62,7 @@ class Session(Protocol):
         :param filename: (Path) An input path object
         :param expected_colnames: (Path) An expected set of colnames
         """
-
         try:
-
             if filename.suffix == ".xz":
                 header = lzma.open(filename, "rt")
             else:
@@ -158,42 +157,72 @@ class Session(Protocol):
             config[section] = new_fields
         return config
 
-    def get_sequences(self, fasta_file: Path) -> Iterator[tuple[int, str]]:
-        """Get genes sequences
-        :param fasta_file: (Path) A path to fasta file
+    def get_sequences(
+        self, fasta_file: Path, use_lzma: bool = False, id_as_int: bool = False
+    ) -> Iterator[tuple[Union[int, str] | None, str]]:
+        """Get gene sequences
+        :param fasta_file: (Path) A path to the fasta file
+        :param use_lzma: (bool) Whether to use lzma for file opening
+        :param id_as_int: (bool) Whether to convert gene_id to int
         :return: A generator providing each header and gene sequence
         """
-        gene_id: int = 0
+        gene_id: Union[int, str] | None = None
         seq: str = ""
-        with lzma.open(fasta_file, "rt") as fasta:
-            for line in fasta:
-                if line.startswith(">"):
-                    if len(seq) > 0:
-                        yield gene_id, seq
-                    gene_id = int(line[1:].strip())
-                    seq = ""
-                else:
-                    seq += line.strip().replace("\n", "")
-            if len(seq) > 0:
-                yield int(gene_id), seq
 
-    def get_sequences_class(self, fasta_file: Path) -> Iterator[tuple[str, str]]:
-        """Get genes sequences
-        :param fasta_file: (Path) A path to fasta file
-        :return: A generator providing each header and gene sequence
-        """
-        gene_id: str = ""
-        seq: str = ""
-        with fasta_file.open("rt", encoding="UTF-8") as fasta:
+        if use_lzma:
+            file = lzma.open(fasta_file, "rt")
+        else:
+            file = fasta_file.open("rt", encoding="UTF-8")
+
+        with file as fasta:
             for line in fasta:
                 if line.startswith(">"):
                     if len(seq) > 0:
                         yield gene_id, seq
-                    gene_id = line[1:].strip()
+                    gene_id_raw = line[1:].strip()
+                    gene_id = int(gene_id_raw) if id_as_int else gene_id_raw
                     seq = ""
                 else:
                     seq += line.strip().replace("\n", "")
             if len(seq) > 0:
                 yield gene_id, seq
+
+    # def get_sequences(self, fasta_file: Path) -> Iterator[tuple[int, str]]:
+    #     """Get genes sequences
+    #     :param fasta_file: (Path) A path to fasta file
+    #     :return: A generator providing each header and gene sequence
+    #     """
+    #     gene_id: int = 0
+    #     seq: str = ""
+    #     with lzma.open(fasta_file, "rt") as fasta:
+    #         for line in fasta:
+    #             if line.startswith(">"):
+    #                 if len(seq) > 0:
+    #                     yield gene_id, seq
+    #                 gene_id = int(line[1:].strip())
+    #                 seq = ""
+    #             else:
+    #                 seq += line.strip().replace("\n", "")
+    #         if len(seq) > 0:
+    #             yield int(gene_id), seq
+
+    # def get_sequences_class(self, fasta_file: Path) -> Iterator[tuple[str, str]]:
+    #     """Get genes sequences
+    #     :param fasta_file: (Path) A path to fasta file
+    #     :return: A generator providing each header and gene sequence
+    #     """
+    #     gene_id: str = ""
+    #     seq: str = ""
+    #     with fasta_file.open("rt", encoding="UTF-8") as fasta:
+    #         for line in fasta:
+    #             if line.startswith(">"):
+    #                 if len(seq) > 0:
+    #                     yield gene_id, seq
+    #                 gene_id = line[1:].strip()
+    #                 seq = ""
+    #             else:
+    #                 seq += line.strip().replace("\n", "")
+    #         if len(seq) > 0:
+    #             yield gene_id, seq
 
     def execute(self) -> None: ...
