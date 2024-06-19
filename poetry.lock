@@ -140,13 +140,13 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
 name = "cogent3"
-version = "2024.2.5a1"
+version = "2024.5.7a1"
 description = "COmparative GENomics Toolkit 3: genomic sequence analysis within notebooks or on compute systems with 1000s of CPUs."
 optional = false
-python-versions = ">=3.9,<3.13"
+python-versions = "<3.13,>=3.9"
 files = [
-    {file = "cogent3-2024.2.5a1-py3-none-any.whl", hash = "sha256:6eb9bc18ecf7b21ab7a2680824724e005d0fbe0b45c204de8a089ef06d51968d"},
-    {file = "cogent3-2024.2.5a1.tar.gz", hash = "sha256:4b0d59ba1c31b8257a56258d992fb201b53f265aa6f041da24ed9dc412a7782f"},
+    {file = "cogent3-2024.5.7a1-py3-none-any.whl", hash = "sha256:c40b0929ae934add5ec9eb3e23bbfefe4d7185af1d607738b16e4c3bd8bf07da"},
+    {file = "cogent3-2024.5.7a1.tar.gz", hash = "sha256:7e4417a2728d246b1acc695209ec2e4f24ab9c7bfcd01cd113db0a791ea1c090"},
 ]
 
 [package.dependencies]
@@ -159,14 +159,15 @@ numba = [
 numpy = "<2"
 scipy = "*"
 scitrack = "*"
+stevedore = "*"
 tqdm = "*"
 typing_extensions = "*"
 
 [package.extras]
-dev = ["black (==23.12.1)", "click (==8.1.7)", "flit", "ipykernel", "ipython", "ipywidgets", "isort (==5.13.2)", "jupyter-sphinx", "jupyter_client", "jupyterlab", "jupytext", "kaleido", "matplotlib", "nbconvert (>5.4)", "nbformat", "nbsphinx", "nox", "numpydoc", "pandas", "pillow", "plotly", "psutil", "pydata_sphinx_theme", "pytest", "pytest-cov", "pytest-xdist", "scriv", "sphinx", "sphinx-autobuild", "sphinx_design", "sphinxcontrib-bibtex", "sphinxcontrib-video", "tinydb"]
+dev = ["black (==24.4.2)", "click (==8.1.7)", "flit", "ipykernel", "ipython", "ipywidgets", "isort (==5.13.2)", "jupyter-sphinx", "jupyter_client", "jupyterlab", "jupytext", "kaleido", "matplotlib", "nbconvert (>5.4)", "nbformat", "nbsphinx", "nox", "numpydoc", "pandas", "pillow", "plotly", "psutil", "pydata_sphinx_theme", "pytest", "pytest-cov", "pytest-xdist", "scriv", "sphinx", "sphinx-autobuild", "sphinx_design", "sphinxcontrib-bibtex", "sphinxcontrib-video", "tinydb"]
 doc = ["click (==8.1.7)", "ipykernel", "ipython", "ipywidgets", "jupyter-sphinx", "jupyter_client", "jupyterlab", "jupytext", "kaleido", "matplotlib", "nbconvert (>5.4)", "nbformat", "nbsphinx", "numpydoc", "pandas", "pillow", "plotly", "psutil", "pydata_sphinx_theme", "sphinx", "sphinx-autobuild", "sphinx_design", "sphinxcontrib-bibtex", "sphinxcontrib-video"]
 extra = ["kaleido", "pandas", "plotly", "psutil"]
-test = ["black (==23.12.1)", "click (==8.1.7)", "isort (==5.13.2)", "kaleido", "nox", "pandas", "plotly", "psutil", "pytest", "pytest-cov", "pytest-xdist", "tinydb"]
+test = ["black (==24.4.2)", "click (==8.1.7)", "isort (==5.13.2)", "kaleido", "nox", "pandas", "plotly", "psutil", "pytest", "pytest-cov", "pytest-xdist", "tinydb"]
 
 [[package]]
 name = "colorama"
@@ -636,6 +637,17 @@ files = [
 ]
 
 [[package]]
+name = "pbr"
+version = "6.0.0"
+description = "Python Build Reasonableness"
+optional = false
+python-versions = ">=2.6"
+files = [
+    {file = "pbr-6.0.0-py2.py3-none-any.whl", hash = "sha256:4a7317d5e3b17a3dccb6a8cfe67dab65b20551404c52c8ed41279fa4f0cb4cda"},
+    {file = "pbr-6.0.0.tar.gz", hash = "sha256:d1377122a5a00e2f940ee482999518efe16d745d423a670c27773dfbc3c9a7d9"},
+]
+
+[[package]]
 name = "platformdirs"
 version = "4.2.0"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
@@ -925,6 +937,20 @@ files = [
 ]
 
 [[package]]
+name = "stevedore"
+version = "5.2.0"
+description = "Manage dynamic plugins for Python applications"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "stevedore-5.2.0-py3-none-any.whl", hash = "sha256:1c15d95766ca0569cad14cb6272d4d31dae66b011a929d7c18219c176ea1b5c9"},
+    {file = "stevedore-5.2.0.tar.gz", hash = "sha256:46b93ca40e1114cea93d738a6c1e365396981bb6bb78c27045b7587c9473544d"},
+]
+
+[package.dependencies]
+pbr = ">=2.0.0,<2.1.0 || >2.1.0"
+
+[[package]]
 name = "tomli"
 version = "2.0.1"
 description = "A lil' TOML parser"
@@ -1013,4 +1039,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "7576034f3bab5d9936717eb165388696a2d2b0cbb0cebf55eefc58ca5b716a19"
+content-hash = "e7cd9b1bae999373429a3c1dc6733c1ca3b8738ddf0d793d9b3e283fa3a9e395"
