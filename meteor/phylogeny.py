@@ -69,6 +69,7 @@ class Phylogeny(Session):
             )
             print(f">{gene_id}\n{output_seq}\n", file=output)
             resultdict[gene_id] = output_seq
+        print(flush=True, file=output)
         return resultdict
 
     def set_tree_config(
