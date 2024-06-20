@@ -25,6 +25,7 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
       - name: Extract zip
         run: unzip -o raxml-ng_*.zip  -d /usr/local/bin && chmod +x /usr/local/bin/raxml-ng
+        if: matrix.os == 'ubuntu-22.04'
       - name: Install Python
         uses: actions/setup-python@v4
       - name: Install poetry
