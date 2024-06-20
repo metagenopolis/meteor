@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ConorMacBride/install-package@v1
         with:
-          brew: bowtie2 bcftools bedtools
+          brew: bowtie2 bcftools bedtools raxml-ng
           apt: bowtie2 bcftools bedtools
       - name: Fetch GitHub Release Assets
         uses: dsaltares/fetch-gh-release-asset@master
