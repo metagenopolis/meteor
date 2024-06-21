@@ -316,7 +316,11 @@ class Merging(Session):
                     "modules_completeness": ["msp_name", "mod_id"],
                     "modules": ["mod_id"],
                     "mustard_as_genes_sum": ["annotation"],
+                    "mustard_as_msp_sum": ["annotation"],
+                    "dbcan_as_genes_sum": ["annotation"],
                     "dbcan_as_msp_sum": ["annotation"],
+                    "kegg_as_genes_sum": ["annotation"],
+                    "kegg_as_msp_sum": ["annotation"],
                 }
             )
         for my_pattern, value in list_pattern_to_merge.items():

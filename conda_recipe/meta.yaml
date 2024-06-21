@@ -36,7 +36,11 @@ requirements:
         - bedtools >=2.18.0
 test:
     commands:
-        - meteor test
+        - meteor -h
+        - bowtie2 -h
+        - bedtools -h
+        - raxml-ng -h
+        - bcftools -h
     imports:
         - pysam
         - pandas
