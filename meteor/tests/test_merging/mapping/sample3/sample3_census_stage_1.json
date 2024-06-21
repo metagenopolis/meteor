@@ -1,12 +1,12 @@
 {
   "meteor_version": "2.0.9",
   "sample_info": {
-    "sample_name": "sample2",
+    "sample_name": "sample3",
     "census_status": 0,
-    "full_sample_name": "sample2_trimmed.Q17.converted.noHost"
+    "full_sample_name": "sample3_trimmed.Q17.converted.noHost"
   },
   "sample_file": {
-    "fastq_file": "sample2_trimmed.Q17.converted.noHost.fastq.gz"
+    "fastq_file": "sample3_trimmed.Q17.converted.noHost.fastq.gz"
   },
   "mapping": {
     "mapping_tool": "bowtie2",
