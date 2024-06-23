@@ -752,6 +752,7 @@ def main() -> None:  # pragma: no cover
         trees = TreeBuilder(
             meteor,
             args.max_gap,
+            args.min_info_sites,
             args.width,
             args.height,
             args.format,
@@ -835,10 +836,10 @@ def main() -> None:  # pragma: no cover
             trees = TreeBuilder(
                 meteor,
                 0.1,
+                4,
                 800,
                 600,
                 None,
-                "-",
             )
             trees.execute()
             shutil.rmtree(meteor.strain_dir)
