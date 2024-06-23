@@ -64,7 +64,6 @@ class Phylogeny(Session):
         # Compute site information
         info_ratio = self.compute_site_info(gene_dict.values())
         # Count sites with more than the specified maximum gap ratio
-        print(info_ratio)
         info_sites = sum(1 for ratio in info_ratio if ratio > self.max_gap)
         logging.info(
             "%d / %d sites with more than %d gaps were removed",
