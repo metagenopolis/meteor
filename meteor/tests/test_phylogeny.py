@@ -26,7 +26,7 @@ def phylogeny_builder(datadir: Path, tmp_path: Path) -> Phylogeny:
     meteor.tree_dir = tmp_path / "tree"
     meteor.tree_dir.mkdir()
     meteor.threads = 1
-    return Phylogeny(meteor, [Path(datadir / "msp_0864.fasta")], 0.5)
+    return Phylogeny(meteor, [Path(datadir / "msp_0864.fasta")], 0.5, 4)
 
 
 def test_compute_site_info(phylogeny_builder: Phylogeny):

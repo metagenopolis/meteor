@@ -621,6 +621,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Removes sites constitued of >= cutoff gap character (default: >= %(default).1f).",
     )
     tree_parser.add_argument(
+        "-s",
+        dest="info_sites",
+        default=TreeBuilder.DEFAULT_MIN_INFO_SITES,
+        type=isborned01,
+        help="Minimum number of informative sites in the alignment (default: >= %(default)d).",
+    )
+    tree_parser.add_argument(
         "-f",
         dest="format",
         default=TreeBuilder.DEFAULT_OUTPUT_FORMAT,

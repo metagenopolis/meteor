@@ -38,6 +38,7 @@ class Phylogeny(Session):
     meteor: type[Component]
     msp_file_list: list[Path]
     max_gap: float
+    min_info_sites: int
 
     def compute_site_info(self, sequences: Iterable[str]) -> list[float]:
         """Calculate the percentage of "_" at each position
@@ -150,9 +151,13 @@ class Phylogeny(Session):
                 # Clean sites
                 cleaned_seqs, info_sites = self.clean_sites(msp_file, temp_clean)
                 logging.info("Clean sites for MSP %d/%d", idx, msp_count)
-                if info_sites == 0:
+                if info_sites < self.min_info_sites:
                     logging.info(
-                        "No sites left after cleaning for MSP %d/%d", idx, msp_count
+                        "Only %d informative sites (< %d threshold) left after cleaning for MSP %d/%d",
+                        info_sites,
+                        self.min_info_sites,
+                        idx,
+                        msp_count,
                     )
                 elif len(cleaned_seqs) >= 4:
                     if info_sites < self.meteor.threads:

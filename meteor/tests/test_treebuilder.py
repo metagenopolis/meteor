@@ -28,7 +28,7 @@ def treebuilder_builder(datadir: Path, tmp_path: Path) -> TreeBuilder:
     meteor.tree_dir = tmp_path / "tree"
     meteor.tree_dir.mkdir()
     meteor.strain_dir = datadir / "strain"
-    return TreeBuilder(meteor, 0.5, 500, 500, None)
+    return TreeBuilder(meteor, 0.5, 4, 500, 500, None)
 
 
 def test_concatenate(treebuilder_builder: TreeBuilder, datadir: Path):
