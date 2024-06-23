@@ -46,13 +46,13 @@ def test_compute_site_info(phylogeny_builder: Phylogeny):
     assert phylogeny_builder.compute_site_info(["?G", "?A", "?T", "GC"]) == [0.75, 0]
 
 
-def test_clean_sites(phylogeny_builder: Phylogeny, datadir: Path, tmp_path: Path):
+def test_clean_sites(phylogeny_builder: Phylogeny, datadir: Path):
     msp = datadir / "msp_0864_clean.fasta"
     msp_expected_file = datadir / "msp_0864_dict.pck"
     with open(msp_expected_file, "rb") as msp_file:
         msp_expected = pickle.load(msp_file)
         with msp.open("w") as f:
-            result_dict = phylogeny_builder.clean_sites(
+            result_dict, _ = phylogeny_builder.clean_sites(
                 phylogeny_builder.msp_file_list[0], f
             )
             for key in msp_expected:

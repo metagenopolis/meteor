@@ -24,7 +24,7 @@ from tempfile import NamedTemporaryFile
 from packaging.version import parse
 from collections import OrderedDict
 from datetime import datetime
-from typing import Iterable
+from typing import Iterable, Tuple
 from cogent3 import load_aligned_seqs
 from cogent3.evolve.distance import EstimateDistances
 from cogent3.evolve.models import GTR
@@ -51,16 +51,27 @@ class Phylogeny(Session):
 
     def clean_sites(
         self, msp_file: Path, output: tempfile._TemporaryFileWrapper
-    ) -> dict[str, str]:
+    ) -> Tuple[dict[str, str], int]:
         """Clean msp sequence according to a certain level of gap at each sites.
         :param msp_file: (Path) Fasta file
         :param output_file: (Path) Output cleaned fasta file
         :return: Dict of cleaned sequences
         """
+        # Read sequences from msp_file and store in an OrderedDict
         gene_dict = OrderedDict(
             (gene_id, seq) for gene_id, seq in self.get_sequences(msp_file)
         )
+        # Compute site information
         info_ratio = self.compute_site_info(gene_dict.values())
+        # Count sites with more than the specified maximum gap ratio
+        print(info_ratio)
+        info_sites = sum(1 for ratio in info_ratio if ratio > self.max_gap)
+        logging.info(
+            "%d / %d sites with more than %d gaps were removed",
+            info_sites,
+            len(info_ratio),
+            self.max_gap * 100,
+        )
         resultdict = {}
         for gene_id, seq in gene_dict.items():
             # assert len(info_ratio) == len(seq)
@@ -70,7 +81,7 @@ class Phylogeny(Session):
             print(f">{gene_id}\n{output_seq}\n", file=output)
             resultdict[gene_id] = output_seq
         print(flush=True, file=output)
-        return resultdict
+        return resultdict, info_sites
 
     def set_tree_config(
         self, raxml_ng_version: str, tree_files: list[Path]
@@ -138,27 +149,51 @@ class Phylogeny(Session):
                     ".fasta", ""
                 )
                 # Clean sites
-                cleaned_seqs = self.clean_sites(msp_file, temp_clean)
+                cleaned_seqs, info_sites = self.clean_sites(msp_file, temp_clean)
                 logging.info("Clean sites for MSP %d/%d", idx, msp_count)
-                if len(cleaned_seqs) >= 4:
-                    # Compute trees
-                    result = check_call(
-                        [
-                            "raxml-ng",
-                            "--threads",
-                            str(self.meteor.threads),
-                            "--search1",
-                            "--msa",
-                            temp_clean.name,
-                            "--model",
-                            "GTR+G",
-                            "--redo",
-                            "--force",
-                            "perf_threads",  # not working with raxml-ng-mpi
-                            "--prefix",
-                            str(tree_file.resolve()),
-                        ]
+                if info_sites == 0:
+                    logging.info(
+                        "No sites left after cleaning for MSP %d/%d", idx, msp_count
                     )
+                elif len(cleaned_seqs) >= 4:
+                    if info_sites < self.meteor.threads:
+                        # Compute trees
+                        result = check_call(
+                            [
+                                "raxml-ng",
+                                "--threads",
+                                str(info_sites),
+                                "--search1",
+                                "--msa",
+                                temp_clean.name,
+                                "--model",
+                                "GTR+G",
+                                "--redo",
+                                "--force",
+                                "perf_threads",  # not working with raxml-ng-mpi
+                                "--prefix",
+                                str(tree_file.resolve()),
+                            ]
+                        )
+                    else:
+                        # Compute trees
+                        result = check_call(
+                            [
+                                "raxml-ng",
+                                "--threads",
+                                str(self.meteor.threads),
+                                "--search1",
+                                "--msa",
+                                temp_clean.name,
+                                "--model",
+                                "GTR+G",
+                                "--redo",
+                                "--force",
+                                "perf_threads",  # not working with raxml-ng-mpi
+                                "--prefix",
+                                str(tree_file.resolve()),
+                            ]
+                        )
                     if result != 0:
                         logging.error("raxml-ng failed with return code %d", result)
                 else:
