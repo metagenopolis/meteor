@@ -160,44 +160,26 @@ class Phylogeny(Session):
                         msp_count,
                     )
                 elif len(cleaned_seqs) >= 4:
-                    if info_sites < self.meteor.threads:
-                        # Compute trees
-                        result = check_call(
-                            [
-                                "raxml-ng",
-                                "--threads",
-                                str(info_sites),
-                                "--search1",
-                                "--msa",
-                                temp_clean.name,
-                                "--model",
-                                "GTR+G",
-                                "--redo",
-                                "--force",
-                                "perf_threads",  # not working with raxml-ng-mpi
-                                "--prefix",
-                                str(tree_file.resolve()),
-                            ]
-                        )
-                    else:
-                        # Compute trees
-                        result = check_call(
-                            [
-                                "raxml-ng",
-                                "--threads",
-                                str(self.meteor.threads),
-                                "--search1",
-                                "--msa",
-                                temp_clean.name,
-                                "--model",
-                                "GTR+G",
-                                "--redo",
-                                "--force",
-                                "perf_threads",  # not working with raxml-ng-mpi
-                                "--prefix",
-                                str(tree_file.resolve()),
-                            ]
-                        )
+                    # Compute trees
+                    result = check_call(
+                        [
+                            "raxml-ng",
+                            "--threads",
+                            "auto{{{}}}".format(self.meteor.threads),
+                            "--workers",
+                            "auto",
+                            "--search1",
+                            "--msa",
+                            temp_clean.name,
+                            "--model",
+                            "GTR+G",
+                            "--redo",
+                            "--force",
+                            "perf,msa",  # not working with raxml-ng-mpi
+                            "--prefix",
+                            str(tree_file.resolve()),
+                        ]
+                    )
                     if result != 0:
                         logging.error("raxml-ng failed with return code %d", result)
                 else:
