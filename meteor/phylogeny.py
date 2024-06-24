@@ -223,8 +223,13 @@ class Phylogeny(Session):
                     # mycluster.write(
                     #     tree_file.with_suffix(".tree"),
                     # )
-                tree_files.append(tree_file)
-            logging.info("Completed MSP tree %d/%d", idx, msp_count)
+                if tree_file.exists():
+                    tree_files.append(tree_file)
+                    logging.info("Completed MSP tree %d/%d", idx, msp_count)
+                else:
+                    logging.info(
+                        "No tree file generated for MSP %s, skipping", msp_file.name
+                    )
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
         config = self.set_tree_config(raxml_ng_version, tree_files)
         self.save_config(config, self.meteor.tree_dir / "census_stage_4.json")
