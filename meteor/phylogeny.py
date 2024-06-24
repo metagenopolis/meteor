@@ -223,7 +223,9 @@ class Phylogeny(Session):
                     # mycluster.write(
                     #     tree_file.with_suffix(".tree"),
                     # )
-                if tree_file.exists():
+                if tree_file.with_suffix(".tree").exists() or tree_file.with_suffix(
+                    ".raxml.bestTree"
+                ):
                     tree_files.append(tree_file)
                     logging.info("Completed MSP tree %d/%d", idx, msp_count)
                 else:
