@@ -107,7 +107,7 @@ class TreeBuilder(Session):
         )
         phylogeny_process.execute()
         # Analyze tree data
-        for msp_file in msp_file_list:
+        for msp_file in phylogeny_process.tree_files:
             # Check for a .raxml.bestTree file
             raxml_tree_file = self.meteor.tree_dir / f"{msp_file.stem}.raxml.bestTree"
             if raxml_tree_file.exists():

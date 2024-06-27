@@ -14,7 +14,7 @@
 import re
 import logging
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from meteor.session import Session, Component
 from subprocess import check_call, run
 from time import perf_counter
@@ -39,6 +39,7 @@ class Phylogeny(Session):
     msp_file_list: list[Path]
     max_gap: float
     min_info_sites: int
+    tree_files: list[Path] = field(default_factory=list)
 
     def compute_site_info(self, sequences: Iterable[str]) -> list[float]:
         """Calculate the percentage of "_" at each position
@@ -83,9 +84,7 @@ class Phylogeny(Session):
         print(flush=True, file=output)
         return resultdict, info_sites
 
-    def set_tree_config(
-        self, raxml_ng_version: str, tree_files: list[Path]
-    ) -> dict:  # pragma: no cover
+    def set_tree_config(self, raxml_ng_version: str) -> dict:  # pragma: no cover
         """Define the census configuration
 
         :param cmd: A string of the specific parameters
@@ -98,7 +97,7 @@ class Phylogeny(Session):
                 "phylogeny_tool": "raxml-ng",
                 "phylogeny_version": raxml_ng_version,
                 "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
-                "tree_files": ",".join([tree.name for tree in tree_files]),
+                "tree_files": ",".join([tree.name for tree in self.tree_files]),
             },
         }
         return config
@@ -136,7 +135,7 @@ class Phylogeny(Session):
 
         # Start phylogenies
         start = perf_counter()
-        tree_files: list[Path] = []
+        self.tree_files: list[Path] = []
         msp_count = len(self.msp_file_list)
         for idx, msp_file in enumerate(self.msp_file_list, start=1):
             logging.info(
@@ -208,12 +207,12 @@ class Phylogeny(Session):
                 if tree_file.with_suffix(".tree").exists() or tree_file.with_suffix(
                     ".raxml.bestTree"
                 ):
-                    tree_files.append(tree_file)
+                    self.tree_files.append(tree_file)
                     logging.info("Completed MSP tree %d/%d", idx, msp_count)
                 else:
                     logging.info(
                         "No tree file generated for MSP %s, skipping", msp_file.name
                     )
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
-        config = self.set_tree_config(raxml_ng_version, tree_files)
+        config = self.set_tree_config(raxml_ng_version)
         self.save_config(config, self.meteor.tree_dir / "census_stage_4.json")
