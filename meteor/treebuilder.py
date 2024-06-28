@@ -107,20 +107,20 @@ class TreeBuilder(Session):
         )
         phylogeny_process.execute()
         # Analyze tree data
-        for msp_file in phylogeny_process.tree_files:
+        for tree_file in phylogeny_process.tree_files:
             # Check for a .raxml.bestTree file
-            raxml_tree_file = self.meteor.tree_dir / f"{msp_file.stem}.raxml.bestTree"
-            if raxml_tree_file.exists():
-                tree_file = raxml_tree_file
-            else:
-                # If no .raxml.bestTree file exists, check for a .tree file
-                tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
-            img_file = self.meteor.tree_dir / f"{msp_file.stem}.{self.format}"
+            # raxml_tree_file = self.meteor.tree_dir / f"{msp_file.stem}.raxml.bestTree"
+            # if raxml_tree_file.exists():
+            #     tree_file = raxml_tree_file
+            # else:
+            #     # If no .raxml.bestTree file exists, check for a .tree file
+            #     tree_file = self.meteor.tree_dir / f"{msp_file.stem}.tree"
+            img_file = self.meteor.tree_dir / f"{tree_file.stem}.{self.format}"
             # try:
             msp_tree = Tree(str(tree_file.resolve()))
             # Generate a distance msp by msp
             matrix = self.get_msp_distance(msp_tree)
-            matrix.to_csv(self.meteor.tree_dir / f"{msp_file.stem}.tsv", sep="\t")
+            matrix.to_csv(self.meteor.tree_dir / f"{tree_file.stem}.tsv", sep="\t")
             # Draw trees
             if not self.format:
                 pass
