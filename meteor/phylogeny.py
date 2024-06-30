@@ -16,7 +16,7 @@ import logging
 import sys
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
-from subprocess import check_call, run
+from subprocess import check_call, run, DEVNULL
 from time import perf_counter
 from pathlib import Path
 import tempfile
@@ -68,7 +68,7 @@ class Phylogeny(Session):
         # Count sites with more than the specified maximum gap ratio
         info_sites = sum(1 for ratio in info_ratio if ratio <= self.max_gap)
         logging.info(
-            "%d / %d sites with less than %.1f%% gaps",
+            "%d/%d sites with less than %.1f%% gaps",
             info_sites,
             len(info_ratio),
             self.max_gap * 100,
@@ -139,7 +139,7 @@ class Phylogeny(Session):
         msp_count = len(self.msp_file_list)
         for idx, msp_file in enumerate(self.msp_file_list, start=1):
             logging.info(
-                "Start analysis of MSP %s: %d/%d", msp_file.name, idx, msp_count
+                    "%d/%d %s: Start analysis", idx, msp_count, msp_file.name.replace(".fasta", "")
             )
             with NamedTemporaryFile(
                 mode="wt", dir=self.meteor.tmp_dir, suffix=".fasta"
@@ -148,18 +148,17 @@ class Phylogeny(Session):
                     ".fasta", ""
                 )
                 # Clean sites
+                logging.info("Clean sites")
                 cleaned_seqs, info_sites = self.clean_sites(msp_file, temp_clean)
-                logging.info("Clean sites for MSP %d/%d", idx, msp_count)
                 if info_sites < self.min_info_sites:
                     logging.info(
-                        "Only %d informative sites (< %d threshold) left after cleaning for MSP %d/%d",
+                        "Only %d informative sites (< %d threshold) left after cleaning, skip.",
                         info_sites,
-                        self.min_info_sites,
-                        idx,
-                        msp_count,
+                        self.min_info_sites
                     )
                 elif len(cleaned_seqs) >= 4:
                     # Compute trees
+                    logging.info("Run raxml-ng")
                     result = check_call(
                         [
                             "raxml-ng",
@@ -177,14 +176,14 @@ class Phylogeny(Session):
                             "perf,msa",  # not working with raxml-ng-mpi
                             "--prefix",
                             str(tree_file.resolve()),
-                        ]
+                        ],
+                        stdout = DEVNULL
                     )
                     if result != 0:
                         logging.error("raxml-ng failed with return code %d", result)
                 else:
                     logging.info(
-                        "MSP %s have less than 4 sequences, distance will be calculated with cogent3",
-                        msp_file.name,
+                        "Less than 4 sequences, run cogent3"
                     )
                     aligned_seqs = load_aligned_seqs(
                         temp_clean.name,
@@ -206,14 +205,15 @@ class Phylogeny(Session):
                     # )
                 if tree_file.with_suffix(".tree").exists():
                     self.tree_files.append(tree_file.with_suffix(".tree"))
-                    logging.info("Completed MSP tree %d/%d", idx, msp_count)
-                elif tree_file.with_suffix(".raxml.bestTree"):
+                    logging.info("Completed MSP tree with cogent3")
+                elif tree_file.with_suffix(".raxml.bestTree").exists():
                     self.tree_files.append(tree_file.with_suffix(".raxml.bestTree"))
-                    logging.info("Completed MSP tree %d/%d", idx, msp_count)
+                    logging.info("Completed MSP tree with raxml")
                 else:
                     logging.info(
-                        "No tree file generated for MSP %s, skipping", msp_file.name
+                        "No tree file generated"
                     )
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
+        logging.info("Trees were generated for %d/%d MSPs", len(self.tree_files), msp_count)
         config = self.set_tree_config(raxml_ng_version)
         self.save_config(config, self.meteor.tree_dir / "census_stage_4.json")
