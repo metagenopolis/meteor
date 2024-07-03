@@ -236,7 +236,7 @@ class VariantCalling(Session):
                 "coverage",
             ],
         )
-        sum_cov_bed.query(f"coverage < {self.min_depth}").to_csv(
+        sum_cov_bed.query(f"0 < coverage <= {self.min_depth}").to_csv(
             temp_low_cov_sites, sep="\t", header=False, index=False
         )
 
@@ -335,11 +335,11 @@ class VariantCalling(Session):
                     [
                         "bcftools",
                         "call",
-                        "-v",
-                        "-c",
+                        "--variants-only",
+                        "--multiallelic-caller",
                         "--ploidy",
                         str(1),
-                        "-V",
+                        "--skip-variants",
                         "indels",
                         "--threads",
                         str(self.meteor.threads),
@@ -431,9 +431,12 @@ class VariantCalling(Session):
                         [
                             "bcftools",
                             "consensus",
+                            "--iupac-codes",
                             "--mask",
                             temp_low_cov_sites.name,
-                            "--mask-with",
+                            # "--mask-with",
+                            # "N",
+                            "-M",
                             self.meteor.DEFAULT_GAP_CHAR,
                             "-f",
                             str(reference_file.resolve()),
