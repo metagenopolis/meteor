@@ -52,6 +52,7 @@ class Strain(Session):
     min_frequency_non_reference: float
     min_msp_coverage: int
     min_gene_coverage: float
+    core_size: int
     keep_consensus: bool
     json_data: dict = field(default_factory=dict)
 
@@ -147,7 +148,7 @@ class Strain(Session):
             header=1,
         )
         msp_content = msp_content.loc[msp_content["gene_category"] == "core"]
-        msp_content = msp_content.groupby("msp_name").head(100).reset_index()
+        msp_content = msp_content.groupby("msp_name").head(self.core_size).reset_index()
         # Filter for gene with a minimum count
         # filtered_count = count[count["value"] >= self.min_gene_count]
         # Filter for gene with a minimum count

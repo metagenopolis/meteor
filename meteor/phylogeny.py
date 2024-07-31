@@ -13,15 +13,15 @@
 """Effective phylogeny"""
 import re
 import logging
-import sys
+# import sys
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
-from subprocess import check_call, run, DEVNULL
+# from subprocess import check_call, run, DEVNULL
 from time import perf_counter
 from pathlib import Path
 import tempfile
 from tempfile import NamedTemporaryFile
-from packaging.version import parse
+# from packaging.version import parse
 from collections import OrderedDict
 from datetime import datetime
 from typing import Iterable, Tuple
@@ -83,8 +83,10 @@ class Phylogeny(Session):
             resultdict[gene_id] = output_seq
         print(flush=True, file=output)
         return resultdict, info_sites
+        # return info_sites
 
-    def set_tree_config(self, raxml_ng_version: str) -> dict:  # pragma: no cover
+    # def set_tree_config(self, raxml_ng_version: str) -> dict:  # pragma: no cover
+    def set_tree_config(self):
         """Define the census configuration
 
         :param cmd: A string of the specific parameters
@@ -94,8 +96,9 @@ class Phylogeny(Session):
         config = {
             "meteor_version": self.meteor.version,
             "phylogeny": {
-                "phylogeny_tool": "raxml-ng",
-                "phylogeny_version": raxml_ng_version,
+                "phylogeny_tool": "cogent3",
+                # "phylogeny_tool": "raxml-ng",
+                # "phylogeny_version": raxml_ng_version,
                 "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
                 "tree_files": ",".join([tree.name for tree in self.tree_files]),
             },
@@ -110,28 +113,28 @@ class Phylogeny(Session):
 
     def execute(self) -> None:
         logging.info("Launch phylogeny analysis")
-        raxml_ng_exec = run(["raxml-ng", "--version"], check=False, capture_output=True)
-        if raxml_ng_exec.returncode != 0:
-            logging.error(
-                "Checking raxml-ng failed:\n%s", raxml_ng_exec.stderr.decode("utf-8")
-            )
-            sys.exit(1)
-        raxml_ng_help = raxml_ng_exec.stdout.decode("utf-8")
+        # raxml_ng_exec = run(["raxml-ng", "--version"], check=False, capture_output=True)
+        # if raxml_ng_exec.returncode != 0:
+        #     logging.error(
+        #         "Checking raxml-ng failed:\n%s", raxml_ng_exec.stderr.decode("utf-8")
+        #     )
+        #     sys.exit(1)
+        # raxml_ng_help = raxml_ng_exec.stdout.decode("utf-8")
         # Define the regex pattern to match the version number
-        version_pattern = re.compile(r"RAxML-NG v\. (\d+\.\d+\.\d+)")
-        match = version_pattern.search(raxml_ng_help)
+        # version_pattern = re.compile(r"RAxML-NG v\. (\d+\.\d+\.\d+)")
+        # match = version_pattern.search(raxml_ng_help)
         # Check if a match is found
-        if not match:
-            logging.error("Failed to determine the raxml-ng version.")
-            sys.exit(1)
-        raxml_ng_version = match.group(1)
-        if parse(raxml_ng_version) < self.meteor.MIN_RAXML_NG_VERSION:
-            logging.error(
-                "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >= %s.",
-                raxml_ng_version,
-                self.meteor.MIN_RAXML_NG_VERSION,
-            )
-            sys.exit(1)
+        # if not match:
+        #     logging.error("Failed to determine the raxml-ng version.")
+        #     sys.exit(1)
+        # raxml_ng_version = match.group(1)
+        # if parse(raxml_ng_version) < self.meteor.MIN_RAXML_NG_VERSION:
+        #     logging.error(
+        #         "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >= %s.",
+        #         raxml_ng_version,
+        #         self.meteor.MIN_RAXML_NG_VERSION,
+        #     )
+        #     sys.exit(1)
 
         # Start phylogenies
         start = perf_counter()
@@ -149,42 +152,42 @@ class Phylogeny(Session):
                 )
                 # Clean sites
                 logging.info("Clean sites")
-                cleaned_seqs, info_sites = self.clean_sites(msp_file, temp_clean)
+                _, info_sites = self.clean_sites(msp_file, temp_clean)
                 if info_sites < self.min_info_sites:
                     logging.info(
                         "Only %d informative sites (< %d threshold) left after cleaning, skip.",
                         info_sites,
                         self.min_info_sites
                     )
-                elif len(cleaned_seqs) >= 4:
-                    # Compute trees
-                    logging.info("Run raxml-ng")
-                    result = check_call(
-                        [
-                            "raxml-ng",
-                            "--threads",
-                            "auto{{{}}}".format(self.meteor.threads),
-                            "--workers",
-                            "auto",
-                            "--search1",
-                            "--msa",
-                            temp_clean.name,
-                            "--model",
-                            "GTR+G",
-                            "--redo",
-                            "--force",
-                            "perf,msa",  # not working with raxml-ng-mpi
-                            "--prefix",
-                            str(tree_file.resolve()),
-                        ],
-                        stdout = DEVNULL
-                    )
-                    if result != 0:
-                        logging.error("raxml-ng failed with return code %d", result)
+                # elif len(cleaned_seqs) >= 4:
+                #     # Compute trees
+                #     logging.info("Run raxml-ng")
+                #     result = check_call(
+                #         [
+                #             "raxml-ng",
+                #             "--threads",
+                #             "auto{{{}}}".format(self.meteor.threads),
+                #             "--workers",
+                #             "auto",
+                #             "--search1",
+                #             "--msa",
+                #             temp_clean.name,
+                #             "--model",
+                #             "GTR+G",
+                #             "--redo",
+                #             "--force",
+                #             "perf,msa",  # not working with raxml-ng-mpi
+                #             "--prefix",
+                #             str(tree_file.resolve()),
+                #         ],
+                #         stdout = DEVNULL
+                #     )
+                    # if result != 0:
+                    #     logging.error("raxml-ng failed with return code %d", result)
                 else:
-                    logging.info(
-                        "Less than 4 sequences, run cogent3"
-                    )
+                    # logging.info(
+                    #     "Less than 4 sequences, run cogent3"
+                    # )
                     aligned_seqs = load_aligned_seqs(
                         temp_clean.name,
                         moltype="dna",
@@ -206,14 +209,15 @@ class Phylogeny(Session):
                 if tree_file.with_suffix(".tree").exists():
                     self.tree_files.append(tree_file.with_suffix(".tree"))
                     logging.info("Completed MSP tree with cogent3")
-                elif tree_file.with_suffix(".raxml.bestTree").exists():
-                    self.tree_files.append(tree_file.with_suffix(".raxml.bestTree"))
-                    logging.info("Completed MSP tree with raxml")
+                # elif tree_file.with_suffix(".raxml.bestTree").exists():
+                #     self.tree_files.append(tree_file.with_suffix(".raxml.bestTree"))
+                    # logging.info("Completed MSP tree with raxml")
                 else:
                     logging.info(
                         "No tree file generated"
                     )
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
         logging.info("Trees were generated for %d/%d MSPs", len(self.tree_files), msp_count)
-        config = self.set_tree_config(raxml_ng_version)
+        # config = self.set_tree_config(raxml_ng_version)
+        config = self.set_tree_config()
         self.save_config(config, self.meteor.tree_dir / "census_stage_4.json")

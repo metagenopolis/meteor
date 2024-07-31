@@ -19,8 +19,6 @@ Besides python packages dependencies, Meteor requires:
 - python 3.10+
 - [bowtie2 2.3.5+](https://github.com/BenLangmead/bowtie2)
 - [bcftools 0.1.19+](https://samtools.github.io/bcftools/)
-- [bedtools 2.18.0+](https://bedtools.readthedocs.io/en/latest/index.html)
-- [RAxML-NG 1.0.1+](https://github.com/amkozlov/raxml-ng)
 
 ## Installation
 
@@ -55,16 +53,16 @@ Ten catalogues are currently available:
 
 |  Microbial gene catalogue | \<name\> | Genes count (M) | Metagenomic Species Pan-genomes (MSPs) |Size (full) (GB) | Size (light) (GB)  | Description  |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
-|  *Felis catus* | cat_gut  | 1.3  | 344 | 2.7 | 0.9 |[link](https://zenodo.org/records/10719585)
-|  *Gallus gallus domesticus* | chicken_caecal  | 13.6  | 2420 | 22.8 | 4.8 |[link](https://zenodo.org/records/10719564)
-|  *Canis lupus familiaris* | dog_gut  | 0.95  | 234 | 1.7 | 0.3 |[link](https://zenodo.org/records/10719585)
-| *Homo sapiens gut* |  human_gut | 10.4  | 1990 | 15.1 | 3.2 |[link](https://zenodo.org/records/10719553)
-| *Homo sapiens oral*  |  human_oral | 8.4  | 853 | 16.4 | 3.2 |[link](https://zenodo.org/records/10719586)
-| *Homo sapiens skin*  |  human_skin | 2.9  | 392 | 4.6 | 0.9 |[link](https://zenodo.org/records/10719613)
-| *Mus musculus*  | mouse_gut  | 5.0  | 1252 | 10.3 | 3.4 |[link](https://zenodo.org/records/10719617)
-| *Oryctolagus cuniculus* | rabbit_gut  | 5.7 | 1053 | 11.1 | 3.5 |[link](https://zenodo.org/records/10719606)
-| *Rattus norvegicus* | rat_gut  | 5.9 | 1627 | 8.4 | 2.0 |[link](https://zenodo.org/records/10719596)
-| *Sus domesticus* | pig_gut  | 9.3  | 1523 | 8.4 | 378 |[link](https://zenodo.org/records/10719591)
+|  *Felis catus* | cat_gut  | 1.3  | 344 | 2.0 | 0.2 |[link](https://zenodo.org/records/12820763)
+|  *Gallus gallus domesticus* | chicken_caecal  | 13.6  | 2420 | 19.6 | 1.2 |[link](https://zenodo.org/records/12820776)
+|  *Canis lupus familiaris* | dog_gut  | 0.95  | 234 | 1.4 | 0.1 |[link](https://zenodo.org/records/12820719)
+| *Homo sapiens gut* |  human_gut | 10.4  | 1990 | 12.6 | 0.7 |[link](https://zenodo.org/records/12820832)
+| *Homo sapiens oral*  |  human_oral | 8.4  | 853 | 13.7 | 0.5 |[link](https://zenodo.org/records/2821296)
+| *Homo sapiens skin*  |  human_skin | 2.9  | 392 | 3.9 | 0.2 |[link](https://zenodo.org/records/12820845)
+| *Mus musculus*  | mouse_gut  | 5.0  | 1252 | 10.3 | 0.6 |[link](https://zenodo.org/records/12821471)
+| *Oryctolagus cuniculus* | rabbit_gut  | 5.7 | 1053 | 8.0 | 0.4 |[link](https://zenodo.org/records/12821585)
+| *Rattus norvegicus* | rat_gut  | 5.9 | 1627 | 7.0 | 0.6 |[link](https://zenodo.org/records/13119584)
+| *Sus domesticus* | pig_gut  | 9.3  | 1523 | 11.3 | 0.7 |[link](https://zenodo.org/records/13119585)
 
 These references can be downloaded with the following command:
 ```
@@ -125,7 +123,7 @@ This profiling step will generate:
 - an ARD abundance table (full catalogue only);
 - a DBCAN abundance table (full catalogue only);
 - a Gut Metabolic Modules ([GMM](https://www.nature.com/articles/nmicrobiol201688)) abundance table (from the KO annotation) (full catalogue only).
-
+- a Gut Brain Modules ([GBM](https://www.nature.com/articles/s41564-018-0337-x)) abundance table (from the KO, EGGNOG and TIGRFAM annotations) (full catalogue only).
 
 ### 5. Merging
 

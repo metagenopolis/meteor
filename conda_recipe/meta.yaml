@@ -32,14 +32,10 @@ requirements:
         - cogent3
         - biom-format
         - bcftools >=0.1.19
-        - raxml-ng >=1.0.1
-        - bedtools >=2.18.0
 test:
     commands:
         - meteor -h
         - bowtie2 -h
-        - bedtools -h
-        - raxml-ng -h
         - bcftools -h
     imports:
         - pysam

@@ -35,7 +35,7 @@ def strain_builder(datadir: Path, tmp_path: Path) -> Strain:
         "census": {"sample_info": {"sample_name": "test"}},
     }
     # meteor.mapping_dir = tmp_path
-    return Strain(meteor, 100, 3, 3, 0.5, 3, 0.8, True, json_data=json_data)
+    return Strain(meteor, 100, 3, 3, 0.5, 3, 0.8, True, False, json_data=json_data)
 
 
 def test_filter_coverage(

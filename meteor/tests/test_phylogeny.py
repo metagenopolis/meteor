@@ -69,7 +69,7 @@ def test_remove_edge_labels(phylogeny_builder: Phylogeny):
     )
 
 
-def test_execute(phylogeny_builder: Phylogeny, tmp_path: Path):
+def test_execute(phylogeny_builder: Phylogeny):
     phylogeny_builder.execute()
-    result = phylogeny_builder.meteor.tree_dir / "msp_0864.raxml.bestTree"
+    result = phylogeny_builder.meteor.tree_dir / "msp_0864.tree"
     assert result.exists()

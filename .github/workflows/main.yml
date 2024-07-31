@@ -8,25 +8,13 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
-        # os: [ubuntu-22.04, macos-latest]
-        os: [ubuntu-22.04]
+        os: [ubuntu-22.04, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: ConorMacBride/install-package@v1
         with:
-          brew: bowtie2 bcftools bedtools raxml-ng
-          apt: bowtie2 bcftools bedtools
-      - name: Fetch GitHub Release Assets
-        uses: dsaltares/fetch-gh-release-asset@master
-        with:
-          repo: 'amkozlov/raxml-ng'
-          version: 'tags/1.2.2'
-          file: 'raxml-ng_v1.2.2_linux_x86_64.zip'
-          token: ${{ secrets.GITHUB_TOKEN }}
-        if: matrix.os == 'ubuntu-22.04'
-      - name: Extract zip
-        run: unzip -o raxml-ng_*.zip  -d /usr/local/bin && chmod +x /usr/local/bin/raxml-ng
-        if: matrix.os == 'ubuntu-22.04'
+          brew: bowtie2 bcftools
+          apt: bowtie2 bcftools
       - name: Install Python
         uses: actions/setup-python@v4
       - name: Install poetry

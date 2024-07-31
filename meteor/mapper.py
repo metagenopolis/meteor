@@ -37,7 +37,7 @@ class Mapper(Session):
     DEFAULT_MAPPING_TYPE: ClassVar[str] = "end-to-end"
     DEFAULT_TRIM: ClassVar[int] = 80
     NO_TRIM: ClassVar[int] = 0
-    DEFAULT_ALIGNMENT_NUMBER: ClassVar[int] = 10000
+    DEFAULT_ALIGNMENT_NUMBER: ClassVar[int] = 100
 
     meteor: type[Component]
     census: dict
@@ -155,6 +155,7 @@ class Mapper(Session):
             with pysam.AlignmentFile(
                 mapping_exec.stdout,
                 "r",
+                threads=self.meteor.threads
             ) as samdesc:
                 with pysam.AlignmentFile(
                     str(cram_file.resolve()),
@@ -162,6 +163,7 @@ class Mapper(Session):
                     "wc",
                     template=samdesc,
                     reference_filename=str(reference.resolve()),
+                    threads=self.meteor.threads
                 ) as cram:
                     for element in samdesc:
                         cram.write(element)

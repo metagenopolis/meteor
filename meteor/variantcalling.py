@@ -27,7 +27,7 @@ from packaging.version import parse
 
 # import memory_profiler
 # import psutil
-from pysam import AlignmentFile, FastaFile
+from pysam import AlignmentFile, FastaFile, VariantFile
 from collections import defaultdict
 import pandas as pd
 from io import StringIO
@@ -118,7 +118,7 @@ class VariantCalling(Session):
         cram: AlignmentFile,
         gene_name: str,
         gene_length: int,
-        reference_file: Path,
+        Fasta: FastaFile,
     ):
         """
         Counts the number of reads at each position in a specified gene from a BAM file,
@@ -134,23 +134,22 @@ class VariantCalling(Session):
         reads_dict: dict[int, int] = defaultdict(int)
         # gene_length = bam.lengths[bam.references.index(gene_name)]
         # Extraction of positions having at least one read
-        with FastaFile(filename=str(reference_file.resolve())) as Fasta:
-            for pileupcolumn in cram.pileup(
-                contig=gene_name,
-                start=0,
-                end=gene_length,
-                stepper="all",
-                # stepper="samtools",
-                max_depth=self.max_depth,
-                fastafile=Fasta,
-                multiple_iterators=False,
-            ):
-                read_count = sum(
-                    1
-                    for pileupread in pileupcolumn.pileups
-                    if not pileupread.is_del and not pileupread.is_refskip
-                )
-                reads_dict[pileupcolumn.reference_pos] = read_count
+        for pileupcolumn in cram.pileup(
+            contig=gene_name,
+            start=0,
+            end=gene_length,
+            stepper="all",
+            # stepper="samtools",
+            max_depth=self.max_depth,
+            fastafile=Fasta,
+            multiple_iterators=False,
+        ):
+            read_count = sum(
+                1
+                for pileupread in pileupcolumn.pileups
+                if not pileupread.is_del and not pileupread.is_refskip
+            )
+            reads_dict[pileupcolumn.reference_pos] = read_count
 
         return reads_dict
 
@@ -194,17 +193,18 @@ class VariantCalling(Session):
             ["gene_id", "gene_length"]
         ]
         dfs = []
-        with AlignmentFile(str(cram_file.resolve()), "rc") as cram:
-            # For genes with a count
-            for _, row in gene_tofilter.iterrows():
-                reads_dict = self.count_reads_in_gene(
-                    cram, str(row["gene_id"]), row["gene_length"], reference_file
-                )
-                df = self.group_consecutive_positions(
-                    reads_dict, str(row["gene_id"]), row["gene_length"]
-                )
-                if len(df) > 0:
-                    dfs.append(df)
+        with AlignmentFile(str(cram_file.resolve()), "rc", reference_filename=str(reference_file.resolve()), threads=self.meteor.threads) as cram:
+            with FastaFile(filename=str(reference_file.resolve())) as Fasta:
+                # For genes with a count
+                for _, row in gene_tofilter.iterrows():
+                    reads_dict = self.count_reads_in_gene(
+                        cram, str(row["gene_id"]), row["gene_length"], Fasta
+                    )
+                    df = self.group_consecutive_positions(
+                        reads_dict, str(row["gene_id"]), row["gene_length"]
+                    )
+                    if len(df) > 0:
+                        dfs.append(df)
         # All these genes are going to be replaced by gaps
         # Their count is below the threshold level
         gene_ignore = gene_interest[gene_interest["coverage"] < self.min_depth]
@@ -221,6 +221,7 @@ class VariantCalling(Session):
         sum_cov_bed = pd.concat(dfs, ignore_index=True)
         # .query(f"coverage < {self.min_depth}")
         sum_cov_bed.to_csv(temp_low_cov_sites, sep="\t", header=False, index=False)
+        # return sum_cov_bed
 
     def filter_low_cov_sites(
         self, output: str, temp_low_cov_sites: tempfile._TemporaryFileWrapper
@@ -236,9 +237,37 @@ class VariantCalling(Session):
                 "coverage",
             ],
         )
-        sum_cov_bed.query(f"coverage < {self.min_depth}").to_csv(
+        sum_cov_bed.query(f"0 < coverage <= {self.min_depth}").to_csv(
             temp_low_cov_sites, sep="\t", header=False, index=False
         )
+
+    def create_consensus(self, reference_file, consensus_file, low_cov_sites, vcf_file):
+        """Generate a consensus sequence by applying VCF variants to the provided reference genome."""
+        with VariantFile(vcf_file) as vcf:
+            with FastaFile(filename=str(reference_file.resolve())) as Fasta:
+                with lzma.open(consensus_file, "wt", preset=0) as consensus_f:
+                    # Iterate over all reference sequences in the fasta file
+                    for ref in Fasta.references:
+                        ref_length = Fasta.get_reference_length(ref)
+                        consensus = list(Fasta.fetch(ref))  # Extract reference sequence into a list for mutability
+
+                        # Apply low coverage masking from DataFrame
+                        for _, row in low_cov_sites[low_cov_sites['gene_id'] == ref].iterrows():
+                            start = max(0, row['startpos'] - 1)  # Convert 1-based to 0-based indexing
+                            end = min(row['endpos'], ref_length)  # Ensure end position does not exceed length of ref
+                            for position in range(start, end):
+                                consensus[position] = self.meteor.DEFAULT_GAP_CHAR  # Mark as uncertain
+                        # Apply variants from VCF
+                        for record in vcf.fetch(ref):
+                            print(record.info)
+                            # Check if the record is within the range of the current reference sequence
+                            if record.pos - 1 < ref_length and len(record.alts) == 1 and record.info['AF'][0] == 1.0:
+                                pos = record.pos - 1  # Adjust position for 0-based indexing
+                                consensus[pos] = record.alts[0]
+                        # Write to output file
+                        consensus_f.write(f'>{ref}\n')
+                        consensus_f.write(''.join(consensus) + '\n')
+
 
     def execute(self) -> None:
         """Call variants reads"""
@@ -285,158 +314,152 @@ class VariantCalling(Session):
                 self.meteor.MIN_BCFTOOLS_VERSION,
             )
             sys.exit(1)
-        bedtools_exec = run(["bedtools", "--version"], check=False, capture_output=True)
-        if bedtools_exec.returncode != 0:
-            logging.error(
-                "Checking bedtools failed:\n%s", bedtools_exec.stderr.decode("utf-8")
-            )
-            sys.exit(1)
-        bedtools_version = bedtools_exec.stdout.decode("utf-8").split(" ")[1][1:]
-        if parse(bedtools_version) < self.meteor.MIN_BEDTOOLS_VERSION:
-            logging.error(
-                "The bedtools version %s is outdated for meteor. Please update bedtools to >= %s.",
-                bedtools_version,
-                self.meteor.MIN_BEDTOOLS_VERSION,
-            )
-            sys.exit(1)
         start = perf_counter()
-        with NamedTemporaryFile(
-            mode="wt",
-            dir=self.meteor.tmp_dir,  # delete=False
-        ) as temp_vcf_pileup:
-            with NamedTemporaryFile(
-                mode="wt",
-                dir=self.meteor.tmp_dir,  # delete=False
-            ) as temp_vcf:
-                startpileup = perf_counter()
-                check_call(
-                    [
-                        "bcftools",
-                        "mpileup",
-                        "-d",
-                        str(self.max_depth),
-                        "-Ob",
-                        "-R",
-                        str(bed_file.resolve()),
-                        "-f",
-                        str(reference_file.resolve()),
-                        str(cram_file.resolve()),
-                        "--threads",
-                        str(self.meteor.threads),
-                        "-o",
-                        temp_vcf_pileup.name,
-                    ]
-                )
-                logging.info(
-                    "Completed pileup step in %f seconds", perf_counter() - startpileup
-                )
-                startcall = perf_counter()
-                check_call(
-                    [
-                        "bcftools",
-                        "call",
-                        "-v",
-                        "-c",
-                        "--ploidy",
-                        str(1),
-                        "-V",
-                        "indels",
-                        "--threads",
-                        str(self.meteor.threads),
-                        "-Oz",
-                        "-o",
-                        temp_vcf.name,
-                        temp_vcf_pileup.name,
-                    ]
-                )
-                logging.info(
-                    "Completed calling step in %f seconds", perf_counter() - startcall
-                )
-                check_call(["bcftools", "index", temp_vcf.name])
-                # Only SNP from 100 core genes
-                logging.info(
-                    "Completed index step in %f seconds", perf_counter() - startpileup
-                )
-                startview = perf_counter()
-                check_call(
-                    [
-                        "bcftools",
-                        "view",
-                        "-R",
-                        str(bed_file.resolve()),
-                        "-f",
-                        f"MIN(FMT/DP >= {str(self.min_snp_depth)})",
-                        "--threads",
-                        str(self.meteor.threads),
-                        "-q",
-                        str(self.min_frequency_non_reference),
-                        "-Oz",
-                        "-o",
-                        str(vcf_file.resolve()),
-                        temp_vcf.name,
-                    ]
-                )
-                logging.info(
-                    "Completed SNP filtering step in %f seconds",
-                    perf_counter() - startview,
-                )
-                check_call(["bcftools", "index", str(vcf_file.resolve())])
+        startpileupcall = perf_counter()
+        # Step 1: bcftools mpileup
+        mpileup_cmd = [
+            "bcftools",
+            "mpileup",
+            "-B",
+            "-Q", str(0),
+            "-d",  str(self.max_depth),
+            "-Ou",
+            "-R", str(bed_file.resolve()),
+            "-f",  str(reference_file.resolve()),
+            str(cram_file.resolve()),
+            "--threads", str(self.meteor.threads),
+        ]
+        with Popen(mpileup_cmd, stdout=PIPE) as mpileup_process:
+            # Step 2: bcftools call
+            call_cmd = [
+                "bcftools",
+                "call",
+                "--keep-alts",
+                "--variants-only",
+                # "--consensus-caller",
+                "--multiallelic-caller",
+                "--ploidy", "1",
+                "--skip-variants", "indels",
+                "--threads", str(self.meteor.threads),
+                "-Ou"
+            ]
+            with Popen(call_cmd, stdin=mpileup_process.stdout, stdout=PIPE) as call_process:
+                # Write output to a temporary file
+                with tempfile.NamedTemporaryFile(suffix='.vcf') as temp_call_vcf:
+                    temp_call_vcf.write(call_process.stdout.read())
+                    call_process.communicate()  # wait for the process to finish
+                    logging.info("Completed pileup/calling step in %f seconds", perf_counter() - startpileupcall)
+                    with tempfile.NamedTemporaryFile(suffix='.vcf.gz') as temp_vcf:
+                        check_call(["bcftools",
+                                    "+fill-tags",
+                                    temp_call_vcf.name,
+                                    "-Oz",
+                                    "-o",
+                                    temp_vcf.name,
+                                    "--",
+                                    "-t",
+                                    "AF" ]
+                        )
+                        # Index the temporary file
+                        startindexing = perf_counter()
+                        check_call(["bcftools", "index", temp_vcf.name])
+                        logging.info(
+                            "Completed indexing step in %f seconds", perf_counter() - startindexing
+                        )
+                        # Step 3: bcftools view
+                        startview = perf_counter()
+                        check_call(
+                            [
+                                "bcftools",
+                                "view",
+                                "-R",
+                                str(bed_file.resolve()),
+                                "-f",
+                                f"MIN(FMT/DP >= {str(self.min_snp_depth)})",
+                                "--threads",
+                                str(self.meteor.threads),
+                                "-q",
+                                str(self.min_frequency_non_reference),
+                                "--write-index",
+                                "-Oz",
+                                "-o",
+                                str(vcf_file.resolve()),
+                                temp_vcf.name,
+                            ]
+                        )
+                        logging.info(
+                            "Completed SNP filtering step in %f seconds", perf_counter() - startview
+                        )
                 # The columns of the tab-delimited BED file are also CHROM, POS
                 # and END (trailing columns are ignored), but coordinates are
                 # 0-based, half-open. To indicate that a file be treated as BED
                 # rather than the 1-based tab-delimited file, the file must have
                 # the ".bed" or ".bed.gz" suffix (case-insensitive).
-                # startlowcovpython = perf_counter()
-                # with NamedTemporaryFile(
-                #     mode="wt", dir=self.meteor.tmp_dir, delete=False, suffix=".bed"
-                # ) as temp_low_cov_sites:
-                #     self.filter_low_cov_sites_python(
-                #         cram_file, reference_file, temp_low_cov_sites
-                #     )
-                # logging.info(
-                #     "Completed low coverage python regions filtering step in %f seconds",
-                #     perf_counter() - startlowcovpython,
-                # )
-                startlowcovbed = perf_counter()
+                startlowcovpython = perf_counter()
                 with NamedTemporaryFile(
                     mode="wt", dir=self.meteor.tmp_dir, delete=False, suffix=".bed"
                 ) as temp_low_cov_sites:
-                    # process = psutil.Process()
-                    # mem_before = (
-                    #     process.memory_info().rss / 1024 / 1024
-                    # )  # Convert to MB
-                    output = run(
-                        [
-                            "bedtools",
-                            "genomecov",
-                            "-bga",
-                            "-ibam",
-                            str(cram_file.resolve()),
-                        ],
-                        check=False,
-                        capture_output=True,
-                    ).stdout.decode("utf-8")
-                    # mem_after = process.memory_info().rss / 1024 / 1024  # Convert to MB
-                    # print(f"Memory usage before: {mem_before} MB")
-                    # print(f"Memory usage after: {mem_after} MB")
-                    # print(f"Memory usage during: {mem_after - mem_before} MB")
-
-                    self.filter_low_cov_sites(output, temp_low_cov_sites)
-                    logging.info(
-                        "Completed low coverage bedtools regions filtering step in %f seconds",
-                        perf_counter() - startlowcovbed,
+                    self.filter_low_cov_sites_python(
+                        cram_file, reference_file, temp_low_cov_sites
                     )
-                    startlowcov = perf_counter()
+                # low_cov_sites = self.filter_low_cov_sites_python(
+                #     cram_file, reference_file
+                # )
+                    logging.info(
+                        "Completed low coverage python regions filtering step in %f seconds",
+                        perf_counter() - startlowcovpython,
+                    )
+                # startlowcovbed = perf_counter()
+                # with NamedTemporaryFile(
+                #     mode="wt", dir=self.meteor.tmp_dir, delete=False, suffix=".bed"
+                # ) as temp_low_cov_sites:
+                #     # process = psutil.Process()
+                #     # mem_before = (
+                #     #     process.memory_info().rss / 1024 / 1024
+                #     # )  # Convert to MB
+                #     output = run(
+                #         [
+                #             "bedtools",
+                #             "genomecov",
+                #             "-bga",
+                #             "-ibam",
+                #             str(cram_file.resolve()),
+                #         ],
+                #         check=False,
+                #         capture_output=True,
+                #     ).stdout.decode("utf-8")
+                #     # mem_after = process.memory_info().rss / 1024 / 1024  # Convert to MB
+                #     # print(f"Memory usage before: {mem_before} MB")
+                #     # print(f"Memory usage after: {mem_after} MB")
+                #     # print(f"Memory usage during: {mem_after - mem_before} MB")
+
+                #     self.filter_low_cov_sites(output, temp_low_cov_sites)
+                #     logging.info(
+                #         "Completed low coverage bedtools regions filtering step in %f seconds",
+                #         perf_counter() - startlowcovbed,
+                #     )
+                # startconsensuspython = perf_counter()
+                # self.create_consensus(reference_file, consensus_file, low_cov_sites, vcf_file)
+                # logging.info(
+                #     "Completed consensus step with python in %f seconds",
+                #     perf_counter() - startconsensuspython,
+                # )
+                    startconsensusbcf = perf_counter()
                     with Popen(
                         [
                             "bcftools",
                             "consensus",
+                            "--iupac-codes",
                             "--mask",
                             temp_low_cov_sites.name,
-                            "--mask-with",
+                            # "--mask-with",
+                            # "N",
+                            "-M",
                             self.meteor.DEFAULT_GAP_CHAR,
                             "-f",
                             str(reference_file.resolve()),
+                            "-H",
+                            "I",
                             str(vcf_file.resolve()),
                         ],
                         stdout=PIPE,
@@ -449,10 +472,10 @@ class VariantCalling(Session):
                         # write compressed output to file
                         with open(str(consensus_file.resolve()), "wb") as f:
                             f.write(compressed_output)
-                logging.info(
-                    "Completed low coverage regions filtering step in %f seconds",
-                    perf_counter() - startlowcov,
-                )
+                    logging.info(
+                        "Completed consensus step in %f seconds",
+                        perf_counter() - startconsensusbcf,
+                    )
         logging.info("Completed SNP calling in %f seconds", perf_counter() - start)
         config = self.set_variantcalling_config(
             cram_file, vcf_file, consensus_file, bcftools_version

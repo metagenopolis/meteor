@@ -36,7 +36,6 @@ class Profiler(Session):
     NORMALIZATIONS: ClassVar[list[str | None]] = [None, "coverage", "fpkm", "raw"]
     DEFAULT_NORMALIZATION: ClassVar[str] = "coverage"
     DEFAULT_COVERAGE_FACTOR: ClassVar[float] = 100.0
-    DEFAULT_CORE_SIZE: ClassVar[int] = 100
     DEFAULT_MSP_FILTER_COMPLETE: ClassVar[float] = 0.1
     DEFAULT_MSP_FILTER_TAXO: ClassVar[float] = 0.2
     DEFAULT_COMPLETENESS: ClassVar[float] = 0.9

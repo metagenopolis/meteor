@@ -46,6 +46,7 @@ class Counter(Session):
     trim: int
     identity_user: float | None
     alignment_number: int
+    core_size: int
     keep_all_alignments: bool = False
     keep_filtered_alignments: bool = False
     json_data: dict = field(default_factory=dict)
@@ -377,7 +378,7 @@ class Counter(Session):
             )
             .query("gene_category == 'core'")
             .groupby("msp_name", as_index=False)
-            .head(100)
+            .head(self.core_size)
         )
         # Sort the 'gene_id' values and convert directly to a list
         gene_id_set = set(msp_content["gene_id"])
@@ -386,6 +387,7 @@ class Counter(Session):
             "wc",
             template=cramdesc,
             reference_filename=str(reference.resolve()),
+            threads=self.meteor.threads
         ) as total_reads:
             for element in read_chain:
                 if int(element.reference_name) in gene_id_set:
@@ -415,7 +417,7 @@ class Counter(Session):
         else:
             logging.info("Launch counting")
         pysam.set_verbosity(0)
-        with AlignmentFile(str(raw_cramfile.resolve())) as cramdesc:
+        with AlignmentFile(str(raw_cramfile.resolve()), threads=self.meteor.threads) as cramdesc:
             # create a dictionary containing the length of reference genes
             # get name of reference sequence
             references = [int(ref) for ref in cramdesc.references]
@@ -461,6 +463,7 @@ class Counter(Session):
                     "wc",
                     template=cramdesc,
                     reference_filename=str(reference.resolve()),
+                    threads=self.meteor.threads
                 ) as total_reads:
                     for element in chain.from_iterable(reads.values()):
                         # if int(element.reference_name) in ref_json["reference_file"]:

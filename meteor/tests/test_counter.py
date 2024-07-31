@@ -55,6 +55,7 @@ def counter_unique(datadir: Path, tmp_path: Path) -> Counter:
         alignment_number=10000,
         keep_filtered_alignments=True,
         identity_threshold=0.95,
+        core_size=100
     )
 
 
@@ -76,6 +77,7 @@ def counter_smart_shared(datadir: Path, tmp_path: Path) -> Counter:
         alignment_number=10000,
         keep_filtered_alignments=True,
         identity_threshold=0.95,
+        core_size=100
     )
 
 
@@ -98,6 +100,7 @@ def counter_total(datadir: Path, tmp_path: Path) -> Counter:
         keep_all_alignments=False,
         keep_filtered_alignments=True,
         identity_threshold=0.95,
+        core_size=100
     )
 
 
@@ -122,7 +125,6 @@ def test_launch_mapping(counter_total: Counter):
     # Fail with changing day
     # with counter_best.json_data[census_ini_file]["Stage1FileName"].open("rb") as stage1:
     #    assert md5(stage1.read()).hexdigest() == "a8a5b5e400dafb226ce3bab1a2cee69d"
-    print(stage1_dir)
     cram = stage1_dir / "part1_raw.cram"
     assert cram.exists()
     # cram = stage1_dir / "part1.cram"

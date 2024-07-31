@@ -32,6 +32,7 @@ class Component:
     MIN_BEDTOOLS_VERSION: ClassVar[Version] = Version("2.18")
     MIN_RAXML_NG_VERSION: ClassVar[Version] = Version("1.0.1")
     DEFAULT_GAP_CHAR: ClassVar[str] = "?"
+    DEFAULT_CORE_SIZE: ClassVar[int] = 100
 
     threads: int | None
     fastq_dir: Path = field(default_factory=Path)

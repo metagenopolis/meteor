@@ -298,6 +298,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Strategy to calculate raw gene counts (default: %(default)s).",
     )
     mapping_parser.add_argument(
+        "--core_size",
+        dest="core_size",
+        type=int,
+        default=Component.DEFAULT_CORE_SIZE,
+        help="Number of signature genes per species (MSP) used to estimate their respective abundance "
+        "(default: %(default)d).",
+    )
+    mapping_parser.add_argument(
         "--id",
         dest="identity_threshold",
         type=isborned01,
@@ -396,8 +404,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--core_size",
         dest="core_size",
         type=int,
-        default=Profiler.DEFAULT_CORE_SIZE,
-        help="Number of core genes per species (MSP) used to estimate their respective abundance "
+        default=Component.DEFAULT_CORE_SIZE,
+        help="Number of signature genes per species (MSP) used to estimate their respective abundance "
         "(default: %(default)d).",
     )
     profiling_parser.add_argument(
@@ -578,6 +586,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Minimum gene coverage from 0 to 1 (default: >= %(default).1f).",
     )
     strain_parser.add_argument(
+        "--core_size",
+        dest="core_size",
+        type=int,
+        default=Component.DEFAULT_CORE_SIZE,
+        help="Number of signature genes per species (MSP) used to estimate their respective abundance "
+        "(default: %(default)d).",
+    )
+    strain_parser.add_argument(
         "-o",
         dest="strain_dir",
         type=isdir,
@@ -721,6 +737,7 @@ def main() -> None:  # pragma: no cover
             args.trim,
             args.identity_threshold,
             args.alignment_number,
+            args.core_size,
             args.keep_all_alignments,
             args.keep_filtered_alignments,
         )
@@ -740,6 +757,7 @@ def main() -> None:  # pragma: no cover
             args.min_frequency_non_reference,
             args.min_msp_coverage,
             args.min_gene_coverage,
+            args.core_size,
             args.keep_consensus,
         )
         strain_id.execute()
