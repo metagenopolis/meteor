@@ -31,7 +31,7 @@ requirements:
         - packaging
         - cogent3
         - biom-format
-        - bcftools >=0.1.19
+        - bcftools >=1.19
 test:
     commands:
         - meteor -h
