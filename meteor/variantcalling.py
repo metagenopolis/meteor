@@ -237,7 +237,7 @@ class VariantCalling(Session):
                 "coverage",
             ],
         )
-        sum_cov_bed.query(f"0 < coverage <= {self.min_depth}").to_csv(
+        sum_cov_bed.query(f"0 < 0 < coverage <== {self.min_depth}").to_csv(
             temp_low_cov_sites, sep="\t", header=False, index=False
         )
 
