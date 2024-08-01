@@ -344,11 +344,11 @@ class Merging(Session):
             # Calculate the sum of each row in the DataFrame
             numeric_df = merged_df.drop(columns=value).to_numpy()
             # row_sums = numeric_df.sum(axis=1)
-            row_sums = np.sum(numeric_df, axis=1)
+            row_sums = np.nansum(numeric_df, axis=1)
 
             # Calculate the occurrence (number of non-zero values) in each row
             # occurrence = (numeric_df != 0).sum(axis=1)
-            occurrence = np.count_nonzero(numeric_df, axis=1)
+            occurrence = np.nansum((numeric_df != 0) & ~np.isnan(numeric_df), axis=1)
             # Apply both abundance and occurrence filters directly
             # print(merged_df[list_pattern_to_merge[my_pattern]])
             # Filter the DataFrame based on the calculated row sums and occurrence
