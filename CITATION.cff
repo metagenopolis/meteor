@@ -1,0 +1,35 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Ghozlane
+    given-names: Amine
+    email: amine.ghozlane@pasteur.fr
+    affiliation: Institut Pasteur
+  - family-names: Thirion
+    given-names: Florence
+    email: florence.thirion@inrae.fr
+    affiliation: INRAE
+  - family-names: Plaza Oñate
+    given-names: Florian
+    email: florian.plaza-onate@inrae.fr
+    affiliation: INRAE
+  - family-names: Gauthier
+    given-names: Franck
+    email: franck.gauthier@inrae.fr
+    affiliation: INRAE
+  - family-names: Le Chatelier
+    given-names: Emmanuelle
+    email: emmanuelle.le-chatelier@inrae.fr
+    affiliation: INRAE
+  - family-names: Almeida
+    given-names: Mathieu
+    email: mathieu.almeida@inrae.fr
+    affiliation: INRAE
+  - family-names: Pons
+    given-names: Nicolas
+    email: nicolas.pons@inrae.fr
+    affiliation: INRAE
+title: "Meteor: a plateform for quantitative metagenomics profiling of complex ecosystems"
+version: 2.0.14
+doi: 10.5281/zenodo.10912587
+date-released: 2024-07-01

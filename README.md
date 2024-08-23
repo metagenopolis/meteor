@@ -140,18 +140,3 @@ The '--fast' parameter prevent merging of the gene count tables, so that only sp
 ### 5. Strain profiling
 -------------------------
 
-
-## The METEOR team
-The main contributors to METEOR:
-
-* Franck Gauthier
-* Amine Ghozlane
-* Florian Plaza Oñate
-* Nicolas Pons
-* Florence Thirion
-
-
-## Acknowledgements
-Special thanks to the following people:
-* Mathieu Almeida
-* Emmanuelle Le Chatelier
