@@ -148,17 +148,3 @@ Meteor computes mutation rates and trees between strains from samples using a GT
 meteor tree -i <straindir> -o <treedir>
 ```
 
-## The METEOR team
-The main contributors to METEOR:
-
-* Franck Gauthier
-* Amine Ghozlane
-* Florian Plaza Oñate
-* Nicolas Pons
-* Florence Thirion
-
-
-## Acknowledgements
-Special thanks to the following people:
-* Mathieu Almeida
-* Emmanuelle Le Chatelier
