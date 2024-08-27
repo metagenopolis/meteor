@@ -14,13 +14,19 @@ source:
       path: ..
 
 build:
-  noarch: python
-  script: {{ PYTHON }} -m pip install . --no-deps -vv
+    noarch: python
+    number: 1
+    script: {{ PYTHON }} -m pip install . --no-deps --no-build-isolation --no-cache-dir -vvv
+    entry_points:
+        - meteor = meteor.meteor:main
+    run_exports:
+        - {{ pin_subpackage('meteor', max_pin="x") }}
 
 requirements:
     host:
         - python >=3.10
-        - poetry
+        - pip
+        - poetry-core
     run:
         - python >=3.10
         - bowtie2 >=2.3.5
@@ -31,6 +37,7 @@ requirements:
         - packaging
         - cogent3
         - biom-format
+        - bgzip
         - freebayes >=1.2
 test:
     commands:
@@ -45,6 +52,7 @@ test:
         - packaging
         - biom
         - cogent3
+        - bgzip
 
 about:
   home: https://github.com/metagenopolis/meteor
