@@ -37,7 +37,7 @@ requirements:
         - packaging
         - cogent3
         - biom-format
-        - bgzip
+        - py-bgzip
         - freebayes >=1.2
 test:
     commands:
