@@ -50,8 +50,6 @@ def test_filter_coverage(
         strain_builder.meteor.ref_dir / "fasta" / "mock.fasta.gz",
     )
     expected_output = pd.read_table(datadir / "expected_output" / "filtered_cov.tsv")
-    expected_output.to_csv("/pasteur/appa/homes/aghozlan/exp.tsv", sep="\t")
-    filtered_cov.to_csv("/pasteur/appa/homes/aghozlan/filt.tsv", sep="\t")
     assert filtered_cov.reset_index(drop=True).equals(expected_output)
 
 
@@ -93,6 +91,7 @@ def test_get_msp_variant(strain_builder, datadir: Path, tmp_path: Path):
     with PA.open("rb") as out:
         # assert md5(out.read()).hexdigest() == "cec667aad0449853b3bd7db689dd7ed3"
         assert md5(out.read()).hexdigest() == "b4eadbd604c765a2579bf742ae27386a"
+
 
 def test_execute(strain_builder, tmp_path: Path) -> None:
     strain_builder.execute()
