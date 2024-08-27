@@ -1,1 +1,25 @@
-{"meteor_version": "2.0.6", "sample_info": {"sample_name": "D15B1", "tag": "1", "full_sample_name": "D15B1_R1"}, "sample_file": {"fastq_file": "D15B1_R1.fastq.gz"}, "mapping": {"reference_name": "hs_8_4_oral_taxo", "cram_name": "D15B1.cram"}, "variant_calling": {"variant_calling_tool": "bcftools", "variant_calling_version": "1.19", "variant_calling_date": "2024-06-19", "vcf_name": "D15B1.vcf.gz", "consensus_name": "D15B1_consensus.fasta.xz", "min_snp_depth": "3", "min_frequency_non_reference": "0.8", "max_depth": "100"}}
+{
+    "meteor_version": "2.0.6",
+    "sample_info": {
+        "sample_name": "D15B1",
+        "tag": "1",
+        "full_sample_name": "D15B1_R1"
+    },
+    "sample_file": {
+        "fastq_file": "D15B1_R1.fastq.gz"
+    },
+    "mapping": {
+        "reference_name": "hs_8_4_oral_taxo",
+        "cram_name": "D15B1.cram"
+    },
+    "variant_calling": {
+        "variant_calling_tool": "bcftools",
+        "variant_calling_version": "1.19",
+        "variant_calling_date": "2024-06-19",
+        "vcf_name": "D15B1.vcf.gz",
+        "consensus_name": "D15B1_consensus.fasta.xz",
+        "min_snp_depth": "3",
+        "min_frequency": "0.8",
+        "max_depth": "100"
+    }
+}

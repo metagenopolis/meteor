@@ -28,10 +28,8 @@ class Component:
     """Set of important constant for meteor"""
 
     MIN_BOWTIE2_VERSION: ClassVar[Version] = Version("2.3.5")
-    MIN_BCFTOOLS_VERSION: ClassVar[Version] = Version("1.19")
-    # MIN_BEDTOOLS_VERSION: ClassVar[Version] = Version("2.18")
-    # MIN_RAXML_NG_VERSION: ClassVar[Version] = Version("1.0.1")
-    DEFAULT_GAP_CHAR: ClassVar[str] = "?"
+    MIN_FREEBAYES_VERSION: ClassVar[Version] = Version("1.2")
+    DEFAULT_GAP_CHAR: ClassVar[str] = "N"
     DEFAULT_CORE_SIZE: ClassVar[int] = 100
 
     threads: int | None

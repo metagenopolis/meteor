@@ -13,8 +13,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ConorMacBride/install-package@v1
         with:
-          brew: bowtie2 bcftools
-          apt: bowtie2 bcftools
+          brew: bowtie2 freebayes
+          apt: bowtie2 freebayes
       - name: Install Python
         uses: actions/setup-python@v4
       - name: Install poetry

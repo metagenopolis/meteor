@@ -18,7 +18,10 @@ import pytest
 import json
 from pysam import AlignmentFile, FastaFile
 import pandas as pd
+
 # from subprocess import run
+from pandas.testing import assert_frame_equal
+from hashlib import md5
 
 
 @pytest.fixture(name="vc_builder")
@@ -46,18 +49,7 @@ def fixture_vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
             "Stage3FileName": stage3_dir / census_json_file.name,
             "reference": ref_json,
         }
-    return VariantCalling(meteor, data_dict, 100, 3, 3, 0.5)
-
-
-def test_count_reads_in_gene(vc_builder: VariantCalling, datadir) -> None:
-    cram_file = datadir / "eva71_bench" / "eva71_bench.cram"
-    reference_file = datadir / "eva71" / "fasta" / "eva71.fasta.gz"
-    with AlignmentFile(str(cram_file.resolve()), "rc") as cram:
-        with FastaFile(filename=str(reference_file.resolve())) as Fasta:
-            reads_dict = vc_builder.count_reads_in_gene(cram, "1", 7408, Fasta)
-            result = pd.DataFrame(reads_dict.items(), columns=["Position", "Count"])
-    expected_output = pd.read_table(datadir / "expected_output" / "coverage_pos.tsv")
-    assert result.equals(expected_output)
+    return VariantCalling(meteor, data_dict, 100, 3, 1, 0.01, 1)
 
 
 def test_group_consecutive_positions(vc_builder: VariantCalling, datadir) -> None:
@@ -76,48 +68,58 @@ def test_group_consecutive_positions(vc_builder: VariantCalling, datadir) -> Non
     assert df.equals(expected_output)
 
 
-def test_filter_low_cov_sites_python(
-    vc_builder: VariantCalling, datadir, tmpdir
-) -> None:
+def test_count_reads_in_gene(vc_builder: VariantCalling, datadir) -> None:
+    cram_file = datadir / "eva71_bench" / "eva71_bench.cram"
+    reference_file = datadir / "eva71" / "fasta" / "eva71.fasta.gz"
+    with AlignmentFile(str(cram_file.resolve()), "rc") as cram:
+        with FastaFile(filename=str(reference_file.resolve())) as Fasta:
+            reads_dict = vc_builder.count_reads_in_gene(cram, "1", 7408, Fasta)
+            result = pd.DataFrame(reads_dict.items(), columns=["Position", "Count"])
+    expected_output = pd.read_table(datadir / "expected_output" / "coverage_pos.tsv")
+    assert result.equals(expected_output)
+
+
+def test_filter_low_cov_sites(vc_builder: VariantCalling, datadir) -> None:
     vc_builder.matrix_file = datadir / "eva71_bench" / "eva71_bench.tsv.xz"
     cram_file = datadir / "eva71_bench" / "eva71_bench.cram"
     reference_file = datadir / "eva71" / "fasta" / "eva71.fasta.gz"
-    result = tmpdir / "filt_cov.tsv"
-    with result.open("wt") as out:
-        vc_builder.filter_low_cov_sites_python(cram_file, reference_file, out)
-    result_df = pd.read_table(
-        result, names=["gene_id", "startpos", "endpos", "coverage"], sep="\t"
-    )
+
+    result_df, _ = vc_builder.filter_low_cov_sites(cram_file, reference_file)
     expected_output = pd.read_table(
         datadir / "expected_output" / "coverage_expected.tsv", header=0, sep="\t"
+    ).set_index("gene_id")
+    assert_frame_equal(
+        result_df.sort_values(by=list(result_df.columns)).reset_index(drop=True),
+        expected_output.sort_values(by=list(expected_output.columns)).reset_index(
+            drop=True
+        ),
+        check_like=True,
     )
-    assert result_df.equals(expected_output)
 
 
-# def test_filter_low_cov_sites(vc_builder: VariantCalling, datadir, tmpdir) -> None:
-#     vc_builder.matrix_file = datadir / "eva71_bench" / "eva71_bench.tsv.xz"
-#     cram_file = datadir / "eva71_bench" / "eva71_bench.cram"
-#     result = tmpdir / "filt_cov.tsv"
-#     output = run(
-#         [
-#             "bedtools",
-#             "genomecov",
-#             "-bga",
-#             "-ibam",
-#             str(cram_file.resolve()),
-#         ],
-#         check=False,
-#         capture_output=True,
-#     ).stdout.decode("utf-8")
-#     with result.open("wt") as out:
-#         vc_builder.filter_low_cov_sites(output, out)
-#     result_df = pd.read_table(
-#         result, names=["gene_id", "startpos", "endpos", "coverage"], sep="\t"
-#     )
-#     expected_output = pd.read_table(
-#         datadir / "expected_output" / "coverage_expected.tsv", header=0, sep="\t"
-#     )
-#     assert result_df.equals(expected_output)
+def test_create_consensus(
+    vc_builder: VariantCalling, datadir: Path, tmp_path: Path
+) -> None:
+    vc_builder.matrix_file = datadir / "eva71_bench" / "eva71_bench.tsv.xz"
+    reference_file = datadir / "eva71" / "fasta" / "eva71.fasta.gz"
+    consensus_file = tmp_path / "consensus.fasta.xz"
+    bed_file = datadir / "eva71" / "database" / "eva71.bed"
+    vcf_file = datadir / "eva71_bench" / "eva71_bench.vcf.gz"
+    low_cov_sites = pd.read_table(
+        datadir / "expected_output" / "coverage_expected.tsv", header=0, sep="\t"
+    ).set_index("gene_id")
+
+    vc_builder.create_consensus(
+        reference_file,
+        consensus_file,
+        low_cov_sites,
+        pd.DataFrame(),
+        vcf_file,
+        bed_file,
+    )
+    assert consensus_file.exists()
+    with consensus_file.open("rb") as consensus:
+        assert md5(consensus.read()).hexdigest() == "8f801b43436b8765b48ac66988fb029f"
 
 
 def test_execute(vc_builder: VariantCalling) -> None:

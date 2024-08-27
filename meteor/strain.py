@@ -36,7 +36,8 @@ class Strain(Session):
     MIN_MIN_SNP_DEPTH: ClassVar[int] = 1
     MAX_MIN_SNP_DEPTH: ClassVar[int] = 10000
     DEFAULT_MIN_SNP_DEPTH: ClassVar[int] = 3
-    DEFAULT_MIN_FREQUENCY_NON_REFERENCE: ClassVar[float] = 0.8
+    DEFAULT_MIN_FREQUENCY: ClassVar[float] = 0.8
+    DEFAULT_PLOIDY: ClassVar[int] = 1
     MIN_MIN_MSP_COVERAGE: ClassVar[int] = 1
     MAX_MIN_MSP_COVERAGE: ClassVar[int] = 100
     DEFAULT_MIN_MSP_COVERAGE: ClassVar[int] = 50
@@ -49,7 +50,8 @@ class Strain(Session):
     max_depth: int
     min_depth: int
     min_snp_depth: int
-    min_frequency_non_reference: float
+    min_frequency: float
+    ploidy: int
     min_msp_coverage: int
     min_gene_coverage: float
     core_size: int
@@ -270,7 +272,8 @@ class Strain(Session):
                 self.max_depth,
                 self.min_depth,
                 self.min_snp_depth,
-                self.min_frequency_non_reference,
+                self.min_frequency,
+                self.ploidy,
             )
             if self.json_data["Stage3FileName"].exists():
                 logging.info(

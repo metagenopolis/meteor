@@ -29,6 +29,16 @@ files = [
 typing-extensions = {version = ">=4.0.0", markers = "python_version < \"3.11\""}
 
 [[package]]
+name = "bgzip"
+version = "0.5.0"
+description = "Utilities working with blocked gzip streams."
+optional = false
+python-versions = "*"
+files = [
+    {file = "bgzip-0.5.0.tar.gz", hash = "sha256:26ea6eed35ac43ea36cff828ca0f94925298ac21283cd0debaf072a92ac4be74"},
+]
+
+[[package]]
 name = "biom-format"
 version = "2.1.15"
 description = "Biological Observation Matrix (BIOM) format"
@@ -1039,4 +1049,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "e7cd9b1bae999373429a3c1dc6733c1ca3b8738ddf0d793d9b3e283fa3a9e395"
+content-hash = "a46d93ca94fdc26a2729e51fae9a66c7cc5962c8b2c6b58e55e76563189e6c5e"

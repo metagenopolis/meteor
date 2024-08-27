@@ -16,7 +16,6 @@
 
 import sys
 import logging
-import shutil
 from argparse import ArgumentParser, ArgumentTypeError, Namespace, RawTextHelpFormatter
 from pathlib import Path
 from meteor.session import Component
@@ -563,10 +562,17 @@ def get_arguments() -> Namespace:  # pragma: no cover
     )
     strain_parser.add_argument(
         "-f",
-        dest="min_frequency_non_reference",
-        default=Strain.DEFAULT_MIN_FREQUENCY_NON_REFERENCE,
+        dest="min_frequency",
+        default=Strain.DEFAULT_MIN_FREQUENCY,
         type=isborned01,
-        help="Minimum frequency for non reference allele (default: >= %(default).1f).",
+        help="Minimum frequency for alleles (default: >= %(default).1f).",
+    )
+    strain_parser.add_argument(
+        "-l",
+        dest="ploidy",
+        default=Strain.DEFAULT_PLOIDY,
+        type=int,
+        help="Ploidy (default: >= %(default).1f).",
     )
     strain_parser.add_argument(
         "-m",
@@ -754,7 +760,8 @@ def main() -> None:  # pragma: no cover
             args.max_depth,
             args.min_depth,
             args.min_snp_depth,
-            args.min_frequency_non_reference,
+            args.min_frequency,
+            args.ploidy,
             args.min_msp_coverage,
             args.min_gene_coverage,
             args.core_size,
@@ -833,23 +840,19 @@ def main() -> None:  # pragma: no cover
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
             meteor.ref_dir = meteor.ref_dir / "mock"
-            counter = Counter(meteor, "total", "end-to-end", 80, 0.97, 100, False, True)
+            counter = Counter(meteor, "total", "end-to-end", 80, 0.97, 100, 10, False, True)
             counter.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test2"
-            counter = Counter(meteor, "total", "end-to-end", 80, 0.97, 100, False, True)
+            counter = Counter(meteor, "total", "end-to-end", 80, 0.97, 100, 10, False, True)
             counter.execute()
-            # Remove the mapping directory and its contents
-            shutil.rmtree(Path(tmpdirname) / "test")
-            shutil.rmtree(Path(tmpdirname) / "test2")
             meteor.mapped_sample_dir = meteor.mapping_dir / "test"
+            print(meteor.mapped_sample_dir)
             meteor.strain_dir = Path(tmpdirname) / "strain"
-            strain_detector = Strain(meteor, 100, 2, 2, 0.2, 10, 0.2, False)
+            strain_detector = Strain(meteor, 100, 2, 2, 0.2, 1, 1, 0.2, 10, False)
             strain_detector.execute()
             meteor.mapped_sample_dir = meteor.mapping_dir / "test2"
-            strain_detector = Strain(meteor, 100, 2, 2, 0.2, 10, 0.2, False)
+            strain_detector = Strain(meteor, 100, 2, 2, 0.2, 1, 1, 0.2, 10, False)
             strain_detector.execute()
-            # Remove the mapping directory and its contents
-            shutil.rmtree(meteor.mapping_dir)
             meteor.tree_dir = Path(tmpdirname) / "tree"
             trees = TreeBuilder(
                 meteor,
@@ -860,9 +863,6 @@ def main() -> None:  # pragma: no cover
                 None,
             )
             trees.execute()
-            shutil.rmtree(meteor.strain_dir)
-            shutil.rmtree(meteor.tree_dir)
-            shutil.rmtree(meteor.ref_dir)
     # Close logging
     logger.handlers[0].close()
 

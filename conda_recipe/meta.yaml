@@ -31,12 +31,12 @@ requirements:
         - packaging
         - cogent3
         - biom-format
-        - bcftools >=1.19
+        - freebayes >=1.2
 test:
     commands:
         - meteor -h
         - bowtie2 -h
-        - bcftools -h
+        - freebayes -h
     imports:
         - pysam
         - pandas

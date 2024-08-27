@@ -29,13 +29,15 @@ def strain_builder(datadir: Path, tmp_path: Path) -> Strain:
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.mapped_sample_dir = datadir / "map" / "test"
+    meteor.DEFAULT_GAP_CHAR = "?"
     json_data = {
         "directory": tmp_path,
         "mapped_sample_dir": datadir / "map" / "test",
         "census": {"sample_info": {"sample_name": "test"}},
     }
     # meteor.mapping_dir = tmp_path
-    return Strain(meteor, 100, 3, 3, 0.5, 3, 0.8, True, False, json_data=json_data)
+    # return Strain(meteor, 100, 3, 3, 0.5, 1, 3, 0.8, True, False, json_data=json_data)
+    return Strain(meteor, 100, 3, 3, 0.5, 1, 1, 0.8, 10, True, json_data=json_data)
 
 
 def test_filter_coverage(
@@ -48,6 +50,8 @@ def test_filter_coverage(
         strain_builder.meteor.ref_dir / "fasta" / "mock.fasta.gz",
     )
     expected_output = pd.read_table(datadir / "expected_output" / "filtered_cov.tsv")
+    expected_output.to_csv("/pasteur/appa/homes/aghozlan/exp.tsv", sep="\t")
+    filtered_cov.to_csv("/pasteur/appa/homes/aghozlan/filt.tsv", sep="\t")
     assert filtered_cov.reset_index(drop=True).equals(expected_output)
 
 
@@ -84,14 +88,16 @@ def test_get_msp_variant(strain_builder, datadir: Path, tmp_path: Path):
     assert BS.exists()
     assert PA.exists()
     with BS.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "958199bf4afa9adb56c9e0100a0cc23c"
+        # assert md5(out.read()).hexdigest() == "958199bf4afa9adb56c9e0100a0cc23c"
+        assert md5(out.read()).hexdigest() == "b6b87174554ca33cc4a8923be4e780f7"
     with PA.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "cec667aad0449853b3bd7db689dd7ed3"
-
+        # assert md5(out.read()).hexdigest() == "cec667aad0449853b3bd7db689dd7ed3"
+        assert md5(out.read()).hexdigest() == "b4eadbd604c765a2579bf742ae27386a"
 
 def test_execute(strain_builder, tmp_path: Path) -> None:
     strain_builder.execute()
     BS = tmp_path / "strain" / "test" / "BS.fasta.xz"
     assert BS.exists()
-    # with BS.open("rb") as out:
-    #     assert md5(out.read()).hexdigest() == "35a212702857defbb7a4292e5163f44a"
+    with BS.open("rb") as out:
+        # assert md5(out.read()).hexdigest() == "35a212702857defbb7a4292e5163f44a"
+        assert md5(out.read()).hexdigest() == "83d3a5f89b89df438dc1751009801fc6"

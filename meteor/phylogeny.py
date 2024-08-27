@@ -208,7 +208,7 @@ class Phylogeny(Session):
                     # )
                 if tree_file.with_suffix(".tree").exists():
                     self.tree_files.append(tree_file.with_suffix(".tree"))
-                    logging.info("Completed MSP tree with cogent3")
+                    logging.info("Completed MSP tree for MSP %s",  msp_file.name.replace(".fasta", ""))
                 # elif tree_file.with_suffix(".raxml.bestTree").exists():
                 #     self.tree_files.append(tree_file.with_suffix(".raxml.bestTree"))
                     # logging.info("Completed MSP tree with raxml")

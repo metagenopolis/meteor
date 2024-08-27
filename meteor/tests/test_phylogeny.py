@@ -26,6 +26,7 @@ def phylogeny_builder(datadir: Path, tmp_path: Path) -> Phylogeny:
     meteor.tree_dir = tmp_path / "tree"
     meteor.tree_dir.mkdir()
     meteor.threads = 1
+    meteor.DEFAULT_GAP_CHAR = "?"
     return Phylogeny(meteor, [Path(datadir / "msp_0864.fasta")], 0.5, 4)
 
 
@@ -46,9 +47,10 @@ def test_compute_site_info(phylogeny_builder: Phylogeny):
     assert phylogeny_builder.compute_site_info(["?G", "?A", "?T", "GC"]) == [0.75, 0]
 
 
-def test_clean_sites(phylogeny_builder: Phylogeny, datadir: Path):
-    msp = datadir / "msp_0864_clean.fasta"
+def test_clean_sites(phylogeny_builder: Phylogeny, datadir: Path, tmpdir: Path):
+    msp = tmpdir / "msp_0864_clean.fasta"
     msp_expected_file = datadir / "msp_0864_dict.pck"
+    print(msp_expected_file)
     with open(msp_expected_file, "rb") as msp_file:
         msp_expected = pickle.load(msp_file)
         with msp.open("w") as f:
