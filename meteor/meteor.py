@@ -572,7 +572,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="ploidy",
         default=Strain.DEFAULT_PLOIDY,
         type=int,
-        help="Ploidy (default: >= %(default).1f).",
+        help="Ploidy (default: %(default)d).",
     )
     strain_parser.add_argument(
         "-m",
@@ -840,10 +840,14 @@ def main() -> None:  # pragma: no cover
             fastq_importer.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test"
             meteor.ref_dir = meteor.ref_dir / "mock"
-            counter = Counter(meteor, "total", "end-to-end", 80, 0.97, 100, 10, False, True)
+            counter = Counter(
+                meteor, "total", "end-to-end", 80, 0.97, 100, 10, False, True
+            )
             counter.execute()
             meteor.fastq_dir = Path(tmpdirname) / "test2"
-            counter = Counter(meteor, "total", "end-to-end", 80, 0.97, 100, 10, False, True)
+            counter = Counter(
+                meteor, "total", "end-to-end", 80, 0.97, 100, 10, False, True
+            )
             counter.execute()
             meteor.mapped_sample_dir = meteor.mapping_dir / "test"
             print(meteor.mapped_sample_dir)
