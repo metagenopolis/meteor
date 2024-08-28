@@ -826,7 +826,6 @@ def main() -> None:  # pragma: no cover
         merging.execute()
     # Testing
     else:
-        tmpdirname = mkd
         with TemporaryDirectory() as tmpdirname:
             meteor.ref_name = "test"
             meteor.ref_dir = Path(tmpdirname) / "ref"
