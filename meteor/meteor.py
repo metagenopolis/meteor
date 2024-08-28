@@ -826,6 +826,7 @@ def main() -> None:  # pragma: no cover
         merging.execute()
     # Testing
     else:
+        tmpdirname = mkd
         with TemporaryDirectory() as tmpdirname:
             meteor.ref_name = "test"
             meteor.ref_dir = Path(tmpdirname) / "ref"
@@ -850,7 +851,6 @@ def main() -> None:  # pragma: no cover
             )
             counter.execute()
             meteor.mapped_sample_dir = meteor.mapping_dir / "test"
-            print(meteor.mapped_sample_dir)
             meteor.strain_dir = Path(tmpdirname) / "strain"
             strain_detector = Strain(meteor, 100, 2, 2, 0.2, 1, 1, 0.2, 10, False)
             strain_detector.execute()
