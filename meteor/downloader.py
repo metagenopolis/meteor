@@ -44,12 +44,17 @@ class Downloader(Session):
     @staticmethod
     def load_catalogues_config() -> dict:
         try:
-            config_data = importlib.resources.files("meteor") / str(Downloader.CONFIG_DATA_FILE)
+            config_data = importlib.resources.files("meteor") / str(
+                Downloader.CONFIG_DATA_FILE
+            )
             with importlib.resources.as_file(config_data) as configuration_path:
                 with configuration_path.open("rt", encoding="UTF-8") as config:
                     return json.load(config)
         except FileNotFoundError:
-            logging.error("The file %s is missing in meteor source", Downloader.CONFIG_DATA_FILE.name)
+            logging.error(
+                "The file %s is missing in meteor source",
+                Downloader.CONFIG_DATA_FILE.name,
+            )
             sys.exit(1)
 
     @staticmethod

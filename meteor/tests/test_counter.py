@@ -55,7 +55,7 @@ def counter_unique(datadir: Path, tmp_path: Path) -> Counter:
         alignment_number=10000,
         keep_filtered_alignments=True,
         identity_threshold=0.95,
-        core_size=100
+        core_size=100,
     )
 
 
@@ -77,7 +77,7 @@ def counter_smart_shared(datadir: Path, tmp_path: Path) -> Counter:
         alignment_number=10000,
         keep_filtered_alignments=True,
         identity_threshold=0.95,
-        core_size=100
+        core_size=100,
     )
 
 
@@ -100,7 +100,7 @@ def counter_total(datadir: Path, tmp_path: Path) -> Counter:
         keep_all_alignments=False,
         keep_filtered_alignments=True,
         identity_threshold=0.95,
-        core_size=100
+        core_size=100,
     )
 
 

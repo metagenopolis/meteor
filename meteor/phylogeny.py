@@ -13,14 +13,17 @@
 """Effective phylogeny"""
 import re
 import logging
+
 # import sys
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
+
 # from subprocess import check_call, run, DEVNULL
 from time import perf_counter
 from pathlib import Path
 import tempfile
 from tempfile import NamedTemporaryFile
+
 # from packaging.version import parse
 from collections import OrderedDict
 from datetime import datetime
@@ -142,7 +145,10 @@ class Phylogeny(Session):
         msp_count = len(self.msp_file_list)
         for idx, msp_file in enumerate(self.msp_file_list, start=1):
             logging.info(
-                    "%d/%d %s: Start analysis", idx, msp_count, msp_file.name.replace(".fasta", "")
+                "%d/%d %s: Start analysis",
+                idx,
+                msp_count,
+                msp_file.name.replace(".fasta", ""),
             )
             with NamedTemporaryFile(
                 mode="wt", dir=self.meteor.tmp_dir, suffix=".fasta"
@@ -157,7 +163,7 @@ class Phylogeny(Session):
                     logging.info(
                         "Only %d informative sites (< %d threshold) left after cleaning, skip.",
                         info_sites,
-                        self.min_info_sites
+                        self.min_info_sites,
                     )
                 # elif len(cleaned_seqs) >= 4:
                 #     # Compute trees
@@ -182,8 +188,8 @@ class Phylogeny(Session):
                 #         ],
                 #         stdout = DEVNULL
                 #     )
-                    # if result != 0:
-                    #     logging.error("raxml-ng failed with return code %d", result)
+                # if result != 0:
+                #     logging.error("raxml-ng failed with return code %d", result)
                 else:
                     # logging.info(
                     #     "Less than 4 sequences, run cogent3"
@@ -208,16 +214,19 @@ class Phylogeny(Session):
                     # )
                 if tree_file.with_suffix(".tree").exists():
                     self.tree_files.append(tree_file.with_suffix(".tree"))
-                    logging.info("Completed MSP tree for MSP %s",  msp_file.name.replace(".fasta", ""))
+                    logging.info(
+                        "Completed MSP tree for MSP %s",
+                        msp_file.name.replace(".fasta", ""),
+                    )
                 # elif tree_file.with_suffix(".raxml.bestTree").exists():
                 #     self.tree_files.append(tree_file.with_suffix(".raxml.bestTree"))
-                    # logging.info("Completed MSP tree with raxml")
+                # logging.info("Completed MSP tree with raxml")
                 else:
-                    logging.info(
-                        "No tree file generated"
-                    )
+                    logging.info("No tree file generated")
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
-        logging.info("Trees were generated for %d/%d MSPs", len(self.tree_files), msp_count)
+        logging.info(
+            "Trees were generated for %d/%d MSPs", len(self.tree_files), msp_count
+        )
         # config = self.set_tree_config(raxml_ng_version)
         config = self.set_tree_config()
         self.save_config(config, self.meteor.tree_dir / "census_stage_4.json")

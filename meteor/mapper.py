@@ -153,9 +153,7 @@ class Mapper(Session):
         ) as mapping_exec:
             assert mapping_exec.stdout is not None and mapping_exec.stderr is not None
             with pysam.AlignmentFile(
-                mapping_exec.stdout,
-                "r",
-                threads=self.meteor.threads
+                mapping_exec.stdout, "r", threads=self.meteor.threads
             ) as samdesc:
                 with pysam.AlignmentFile(
                     str(cram_file.resolve()),
@@ -163,7 +161,7 @@ class Mapper(Session):
                     "wc",
                     template=samdesc,
                     reference_filename=str(reference.resolve()),
-                    threads=self.meteor.threads
+                    threads=self.meteor.threads,
                 ) as cram:
                     for element in samdesc:
                         cram.write(element)

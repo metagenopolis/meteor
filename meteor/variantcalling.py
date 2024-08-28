@@ -351,6 +351,8 @@ class VariantCalling(Session):
                                         consensus[row["startpos"] : row["endpos"]] = (
                                             self.meteor.DEFAULT_GAP_CHAR
                                         )
+                        else:
+                            continue
                         consensus_f.write(f">{gene_id}\n")
                         consensus_f.write("".join(consensus) + "\n")
                         del consensus

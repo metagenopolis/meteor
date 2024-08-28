@@ -387,7 +387,7 @@ class Counter(Session):
             "wc",
             template=cramdesc,
             reference_filename=str(reference.resolve()),
-            threads=self.meteor.threads
+            threads=self.meteor.threads,
         ) as total_reads:
             for element in read_chain:
                 if int(element.reference_name) in gene_id_set:
@@ -417,7 +417,9 @@ class Counter(Session):
         else:
             logging.info("Launch counting")
         pysam.set_verbosity(0)
-        with AlignmentFile(str(raw_cramfile.resolve()), threads=self.meteor.threads) as cramdesc:
+        with AlignmentFile(
+            str(raw_cramfile.resolve()), threads=self.meteor.threads
+        ) as cramdesc:
             # create a dictionary containing the length of reference genes
             # get name of reference sequence
             references = [int(ref) for ref in cramdesc.references]
@@ -463,7 +465,7 @@ class Counter(Session):
                     "wc",
                     template=cramdesc,
                     reference_filename=str(reference.resolve()),
-                    threads=self.meteor.threads
+                    threads=self.meteor.threads,
                 ) as total_reads:
                     for element in chain.from_iterable(reads.values()):
                         # if int(element.reference_name) in ref_json["reference_file"]:

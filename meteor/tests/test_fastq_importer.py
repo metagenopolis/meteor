@@ -89,6 +89,7 @@ def test_replace_ext(builder: FastqImporter, fastq_filename: str, name: str) -> 
 def test_get_tag_none(builder: FastqImporter, fastq_filename: str) -> None:
     assert builder.get_tag(fastq_filename) is None
 
+
 @pytest.mark.parametrize(
     ("fastq_filename", "tag"),
     (("simple_case_R1.fastq", "1"), ("pretty.complex_pain_2.fq.xz", "2")),
