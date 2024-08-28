@@ -294,65 +294,69 @@ class VariantCalling(Session):
             with FastaFile(filename=str(reference_file.resolve())) as Fasta:
                 with lzma.open(consensus_file, "wt", preset=0) as consensus_f:
                     # Iterate over all reference sequences in the fasta file
-                    for i, ref in enumerate(Fasta.references):
-                        if i % 1000 == 0:
-                            logging.info(f"{i}/{Fasta.nreferences}")
-                        # Extract reference sequence into a list for mutability
-                        gene_id = int(ref)
-                        # Apply low coverage masking from DataFrame
-                        if gene_id in gene_ignore.index:
-                            consensus = [
-                                self.meteor.DEFAULT_GAP_CHAR
-                            ] * gene_ignore.loc[gene_id]["gene_length"]
-                        elif gene_id in bed_set:
-                            # logging.info("Getting the sequence")
-                            consensus = np.array(list(Fasta.fetch(ref)), dtype="<U1")
-                            # Apply variants from VCF
-                            # startvcf = perf_counter()
-                            for record in vcf.fetch(ref):
-                                # print(record.info.keys())
-                                # print(record.info["AF"])
-                                # print(record.alleles)
-                                # print(record.alts)
-                                ##INFO=<ID=RO,Number=1,Type=Integer,Description="Count of full observations of the reference haplotype.">
-                                ##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">
-                                reference_frequency = record.info["RO"] / (
-                                    record.info["RO"] + np.sum(record.info["AO"])
-                                )
-                                if reference_frequency >= self.min_frequency:
-                                    keep_alts = tuple(sorted(list(record.alleles)))
-                                else:
-                                    keep_alts = tuple(sorted(list(record.alts)))
-                                max_len = max(map(len, keep_alts))
-                                # MNV vase
-                                if max_len > 1:
-                                    for i in range(max_len):
-                                        mnv = tuple(
-                                            sorted(
-                                                set(
-                                                    keep_alts[k][i]
-                                                    for k in range(len(keep_alts))
-                                                )
+                    # consensus to ignore
+                    logging.info(
+                        "Low coverage genes consensus for %d genes",
+                        len(gene_ignore.index),
+                    )
+                    for i, gene_id in enumerate(gene_ignore.index):
+                        consensus_f.write(f">{gene_id}\n")
+                        consensus_f.write(
+                            "".join(
+                                [self.meteor.DEFAULT_GAP_CHAR]
+                                * gene_ignore.loc[gene_id]["gene_length"]
+                            )
+                            + "\n"
+                        )
+                    short_set = bed_set - set(gene_ignore.index)
+                    logging.info("Signature consensus for %d genes", len(short_set))
+                    for i, gene_id in enumerate(bed_set):
+                        ref = str(gene_id)
+                        consensus = np.array(list(Fasta.fetch(ref)), dtype="<U1")
+                        # Apply variants from VCF
+                        # startvcf = perf_counter()
+                        for record in vcf.fetch(ref):
+                            # print(record.info.keys())
+                            # print(record.info["AF"])
+                            # print(record.alleles)
+                            # print(record.alts)
+                            ##INFO=<ID=RO,Number=1,Type=Integer,Description="Count of full observations of the reference haplotype.">
+                            ##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">
+                            reference_frequency = record.info["RO"] / (
+                                record.info["RO"] + np.sum(record.info["AO"])
+                            )
+                            if reference_frequency >= self.min_frequency:
+                                keep_alts = tuple(sorted(list(record.alleles)))
+                            else:
+                                keep_alts = tuple(sorted(list(record.alts)))
+                            max_len = max(map(len, keep_alts))
+                            # MNV vase
+                            if max_len > 1:
+                                for i in range(max_len):
+                                    mnv = tuple(
+                                        sorted(
+                                            set(
+                                                keep_alts[k][i]
+                                                for k in range(len(keep_alts))
                                             )
                                         )
-                                        consensus[record.pos + i - 1] = self.IUPAC[mnv]
-                                else:
-                                    consensus[record.pos - 1] = self.IUPAC[keep_alts]
-                            # Update consensus array for each matching range
-                            if gene_id in low_cov_sites.index:
-                                selection = low_cov_sites.loc[gene_id]
-                                if isinstance(selection, pd.Series):
-                                    consensus[
-                                        selection["startpos"] : selection["endpos"]
-                                    ] = self.meteor.DEFAULT_GAP_CHAR
-                                else:
-                                    for _, row in selection.iterrows():
-                                        # Mark as uncertain
-                                        consensus[row["startpos"] : row["endpos"]] = (
-                                            self.meteor.DEFAULT_GAP_CHAR
-                                        )
-                        else:
-                            continue
+                                    )
+                                    consensus[record.pos + i - 1] = self.IUPAC[mnv]
+                            else:
+                                consensus[record.pos - 1] = self.IUPAC[keep_alts]
+                        # Update consensus array for each matching range
+                        if gene_id in low_cov_sites.index:
+                            selection = low_cov_sites.loc[gene_id]
+                            if isinstance(selection, pd.Series):
+                                consensus[
+                                    selection["startpos"] : selection["endpos"]
+                                ] = self.meteor.DEFAULT_GAP_CHAR
+                            else:
+                                for _, row in selection.iterrows():
+                                    # Mark as uncertain
+                                    consensus[row["startpos"] : row["endpos"]] = (
+                                        self.meteor.DEFAULT_GAP_CHAR
+                                    )
                         consensus_f.write(f">{gene_id}\n")
                         consensus_f.write("".join(consensus) + "\n")
                         del consensus
