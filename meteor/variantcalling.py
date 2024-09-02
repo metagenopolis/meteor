@@ -500,6 +500,8 @@ class VariantCalling(Session):
             # Ensure the temporary file is removed after use
             if os.path.isfile(temp_ref_file_path):
                 os.remove(temp_ref_file_path)
+            if os.path.isfile(temp_ref_file_path + ".fai"):
+                os.remove(temp_ref_file_path + ".fai")
         logging.info(
             "Completed freebayes step in %f seconds", perf_counter() - startfreebayes
         )
@@ -543,3 +545,5 @@ class VariantCalling(Session):
             cram_file, vcf_file, consensus_file, freebayes_version
         )
         self.save_config(config, self.census["Stage3FileName"])
+        if os.path.isfile(temp_bed_file.name):
+            os.remove(temp_bed_file.name)
