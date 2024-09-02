@@ -101,8 +101,7 @@ def test_create_consensus(
 ) -> None:
     vc_builder.matrix_file = datadir / "eva71_bench" / "eva71_bench.tsv.xz"
     reference_file = datadir / "eva71" / "fasta" / "eva71.fasta.gz"
-    # consensus_file = tmp_path / "consensus.fasta.xz"
-    consensus_file = Path("/pasteur/appa/homes/aghozlan/consensus2.fasta.xz")
+    consensus_file = tmp_path / "consensus.fasta.xz"
     bed_file = datadir / "eva71" / "database" / "eva71.bed"
     vcf_file = datadir / "eva71_bench" / "eva71_bench.vcf.gz"
     low_cov_sites = pd.read_table(
