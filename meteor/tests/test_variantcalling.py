@@ -18,9 +18,6 @@ import pytest
 import json
 from pysam import AlignmentFile, FastaFile
 import pandas as pd
-import shutil
-
-# from subprocess import run
 from pandas.testing import assert_frame_equal
 from hashlib import md5
 
@@ -32,6 +29,7 @@ def fixture_vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.tmp_dir = tmp_path
+    meteor.DEFAULT_GAP_CHAR = "?"
     ref_json_file = datadir / "eva71" / "eva71_reference.json"
     ref_json = {}
     with ref_json_file.open("rt", encoding="UTF-8") as ref:
@@ -103,7 +101,8 @@ def test_create_consensus(
 ) -> None:
     vc_builder.matrix_file = datadir / "eva71_bench" / "eva71_bench.tsv.xz"
     reference_file = datadir / "eva71" / "fasta" / "eva71.fasta.gz"
-    consensus_file = tmp_path / "consensus.fasta.xz"
+    # consensus_file = tmp_path / "consensus.fasta.xz"
+    consensus_file = Path("/pasteur/appa/homes/aghozlan/consensus2.fasta.xz")
     bed_file = datadir / "eva71" / "database" / "eva71.bed"
     vcf_file = datadir / "eva71_bench" / "eva71_bench.vcf.gz"
     low_cov_sites = pd.read_table(
@@ -119,15 +118,8 @@ def test_create_consensus(
         bed_file,
     )
     assert consensus_file.exists()
-
-    # print(consensus_file)
     with consensus_file.open("rb") as consensus:
-        if md5(consensus.read()).hexdigest() == "916fe0018af1eebc59592a75c770570b":
-            output_path = "/pasteur/appa/homes/aghozlan/consensus1.fasta.xz"
-        else:
-            output_path = "/pasteur/appa/homes/aghozlan/consensus2.fasta.xz"
-        with open(output_path, "wb") as output:
-            shutil.copyfileobj(consensus, output)
+        assert md5(consensus.read()).hexdigest() == "916fe0018af1eebc59592a75c770570b"
 
 
 def test_execute(vc_builder: VariantCalling) -> None:

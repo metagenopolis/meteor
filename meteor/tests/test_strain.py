@@ -49,11 +49,7 @@ def test_filter_coverage(
         strain_builder.meteor.ref_dir / "database" / "mock.bed",
         strain_builder.meteor.ref_dir / "fasta" / "mock.fasta.gz",
     )
-    filtered_cov.to_csv("/pasteur/zeus/projets/p01/BioIT/amine/filtered.tsv", sep="\t")
     expected_output = pd.read_table(datadir / "expected_output" / "filtered_cov.tsv")
-    expected_output.to_csv(
-        "/pasteur/zeus/projets/p01/BioIT/amine/expected.tsv", sep="\t"
-    )
     assert filtered_cov.reset_index(drop=True).equals(expected_output)
 
 
