@@ -390,7 +390,7 @@ class VariantCalling(Session):
             / self.census["reference"]["reference_file"]["database_dir"]
             / self.census["reference"]["annotation"]["msp"]["filename"]
         )
-        print(self.census)
+        # print(self.census)
         annotation_file = (
             self.meteor.ref_dir
             / self.census["reference"]["reference_file"]["database_dir"]
