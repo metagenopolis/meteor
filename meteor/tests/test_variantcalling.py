@@ -18,6 +18,7 @@ import pytest
 import json
 from pysam import AlignmentFile, FastaFile
 import pandas as pd
+import shutil
 
 # from subprocess import run
 from pandas.testing import assert_frame_equal
@@ -49,7 +50,7 @@ def fixture_vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
             "Stage3FileName": stage3_dir / census_json_file.name,
             "reference": ref_json,
         }
-    return VariantCalling(meteor, data_dict, 100, 3, 1, 0.01, 1)
+    return VariantCalling(meteor, data_dict, 100, 3, 1, 0.01, 1, 100)
 
 
 def test_group_consecutive_positions(vc_builder: VariantCalling, datadir) -> None:
@@ -118,9 +119,15 @@ def test_create_consensus(
         bed_file,
     )
     assert consensus_file.exists()
+
     # print(consensus_file)
-    # with consensus_file.open("rb") as consensus:
-    #     assert md5(consensus.read()).hexdigest() == "916fe0018af1eebc59592a75c770570b"
+    with consensus_file.open("rb") as consensus:
+        if md5(consensus.read()).hexdigest() == "916fe0018af1eebc59592a75c770570b":
+            output_path = "/pasteur/appa/homes/aghozlan/consensus1.fasta.xz"
+        else:
+            output_path = "/pasteur/appa/homes/aghozlan/consensus2.fasta.xz"
+        with open(output_path, "wb") as output:
+            shutil.copyfileobj(consensus, output)
 
 
 def test_execute(vc_builder: VariantCalling) -> None:

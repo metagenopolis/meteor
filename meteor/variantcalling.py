@@ -64,6 +64,7 @@ class VariantCalling(Session):
     min_snp_depth: int
     min_frequency: float
     ploidy: int
+    core_size: int
 
     def set_variantcalling_config(
         self,
@@ -284,10 +285,12 @@ class VariantCalling(Session):
     ):
         """Generate a consensus sequence by applying VCF variants to the provided reference genome."""
         # Read the CSV file using pandas
-        bed_set = set(
-            pd.read_csv(bed_file, usecols=[0], sep="\t", header=None)
-            .iloc[:, 0]
-            .astype(int)
+        bed_set = sorted(
+            set(
+                pd.read_csv(bed_file, usecols=[0], sep="\t", header=None)
+                .iloc[:, 0]
+                .astype(int)
+            )
         )
         # low_cov_sites_dict = low_cov_sites.groupby(low_cov_sites.index).apply(lambda x: x.to_dict(orient='records')).to_dict()
         with VariantFile(vcf_file) as vcf:
@@ -381,7 +384,52 @@ class VariantCalling(Session):
             self.meteor.ref_dir
             / self.census["reference"]["reference_file"]["database_dir"]
             / self.census["reference"]["annotation"]["bed"]["filename"]
+        ).resolve()
+        msp_file = (
+            self.meteor.ref_dir
+            / self.census["reference"]["reference_file"]["database_dir"]
+            / self.census["reference"]["annotation"]["msp"]["filename"]
         )
+        print(self.census)
+        annotation_file = (
+            self.meteor.ref_dir
+            / self.census["reference"]["reference_file"]["database_dir"]
+            / self.census["reference"]["annotation"]["gene_id"]["filename"]
+        )
+
+        msp_content = pd.read_csv(
+            msp_file,
+            sep="\t",
+            # names=["msp_name", "gene_id", "gene_name", "gene_category"],
+            header=0,
+        )
+        gene_details = pd.read_csv(
+            annotation_file,
+            sep="\t",
+            # names=["gene_id", "gene_name", "gene_length"],
+            header=0,
+        )
+        if self.census["reference"]["reference_info"]["database_type"] == "complete":
+            msp_content = msp_content.loc[msp_content["gene_category"] == "core"]
+            msp_content = (
+                msp_content.groupby("msp_name")
+                .head(self.core_size)
+                .reset_index(drop=True)
+            )
+            # print(msp_content)
+            # print(gene_details)
+            merged_df = pd.merge(msp_content, gene_details, on="gene_id")
+            # Add a constant column with value 0
+            merged_df["startpos"] = 0
+            # Extract the required columns
+            result_df = merged_df[["gene_id", "startpos", "gene_length"]]
+            with NamedTemporaryFile(suffix=".bed", delete=False) as temp_bed_file:
+                result_df.to_csv(
+                    temp_bed_file.name, sep="\t", index=False, header=False
+                )
+            # print("Why is empty ?")
+            # print(temp_bed_file.name)
+            bed_file = temp_bed_file.name
         freebayes_exec = run(
             ["freebayes", "--version"], check=False, capture_output=True
         )
@@ -424,7 +472,7 @@ class VariantCalling(Session):
                     "--min-alternate-fraction",
                     str(self.min_frequency),
                     "-t",
-                    str(bed_file.resolve()),
+                    str(bed_file),
                     "-p",
                     str(self.ploidy),
                     "-f",
@@ -439,6 +487,7 @@ class VariantCalling(Session):
                 freebayes_output = freebayes_process.communicate(
                     input=decompressed_reference
                 )[0]
+                # print(freebayes_output)
                 # compress output using bgzip
                 with open(str(vcf_file.resolve()), "wb") as raw:
                     with bgzip.BGZipWriter(raw) as fh:

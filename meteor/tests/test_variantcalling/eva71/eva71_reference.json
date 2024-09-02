@@ -13,6 +13,14 @@
     "bed": {
       "filename": "eva71.bed",
       "version": "1.0"
+    },
+    "gene_id": {
+      "filename": "eva71_annotation.tsv",
+      "version": "1.0"
+    },
+    "msp": {
+      "filename": "eva71_msp.tsv",
+      "version": "1.0"
     }
   }
 }

@@ -36,7 +36,7 @@ class Strain(Session):
     MIN_MIN_SNP_DEPTH: ClassVar[int] = 1
     MAX_MIN_SNP_DEPTH: ClassVar[int] = 10000
     DEFAULT_MIN_SNP_DEPTH: ClassVar[int] = 3
-    DEFAULT_MIN_FREQUENCY: ClassVar[float] = 0.8
+    DEFAULT_MIN_FREQUENCY: ClassVar[float] = 0.01
     DEFAULT_PLOIDY: ClassVar[int] = 1
     MIN_MIN_MSP_COVERAGE: ClassVar[int] = 1
     MAX_MIN_MSP_COVERAGE: ClassVar[int] = 100
@@ -79,7 +79,7 @@ class Strain(Session):
                 "startpos",
                 "endpos",
             ],
-            header=1,
+            # header=1,
         )
         cov_df = pd.read_csv(
             StringIO(
@@ -92,7 +92,7 @@ class Strain(Session):
                 )  # type: ignore[attr-defined]
             ),
             sep="\t",
-            header=1,
+            header=0,
             names=[
                 "gene_id",
                 "startpos",
@@ -146,8 +146,8 @@ class Strain(Session):
         msp_content = pd.read_csv(
             msp_file,
             sep="\t",
-            names=["msp_name", "gene_id", "gene_name", "gene_category"],
-            header=1,
+            # names=["msp_name", "gene_id", "gene_name", "gene_category"],
+            header=0,
         )
         msp_content = msp_content.loc[msp_content["gene_category"] == "core"]
         msp_content = msp_content.groupby("msp_name").head(self.core_size).reset_index()
@@ -258,7 +258,6 @@ class Strain(Session):
             self.json_data["directory"] = stage3_dir
             self.json_data["census"] = census_json
             self.json_data["reference"] = ref_json
-            self.json_data["reference"] = ref_json
             self.json_data["Stage3FileName"] = (
                 stage3_dir / f"{sample_info['sample_name']}_census_stage_3.json"
             )
@@ -274,6 +273,7 @@ class Strain(Session):
                 self.min_snp_depth,
                 self.min_frequency,
                 self.ploidy,
+                self.core_size,
             )
             if self.json_data["Stage3FileName"].exists():
                 logging.info(

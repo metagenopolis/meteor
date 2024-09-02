@@ -1,4 +1,5 @@
 gene_id	startpos_x	endpos_x	numreads	covbases	coverage	meandepth	meanbaseq	meanmapq	startpos_y	endpos_y
+1	1	777	25	661	85.0708	2.25225	255	255.0	0	777
 5	1	1776	62	1637	92.1734	2.44369	255	255.0	0	1776
 8	1	897	32	738	82.2742	2.49721	255	255.0	0	897
 9	1	999	31	941	94.1942	2.17217	255	255.0	0	999

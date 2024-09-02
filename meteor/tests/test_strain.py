@@ -37,7 +37,7 @@ def strain_builder(datadir: Path, tmp_path: Path) -> Strain:
     }
     # meteor.mapping_dir = tmp_path
     # return Strain(meteor, 100, 3, 3, 0.5, 1, 3, 0.8, True, False, json_data=json_data)
-    return Strain(meteor, 100, 3, 3, 0.5, 1, 1, 0.8, 10, True, json_data=json_data)
+    return Strain(meteor, 100, 3, 3, 0.5, 1, 1, 0.8, 100, True, json_data=json_data)
 
 
 def test_filter_coverage(
@@ -49,7 +49,11 @@ def test_filter_coverage(
         strain_builder.meteor.ref_dir / "database" / "mock.bed",
         strain_builder.meteor.ref_dir / "fasta" / "mock.fasta.gz",
     )
+    filtered_cov.to_csv("/pasteur/zeus/projets/p01/BioIT/amine/filtered.tsv", sep="\t")
     expected_output = pd.read_table(datadir / "expected_output" / "filtered_cov.tsv")
+    expected_output.to_csv(
+        "/pasteur/zeus/projets/p01/BioIT/amine/expected.tsv", sep="\t"
+    )
     assert filtered_cov.reset_index(drop=True).equals(expected_output)
 
 
@@ -87,15 +91,15 @@ def test_get_msp_variant(strain_builder, datadir: Path, tmp_path: Path):
     assert PA.exists()
     with BS.open("rb") as out:
         # assert md5(out.read()).hexdigest() == "958199bf4afa9adb56c9e0100a0cc23c"
-        assert md5(out.read()).hexdigest() == "b6b87174554ca33cc4a8923be4e780f7"
+        assert md5(out.read()).hexdigest() == "c0f943768ca8629b8be4a995bb3af341"
     with PA.open("rb") as out:
         # assert md5(out.read()).hexdigest() == "cec667aad0449853b3bd7db689dd7ed3"
-        assert md5(out.read()).hexdigest() == "b4eadbd604c765a2579bf742ae27386a"
+        assert md5(out.read()).hexdigest() == "cec667aad0449853b3bd7db689dd7ed3"
 
 
 def test_execute(strain_builder, tmp_path: Path) -> None:
     strain_builder.execute()
     BS = tmp_path / "strain" / "test" / "BS.fasta.xz"
     assert BS.exists()
-    # with BS.open("rb") as out:
-    #     assert md5(out.read()).hexdigest() == "83d3a5f89b89df438dc1751009801fc6"
+    with BS.open("rb") as out:
+        assert md5(out.read()).hexdigest() == "1da5a4bf1efd32b58e12e42ae971fe3f"
