@@ -565,7 +565,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="min_frequency",
         default=Strain.DEFAULT_MIN_FREQUENCY,
         type=isborned01,
-        help="Minimum frequency for alleles (default: >= %(default).1f).",
+        help="Minimum frequency for alleles (default: >= %(default).2f).",
     )
     strain_parser.add_argument(
         "-l",
