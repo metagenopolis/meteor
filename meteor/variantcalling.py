@@ -453,7 +453,7 @@ class VariantCalling(Session):
         logging.info("Run freebayes")
         startfreebayes = perf_counter()
         with reference_file.open("rb") as ref_fh:
-            with bgzip.BGZipReader(ref_fh) as reader:
+            with bgzip.BGZipReader(ref_fh, num_threads=self.meteor.threads) as reader:
                 decompressed_reference = reader.read()
         with NamedTemporaryFile(suffix=".fasta", delete=False) as temp_ref_file:
             temp_ref_file.write(decompressed_reference)
