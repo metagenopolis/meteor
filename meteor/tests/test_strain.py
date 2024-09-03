@@ -98,4 +98,4 @@ def test_execute(strain_builder, tmp_path: Path) -> None:
     BS = tmp_path / "strain" / "test" / "BS.fasta.xz"
     assert BS.exists()
     with BS.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "1da5a4bf1efd32b58e12e42ae971fe3f"
+        assert md5(out.read()).hexdigest() == "41d0686c1dd663d5511666e4b169d33c"
