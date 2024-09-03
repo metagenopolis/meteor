@@ -29,7 +29,6 @@ def fixture_vc_builder(datadir: Path, tmp_path: Path) -> VariantCalling:
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.tmp_dir = tmp_path
-    meteor.DEFAULT_GAP_CHAR = "?"
     ref_json_file = datadir / "eva71" / "eva71_reference.json"
     ref_json = {}
     with ref_json_file.open("rt", encoding="UTF-8") as ref:
@@ -100,6 +99,7 @@ def test_create_consensus(
     vc_builder: VariantCalling, datadir: Path, tmp_path: Path
 ) -> None:
     vc_builder.matrix_file = datadir / "eva71_bench" / "eva71_bench.tsv.xz"
+    vc_builder.meteor.DEFAULT_GAP_CHAR = "?"
     reference_file = datadir / "eva71" / "fasta" / "eva71.fasta.gz"
     consensus_file = tmp_path / "consensus.fasta.xz"
     bed_file = datadir / "eva71" / "database" / "eva71.bed"
