@@ -5,7 +5,26 @@ on:
     types: [created]
 
 jobs:
+  meteortest:
+    if: ${{ github.event.release.prerelease }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ConorMacBride/install-package@v1
+        with:
+          brew: bowtie2 freebayes
+          apt: bowtie2 freebayes
+      - name: Install Python
+        uses: actions/setup-python@v4
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v2
+      - name: Install the project dependencies
+        run: poetry install -C meteor
+      - name: Run the automated tests (for example)
+        run: meteor test
+
   docker:
+    if: ${{ !github.event.release.prerelease }}
     needs: conda
     runs-on: ubuntu-latest
     steps:
@@ -32,6 +51,7 @@ jobs:
             ${{ secrets.DOCKER_USER }}/meteor:latest
 
   conda:
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,6 +69,7 @@ jobs:
           conda build --token ${{ secrets.ANACONDA_TOKEN }} conda_recipe
 
   pypi:
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
