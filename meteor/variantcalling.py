@@ -336,9 +336,9 @@ class VariantCalling(Session):
                                                 )
                                             )
                                         )
-                                        consensus[record.pos + i - 1] = self.IUPAC[mnv]
+                                        consensus[record.start + i] = self.IUPAC[mnv]
                                 else:
-                                    consensus[record.pos - 1] = self.IUPAC[keep_alts]
+                                    consensus[record.start] = self.IUPAC[keep_alts]
                             # Update consensus array for each matching range
                             if gene_id in low_cov_sites.index:
                                 selection = low_cov_sites.loc[gene_id]
