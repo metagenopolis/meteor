@@ -423,7 +423,9 @@ class VariantCalling(Session):
             merged_df["startpos"] = 0
             # Extract the required columns
             result_df = merged_df[["gene_id", "startpos", "gene_length"]]
-            with NamedTemporaryFile(suffix=".bed", delete=False) as temp_bed_file:
+            with NamedTemporaryFile(
+                suffix=".bed", dir=self.meteor.tmp_dir, delete=False
+            ) as temp_bed_file:
                 result_df.to_csv(
                     temp_bed_file.name, sep="\t", index=False, header=False
                 )
@@ -455,7 +457,9 @@ class VariantCalling(Session):
         with reference_file.open("rb") as ref_fh:
             with bgzip.BGZipReader(ref_fh, num_threads=self.meteor.threads) as reader:
                 decompressed_reference = reader.read()
-        with NamedTemporaryFile(suffix=".fasta", delete=False) as temp_ref_file:
+        with NamedTemporaryFile(
+            suffix=".fasta", dir=self.meteor.tmp_dir, delete=False
+        ) as temp_ref_file:
             temp_ref_file.write(decompressed_reference)
             temp_ref_file_path = temp_ref_file.name
         # index on the fly
