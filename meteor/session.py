@@ -21,6 +21,7 @@ import json
 import lzma
 from importlib.metadata import version
 from packaging.version import Version
+import pandas as pd
 
 
 @dataclass(kw_only=True)
@@ -55,28 +56,28 @@ class Component:
 class Session(Protocol):
     """Class inheritating from Protocol that present shared function."""
 
-    def check_file(self, filename: Path, expected_colnames: set[str]) -> bool:
-        """Check that the expected colnames are in the file.
+    # def check_file(self, filename: Path, expected_colnames: set[str]) -> bool:
+    #     """Check that the expected colnames are in the file.
 
-        :param filename: (Path) An input path object
-        :param expected_colnames: (Path) An expected set of colnames
-        """
-        try:
-            if filename.suffix == ".xz":
-                header = lzma.open(filename, "rt")
-            else:
-                header = filename.open("rt", encoding="UTF-8")
-            with header:
-                real_colnames = set(header.readline().strip("\n").split("\t"))
-            assert len(expected_colnames - real_colnames) == 0
-        except AssertionError:
-            logging.error(
-                "Missing columns in %s: %s",
-                filename,
-                ", ".join(expected_colnames - real_colnames),
-            )
-            sys.exit(1)
-        return True
+    #     :param filename: (Path) An input path object
+    #     :param expected_colnames: (Path) An expected set of colnames
+    #     """
+    #     try:
+    #         if filename.suffix == ".xz":
+    #             header = lzma.open(filename, "rt")
+    #         else:
+    #             header = filename.open("rt", encoding="UTF-8")
+    #         with header:
+    #             real_colnames = set(header.readline().strip("\n").split("\t"))
+    #         assert len(expected_colnames - real_colnames) == 0
+    #     except AssertionError:
+    #         logging.error(
+    #             "Missing columns in %s: %s",
+    #             filename,
+    #             ", ".join(expected_colnames - real_colnames),
+    #         )
+    #         sys.exit(1)
+    #     return True
 
     def save_config(self, config: dict, config_path: Path) -> None:  # pragma: no cover
         """Save a configuration file
@@ -223,5 +224,22 @@ class Session(Protocol):
     #                 seq += line.strip().replace("\n", "")
     #         if len(seq) > 0:
     #             yield gene_id, seq
+
+    def load_data(self, file_path: Path):
+        """Load data dynamically based on the file extension.
+        :param file_path: The path to the file (including extension).
+        :return:  pd.DataFrame: Data loaded into a pandas DataFrame.
+        """
+        # Choose the appropriate pandas function based on extension
+        if "".join(file_path.suffixes) in [".tsv", ".tsv.xz"]:
+            return pd.read_csv(
+                file_path,
+                sep="\t",
+                header=0,
+            )  # Treat `.tsv` as a tab-separated file
+        elif file_path.suffix == ".feather":
+            return pd.read_feather(file_path)
+        else:
+            raise ValueError(f"Unsupported file extension: {file_path.suffix}")
 
     def execute(self) -> None: ...

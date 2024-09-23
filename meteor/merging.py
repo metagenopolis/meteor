@@ -361,13 +361,10 @@ class Merging(Session):
                 # Filter the DataFrame to keep only columns with a non-zero sum
                 filtered_df = filtered_df.loc[:, (filtered_df.sum(axis=0) != 0)]
             if my_pattern == "msp":
-                annotation = pd.read_csv(
+                annotation = self.load_data(
                     self.meteor.ref_dir
                     / ref_json["reference_file"]["database_dir"]
-                    / ref_json["annotation"]["taxonomy"]["filename"],
-                    sep="\t",
-                    header=0,
-                    usecols=list(self.ranks.keys()),
+                    / ref_json["annotation"]["taxonomy"]["filename"]
                 )
 
                 annotation = annotation[

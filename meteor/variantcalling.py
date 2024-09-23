@@ -340,13 +340,19 @@ class VariantCalling(Session):
                                 else:
                                     consensus[record.start] = self.IUPAC[keep_alts]
                             # Update consensus array for each matching range
-                            if gene_id in low_cov_sites.index:
-                                selection = low_cov_sites.loc[gene_id]
+                            # print(low_cov_sites.index)
+                            # print(gene_id)
+                            if ref in low_cov_sites.index:
+                                # print(gene_id)
+                                selection = low_cov_sites.loc[ref]
+                                # print(selection)
                                 if isinstance(selection, pd.Series):
+                                    print(selection)
                                     consensus[
                                         selection["startpos"] : selection["endpos"]
                                     ] = self.meteor.DEFAULT_GAP_CHAR
                                 else:
+                                    print(selection)
                                     for _, row in selection.iterrows():
                                         # Mark as uncertain
                                         consensus[row["startpos"] : row["endpos"]] = (
@@ -396,19 +402,8 @@ class VariantCalling(Session):
             / self.census["reference"]["reference_file"]["database_dir"]
             / self.census["reference"]["annotation"]["gene_id"]["filename"]
         )
-
-        msp_content = pd.read_csv(
-            msp_file,
-            sep="\t",
-            # names=["msp_name", "gene_id", "gene_name", "gene_category"],
-            header=0,
-        )
-        gene_details = pd.read_csv(
-            annotation_file,
-            sep="\t",
-            # names=["gene_id", "gene_name", "gene_length"],
-            header=0,
-        )
+        msp_content = self.load_data(msp_file)
+        gene_details = self.load_data(annotation_file)
         if self.census["reference"]["reference_info"]["database_type"] == "complete":
             msp_content = msp_content.loc[msp_content["gene_category"] == "core"]
             msp_content = (

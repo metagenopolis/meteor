@@ -297,7 +297,7 @@ def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> No
         assert tmpcramfile.exists()
         # issues at testing content
         # with tmpcramfile.open("rb") as out:
-        #     assert md5(out.read()).hexdigest() == "7e9c1b3e89690624ca03882cb968fb09"
+        #     assert md5(out.read()).hexdigest() == "ef47276b6fcb7ad398801b7f5c52ef04"
 
 
 def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path: Path):

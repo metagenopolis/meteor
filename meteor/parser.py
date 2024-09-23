@@ -32,7 +32,8 @@ class Parser(Session):
         four columns: id (e.g., MF0001), type (e.g., GMM), name (e.g., butyrate production),
         definition (e.g., K01+K02))
         """
-        module = pd.read_table(module_file, names=["id", "type", "name", "definition"])
+        # module = pd.read_table(module_file, names=["id", "type", "name", "definition"])
+        module = self.load_data(module_file)
         # Remove trailing whitespaces if any
         module["definition"] = module["definition"].str.rstrip()
         module_dict = dict(zip(module.id, module.definition))

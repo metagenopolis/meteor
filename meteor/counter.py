@@ -370,12 +370,7 @@ class Counter(Session):
             / ref_json["annotation"]["msp"]["filename"]
         )
         msp_content = (
-            pd.read_csv(
-                msp_file,
-                sep="\t",
-                # names=["msp_name", "gene_id", "gene_name", "gene_category"],
-                header=0,
-            )
+            self.load_data(msp_file)
             .query("gene_category == 'core'")
             .groupby("msp_name", as_index=False)
             .head(self.core_size)

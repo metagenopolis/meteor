@@ -118,7 +118,7 @@ def test_create_consensus(
     )
     assert consensus_file.exists()
     with consensus_file.open("rb") as consensus:
-        assert md5(consensus.read()).hexdigest() == "916fe0018af1eebc59592a75c770570b"
+        assert md5(consensus.read()).hexdigest() == "3dcc531550bff705949620224d9950f4"
 
 
 def test_execute(vc_builder: VariantCalling) -> None:

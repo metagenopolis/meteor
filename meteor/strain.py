@@ -143,11 +143,8 @@ class Strain(Session):
         #     count_file, sep="\t", names=["gene_id", "gene_length", "value"], header=1
         # )
         # Read the msp content description file
-        msp_content = pd.read_csv(
+        msp_content = self.load_data(
             msp_file,
-            sep="\t",
-            # names=["msp_name", "gene_id", "gene_name", "gene_category"],
-            header=0,
         )
         msp_content = msp_content.loc[msp_content["gene_category"] == "core"]
         msp_content = msp_content.groupby("msp_name").head(self.core_size).reset_index()

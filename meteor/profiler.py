@@ -122,17 +122,17 @@ class Profiler(Session):
             )
 
         # Check the input count table
-        self.check_file(
-            self.input_count_table,
-            {
-                "gene_id",
-                "value",
-                "gene_length",
-            },
-        )
+        # self.check_file(
+        #     self.input_count_table,
+        #     {
+        #         "gene_id",
+        #         "value",
+        #         "gene_length",
+        #     },
+        # )
 
         # Load the count table
-        self.gene_count = pd.read_table(self.input_count_table)
+        self.gene_count = self.load_data(self.input_count_table)
         self.gene_count["value"] = self.gene_count["value"].astype(
             pd.SparseDtype("float", fill_value=0.0)
         )
@@ -147,14 +147,14 @@ class Profiler(Session):
             / self.ref_config["annotation"]["msp"]["filename"]
         )
         assert self.msp_filename.is_file()
-        self.check_file(
-            self.msp_filename,
-            {
-                "msp_name",
-                "gene_id",
-                "gene_category",
-            },
-        )
+        # self.check_file(
+        #     self.msp_filename,
+        #     {
+        #         "msp_name",
+        #         "gene_id",
+        #         "gene_category",
+        #     },
+        # )
 
         # Get functional db filenames
         if self.database_type == "complete":
@@ -169,7 +169,7 @@ class Profiler(Session):
 
             # Initialize the module definition file
             self.module_path = (
-                importlib.resources.files("meteor") / "data/modules_definition.tsv"
+                importlib.resources.files("meteor") / "data/modules_definition.feather"
             )
             assert self.module_path.is_file()
 
@@ -321,7 +321,7 @@ class Profiler(Session):
         :param core_size: maximum number of core genes to consider.
         """
         # Load msp file
-        msp_df = pd.read_table(msp_def_filename)
+        msp_df = self.load_data(msp_def_filename)
         # Restrict to core
         msp_df_selection = msp_df.loc[msp_df["gene_category"] == "core"]
         # Return the df as a dict of set
@@ -338,7 +338,7 @@ class Profiler(Session):
         :param msp_def_filename: A path object pointing to an MSP definition file.
         """
         # Load msp file
-        msp_df = pd.read_table(msp_def_filename)
+        msp_df = self.load_data(msp_def_filename)
         # Get the ensemble of genes used in MSP
         all_msp_genes = msp_df["gene_id"].unique()
         # Get the percentage of reads that map on an MSP
@@ -357,7 +357,7 @@ class Profiler(Session):
         :param annot_file: a path object pointing to the annotation gene_name -> enzyme file.
         """
         # Load annotation file
-        annot_df = pd.read_table(annot_file)
+        annot_df = self.load_data(annot_file)
         # Merge count table and gene annotation
         merged_df = pd.merge(
             annot_df,
@@ -378,11 +378,11 @@ class Profiler(Session):
         :param msp_def_filename: A path object pointing to an MSP definition file.
         """
         # Load annotation file
-        annot_df = pd.read_table(annot_file)
+        annot_df = self.load_data(annot_file)
         # Get KO list
         all_ko = annot_df["annotation"].unique()
         # Load MSP file
-        msp_df = pd.read_table(msp_def_filename)
+        msp_df = self.load_data(msp_def_filename)
         # Merge both data frames
         msp_df_annotated = pd.merge(msp_df, annot_df)
         # Restrict to detected genes
@@ -422,10 +422,10 @@ class Profiler(Session):
         :param msp_def_filename: A path object pointing to an MSP definition file.
         """
         # Load annotation file
-        annot_df = pd.read_table(annot_file)
+        annot_df = self.load_data(annot_file)
         if by_msp:
             # Load MSP file
-            msp_df = pd.read_table(msp_def_filename)
+            msp_df = self.load_data(msp_def_filename)
             # Merge both data frames
             annot_df = pd.merge(msp_df, annot_df)
         # Get the genes in MSP AND annotated
@@ -449,7 +449,7 @@ class Profiler(Session):
         :param annot_file: path to the gene functional annotation file
         """
         # Load files
-        msp_df = pd.read_table(msp_file)
+        msp_df = self.load_data(msp_file)
         # Restrict df to detected genes
         detected_genes = self.gene_count.loc[self.gene_count["value"] > 0, "gene_id"]
         msp_df = msp_df.loc[msp_df["gene_id"].isin(detected_genes)]
@@ -462,7 +462,7 @@ class Profiler(Session):
         # Merge each provided db
         annot_df = pd.concat(
             [
-                pd.read_table(db)[["gene_id", "annotation"]]
+                self.load_data(db)[["gene_id", "annotation"]]
                 for db in annot_file.values()
             ],
             ignore_index=True,

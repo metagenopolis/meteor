@@ -1,3 +1,4 @@
+id	type	name	definition
 mod1	KEGG	Module 1	ARD1,ARD2
 mod2	KEGG	Module 2	K8,K9
 mod3	KEGG	Module 3	(K2 K3 K4),K1,(K2 K4),(K1 K8)

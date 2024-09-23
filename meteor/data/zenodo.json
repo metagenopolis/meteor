@@ -1,122 +1,122 @@
 {
     "cat_gut": {
         "file_info": {
-            "catalogue": "https://zenodo.org/records/12820763/files/fc_1_3_gut.tar.xz",
+            "catalogue": "https://zenodo.org/records/13771508/files/fc_1_3_gut.tar.xz",
             "filename": "fc_1_3_gut.tar.xz",
-            "md5": "6d058b2f68586ada5e690e2db9ddfa0d"
+            "md5": "b8e9d8e60981d575e38624eed8031642"
         },
         "taxonomy_info": {
-            "catalogue": "https://zenodo.org/records/12820763/files/fc_1_3_gut_taxo.tar.xz",
+            "catalogue": "https://zenodo.org/records/13771508/files/fc_1_3_gut_taxo.tar.xz",
             "filename": "fc_1_3_gut_taxo.tar.xz",
-            "md5": "01fc5dc52a681e5f8997108b625ccb6b"
+            "md5": "16f99e4f0726170f38e4815ab3fffc4f"
         }
     },
     "chicken_caecal": {
         "file_info": {
-            "catalogue": "https://zenodo.org/records/12820776/files/gg_13_6_caecal.tar.xz",
+            "catalogue": "https://zenodo.org/records/13771776/files/gg_13_6_caecal.tar.xz",
             "filename": "gg_13_6_caecal.tar.xz",
-            "md5": "b68a9bc0dbecf15b5280c6da3b7b7155"
+            "md5": "2c386b11731d58eaa0e7c90f7d14b0fe"
         },
         "taxonomy_info": {
-            "catalogue": "https://zenodo.org/records/12820776/files/gg_13_6_caecal_taxo.tar.xz",
+            "catalogue": "https://zenodo.org/records/13771776/files/gg_13_6_caecal_taxo.tar.xz",
             "filename": "gg_13_6_caecal_taxo.tar.xz",
-            "md5": "c35972a8fd685dc25e267e4cc93e9c89"
+            "md5": "0ac3510484385b85ede5f53e91598492"
         }
     },
     "dog_gut": {
         "file_info": {
-            "catalogue": "https://zenodo.org/records/12820719/files/clf_1_0_gut.tar.xz",
+            "catalogue": "https://zenodo.org/records/13768924/files/clf_1_0_gut.tar.xz",
             "filename": "clf_1_0_gut.tar.xz",
-            "md5": "e8aa19bacc48641dd54dce10a7b2eea2"
+            "md5": "081d52ed8aad93638fa50ceb4e65cb39"
         },
         "taxonomy_info": {
-            "catalogue": "https://zenodo.org/records/12820719/files/clf_1_0_gut_taxo.tar.xz",
+            "catalogue": "https://zenodo.org/records/13768924/files/clf_1_0_gut_taxo.tar.xz",
             "filename": "clf_1_0_gut_taxo.tar.xz",
-            "md5": "a60257ed7e64c577c69dc71a913b040a"
+            "md5": "7cbdfc9aa7af0d8a27f5635871ff0f3e"
         }
     },
     "human_gut": {
         "file_info": {
-            "catalogue": "https://zenodo.org/records/12820832/files/hs_10_4_gut.tar.xz",
+            "catalogue": "https://zenodo.org/records/13772391/files/hs_10_4_gut.tar.xz",
             "filename": "hs_10_4_gut.tar.xz",
-            "md5": "4e87ef559e9aa66434aea4722b335f7f"
+            "md5": "3fab475bff77e313d8c0d4f4d96ccd2e"
         },
         "taxonomy_info": {
-            "catalogue": "https://zenodo.org/records/12820832/files/hs_10_4_gut_taxo.tar.xz",
+            "catalogue": "https://zenodo.org/records/13772391/files/hs_10_4_gut_taxo.tar.xz",
             "filename": "hs_10_4_gut_taxo.tar.xz",
-            "md5": "0235037ca9e949fe748f45fec75ca63c"
+            "md5": "781d47c2ab2d8c9766468229a54bcb3a"
         }
     },
     "human_oral": {
         "file_info": {
-            "catalogue": "https://zenodo.org/records/12821296/files/hs_8_4_oral.tar.xz",
+            "catalogue": "https://zenodo.org/records/13786233/files/hs_8_4_oral.tar.xz",
             "filename": "hs_8_4_oral.tar.xz",
-            "md5": "648d43d0646a1f2218f260e6684f929a"
+            "md5": "9ed8d61a344945f93c81a0198983e01f"
         },
         "taxonomy_info": {
-            "catalogue": "https://zenodo.org/records/12821296/files/hs_8_4_oral_taxo.tar.xz",
+            "catalogue": "https://zenodo.org/records/13786233/files/hs_8_4_oral_taxo.tar.xz",
             "filename": "hs_8_4_oral_taxo.tar.xz",
-            "md5": "91ef007adb3697bdfd04add80173440c"
+            "md5": "c35c6193bd687626a540f8de2f1413bb"
         }
     },
     "human_skin": {
         "file_info": {
-            "catalogue": "https://zenodo.org/records/12820845/files/hs_2_9_skin.tar.xz",
+            "catalogue": "https://zenodo.org/records/13786083/files/hs_2_9_skin.tar.xz",
             "filename": "hs_2_9_skin.tar.xz",
-            "md5": "de432ae53110316a4060bd98fa7fb131"
+            "md5": "475b77e2c285c78b737f59c13d04839a"
         },
         "taxonomy_info": {
-            "catalogue": "https://zenodo.org/records/12820845/files/hs_2_9_skin_taxo.tar.xz",
+            "catalogue": "https://zenodo.org/records/13786083/files/hs_2_9_skin_taxo.tar.xz",
             "filename": "hs_2_9_skin_taxo.tar.xz",
-            "md5": "0bd86c10f31f4bcc9b661147ffb1bca0"
+            "md5": "31ba766f2c3ec092d9fb5b7fab4759d3"
         }
     },
     "mouse_gut": {
         "file_info": {
-            "catalogue": "https://zenodo.org/records/12821471/files/mm_5_0_gut.tar.xz",
+            "catalogue": "https://zenodo.org/records/13786249/files/mm_5_0_gut.tar.xz",
             "filename": "mm_5_0_gut.tar.xz",
-            "md5": "33ac32b377ab93117ece81cafd272020"
+            "md5": "1bc0d511caaa9f6b64d63a640597141e"
         },
         "taxonomy_info": {
-            "catalogue": "https://zenodo.org/records/12821471/files/mm_5_0_gut_taxo.tar.xz",
+            "catalogue": "https://zenodo.org/records/13786249/files/mm_5_0_gut_taxo.tar.xz",
             "filename": "mm_5_0_gut_taxo.tar.xz",
-            "md5": "5f15d7f763bfdebf6f89ccdb9d326f71"
+            "md5": "6565223d8b6efbb0cc7334fafe81991e"
         }
     },
     "rabbit_gut": {
         "file_info": {
-            "catalogue": "https://zenodo.org/records/12821585/files/oc_5_7_gut.tar.xz",
+            "catalogue": "https://zenodo.org/records/13786259/files/oc_5_7_gut.tar.xz",
             "filename": "oc_5_7_gut.tar.xz",
-            "md5": "3733f7096eb69b00c4a89721609e9511"
+            "md5": "7ba41d08c3defb1b86dc30b76cee9953"
         },
         "taxonomy_info": {
-            "catalogue": "https://zenodo.org/records/12821585/files/oc_5_7_gut_taxo.tar.xz",
+            "catalogue": "https://zenodo.org/records/13786259/files/oc_5_7_gut_taxo.tar.xz",
             "filename": "oc_5_7_gut_taxo.tar.xz",
-            "md5": "f1eb46abf8246d2c1f8bab69ca72fe3e"
+            "md5": "023093b44673b2b6421486d14f11a093"
         }
     },
     "rat_gut": {
         "file_info": {
-            "catalogue": "https://zenodo.org/records/13119584/files/rn_5_9_gut.tar.xz",
+            "catalogue": "https://zenodo.org/records/13786316/files/rn_5_9_gut.tar.xz",
             "filename": "rn_5_9_gut.tar.xz",
-            "md5": "839e791839da771b0e698a63bbc45d39"
+            "md5": "debbf9677aea2ce668331c333c9efb80"
         },
         "taxonomy_info": {
-            "catalogue": "https://zenodo.org/records/13119584/files/rn_5_9_gut_taxo.tar.xz",
+            "catalogue": "https://zenodo.org/records/13786316/files/rn_5_9_gut_taxo.tar.xz",
             "filename": "rn_5_9_gut_taxo.tar.xz",
-            "md5": "3f4c7ee4a96d5ec8e65227eddad9b8c7"
+            "md5": "a9aa773f44464cce74b71433d3a1c47a"
         }
     },
     "pig_gut": {
         "file_info": {
-            "complete": "https://zenodo.org/records/13119585/files/ssc_9_3_gut.tar.xz",
+            "complete": "https://zenodo.org/records/13786359/files/ssc_9_3_gut.tar.xz",
             "filename": "ssc_9_3_gut.tar.xz",
-            "md5": "1451197acf6257949751061d96fa1856"
+            "md5": "9140d8c2517b3d12b08ffb0bde1319f0"
         },
         "taxonomy_info": {
-            "taxo": "https://zenodo.org/records/13119585/files/ssc_9_3_gut_taxo.tar.xz",
+            "taxo": "https://zenodo.org/records/13786359/files/ssc_9_3_gut_taxo.tar.xz",
             "filename": "ssc_9_3_gut_taxo.tar.xz",
-            "md5": "0059e8ee77083725ab48afdbdaa98fac"
+            "md5": "370884b1730c28d73efa0b886c259ee9"
         }
     },
     "test": {
