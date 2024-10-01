@@ -28,10 +28,12 @@ from tempfile import NamedTemporaryFile
 from collections import OrderedDict
 from datetime import datetime
 from typing import Iterable, Tuple
-from cogent3 import load_aligned_seqs
-from cogent3.evolve.distance import EstimateDistances
-from cogent3.evolve.models import GTR
-from cogent3.cluster.UPGMA import upgma
+from cogent3 import load_unaligned_seqs  # , load_aligned_seqs
+
+# from cogent3.evolve.distance import EstimateDistances
+# from cogent3.evolve.models import GTR
+# from cogent3.cluster.UPGMA import upgma
+from cogent3.align.progressive import tree_align
 
 
 @dataclass
@@ -116,29 +118,6 @@ class Phylogeny(Session):
 
     def execute(self) -> None:
         logging.info("Launch phylogeny analysis")
-        # raxml_ng_exec = run(["raxml-ng", "--version"], check=False, capture_output=True)
-        # if raxml_ng_exec.returncode != 0:
-        #     logging.error(
-        #         "Checking raxml-ng failed:\n%s", raxml_ng_exec.stderr.decode("utf-8")
-        #     )
-        #     sys.exit(1)
-        # raxml_ng_help = raxml_ng_exec.stdout.decode("utf-8")
-        # Define the regex pattern to match the version number
-        # version_pattern = re.compile(r"RAxML-NG v\. (\d+\.\d+\.\d+)")
-        # match = version_pattern.search(raxml_ng_help)
-        # Check if a match is found
-        # if not match:
-        #     logging.error("Failed to determine the raxml-ng version.")
-        #     sys.exit(1)
-        # raxml_ng_version = match.group(1)
-        # if parse(raxml_ng_version) < self.meteor.MIN_RAXML_NG_VERSION:
-        #     logging.error(
-        #         "The raxml-ng version %s is outdated for meteor. Please update raxml-ng to >= %s.",
-        #         raxml_ng_version,
-        #         self.meteor.MIN_RAXML_NG_VERSION,
-        #     )
-        #     sys.exit(1)
-
         # Start phylogenies
         start = perf_counter()
         self.tree_files: list[Path] = []
@@ -165,68 +144,33 @@ class Phylogeny(Session):
                         info_sites,
                         self.min_info_sites,
                     )
-                # elif len(cleaned_seqs) >= 4:
-                #     # Compute trees
-                #     logging.info("Run raxml-ng")
-                #     result = check_call(
-                #         [
-                #             "raxml-ng",
-                #             "--threads",
-                #             "auto{{{}}}".format(self.meteor.threads),
-                #             "--workers",
-                #             "auto",
-                #             "--search1",
-                #             "--msa",
-                #             temp_clean.name,
-                #             "--model",
-                #             "GTR+G",
-                #             "--redo",
-                #             "--force",
-                #             "perf,msa",  # not working with raxml-ng-mpi
-                #             "--prefix",
-                #             str(tree_file.resolve()),
-                #         ],
-                #         stdout = DEVNULL
-                #     )
-                # if result != 0:
-                #     logging.error("raxml-ng failed with return code %d", result)
                 else:
-                    # logging.info(
-                    #     "Less than 4 sequences, run cogent3"
-                    # )
-                    aligned_seqs = load_aligned_seqs(
-                        temp_clean.name,
-                        moltype="dna",
+                    seqs = load_unaligned_seqs(temp_clean.name, moltype="dna")
+                    # params = {"kappa": 4.0}
+                    _, tree = tree_align(
+                        "GTR",
+                        seqs,
+                        # param_vals=params,
+                        show_progress=False,
                     )
-                    d = EstimateDistances(aligned_seqs, submodel=GTR())
-                    d.run(show_progress=False)
-                    mycluster = upgma(d.get_pairwise_distances())
-                    mycluster = mycluster.unrooted_deepcopy()
+                    # print(aln)
                     with tree_file.with_suffix(".tree").open("w") as f:
                         f.write(
                             self.remove_edge_labels(
-                                mycluster.get_newick(with_distances=True)
+                                tree.get_newick(with_distances=True)
                             )
                         )
-                    # Edges get a name which is not supported by ete3
-                    # mycluster.write(
-                    #     tree_file.with_suffix(".tree"),
-                    # )
                 if tree_file.with_suffix(".tree").exists():
                     self.tree_files.append(tree_file.with_suffix(".tree"))
                     logging.info(
                         "Completed MSP tree for MSP %s",
                         msp_file.name.replace(".fasta", ""),
                     )
-                # elif tree_file.with_suffix(".raxml.bestTree").exists():
-                #     self.tree_files.append(tree_file.with_suffix(".raxml.bestTree"))
-                # logging.info("Completed MSP tree with raxml")
                 else:
                     logging.info("No tree file generated")
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
         logging.info(
             "Trees were generated for %d/%d MSPs", len(self.tree_files), msp_count
         )
-        # config = self.set_tree_config(raxml_ng_version)
         config = self.set_tree_config()
         self.save_config(config, self.meteor.tree_dir / "census_stage_4.json")

@@ -50,7 +50,6 @@ def test_compute_site_info(phylogeny_builder: Phylogeny):
 def test_clean_sites(phylogeny_builder: Phylogeny, datadir: Path, tmpdir: Path):
     msp = tmpdir / "msp_0864_clean.fasta"
     msp_expected_file = datadir / "msp_0864_dict.pck"
-    print(msp_expected_file)
     with open(msp_expected_file, "rb") as msp_file:
         msp_expected = pickle.load(msp_file)
         with msp.open("w") as f:
