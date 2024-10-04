@@ -16,6 +16,7 @@ import logging
 import sys
 import lzma
 import bgzip
+import pickle
 from subprocess import CalledProcessError, run, Popen, PIPE
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,76 +26,87 @@ from time import perf_counter
 from tempfile import NamedTemporaryFile
 from packaging.version import parse
 from pysam import AlignmentFile, FastaFile, VariantFile, faidx, tabix_index
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import defaultdict
 import pandas as pd
 from typing import ClassVar
 import numpy as np
-import os
-import pickle
+import pysam
 
 
-# Helper function for multiprocessing
-def process_msp_file(
-    meteor_tmp_dir, meteor_tree_dir, min_info_sites, idx, msp_file, msp_count, max_gap
+def run_freebayes_chunk(
+    temp_ref_file_path: str,
+    bed_chunk_file: Path,
+    cram_file: Path,
+    vcf_chunk_file: Path,
+    min_snp_depth: int,
+    min_frequency: float,
+    ploidy: int,
 ):
-    """
-    Process single MSP file and return the path to the generated tree file or None if unsuccessful.
-    This runs in a separate process.
-    """
-    pattern = r"\b(edge\.\d+):\b"
+    """Function to run freebayes on a chunk of the BED file (i.e., a portion of the genome)."""
+    try:
+        with Popen(
+            [
+                "freebayes",
+                "--pooled-continuous",
+                "--min-alternate-count",
+                str(1),
+                "--min-coverage",
+                str(min_snp_depth),
+                "--min-alternate-fraction",
+                str(min_frequency),
+                "--min-mapping-quality",
+                str(0),
+                "--use-duplicate-reads",
+                "-t",
+                str(
+                    bed_chunk_file.resolve()
+                ),  # BED region chunk for parallel execution
+                "-p",
+                str(ploidy),
+                "-f",
+                temp_ref_file_path,  # Path to temporary reference FASTA file
+                "-b",
+                str(cram_file.resolve()),  # BAM/CRAM alignment file
+            ],
+            stdout=PIPE,
+            stderr=PIPE,
+        ) as freebayes_process:
+            # Capture output from freebayes
+            freebayes_output, freebayes_error = freebayes_process.communicate()
+            if freebayes_error:
+                logging.error(
+                    "Error processing chunk %s: %s", bed_chunk_file, freebayes_error
+                )
+                return None
+            elif freebayes_process.returncode == 0:
+                # Compress output using bgzip
+                with vcf_chunk_file.open("wb") as raw:
+                    with bgzip.BGZipWriter(raw) as fh:
+                        fh.write(freebayes_output)
+                tabix_index(str(vcf_chunk_file.resolve()), preset="vcf", force=True)
+            else:
+                logging.error(
+                    "Freebayes process failed for chunk %s, return code: %d",
+                    bed_chunk_file,
+                    freebayes_process.returncode,
+                )
+                return None
+        return vcf_chunk_file
 
-    logging.info(
-        "%d/%d %s: Start analysis",
-        idx,
-        msp_count,
-        msp_file.name.replace(".fasta", ""),
-    )
-
-    with NamedTemporaryFile(
-        mode="wt", dir=meteor_tmp_dir, suffix=".fasta"
-    ) as temp_clean:
-        tree_file = Path(meteor_tree_dir) / f"{msp_file.name}".replace(".fasta", "")
-
-        # Clean sites (use a dummy clean sites function for illustration)
-        logging.info("Clean sites")
-        # Replace the dummy version below with the actual logic to clean sites:
-        info_sites = 20  # Fake number of informative sites for demo
-
-        if info_sites < min_info_sites:
-            logging.info(
-                "Only %d informative sites (<%d threshold) left after cleaning, skip.",
-                info_sites,
-                min_info_sites,
-            )
-            return None  # Skip this file, return None
-
-        # Perform sequence alignment and tree generation
-        seqs = load_unaligned_seqs(msp_file, moltype="dna")
-        params = {"kappa": 4.0}
-        aln, tree = tree_align(
-            "HKY85",
-            seqs,
-            param_vals=params,
-            show_progress=False,
+    except CalledProcessError as e:
+        logging.error(
+            "Freebayes failed for chunk %s with return code %d",
+            bed_chunk_file,
+            e.returncode,
         )
-        print(aln)
-        with tree_file.with_suffix(".tree").open("w") as f:
-            f.write(re.sub(pattern, ":", tree.get_newick(with_distances=True)))
-
-    if tree_file.with_suffix(".tree").exists():
-        logging.info(
-            "Completed MSP tree for MSP %s",
-            msp_file.name.replace(".fasta", ""),
-        )
-        return tree_file.with_suffix(".tree")
-    else:
-        logging.info("No tree file generated")
-        return None
+        logging.error("Error output: %s", e.output)
+        raise e
 
 
 @dataclass
 class VariantCalling(Session):
-    """Run bcftools"""
+    """Run freebayes"""
 
     # from https://www.bioinformatics.org/sms/iupac.html
     IUPAC: ClassVar[dict] = {
@@ -159,6 +171,58 @@ class VariantCalling(Session):
             },
         }
         return config
+
+    def create_bed_chunks(
+        self, merged_df: pd.DataFrame, num_chunks: int, tmp_dir: Path
+    ) -> list[Path]:
+        """
+        Divide the merged_df DataFrame into `num_chunks` BED chunks,
+        with each chunk containing multiple `msp_name` groups.
+        Each chunk will be written to a separate temporary BED file.
+        """
+        bed_chunks = []
+
+        # Get unique msp_name groups
+        msp_names = merged_df["msp_name"].unique()
+        total_msp_names = len(msp_names)
+
+        # Calculate how many MSPs each chunk should include
+        base_chunk_size = total_msp_names // num_chunks
+
+        # Number of chunks that will get an extra MSP name (due to remainder)
+        remainder = total_msp_names % num_chunks
+
+        start_idx = 0  # Starting index for slicing the msp_names
+
+        # Split the msp_names into balanced chunks
+        for i in range(num_chunks):
+            # Determine the chunk size: add 1 to the base size if within the remainder limit
+            chunk_size = base_chunk_size + 1 if i < remainder else base_chunk_size
+
+            # Determine the end index for this chunk
+            end_idx = start_idx + chunk_size
+
+            # Select the subset of MSPs for this chunk
+            current_msp_names = msp_names[start_idx:end_idx]
+
+            # Subset the DataFrame for only these selected MSPs
+            chunk_df = merged_df[merged_df["msp_name"].isin(current_msp_names)]
+
+            # Create a temporary BED file for this chunk
+            temp_bed_file = NamedTemporaryFile(suffix=".bed", dir=tmp_dir, delete=False)
+
+            # Write the chunk DataFrame subset to the temporary BED file
+            chunk_df[["gene_id", "startpos", "gene_length"]].to_csv(
+                temp_bed_file.name, sep="\t", index=False, header=False
+            )
+
+            # Add the path to the temporary file to the list of bed_chunks
+            bed_chunks.append(Path(temp_bed_file.name))
+
+            # Update the starting index for the next chunk
+            start_idx = end_idx
+
+        return bed_chunks  # Return the list of file paths.
 
     def group_consecutive_positions(
         self, position_count_dict: dict, gene_name: str, gene_length: int
@@ -236,6 +300,29 @@ class VariantCalling(Session):
             reads_dict[pileupcolumn.reference_pos] = read_count
 
         return reads_dict
+
+    def merge_vcf_files(self, vcf_file_list, output_vcf):
+        """Merge variant records (handling the same positions in multiple VCFs)."""
+        variant_dict = defaultdict(list)
+
+        # Collect all records from all files
+        for i, vcf_file in enumerate(vcf_file_list):
+            with VariantFile(vcf_file, threads=self.meteor.threads) as vcf_in:
+                #  Get the header from the first input VCF
+                if i == 0:
+                    vcf_header = vcf_in.header
+                for rec in vcf_in:
+                    # Use (chrom, pos) tuple as key to merge records based on positions
+                    variant_dict[(rec.chrom, rec.pos)].append(rec)
+        # Write the merged VCF output
+        with VariantFile(
+            str(output_vcf.resolve()),
+            "w",
+            header=vcf_header,
+            threads=self.meteor.threads,
+        ) as vcf_out:
+            for _, rec_list in variant_dict.items():
+                vcf_out.write(rec_list[0])
 
     # @memory_profiler.profile
     def filter_low_cov_sites(
@@ -326,7 +413,7 @@ class VariantCalling(Session):
             )
         )
         # low_cov_sites_dict = low_cov_sites.groupby(low_cov_sites.index).apply(lambda x: x.to_dict(orient='records')).to_dict()
-        with VariantFile(vcf_file) as vcf:
+        with VariantFile(str(vcf_file.resolve()), threads=self.meteor.threads) as vcf:
             with FastaFile(filename=str(reference_file.resolve())) as Fasta:
                 with lzma.open(consensus_file, "wt", preset=0) as consensus_f:
                     # Iterate over all reference sequences in the fasta file
@@ -446,11 +533,6 @@ class VariantCalling(Session):
             / self.census["reference"]["reference_file"]["fasta_dir"]
             / self.census["reference"]["reference_file"]["fasta_filename"]
         )
-        bed_file = (
-            self.meteor.ref_dir
-            / self.census["reference"]["reference_file"]["database_dir"]
-            / self.census["reference"]["annotation"]["bed"]["filename"]
-        ).resolve()
         msp_file = (
             self.meteor.ref_dir
             / self.census["reference"]["reference_file"]["database_dir"]
@@ -464,29 +546,6 @@ class VariantCalling(Session):
         )
         msp_content = self.load_data(msp_file)
         gene_details = self.load_data(annotation_file)
-        if self.census["reference"]["reference_info"]["database_type"] == "complete":
-            msp_content = msp_content.loc[msp_content["gene_category"] == "core"]
-            msp_content = (
-                msp_content.groupby("msp_name")
-                .head(self.core_size)
-                .reset_index(drop=True)
-            )
-            # print(msp_content)
-            # print(gene_details)
-            merged_df = pd.merge(msp_content, gene_details, on="gene_id")
-            # Add a constant column with value 0
-            merged_df["startpos"] = 0
-            # Extract the required columns
-            result_df = merged_df[["gene_id", "startpos", "gene_length"]]
-            with NamedTemporaryFile(
-                suffix=".bed", dir=self.meteor.tmp_dir, delete=False
-            ) as temp_bed_file:
-                result_df.to_csv(
-                    temp_bed_file.name, sep="\t", index=False, header=False
-                )
-            # print("Why is empty ?")
-            # print(temp_bed_file.name)
-            bed_file = temp_bed_file.name
         freebayes_exec = run(
             ["freebayes", "--version"], check=False, capture_output=True
         )
@@ -525,62 +584,83 @@ class VariantCalling(Session):
                 temp_ref_file_path = temp_ref_file.name
             # index on the fly
             faidx(temp_ref_file.name)
-        try:
-            if not vcf_file.exists():
-                with Popen(
-                    [
-                        "freebayes",
-                        # "-i",  # no indel
-                        # "-X",
-                        # "-u",  # no complex observation that may include ins
-                        "--pooled-continuous",
-                        "--min-alternate-count",
-                        str(1),
-                        "--min-coverage",
-                        str(self.min_snp_depth),
-                        "--min-alternate-fraction",
-                        str(self.min_frequency),
-                        "--min-mapping-quality",
-                        str(0),
-                        "--use-duplicate-reads",
-                        "-t",
-                        str(bed_file),
-                        "-p",
-                        str(self.ploidy),
-                        "-f",
-                        temp_ref_file_path,
-                        "-b",
-                        str(cram_file.resolve()),
-                    ],
-                    stdin=PIPE,
-                    stdout=PIPE,
-                ) as freebayes_process:
-                    # capture output of bcftools_process
-                    freebayes_output = freebayes_process.communicate(
-                        input=decompressed_reference
-                    )[0]
-                    # print(freebayes_output)
-                    # compress output using bgzip
-                    with vcf_file.open("wb") as raw:
-                        with bgzip.BGZipWriter(raw) as fh:
-                            fh.write(freebayes_output)
-        except CalledProcessError as e:
-            logging.error("Freebayes failed with return code %d", e.returncode)
-            logging.error("Output: %s", e.output)
-            sys.exit()
-        finally:
-            if temp_ref_file_path is not None:
-                temp_ref_file_path = Path(temp_ref_file_path)
-                # Ensure the temporary file is removed after use
-                if temp_ref_file_path.exists():
-                    temp_ref_file_path.unlink(missing_ok=True)
-                if Path(f"{temp_ref_file_path}.fai").exists():
-                    Path(f"{temp_ref_file_path}.fai").unlink(missing_ok=True)
+            # Prepare the gene data by merging content and creating the necessary fields for the BED format
+            msp_content = msp_content[msp_content["gene_category"] == "core"]
+            msp_content = (
+                msp_content.groupby("msp_name")
+                .head(self.core_size)
+                .reset_index(drop=True)
+            )  # Limit to core_size per `msp_name`
+
+            # Merge with gene details
+            merged_df = pd.merge(msp_content, gene_details, on="gene_id")
+
+            # Add BED columns (we assume `startpos` is 0 and `gene_length` is the length of the gene)
+            merged_df["startpos"] = 0
+            merged_df["gene_length"] = merged_df["gene_length"].astype(
+                int
+            )  # Ensure these are integers
+            result_df = merged_df[["gene_id", "startpos", "gene_length"]]
+            with NamedTemporaryFile(
+                suffix=".bed", dir=self.meteor.tmp_dir, delete=False
+            ) as temp_bed_file:
+                result_df.to_csv(
+                    temp_bed_file.name, sep="\t", index=False, header=False
+                )
+            bed_file = temp_bed_file.name
+            # Create bed_chunk files. Each file stores multiple `msp_name` regions
+            bed_chunks = self.create_bed_chunks(
+                merged_df, self.meteor.threads, self.meteor.tmp_dir
+            )
+            # List to store the VCF chunk files
+            vcf_chunk_files = [
+                NamedTemporaryFile(
+                    suffix=".vcf.gz", dir=self.meteor.tmp_dir, delete=False
+                ).name
+                for _ in bed_chunks
+            ]
+            # Use ProcessPoolExecutor to run freebayes in parallel on each BED chunk
+            with ProcessPoolExecutor(max_workers=self.meteor.threads) as executor:
+                futures = {
+                    executor.submit(
+                        run_freebayes_chunk,
+                        temp_ref_file_path,  # Pass the path to the reference file
+                        bed_chunk_file,  # Each BED chunk
+                        cram_file,
+                        Path(vcf_chunk_file),
+                        self.min_snp_depth,
+                        self.min_frequency,
+                        self.ploidy,
+                    ): bed_chunk_file
+                    for bed_chunk_file, vcf_chunk_file in zip(
+                        bed_chunks, vcf_chunk_files
+                    )
+                }
+
+                # Iterate through completed futures
+                for future in as_completed(futures):
+                    bed_chunk = futures[future]
+                    try:
+                        vcf_chunk_file = future.result()
+                        logging.info(
+                            "Processed BED chunk %s -> VCF chunk %s",
+                            bed_chunk,
+                            vcf_chunk_file,
+                        )
+                    except Exception as exc:
+                        logging.error("Error processing chunk %s: %s", bed_chunk, exc)
+
+            logging.info("All chunks have been processed")
+            # Combine VCF chunk files into the final VCF
+            if len(vcf_chunk_files) > 1:
+                logging.info("Merging vcf")
+                self.merge_vcf_files(vcf_chunk_files, vcf_file)
+            else:
+                Path(vcf_chunk_files[0]).rename(vcf_file)
         logging.info(
             "Completed freebayes step in %f seconds", perf_counter() - startfreebayes
         )
         # Index the vcf file
-
         startindexing = perf_counter()
         if not Path(f"{vcf_file}.tbi").exists():
             logging.info("Indexing")
@@ -629,7 +709,7 @@ class VariantCalling(Session):
             bed_file,
         )
         logging.info(
-            "Completed consensus step with python in %f seconds",
+            "Completed consensus step in %f seconds",
             perf_counter() - startconsensuspython,
         )
         logging.info("Completed SNP calling in %f seconds", perf_counter() - start)
@@ -637,5 +717,11 @@ class VariantCalling(Session):
             cram_file, vcf_file, consensus_file, freebayes_version
         )
         self.save_config(config, self.census["Stage3FileName"])
-        if os.path.isfile(temp_bed_file.name):
-            os.remove(temp_bed_file.name)
+        # Cleanup temporary files
+        temporary_files = (
+            [temp_ref_file_path] + vcf_chunk_files + [f"{temp_ref_file_path}.fai"]
+        )
+        for temp_file in temporary_files:
+            p = Path(temp_file)
+            if p.exists():
+                p.unlink(missing_ok=True)

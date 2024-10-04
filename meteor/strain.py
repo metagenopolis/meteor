@@ -247,6 +247,7 @@ class Strain(Session):
             )
             sys.exit(1)
         try:
+            start = perf_counter()
             census_json = self.get_census_stage(self.meteor.mapped_sample_dir, 1)
             sample_info = census_json["sample_info"]
             stage3_dir = self.meteor.strain_dir / sample_info["sample_name"]
@@ -315,7 +316,6 @@ class Strain(Session):
                 / self.json_data["reference"]["reference_file"]["database_dir"]
                 / self.json_data["reference"]["annotation"]["bed"]["filename"]
             )
-            start = perf_counter()
             # count_file,
             self.get_msp_variant(
                 consensus_file, msp_file, cram_file, bed_file, reference_file
