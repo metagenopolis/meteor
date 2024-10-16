@@ -19,6 +19,7 @@ Besides python packages dependencies, Meteor requires:
 - python 3.10+
 - [bowtie2 2.3.5+](https://github.com/BenLangmead/bowtie2)
 - [freebayes 1.3.6+](https://github.com/freebayes/freebayes)
+- [mafft 7.407+](https://mafft.cbrc.jp/alignment/software/)
 
 ## Installation
 

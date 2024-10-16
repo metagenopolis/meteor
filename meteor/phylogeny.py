@@ -13,6 +13,9 @@
 """Effective phylogeny"""
 import re
 import logging
+import sys
+from subprocess import run, Popen, PIPE
+from packaging.version import parse
 
 # import sys
 from dataclasses import dataclass, field
@@ -28,7 +31,7 @@ from tempfile import NamedTemporaryFile
 from collections import OrderedDict
 from datetime import datetime
 from typing import Iterable, Tuple
-from cogent3 import load_unaligned_seqs, make_aligned_seqs
+from cogent3 import load_aligned_seqs
 from cogent3.evolve.distance import EstimateDistances
 from cogent3.evolve.models import GTR
 from cogent3.cluster.UPGMA import upgma
@@ -98,7 +101,7 @@ class Phylogeny(Session):
         config = {
             "meteor_version": self.meteor.version,
             "phylogeny": {
-                "phylogeny_tool": "cogent3",
+                "" "phylogeny_tool": "cogent3",
                 "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
                 "tree_files": ",".join([tree.name for tree in self.tree_files]),
             },
@@ -122,48 +125,80 @@ class Phylogeny(Session):
             msp_file.name.replace(".fasta", ""),
         )
         tree_file = tree_dir / f"{msp_file.stem}.tree"
+        ali_file = tree_dir / f"{msp_file.stem}_aligned.fasta"
+        self.tree_files: list[Path] = []
 
-        with NamedTemporaryFile(mode="wt", dir=tmp_dir, suffix=".fasta") as temp_clean:
-            # Clean sites
-            logging.info("Clean sites for %s", msp_file.name)
-            _, info_sites = self.clean_sites(msp_file, temp_clean)
+        with NamedTemporaryFile(
+            suffix=".fasta", dir=tmp_dir, delete=True
+        ) as temp_ali_file:
+            # Start alignment
+            with Popen(
+                [
+                    "mafft",
+                    "--thread",
+                    str(2),
+                    "--quiet",
+                    str(msp_file.resolve()),
+                ],
+                stdout=temp_ali_file,  # Redirect stdout to the temp file
+                stderr=PIPE,
+            ) as align_exec:
+                _, error = align_exec.communicate()
+                if align_exec.returncode != 0:
+                    raise RuntimeError(f"MAFFT failed with error: {error}")
+                logging.info("Clean sites for %s", msp_file.name)
+                with ali_file.open("w") as aligned_seq:
+                    _, info_sites = self.clean_sites(
+                        Path(temp_ali_file.name), aligned_seq
+                    )
 
-            if info_sites < self.min_info_sites:
-                logging.info(
-                    "Only %d informative sites (< %d threshold) left after cleaning, skipping %s.",
-                    info_sites,
-                    self.min_info_sites,
-                    msp_file.name.replace(".fasta", ""),
-                )
-                return tree_file, False  # Return False to indicate skipping
+                    if info_sites < self.min_info_sites:
+                        logging.info(
+                            "Only %d informative sites (< %d threshold) left after cleaning, skipping %s.",
+                            info_sites,
+                            self.min_info_sites,
+                            msp_file.name.replace(".fasta", ""),
+                        )
+                        return tree_file, False  # Return False to indicate skipping
+                cleaned_alignment = load_aligned_seqs(ali_file, moltype="dna")
+                d = EstimateDistances(cleaned_alignment, submodel=GTR())
+                d.run(show_progress=False)
 
-            # Perform alignments and UPGMA
-            logging.info("Running UPGMA and Distance Estimation")
-            aligned_seqs = make_aligned_seqs(
-                load_unaligned_seqs(temp_clean.name, moltype="dna"),
-                moltype="dna",
-                array_align=True,
-            )
-            d = EstimateDistances(aligned_seqs, submodel=GTR())
-            d.run(show_progress=False)
+                # Create UPGMA Tree
+                mycluster = upgma(d.get_pairwise_distances())
+                mycluster = mycluster.unrooted_deepcopy()
 
-            # Create UPGMA Tree
-            mycluster = upgma(d.get_pairwise_distances())
-            mycluster = mycluster.unrooted_deepcopy()
+                with tree_file.open("w") as f:
+                    f.write(
+                        self.remove_edge_labels(
+                            mycluster.get_newick(with_distances=True)
+                        )
+                    )
+        # Perform alignments and UPGMA
+        logging.info("Align sequences")
 
-            with tree_file.open("w") as f:
-                f.write(
-                    self.remove_edge_labels(mycluster.get_newick(with_distances=True))
-                )
-
-            return tree_file, tree_file.exists()
+        return tree_file, tree_file.exists()
 
     def execute(self) -> None:
         logging.info("Launch phylogeny analysis")
         start = perf_counter()
-
-        self.tree_files: list[Path] = []
         msp_count = len(self.msp_file_list)
+        # Check the mafft version
+        mafft_exec = run(["mafft", "--version"], check=False, capture_output=True)
+        if mafft_exec.returncode != 0:
+            logging.error(
+                "Checking mafft version failed:\n%s",
+                mafft_exec.stderr.decode("utf-8"),
+            )
+            sys.exit(1)
+        mafft_version = str(mafft_exec.stderr.decode("utf-8")).split(" ")[0][1:]
+        if parse(mafft_version) < self.meteor.MIN_MAFFT_VERSION:
+            logging.error(
+                "The mafft version %s is outdated for meteor. Please update mafft to >= %s.",
+                mafft_version,
+                self.meteor.MIN_MAFFT_VERSION,
+            )
+            sys.exit(1)
         # Using ProcessPoolExecutor to parallelize the MSP file processing
         with ProcessPoolExecutor(max_workers=self.meteor.threads) as executor:
             futures = {
