@@ -156,11 +156,10 @@ class FastqImporter(Session):
                 else:
                     logging.warning("Regular expression does not match %s", fastq_file)
                     continue
+            if self.ispaired:
+                sample_name = self.get_paired_dirname(fastq_file.name, tag)
             else:
-                if self.ispaired:
-                    sample_name = self.get_paired_dirname(fastq_file.name, tag)
-                else:
-                    sample_name = full_sample_name
+                sample_name = full_sample_name
             logging.info("Importing %s in sample %s", fastq_file, sample_name)
             # Create directory for the sample and symlink fastq file into
             samples_names.add(sample_name)
