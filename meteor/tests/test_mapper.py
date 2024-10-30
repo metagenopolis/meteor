@@ -52,7 +52,6 @@ def mapping_builder(datadir: Path, tmp_path: Path) -> Mapper:
         "end-to-end",
         80,
         10000,
-        0.95,
     )
 
 

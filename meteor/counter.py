@@ -82,7 +82,6 @@ class Counter(Session):
                 self.mapping_type,
                 self.trim,
                 self.alignment_number,
-                self.identity_threshold,
             )
             mapping_process.execute()
 
@@ -93,11 +92,13 @@ class Counter(Session):
 
         :param cramfile: (Path) cram file to count
         :param outfile: (Path) count table
+        :return: The total read count of aligned sequence
         """
         # indStats = pd.read_csv(StringIO(pysam.idxstats(cramfile)), sep = '\t',
         # header = None, names = ['contig', 'length', 'mapped', 'unmapped'])
         # create count table
         table = idxstats(str(cramfile.resolve()))
+        total_reads = 0
         # write the count table
         with lzma.open(outfile, "wt", preset=0) as out:
             out.write("gene_id\tgene_length\tvalue\n")
@@ -110,6 +111,8 @@ class Counter(Session):
                 # ), "Gene length does not match counted nucleotides"
                 s = "\t".join(line.split("\t")[0:3])
                 out.write(f"{s}\n")
+                total_reads += int(line.split("\t")[2])
+        return total_reads
 
     def get_aligned_nucleotides(self, element) -> Iterator[int]:
         """Select aligned nucleotides
@@ -117,6 +120,15 @@ class Counter(Session):
         :return: Aligned item
         """
         yield from (item[1] for item in element.cigartuples if item[0] < 3)
+
+    def set_counter_config(self, counted_reads):
+        """Define the count of reads"""
+        return {
+            "counting": {
+                "counted_reads": counted_reads,
+                "identity_threshold": round(self.identity_threshold, 2),
+            }
+        }
 
     def filter_alignments(
         self, cramdesc: AlignmentFile
@@ -340,11 +352,15 @@ class Counter(Session):
         :param output: [STRING] = output filename
         :param abundance_dict: [DICT] = contains abundance of each reference genes
         :param database: [DICT] = contrains length of each reference genes
+        :return: (float) The total number of reads aligned
         """
+        total_reads = 0
         with lzma.open(output, "wt", preset=0) as out:
             out.write("gene_id\tgene_length\tvalue\n")
             for genes, abundance in sorted(abundance_dict.items()):
                 out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
+                total_reads += abundance
+        return total_reads
 
     def save_cram_strain(
         self,
@@ -395,6 +411,7 @@ class Counter(Session):
         cramfile_strain: Path,
         count_file: Path,
         ref_json: dict,
+        census_json: dict,
     ):
         """Function that count reads from a cram file, using the given methods in count:
         "total" or "shared" or "unique".
@@ -437,7 +454,7 @@ class Counter(Session):
                 # Calculate reference abundance & write count table
                 abundance = self.compute_abs_meteor(database, unique_on_gene, multiple)
                 # abundance = self.compute_abs(unique_on_gene, multiple)
-                self.write_stat(count_file, abundance, database)
+                total_read_count = self.write_stat(count_file, abundance, database)
 
             else:
                 if self.counting_type == "unique":
@@ -475,7 +492,14 @@ class Counter(Session):
                     str(cramfile_unsorted.resolve()),
                     catch_stdout=False,
                 )
-                self.write_table(cramfile_sorted, count_file)
+                total_read_count = self.write_table(cramfile_sorted, count_file)
+            config = self.set_counter_config(total_read_count)
+            Stage1Json = (
+                self.meteor.mapping_dir
+                / f"{census_json['sample_info']['sample_name']}_census_stage_1.json"
+            )
+
+            self.save_config(census_json.update(config), Stage1Json)
             if self.keep_filtered_alignments:
                 cramfile_strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                 self.save_cram_strain(
@@ -532,6 +556,7 @@ class Counter(Session):
 
             #  mapping of each sample against reference
             for library in census_json_files:
+                print(library)
                 census_json = self.read_json(library)
                 sample_info = census_json["sample_info"]
                 stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"]
@@ -571,7 +596,9 @@ class Counter(Session):
                     / f"{sample_info['sample_name']}.tsv.xz"
                 )
                 start = perf_counter()
-                self.launch_counting(raw_cram_file, cram_file, count_file, ref_json)
+                self.launch_counting(
+                    raw_cram_file, cram_file, count_file, ref_json, census_json
+                )
                 logging.info("Completed counting in %f seconds", perf_counter() - start)
                 if not self.keep_all_alignments:
                     logging.info(

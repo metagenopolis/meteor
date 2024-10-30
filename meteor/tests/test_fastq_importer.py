@@ -161,6 +161,8 @@ def test_execute_paired_mask(
     builder_paired_mask: FastqImporter, expected_dir_mask: tuple
 ) -> None:
     builder_paired_mask.execute()
+    for dir in expected_dir_mask:
+        print(builder_paired_mask.meteor.fastq_dir / dir)
     assert all(
         Path(builder_paired_mask.meteor.fastq_dir / dir).exists()
         for dir in expected_dir_mask

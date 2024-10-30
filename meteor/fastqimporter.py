@@ -145,21 +145,19 @@ class FastqImporter(Session):
                     sys.exit(1)
             else:
                 tag = "single"
-            # split full sample name (in fact library/run name) in order
-            if self.mask_sample_name:
-                # to extract sample_name according to regex mask
-                full_sample_name_array = re.search(
-                    self.mask_sample_name, full_sample_name
-                )
-                if full_sample_name_array:
-                    sample_name = full_sample_name_array[0]
-                else:
-                    logging.warning("Regular expression does not match %s", fastq_file)
-                    continue
             if self.ispaired:
                 sample_name = self.get_paired_dirname(fastq_file.name, tag)
             else:
                 sample_name = full_sample_name
+            # split full sample name (in fact library/run name) in order
+            if self.mask_sample_name:
+                # to extract sample_name according to regex mask
+                sample_name_array = re.search(self.mask_sample_name, sample_name)
+                if sample_name_array:
+                    sample_name = sample_name_array[0]
+                else:
+                    logging.warning("Regular expression does not match %s", fastq_file)
+                    continue
             logging.info("Importing %s in sample %s", fastq_file, sample_name)
             # Create directory for the sample and symlink fastq file into
             samples_names.add(sample_name)

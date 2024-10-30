@@ -45,7 +45,6 @@ class Mapper(Session):
     mapping_type: str
     trim: int
     alignment_number: int
-    identity_threshold: float
 
     def __post_init__(self) -> None:
         if self.mapping_type not in Mapper.MAPPING_TYPES:
@@ -77,9 +76,8 @@ class Mapper(Session):
                 "trim": str(self.trim),
                 "alignment_number": self.alignment_number,
                 "mapping_type": self.mapping_type,
-                "identity_threshold": round(self.identity_threshold, 2),
                 "total_read_count": mapping_data[0],
-                "mapped_read_count": mapping_data[2] + mapping_data[3],
+                "mapped_reads": mapping_data[2] + mapping_data[3],
                 "overall_alignment_rate": round(
                     (mapping_data[2] + mapping_data[3]) / mapping_data[0] * 100, 2
                 ),
@@ -178,6 +176,7 @@ class Mapper(Session):
                 mapping_log = findall(r"([0-9]+)\s+\(", mapping_result)
                 assert len(mapping_log) == 4
                 mapping_data = [int(i) for i in mapping_log]
+                print(mapping_data)
             except AssertionError:
                 logging.error("Could not access the mapping result from bowtie2")
                 sys.exit(1)

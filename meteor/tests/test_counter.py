@@ -304,10 +304,14 @@ def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path
     raw_cramfile = datadir / "total_raw.cram"
     cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv.xz"
+    census_json_file = counter_unique.meteor.fastq_dir / "part1_census_stage_0.json"
+    census_json = counter_unique.read_json(census_json_file)
     ref_json = counter_unique.read_json(
         counter_unique.meteor.ref_dir / "mock_reference.json"
     )
-    counter_unique.launch_counting(raw_cramfile, cramfile, countfile, ref_json)
+    counter_unique.launch_counting(
+        raw_cramfile, cramfile, countfile, ref_json, census_json
+    )
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "f5bc528dcbf594b5089ad7f6228ebab5"
 
@@ -316,10 +320,14 @@ def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: 
     raw_cramfile = datadir / "total_raw.cram"
     cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv.xz"
+    census_json_file = counter_total.meteor.fastq_dir / "part1_census_stage_0.json"
+    census_json = counter_total.read_json(census_json_file)
     ref_json = counter_total.read_json(
         counter_total.meteor.ref_dir / "mock_reference.json"
     )
-    counter_total.launch_counting(raw_cramfile, cramfile, countfile, ref_json)
+    counter_total.launch_counting(
+        raw_cramfile, cramfile, countfile, ref_json, census_json
+    )
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "f010e4136323ac408d4c127e243756c2"
 
@@ -330,10 +338,16 @@ def test_launch_counting_smart_shared(
     raw_cramfile = datadir / "total_raw.cram"
     cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv.xz"
+    census_json_file = (
+        counter_smart_shared.meteor.fastq_dir / "part1_census_stage_0.json"
+    )
+    census_json = counter_smart_shared.read_json(census_json_file)
     ref_json = counter_smart_shared.read_json(
         counter_smart_shared.meteor.ref_dir / "mock_reference.json"
     )
-    counter_smart_shared.launch_counting(raw_cramfile, cramfile, countfile, ref_json)
+    counter_smart_shared.launch_counting(
+        raw_cramfile, cramfile, countfile, ref_json, census_json
+    )
     # with countfile.open("rb") as out:
     #     assert md5(out.read()).hexdigest() == "4bdd7327cbad8e71d210feb0c6375077"
     expected_output = pd.read_csv(
