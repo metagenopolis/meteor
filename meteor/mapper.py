@@ -62,10 +62,10 @@ class Mapper(Session):
         :param cram_file: A path to the raw cram file
         :return: (Dict) A dict object with the census 1 config
         """
+        del self.census["census"]["sample_info"]["full_sample_name"]
         config = {
             "meteor_version": self.meteor.version,
             "sample_info": self.census["census"]["sample_info"],
-            "sample_file": self.census["census"]["sample_file"],
             "mapping": {
                 "mapping_tool": "bowtie2",
                 "mapping_tool_version": bowtie_version,
@@ -81,10 +81,8 @@ class Mapper(Session):
                 "overall_alignment_rate": round(
                     (mapping_data[2] + mapping_data[3]) / mapping_data[0] * 100, 2
                 ),
-                "fastq_files": ",".join(self.fastq_list),
-            },
-            "mapping_file": {
-                "bowtie_file": cram_file.name,
+                "fastq_files": self.fastq_list,
+                "mapping_file": cram_file.name,
             },
         }
         return config
@@ -176,7 +174,6 @@ class Mapper(Session):
                 mapping_log = findall(r"([0-9]+)\s+\(", mapping_result)
                 assert len(mapping_log) == 4
                 mapping_data = [int(i) for i in mapping_log]
-                print(mapping_data)
             except AssertionError:
                 logging.error("Could not access the mapping result from bowtie2")
                 sys.exit(1)

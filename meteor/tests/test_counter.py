@@ -310,7 +310,7 @@ def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path
         counter_unique.meteor.ref_dir / "mock_reference.json"
     )
     counter_unique.launch_counting(
-        raw_cramfile, cramfile, countfile, ref_json, census_json
+        raw_cramfile, cramfile, countfile, ref_json, census_json, census_json_file
     )
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "f5bc528dcbf594b5089ad7f6228ebab5"
@@ -326,7 +326,7 @@ def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: 
         counter_total.meteor.ref_dir / "mock_reference.json"
     )
     counter_total.launch_counting(
-        raw_cramfile, cramfile, countfile, ref_json, census_json
+        raw_cramfile, cramfile, countfile, ref_json, census_json, census_json_file
     )
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "f010e4136323ac408d4c127e243756c2"
@@ -346,7 +346,7 @@ def test_launch_counting_smart_shared(
         counter_smart_shared.meteor.ref_dir / "mock_reference.json"
     )
     counter_smart_shared.launch_counting(
-        raw_cramfile, cramfile, countfile, ref_json, census_json
+        raw_cramfile, cramfile, countfile, ref_json, census_json, census_json_file
     )
     # with countfile.open("rb") as out:
     #     assert md5(out.read()).hexdigest() == "4bdd7327cbad8e71d210feb0c6375077"

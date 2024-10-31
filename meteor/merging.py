@@ -263,8 +263,10 @@ class Merging(Session):
                 "trim",
                 "alignment_number",
                 "mapping_type",
-                "identity_threshold",
                 "database_type",
+            ],
+            "counting": [
+                "identity_threshold",
             ],
             "profiling_parameters": [""],
         }
@@ -284,7 +286,7 @@ class Merging(Session):
             # Force to taxo in no consensus
             database_type = "taxo"
 
-        # Merge ini information
+        # Merge json information
         logging.info("Merging json information...")
         # Get all values from all fields from all sections from all json files
         all_information_to_save = {

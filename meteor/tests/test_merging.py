@@ -113,13 +113,13 @@ def test_extract_json_info(merging_profiles: Merging) -> None:
         config,
         param_dict={
             "profiling_parameters": ["msp_filter", "modules_def"],
-            "mapping_file": [""],
+            "mapping": ["mapping_file"],
         },
     )
     assert info == {
         "msp_filter": 0.1,
         "modules_def": "modules_definition.tsv",
-        "bowtie_file": "sample1.sam",
+        "mapping_file": "sample1.sam",
     }
 
 
@@ -228,6 +228,7 @@ def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
         datadir / "expected_output" / "test_project_census_stage_2_report.tsv"
     )
     real_output_df = pd.read_table(real_output)
+
     expected_output_df = pd.read_table(expected_output)
     real_output_df = (
         real_output_df.sort_values(by=["sample"])

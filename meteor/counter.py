@@ -121,12 +121,17 @@ class Counter(Session):
         """
         yield from (item[1] for item in element.cigartuples if item[0] < 3)
 
-    def set_counter_config(self, counted_reads):
-        """Define the count of reads"""
+    def set_counter_config(self, counted_reads: float, count_file: Path) -> dict:
+        """Save in the json essential info
+        :param counted_read: (float) Number of reads counted
+        :param count_file: (Path) Count file
+        :return: (Dict) dictionnary data
+        """
         return {
             "counting": {
-                "counted_reads": counted_reads,
+                "counted_reads": int(round(counted_reads, 0)),
                 "identity_threshold": round(self.identity_threshold, 2),
+                "count_file": count_file.name,
             }
         }
 
@@ -412,6 +417,7 @@ class Counter(Session):
         count_file: Path,
         ref_json: dict,
         census_json: dict,
+        Stage1Json: Path,
     ):
         """Function that count reads from a cram file, using the given methods in count:
         "total" or "shared" or "unique".
@@ -493,13 +499,9 @@ class Counter(Session):
                     catch_stdout=False,
                 )
                 total_read_count = self.write_table(cramfile_sorted, count_file)
-            config = self.set_counter_config(total_read_count)
-            Stage1Json = (
-                self.meteor.mapping_dir
-                / f"{census_json['sample_info']['sample_name']}_census_stage_1.json"
-            )
-
-            self.save_config(census_json.update(config), Stage1Json)
+            config = self.set_counter_config(total_read_count, count_file)
+            census_json.update(config)
+            self.save_config(census_json, Stage1Json)
             if self.keep_filtered_alignments:
                 cramfile_strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
                 self.save_cram_strain(
@@ -556,7 +558,6 @@ class Counter(Session):
 
             #  mapping of each sample against reference
             for library in census_json_files:
-                print(library)
                 census_json = self.read_json(library)
                 sample_info = census_json["sample_info"]
                 stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"]
@@ -596,8 +597,19 @@ class Counter(Session):
                     / f"{sample_info['sample_name']}.tsv.xz"
                 )
                 start = perf_counter()
+                Stage1Json = (
+                    self.meteor.mapping_dir
+                    / sample_info["sample_name"]
+                    / f"{sample_info['sample_name']}_census_stage_1.json"
+                )
+                census_json = self.read_json(Stage1Json)
                 self.launch_counting(
-                    raw_cram_file, cram_file, count_file, ref_json, census_json
+                    raw_cram_file,
+                    cram_file,
+                    count_file,
+                    ref_json,
+                    census_json,
+                    Stage1Json,
                 )
                 logging.info("Completed counting in %f seconds", perf_counter() - start)
                 if not self.keep_all_alignments:

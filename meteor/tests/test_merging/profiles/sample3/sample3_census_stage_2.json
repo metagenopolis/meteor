@@ -23,10 +23,13 @@
       "fastq1.fastq.gz",
       "fastq2.fastq.gz"
     ],
-    "database_type": "complete"
+    "database_type": "complete",
+    "mapping_file": "sample3.sam"
   },
-  "mapping_file": {
-    "bowtie_file": "sample3.sam"
+  "counting": {
+    "counted_reads": 10000000,
+    "identity_threshold": 0.95,
+    "count_file": "sample3.tsv.xz"
   },
   "profiling_session": {
     "meteor_version": "2.0.9",

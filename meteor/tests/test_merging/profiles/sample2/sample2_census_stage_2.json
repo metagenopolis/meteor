@@ -15,7 +15,6 @@
     "trim": 80,
     "alignment_number": 10000,
     "mapping_type": "end-to-end",
-    "identity_threshold": 0.95,
     "total_read_count": 15000000,
     "mapped_read_count": 10000000,
     "overall_alignment_rate": 66.67,
@@ -23,10 +22,13 @@
       "fastq1.fastq.gz",
       "fastq2.fastq.gz"
     ],
-    "database_type": "complete"
+    "database_type": "complete",
+    "mapping_file": "sample2.sam"
   },
-  "mapping_file": {
-    "bowtie_file": "sample2.sam"
+  "counting": {
+    "counted_reads": 10000000,
+    "identity_threshold": 0.95,
+    "count_file": "sample2.tsv.xz"
   },
   "profiling_session": {
     "meteor_version": "2.0.9",

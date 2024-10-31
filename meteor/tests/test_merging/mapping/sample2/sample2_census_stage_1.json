@@ -23,9 +23,7 @@
     "fastq_files": [
       "fastq1.fastq.gz",
       "fastq2.fastq.gz"
-    ]
-  },
-  "mapping_file": {
-    "bowtie_file": "sample2.sam"
+    ],
+    "mapping_file": "sample2.sam"
   }
 }

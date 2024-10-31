@@ -163,7 +163,7 @@ class FastqImporter(Session):
             samples_names.add(sample_name)
             sample_dir = self.meteor.fastq_dir / sample_name
             sample_dir.mkdir(exist_ok=True, parents=True)
-            sym_fastq = Path(sample_dir / fastq_file.name)
+            sym_fastq = Path(sample_dir / fastq_file.name).resolve()
             if not sym_fastq.is_symlink():
                 sym_fastq.symlink_to(fastq_file.resolve())
             # Create a configuration

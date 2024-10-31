@@ -20,9 +20,9 @@
     "total_read_count": 1480,
     "mapped_read_count": 1480,
     "overall_alignment_rate": 100.0,
-    "fastq_files": ["eva71_bench.fq.gz"]
-  },
-  "mapping_file": {
-    "bowtie_file": "eva71_bench.sam"
+    "fastq_files": [
+      "eva71_bench.fq.gz"
+    ],
+    "mapping_file": "eva71_bench.sam"
   }
 }
