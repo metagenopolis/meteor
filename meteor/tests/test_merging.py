@@ -140,8 +140,10 @@ def test_compare(merging_profiles: Merging) -> None:
             "trim",
             "alignment_number",
             "mapping_type",
-            "identity_threshold",
             "database_type",
+        ],
+        "counting": [
+            "identity_threshold",
         ],
         "profiling_parameters": [""],
     }

@@ -131,7 +131,7 @@ class Merging(Session):
                 for my_field in param_dict[my_section]
             )
         except AssertionError:
-            logging.error("Missing required fields in census ini file.")
+            logging.error("Missing required fields in census json file.")
             sys.exit(1)
         # Get values of each field (remove the section information)
         information = {
