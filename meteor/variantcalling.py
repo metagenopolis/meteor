@@ -48,7 +48,11 @@ def run_freebayes_chunk(
         with Popen(
             [
                 "freebayes",
+                "-i",  # no indel
+                "-u",  # no complex observation that may include ins
                 "--pooled-continuous",
+                "--haplotype-length",
+                str(0),
                 "--min-alternate-count",
                 str(1),
                 "--min-coverage",
@@ -152,7 +156,6 @@ class VariantCalling(Session):
         config = {
             "meteor_version": self.meteor.version,
             "sample_info": self.census["census"]["sample_info"],
-            "sample_file": self.census["census"]["sample_file"],
             "mapping": {
                 "reference_name": self.census["reference"]["reference_info"][
                     "reference_name"
@@ -426,11 +429,13 @@ class VariantCalling(Session):
                             consensus = [
                                 self.meteor.DEFAULT_GAP_CHAR
                             ] * gene_ignore.loc[gene_id]["gene_length"]
-                            consensus_f.write(f">{gene_id}\n")
-                            consensus_f.write("".join(consensus) + "\n")
+                            # Consensus with indel
+                            # consensus_f.write(f">{gene_id}\n")
+                            # consensus_f.write("".join(consensus) + "\n")
                         else:
-                            # consensus = np.array(list(Fasta.fetch(ref)), dtype="<U1")
-                            consensus = list(Fasta.fetch(ref))
+                            consensus = np.array(list(Fasta.fetch(ref)), dtype="<U1")
+                            # Consensus with indel
+                            # consensus = list(Fasta.fetch(ref))
                             # Apply variants from VCF
                             # startvcf = perf_counter()
                             for record in vcf.fetch(ref):
@@ -440,69 +445,75 @@ class VariantCalling(Session):
                                 # print(record.alts)
                                 ##INFO=<ID=RO,Number=1,Type=Integer,Description="Count of full observations of the reference haplotype.">
                                 ##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">
-                                if record.info["TYPE"][0] == "snp":
-                                    reference_frequency = record.info["RO"] / (
-                                        record.info["RO"] + np.sum(record.info["AO"])
-                                    )
-                                    if reference_frequency >= self.min_frequency:
-                                        keep_alts = tuple(sorted(list(record.alleles)))
-                                    else:
-                                        keep_alts = tuple(sorted(list(record.alts)))
-                                    max_len = max(map(len, keep_alts))
-                                    # MNV vase
-                                    if max_len > 1:
-                                        for i in range(max_len):
-                                            mnv = tuple(
-                                                sorted(
-                                                    set(
-                                                        keep_alts[k][i]
-                                                        for k in range(len(keep_alts))
-                                                    )
+                                # Consensus with indel
+                                # if record.info["TYPE"][0] == "snp":
+                                reference_frequency = record.info["RO"] / (
+                                    record.info["RO"] + np.sum(record.info["AO"])
+                                )
+                                if reference_frequency >= self.min_frequency:
+                                    keep_alts = tuple(sorted(list(record.alleles)))
+                                else:
+                                    keep_alts = tuple(sorted(list(record.alts)))
+                                max_len = max(map(len, keep_alts))
+                                # MNV vase
+                                if max_len > 1:
+                                    for i in range(max_len):
+                                        mnv = tuple(
+                                            sorted(
+                                                set(
+                                                    keep_alts[k][i]
+                                                    for k in range(len(keep_alts))
                                                 )
                                             )
-                                            consensus[record.start + i] = self.IUPAC[
-                                                mnv
-                                            ]
-                                    else:
-                                        consensus[record.start] = self.IUPAC[keep_alts]
+                                        )
+                                        consensus[record.start + i] = self.IUPAC[mnv]
                                 else:
-                                    # we had a nested sequence
-                                    consensus[record.start] = [
-                                        record.alts[0],
-                                        record.start,
-                                        record.stop,
-                                    ]
+                                    consensus[record.start] = self.IUPAC[keep_alts]
+                                # Consensus with indel
+                                # else:
+                                #     # we had a nested sequence
+                                #     consensus[record.start] = [
+                                #         record.alts[0],
+                                #         record.start,
+                                #         record.stop,
+                                #     ]
                             # Update consensus array for each matching range
                             if ref in low_cov_sites.index:
                                 selection = low_cov_sites.loc[ref]
                                 if isinstance(selection, pd.Series):
-                                    for i in range(
-                                        selection["startpos"], selection["endpos"]
-                                    ):
-                                        consensus[i] = self.meteor.DEFAULT_GAP_CHAR
-                                    # consensus[
-                                    #     selection["startpos"] : selection["endpos"]
-                                    # ] = self.meteor.DEFAULT_GAP_CHAR
+                                    # consensus with indel
+                                    # for i in range(
+                                    #     selection["startpos"], selection["endpos"]
+                                    # ):
+                                    #     consensus[i] = self.meteor.DEFAULT_GAP_CHAR
+                                    consensus[
+                                        selection["startpos"] : selection["endpos"]
+                                    ] = self.meteor.DEFAULT_GAP_CHAR
                                 else:
                                     for _, row in selection.iterrows():
-                                        for i in range(row["startpos"], row["endpos"]):
-                                            consensus[i] = self.meteor.DEFAULT_GAP_CHAR
+                                        # Consensus with indel
+                                        # for i in range(row["startpos"], row["endpos"]):
+                                        #     consensus[i] = self.meteor.DEFAULT_GAP_CHAR
                                         # Mark as uncertain
-                                        # consensus[row["startpos"] : row["endpos"]] = (
-                                        #     self.meteor.DEFAULT_GAP_CHAR
-                                        # )
-                            consensus_res = ""
-                            l = 0
-                            while l < len(consensus):
-                                if type(consensus[l]) is str:
-                                    consensus_res += consensus[l]
-                                    l += 1
-                                else:
-                                    consensus_res += consensus[l][0]
-                                    l = consensus[l][2]
-                            consensus_f.write(f">{gene_id}\n")
-                            # consensus_f.write("".join(consensus) + "\n")
-                            consensus_f.write(consensus_res + "\n")
+                                        consensus[row["startpos"] : row["endpos"]] = (
+                                            self.meteor.DEFAULT_GAP_CHAR
+                                        )
+
+                            ## Consensus with indel
+                            # consensus_res = ""
+                            # l = 0
+                            # while l < len(consensus):
+                            #     if type(consensus[l]) is str:
+                            #         consensus_res += consensus[l]
+                            #         l += 1
+                            #     else:
+                            #         consensus_res += consensus[l][0]
+                            #         l = consensus[l][2]
+                            # consensus_f.write(f">{gene_id}\n")
+                            # # consensus_f.write("".join(consensus) + "\n")
+                            # consensus_f.write(consensus_res + "\n")
+                        consensus_f.write(f">{gene_id}\n")
+                        consensus_f.write("".join(consensus) + "\n")
                         del consensus
 
     def execute(self) -> None:
@@ -520,6 +531,11 @@ class VariantCalling(Session):
             self.census["directory"]
             / f"{self.census['census']['sample_info']['sample_name']}.vcf.gz"
         )
+        bed_file = (
+            self.meteor.ref_dir
+            / self.census["reference"]["reference_file"]["database_dir"]
+            / self.census["reference"]["annotation"]["bed"]["filename"]
+        ).resolve()
         low_cov_sites_file = (
             self.census["directory"]
             / f"{self.census['census']['sample_info']['sample_name']}.pickle"
@@ -601,13 +617,7 @@ class VariantCalling(Session):
                 int
             )  # Ensure these are integers
             result_df = merged_df[["gene_id", "startpos", "gene_length"]]
-            with NamedTemporaryFile(
-                suffix=".bed", dir=self.meteor.tmp_dir, delete=False
-            ) as temp_bed_file:
-                result_df.to_csv(
-                    temp_bed_file.name, sep="\t", index=False, header=False
-                )
-            bed_file = temp_bed_file.name
+            result_df.to_csv(bed_file, sep="\t", index=False, header=False)
             # Create bed_chunk files. Each file stores multiple `msp_name` regions
             bed_chunks = self.create_bed_chunks(
                 merged_df, self.meteor.threads, self.meteor.tmp_dir

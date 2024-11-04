@@ -27,6 +27,7 @@ def treebuilder_builder(datadir: Path, tmp_path: Path) -> TreeBuilder:
     meteor.tmp_path = tmp_path
     meteor.tree_dir = tmp_path / "tree"
     meteor.tree_dir.mkdir()
+    meteor.threads = 1
     meteor.strain_dir = datadir / "strain"
     return TreeBuilder(meteor, 0.5, 4, 500, 500, None)
 

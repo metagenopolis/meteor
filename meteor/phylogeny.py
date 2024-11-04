@@ -13,9 +13,10 @@
 """Effective phylogeny"""
 import re
 import logging
-import sys
-from subprocess import run, Popen, PIPE
-from packaging.version import parse
+
+# import sys
+# from subprocess import run, Popen, PIPE
+# from packaging.version import parse
 
 # import sys
 from dataclasses import dataclass, field
@@ -125,55 +126,61 @@ class Phylogeny(Session):
             msp_file.name.replace(".fasta", ""),
         )
         tree_file = tree_dir / f"{msp_file.stem}.tree"
-        ali_file = tree_dir / f"{msp_file.stem}_aligned.fasta"
+        # ali_file = tree_dir / f"{msp_file.stem}_aligned.fasta"
         self.tree_files: list[Path] = []
+        with NamedTemporaryFile(mode="wt", dir=tmp_dir, suffix=".fasta") as temp_clean:
+            # with NamedTemporaryFile(
+            #     suffix=".fasta", dir=tmp_dir, delete=True
+            # ) as temp_ali_file:
+            ## with indel
+            # # Start alignment
+            # with Popen(
+            #     [
+            #         "mafft",
+            #         "--thread",
+            #         str(2),
+            #         "--quiet",
+            #         str(msp_file.resolve()),
+            #     ],
+            #     stdout=temp_ali_file,  # Redirect stdout to the temp file
+            #     stderr=PIPE,
+            # ) as align_exec:
+            #     _, error = align_exec.communicate()
+            #     if align_exec.returncode != 0:
+            #         raise RuntimeError(f"MAFFT failed with error: {error}")
+            #     logging.info("Clean sites for %s", msp_file.name)
+            #     with ali_file.open("w") as aligned_seq:
+            #         _, info_sites = self.clean_sites(
+            #             Path(temp_ali_file.name), aligned_seq
+            #         )
+            # Clean sites
+            logging.info("Clean sites")
+            _, info_sites = self.clean_sites(msp_file, temp_clean)
+            if info_sites < self.min_info_sites:
+                logging.info(
+                    "Only %d informative sites (< %d threshold) left after cleaning, skipping %s.",
+                    info_sites,
+                    self.min_info_sites,
+                    msp_file.name.replace(".fasta", ""),
+                )
+                return tree_file, False  # Return False to indicate skipping
+            aligned_seqs = load_aligned_seqs(
+                temp_clean.name,
+                moltype="dna",
+            )
+            # cleaned_alignment = load_aligned_seqs(ali_file, moltype="dna")
+            # d = EstimateDistances(cleaned_alignment, submodel=GTR())
+            d = EstimateDistances(aligned_seqs, submodel=GTR())
+            d.run(show_progress=False)
 
-        with NamedTemporaryFile(
-            suffix=".fasta", dir=tmp_dir, delete=True
-        ) as temp_ali_file:
-            # Start alignment
-            with Popen(
-                [
-                    "mafft",
-                    "--thread",
-                    str(2),
-                    "--quiet",
-                    str(msp_file.resolve()),
-                ],
-                stdout=temp_ali_file,  # Redirect stdout to the temp file
-                stderr=PIPE,
-            ) as align_exec:
-                _, error = align_exec.communicate()
-                if align_exec.returncode != 0:
-                    raise RuntimeError(f"MAFFT failed with error: {error}")
-                logging.info("Clean sites for %s", msp_file.name)
-                with ali_file.open("w") as aligned_seq:
-                    _, info_sites = self.clean_sites(
-                        Path(temp_ali_file.name), aligned_seq
-                    )
+            # Create UPGMA Tree
+            mycluster = upgma(d.get_pairwise_distances())
+            mycluster = mycluster.unrooted_deepcopy()
 
-                    if info_sites < self.min_info_sites:
-                        logging.info(
-                            "Only %d informative sites (< %d threshold) left after cleaning, skipping %s.",
-                            info_sites,
-                            self.min_info_sites,
-                            msp_file.name.replace(".fasta", ""),
-                        )
-                        return tree_file, False  # Return False to indicate skipping
-                cleaned_alignment = load_aligned_seqs(ali_file, moltype="dna")
-                d = EstimateDistances(cleaned_alignment, submodel=GTR())
-                d.run(show_progress=False)
-
-                # Create UPGMA Tree
-                mycluster = upgma(d.get_pairwise_distances())
-                mycluster = mycluster.unrooted_deepcopy()
-
-                with tree_file.open("w") as f:
-                    f.write(
-                        self.remove_edge_labels(
-                            mycluster.get_newick(with_distances=True)
-                        )
-                    )
+            with tree_file.open("w") as f:
+                f.write(
+                    self.remove_edge_labels(mycluster.get_newick(with_distances=True))
+                )
         # Perform alignments and UPGMA
         logging.info("Align sequences")
 
@@ -183,22 +190,23 @@ class Phylogeny(Session):
         logging.info("Launch phylogeny analysis")
         start = perf_counter()
         msp_count = len(self.msp_file_list)
+        ## In case of INDEL
         # Check the mafft version
-        mafft_exec = run(["mafft", "--version"], check=False, capture_output=True)
-        if mafft_exec.returncode != 0:
-            logging.error(
-                "Checking mafft version failed:\n%s",
-                mafft_exec.stderr.decode("utf-8"),
-            )
-            sys.exit(1)
-        mafft_version = str(mafft_exec.stderr.decode("utf-8")).split(" ")[0][1:]
-        if parse(mafft_version) < self.meteor.MIN_MAFFT_VERSION:
-            logging.error(
-                "The mafft version %s is outdated for meteor. Please update mafft to >= %s.",
-                mafft_version,
-                self.meteor.MIN_MAFFT_VERSION,
-            )
-            sys.exit(1)
+        # mafft_exec = run(["mafft", "--version"], check=False, capture_output=True)
+        # if mafft_exec.returncode != 0:
+        #     logging.error(
+        #         "Checking mafft version failed:\n%s",
+        #         mafft_exec.stderr.decode("utf-8"),
+        #     )
+        #     sys.exit(1)
+        # mafft_version = str(mafft_exec.stderr.decode("utf-8")).split(" ")[0][1:]
+        # if parse(mafft_version) < self.meteor.MIN_MAFFT_VERSION:
+        #     logging.error(
+        #         "The mafft version %s is outdated for meteor. Please update mafft to >= %s.",
+        #         mafft_version,
+        #         self.meteor.MIN_MAFFT_VERSION,
+        #     )
+        #     sys.exit(1)
         # Using ProcessPoolExecutor to parallelize the MSP file processing
         with ProcessPoolExecutor(max_workers=self.meteor.threads) as executor:
             futures = {

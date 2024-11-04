@@ -39,13 +39,13 @@ requirements:
         - biom-format
         - py-bgzip
         - freebayes >=1.3.6
-        - mafft >=7.487
+        # - mafft >=7.487
 test:
     commands:
         - meteor -h
         - bowtie2 -h
         - freebayes -h
-        - mafft -h
+        # - mafft -h
     imports:
         - pysam
         - pandas
