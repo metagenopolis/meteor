@@ -17,6 +17,7 @@ import sys
 import lzma
 import bgzip
 import pickle
+import shutil
 from subprocess import CalledProcessError, run, Popen, PIPE
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,7 +32,6 @@ from collections import defaultdict
 import pandas as pd
 from typing import ClassVar
 import numpy as np
-import pysam
 
 
 def run_freebayes_chunk(
@@ -666,7 +666,7 @@ class VariantCalling(Session):
                 logging.info("Merging vcf")
                 self.merge_vcf_files(vcf_chunk_files, vcf_file)
             else:
-                Path(vcf_chunk_files[0]).rename(vcf_file)
+                shutil.move(str(vcf_chunk_files[0]), str(vcf_file.resolve()))
         logging.info(
             "Completed freebayes step in %f seconds", perf_counter() - startfreebayes
         )
