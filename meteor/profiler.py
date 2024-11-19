@@ -155,7 +155,15 @@ class Profiler(Session):
         # Get functional db filenames
         if self.database_type == "complete":
             self.db_filenames = {}
-            for db in ["kegg", "mustard", "dbcan", "eggnog", "tigrfam"]:
+            for db in [
+                "kegg",
+                "mustard",
+                "dbcan",
+                "eggnog",
+                "tigrfam",
+                "resfinder",
+                "resfinderfg",
+            ]:
                 self.db_filenames[db] = (
                     self.meteor.ref_dir
                     / self.ref_config["reference_file"]["database_dir"]
@@ -646,8 +654,14 @@ class Profiler(Session):
         )
         # Part 3: FUNCTIONAL PROFILING
         if self.database_type == "complete":
-            single_fun_db = ["mustard", "kegg", "dbcan"]
-            single_fun_by_msp_db = ["mustard", "kegg", "dbcan"]
+            single_fun_db = ["mustard", "kegg", "dbcan", "resfinder", "resfinderfg"]
+            single_fun_by_msp_db = [
+                "mustard",
+                "kegg",
+                "dbcan",
+                "resfinder",
+                "resfinderfg",
+            ]
             for db, db_filename in self.db_filenames.items():
                 # By sum of genes
                 if db in single_fun_db:

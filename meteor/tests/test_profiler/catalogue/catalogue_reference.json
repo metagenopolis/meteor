@@ -30,6 +30,14 @@
     "tigrfam": {
       "filename": "catalogue_tigrfam.tsv",
       "version": "15.0"
+    },
+    "resfinder": {
+      "filename": "catalogue_resfinder.tsv",
+      "version": "2.4.0"
+    },
+    "resfinderfg": {
+      "filename": "catalogue_resfinderfg.tsv",
+      "version": "2.0"
     }
   }
 }
