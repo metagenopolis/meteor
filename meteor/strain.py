@@ -36,11 +36,11 @@ class Strain(Session):
     MIN_MIN_SNP_DEPTH: ClassVar[int] = 1
     MAX_MIN_SNP_DEPTH: ClassVar[int] = 10000
     DEFAULT_MIN_SNP_DEPTH: ClassVar[int] = 3
-    DEFAULT_MIN_FREQUENCY: ClassVar[float] = 0.01
+    DEFAULT_MIN_FREQUENCY: ClassVar[float] = 0.1
     DEFAULT_PLOIDY: ClassVar[int] = 1
     MIN_MIN_MSP_COVERAGE: ClassVar[int] = 1
     MAX_MIN_MSP_COVERAGE: ClassVar[int] = 100
-    DEFAULT_MIN_MSP_COVERAGE: ClassVar[int] = 50
+    DEFAULT_MIN_MSP_COVERAGE: ClassVar[int] = 80
     DEFAULT_MIN_GENE_COVERAGE: ClassVar[float] = 0.5
     DEFAULT_NUM_THREADS: ClassVar[int] = 1
     DEFAULT_MIN_DEPTH: ClassVar[int] = 3

@@ -232,7 +232,7 @@ class Session(Protocol):
         :return:  pd.DataFrame: Data loaded into a pandas DataFrame.
         """
         # Choose the appropriate pandas function based on extension
-        if "".join(file_path.suffixes) in [".tsv", ".tsv.xz"]:
+        if "".join(file_path.suffixes[-2:]) in [".tsv", ".tsv.xz"]:
             return pd.read_csv(
                 file_path,
                 sep="\t",

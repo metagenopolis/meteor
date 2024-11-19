@@ -17,6 +17,7 @@ import gzip
 import bz2
 import lzma
 import sys
+import bgzip
 from subprocess import check_call, run
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -55,7 +56,8 @@ class ReferenceBuilder(Session):
         self.output_annotation_file = (
             self.database_dir / f"{self.meteor.ref_name}_annotation.tsv"
         )
-        self.output_fasta_file = self.fasta_dir / f"{self.meteor.ref_name}.fasta"
+
+        self.output_fasta_file = self.fasta_dir / f"{self.meteor.ref_name}.fasta.gz"
         self.output_index_file = self.fasta_dir / f"{self.meteor.ref_name}.dict"
 
         # Write configuration file
@@ -119,12 +121,13 @@ class ReferenceBuilder(Session):
             "wt", encoding="UTF-8"
         ) as output_annotation:
             output_annotation.write("gene_id\tgene_name\tgene_length\n")
-            with self.output_fasta_file.open("wt", encoding="UTF-8") as output_fasta:
-                for gene_id, (header, len_seq, seq) in enumerate(
-                    self.read_reference(), start=1
-                ):
-                    output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
-                    output_fasta.write(f">{gene_id}\n{seq}\n")
+            with self.output_fasta_file.open("wb") as output_fasta:
+                with bgzip.BGZipWriter(output_fasta) as fh:
+                    for gene_id, (header, len_seq, seq) in enumerate(
+                        self.read_reference(), start=1
+                    ):
+                        output_annotation.write(f"{gene_id}\t{header}\t{len_seq}\n")
+                        fh.write(f">{gene_id}\n{seq}\n".encode("utf-8"))
 
     def execute(self) -> None:
         """Build the database"""

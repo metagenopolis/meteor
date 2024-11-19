@@ -62,7 +62,7 @@ def test_read_reference(builder_defec: ReferenceBuilder):
     (
         pytest.param(
             "be4ea162246d2f23ed8b33bdf9b209d8",
-            "2912b682a8e7554025cc5feadd641570",
+            "55b4a418bd2814f14dd84b7217762b8b",
             id="Accurate output",
         ),
     ),

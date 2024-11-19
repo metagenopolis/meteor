@@ -33,7 +33,7 @@ class Profiler(Session):
     NO_RAREFACTION: ClassVar[int] = 0
     DEFAULT_RAREFACTION_LEVEL: ClassVar[int] = NO_RAREFACTION
     DEFAULT_RANDOM_SEED: ClassVar[int] = 1234
-    NORMALIZATIONS: ClassVar[list[str | None]] = [None, "coverage", "fpkm", "raw"]
+    NORMALIZATIONS: ClassVar[list[str]] = ["coverage", "fpkm", "raw"]
     DEFAULT_NORMALIZATION: ClassVar[str] = "coverage"
     DEFAULT_COVERAGE_FACTOR: ClassVar[float] = 100.0
     DEFAULT_MSP_FILTER_COMPLETE: ClassVar[float] = 0.1
@@ -101,9 +101,7 @@ class Profiler(Session):
             self.msp_filter = self.msp_filter_user
 
         # Get the associated count table
-        self.input_count_table = (
-            self.meteor.mapping_dir / self.sample_name
-        ).with_suffix(".tsv.xz")
+        self.input_count_table = self.meteor.mapping_dir / f"{self.sample_name}.tsv.xz"
         try:
             assert self.input_count_table.is_file()
         except AssertionError:
@@ -111,9 +109,7 @@ class Profiler(Session):
             sys.exit(1)
 
         # Add a symlink to get the raw count table in the profile directory (for merging purpose)
-        raw_count_table_symlink = (
-            self.stage2_dir / f"{self.sample_name}_raw"
-        ).with_suffix(".tsv.xz")
+        raw_count_table_symlink = self.stage2_dir / f"{self.sample_name}_raw.tsv.xz"
         try:
             raw_count_table_symlink.symlink_to(self.input_count_table.resolve())
         except FileExistsError:
