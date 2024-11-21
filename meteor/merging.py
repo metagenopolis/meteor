@@ -22,6 +22,7 @@ from biom.table import Table  # type: ignore
 from typing import ClassVar
 from functools import partial
 import numpy as np
+import importlib.resources
 
 
 @dataclass
@@ -376,8 +377,19 @@ class Merging(Session):
                 annotation = annotation[
                     annotation["msp_name"].isin(filtered_df["msp_name"])
                 ]
-                annotation.to_csv(
-                    Path(f"{output_name}_taxonomy").with_suffix(".tsv"),
+                annotation[
+                    [
+                        "msp_name",
+                        "superkingdom",
+                        "phylum",
+                        "class",
+                        "order",
+                        "family",
+                        "genus",
+                        "species",
+                    ]
+                ].to_csv(
+                    Path(f"{output_name}_taxonomy.tsv"),
                     sep="\t",
                     index=False,
                 )
@@ -391,7 +403,7 @@ class Merging(Session):
                         )
                     observ_metadata = [
                         {"taxonomy": row.iloc[1:].tolist()}
-                        for index, row in annotation.iterrows()
+                        for _, row in annotation.iterrows()
                     ]
                     biom_table = Table(
                         data=filtered_df.drop(columns=["msp_name"]).to_numpy(),
@@ -410,6 +422,23 @@ class Merging(Session):
                         f.write(biom_json)
                     # with h5py.File(output_name.with_suffix(".biom"), "w") as f:
                     #     table.to_hdf5(f, generated_by="Meteor", compress=True)
-
+            elif my_pattern == "modules":
+                module_path = (
+                    importlib.resources.files("meteor")
+                    / "data/modules_definition.feather"
+                )
+                annotation = self.load_data(module_path)
+                annotation = annotation[annotation["id"].isin(filtered_df["mod_id"])]
+                annotation[
+                    [
+                        "id",
+                        "type",
+                        "name",
+                    ]
+                ].to_csv(
+                    Path(f"{output_name}_definition.tsv"),
+                    sep="\t",
+                    index=False,
+                )
             filtered_df.to_csv(output_name.with_suffix(".tsv"), sep="\t", index=False)
             logging.info("Data saved as %s", output_name)
