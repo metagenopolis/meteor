@@ -21,7 +21,7 @@ jobs:
       - name: Install the project dependencies
         run: poetry install -C meteor
       - name: Run the automated tests (for example)
-        run: meteor test
+        run: poetry run -C meteor meteor test
 
   docker:
     if: ${{ !github.event.release.prerelease }}
