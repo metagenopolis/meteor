@@ -34,7 +34,7 @@ class Component:
     DEFAULT_GAP_CHAR: ClassVar[str] = "N"
     DEFAULT_CORE_SIZE: ClassVar[int] = 100
 
-    threads: int | None
+    threads: int
     fastq_dir: Path = field(default_factory=Path)
     mapping_dir: Path = field(default_factory=Path)
     profile_dir: Path = field(default_factory=Path)

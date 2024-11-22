@@ -85,7 +85,7 @@ class Counter(Session):
             )
             mapping_process.execute()
 
-    def write_table(self, cramfile: Path, outfile: Path) -> None:
+    def write_table(self, cramfile: Path, outfile: Path) -> int:
         """Function that create a count table using pysam. First index the cram file,
         then count reads using the function idxstats from pysam, and output a count
         table.
@@ -351,7 +351,7 @@ class Counter(Session):
             genes: unique_dict[genes] + multiple_dict[genes] for genes in unique_dict
         }
 
-    def write_stat(self, output: Path, abundance_dict: dict, database: dict) -> None:
+    def write_stat(self, output: Path, abundance_dict: dict, database: dict) -> int:
         """Write count table.
 
         :param output: [STRING] = output filename
