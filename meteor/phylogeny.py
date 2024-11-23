@@ -181,8 +181,6 @@ class Phylogeny(Session):
                 f.write(
                     self.remove_edge_labels(mycluster.get_newick(with_distances=True))
                 )
-        # Perform alignments and UPGMA
-        logging.info("Align sequences")
 
         return tree_file, tree_file.exists()
 
