@@ -45,6 +45,7 @@ class TreeBuilder(Session):
     width: int
     height: int
     format: str | None
+    gtr: bool
 
     def __post_init__(self) -> None:
         if self.format not in TreeBuilder.OUTPUT_FORMATS:
@@ -103,7 +104,7 @@ class TreeBuilder(Session):
         msp_file_list = self.concatenate(msp_file_dict)
         # Compute phylogenies
         phylogeny_process = Phylogeny(
-            self.meteor, msp_file_list, self.max_gap, self.min_info_sites
+            self.meteor, msp_file_list, self.max_gap, self.min_info_sites, self.gtr
         )
         phylogeny_process.execute()
         # Analyze tree data

@@ -679,6 +679,12 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Path to output directory.",
     )
     tree_parser.add_argument(
+        "-r",
+        dest="gtr",
+        action='store_true',
+        help="Compute GTR genetic distance (slow).",
+    )
+    tree_parser.add_argument(
         "--tmp",
         dest="tmp_path",
         type=isdir,
@@ -781,6 +787,7 @@ def main() -> None:  # pragma: no cover
             args.width,
             args.height,
             args.format,
+            args.gtr
         )
         trees.execute()
     # Run download catalogues
@@ -864,6 +871,7 @@ def main() -> None:  # pragma: no cover
                 800,
                 600,
                 None,
+                False
             )
             trees.execute()
     # Close logging

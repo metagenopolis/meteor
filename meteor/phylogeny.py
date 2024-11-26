@@ -47,6 +47,7 @@ class Phylogeny(Session):
     msp_file_list: list[Path]
     max_gap: float
     min_info_sites: int
+    gtr: bool
     tree_files: list[Path] = field(default_factory=list)
 
     def compute_site_info(self, sequences: Iterable[str]) -> list[float]:
@@ -170,11 +171,14 @@ class Phylogeny(Session):
             )
             # cleaned_alignment = load_aligned_seqs(ali_file, moltype="dna")
             # d = EstimateDistances(cleaned_alignment, submodel=GTR())
-            d = EstimateDistances(aligned_seqs, submodel=GTR())
-            d.run(show_progress=False)
+            if self.gtr:
+                dists = EstimateDistances(aligned_seqs, submodel=GTR())
+                dists.run(show_progress=False)
+            else:
+                dists = aligned_seqs.distance_matrix(calc="tn93", show_progress=False)
 
             # Create UPGMA Tree
-            mycluster = upgma(d.get_pairwise_distances())
+            mycluster = upgma(dists.get_pairwise_distances())
             mycluster = mycluster.unrooted_deepcopy()
 
             with tree_file.open("w") as f:
