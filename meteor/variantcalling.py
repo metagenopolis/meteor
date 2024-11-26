@@ -296,7 +296,7 @@ class VariantCalling(Session):
             multiple_iterators=False,
         ):
             read_count = sum(
-                1
+                True
                 for pileupread in pileupcolumn.pileups
                 if not pileupread.is_del and not pileupread.is_refskip
             )
@@ -304,7 +304,7 @@ class VariantCalling(Session):
 
         return reads_dict
 
-    def merge_vcf_files(self, vcf_file_list, output_vcf):
+    def merge_vcf_files(self, vcf_file_list, output_vcf) -> None:
         """Merge variant records (handling the same positions in multiple VCFs)."""
         variant_dict = defaultdict(list)
 
@@ -332,8 +332,7 @@ class VariantCalling(Session):
         self,
         cram_file: Path,
         reference_file: Path,
-        # temp_low_cov_sites: tempfile._TemporaryFileWrapper,
-    ) -> None:
+    ) -> tuple[pd.DataFrame]:
         """Create a bed file reporting a list of positions below coverage threshold
 
         :param cram_file:   Path to the input cram file

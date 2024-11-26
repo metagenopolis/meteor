@@ -37,6 +37,7 @@ from cogent3.evolve.distance import EstimateDistances
 from cogent3.evolve.models import GTR
 from cogent3.cluster.UPGMA import upgma
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import Union
 
 
 @dataclass
@@ -61,7 +62,7 @@ class Phylogeny(Session):
 
     def clean_sites(
         self, msp_file: Path, output: tempfile._TemporaryFileWrapper
-    ) -> Tuple[dict[str, str], int]:
+    ) -> Tuple[dict[Union[int, str, None]], int]:
         """Clean msp sequence according to a certain level of gap at each sites.
         :param msp_file: (Path) Fasta file
         :param output_file: (Path) Output cleaned fasta file

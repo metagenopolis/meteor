@@ -423,9 +423,11 @@ class Merging(Session):
                     # with h5py.File(output_name.with_suffix(".biom"), "w") as f:
                     #     table.to_hdf5(f, generated_by="Meteor", compress=True)
             elif my_pattern == "modules":
-                module_path = (
-                    importlib.resources.files("meteor")
-                    / "data/modules_definition.feather"
+                module_path = Path(
+                    str(
+                        importlib.resources.files("meteor")
+                        / "data/modules_definition.feather"
+                    )
                 )
                 annotation = self.load_data(module_path)
                 annotation = annotation[annotation["id"].isin(filtered_df["mod_id"])]
