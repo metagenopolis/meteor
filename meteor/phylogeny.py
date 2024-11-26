@@ -175,11 +175,12 @@ class Phylogeny(Session):
             if self.gtr:
                 d = EstimateDistances(aligned_seqs, submodel=GTR())
                 d.run(show_progress=False)
+                # Create UPGMA Tree
+                mycluster = upgma(d.get_pairwise_distances())
             else:
-                d = aligned_seqs.distance_matrix(calc="tn93", show_progress=False)
+                dists = aligned_seqs.distance_matrix(calc="tn93", show_progress=False)
+                mycluster = upgma(dists)
 
-            # Create UPGMA Tree
-            mycluster = upgma(d.get_pairwise_distances())
             mycluster = mycluster.unrooted_deepcopy()
 
             with tree_file.open("w") as f:
