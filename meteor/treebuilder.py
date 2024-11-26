@@ -42,6 +42,7 @@ class TreeBuilder(Session):
     meteor: type[Component]
     max_gap: float
     min_info_sites: int
+    gtr: bool
     width: int
     height: int
     format: str | None
@@ -103,7 +104,7 @@ class TreeBuilder(Session):
         msp_file_list = self.concatenate(msp_file_dict)
         # Compute phylogenies
         phylogeny_process = Phylogeny(
-            self.meteor, msp_file_list, self.max_gap, self.min_info_sites
+            self.meteor, msp_file_list, self.max_gap, self.min_info_sites, self.gtr
         )
         phylogeny_process.execute()
         # Analyze tree data

@@ -27,7 +27,7 @@ def phylogeny_builder(datadir: Path, tmp_path: Path) -> Phylogeny:
     meteor.tree_dir.mkdir()
     meteor.threads = 1
     meteor.DEFAULT_GAP_CHAR = "?"
-    return Phylogeny(meteor, [Path(datadir / "msp_0864.fasta")], 0.5, 4)
+    return Phylogeny(meteor, [Path(datadir / "msp_0864.fasta")], 0.5, 4, False)
 
 
 def test_compute_site_info(phylogeny_builder: Phylogeny):

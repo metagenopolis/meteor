@@ -650,6 +650,12 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Minimum number of informative sites in the alignment (default: >= %(default)d).",
     )
     tree_parser.add_argument(
+        "-r",
+        dest="gtr",
+        action="store_true",
+        help="Compute GTR model (default: False, slower).",
+    )
+    tree_parser.add_argument(
         "-f",
         dest="format",
         default=TreeBuilder.DEFAULT_OUTPUT_FORMAT,
@@ -857,14 +863,7 @@ def main() -> None:  # pragma: no cover
             strain_detector = Strain(meteor, 100, 2, 2, 0.2, 1, 1, 0.2, 10, False)
             strain_detector.execute()
             meteor.tree_dir = Path(tmpdirname) / "tree"
-            trees = TreeBuilder(
-                meteor,
-                0.1,
-                4,
-                800,
-                600,
-                None,
-            )
+            trees = TreeBuilder(meteor, 0.1, 4, False, 800, 600, None)
             trees.execute()
     # Close logging
     logger.handlers[0].close()
