@@ -63,7 +63,7 @@ class Phylogeny(Session):
 
     def clean_sites(
         self, msp_file: Path, output: tempfile._TemporaryFileWrapper
-    ) -> Tuple[dict[Union[int, str, None]], int]:
+    ) -> Tuple[dict[Union[int, str, None], str], int]:
         """Clean msp sequence according to a certain level of gap at each sites.
         :param msp_file: (Path) Fasta file
         :param output_file: (Path) Output cleaned fasta file

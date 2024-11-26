@@ -784,6 +784,7 @@ def main() -> None:  # pragma: no cover
             meteor,
             args.max_gap,
             args.min_info_sites,
+            args.gtr,
             args.width,
             args.height,
             args.format,
