@@ -12,3 +12,4 @@ dist
 .vscode
 .pytest_cache
 .dmypy.json
+myenv
