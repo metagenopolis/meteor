@@ -12,7 +12,7 @@
 ## Introduction
 
 Meteor is a plateform for quantitative metagenomics profiling of complex ecosystems.
-Meteor relies on genes catalogue to perform species-level taxonomic profiling, functional analysis and strain-level population structure inference.
+Meteor relies on genes catalogue to perform species-level taxonomic profiling (Bacteria, Archaea and Eukaryotes), functional analysis and strain-level population structure inference.
 
 
 ## Dependencies
@@ -21,7 +21,6 @@ Besides python packages dependencies, Meteor requires:
 - python 3.10+
 - [bowtie2 2.3.5+](https://github.com/BenLangmead/bowtie2)
 - [freebayes 1.3.6+](https://github.com/freebayes/freebayes)
-<!-- - [mafft 7.487+](https://mafft.cbrc.jp/alignment/software/) -->
 
 ## Installation
 
