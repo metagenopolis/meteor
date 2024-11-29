@@ -45,10 +45,6 @@ def get_logging() -> logging.Logger:  # pragma: no cover
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s :: %(levelname)s :: %(message)s")
-    # Create log file
-    file_handler = logging.FileHandler("meteor.log", "a", encoding="UTF-8")
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
     # Stream in the the console
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
