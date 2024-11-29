@@ -22,7 +22,7 @@ jobs:
       - name: Install the project dependencies
         run: poetry install --only test -C meteor
       - name: Run the automated tests (for example)
-        run: poetry run  -C meteor pytest -s -vv --cov=meteor --cov-report xml
+        run: poetry run  -C meteor pytest --cache-clear -s -vv --cov=meteor --cov-report xml
         timeout-minutes: 15
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
