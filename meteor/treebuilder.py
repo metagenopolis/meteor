@@ -31,7 +31,7 @@ from typing import ClassVar
 class TreeBuilder(Session):
     """Counter session map and count"""
 
-    DEFAULT_MAX_GAP: ClassVar[float] = 0.5
+    DEFAULT_MAX_GAP: ClassVar[float] = 1.0
     OUTPUT_FORMATS: ClassVar[list[str | None]] = [None, "png", "svg", "pdf", "txt"]
     DEFAULT_OUTPUT_FORMAT: ClassVar[str | None] = None
     DEFAULT_WIDTH: ClassVar[int] = 500
