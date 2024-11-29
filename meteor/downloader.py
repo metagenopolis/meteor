@@ -19,6 +19,7 @@ from meteor.session import Session, Component
 from pathlib import Path
 from hashlib import md5
 from urllib.request import urlretrieve
+from tqdm import tqdm
 from time import time
 import tarfile
 import json
@@ -40,6 +41,7 @@ class Downloader(Session):
     data_type: str = "file_info"
     catalogues_config: dict = field(default_factory=dict)
     start_time: float = field(default_factory=float)
+    progress_bar: tqdm = field(init=False)
 
     @staticmethod
     def load_catalogues_config() -> dict:
@@ -83,30 +85,17 @@ class Downloader(Session):
                 file_hash.update(chunk)
         return file_hash.hexdigest()
 
-    def show_progress(
-        self, block_num: int, block_size: int, total_size: int
-    ) -> None:  # pragma: no cover
-        """Show download progress block per block
-
-        :param block_num: Number of the block
-        :param block_size: One block size
-        :param total_size: Total size of the file in block
-        """
+    def show_progress(self, block_num: int, block_size: int, total_size: int):
+        """Update the progress bar with the current download status."""
         if block_num == 0:
-            self.start_time = time()
-            return
-        duration = time() - self.start_time
-        progress_size = block_num * block_size
-        speed = progress_size / (1024 * duration)
-        percent = block_num * block_size / total_size
-        hours, rem = divmod(duration, 3600)
-        minutes, seconds = divmod(rem, 60)
-        print(
-            f"Download of {self.choice} catalogue : {percent:.1%}, {progress_size/ (1024 * 1024): 8.0f} MB, "
-            f"{speed: 6.0f} KB/s, {int(hours):0>2}:{int(minutes):0>2}:{int(seconds):0>2} elapsed time.",
-            end="\r",
-            flush=True,
-        )
+            self.progress_bar = tqdm(
+                total=total_size,
+                unit="B",
+                unit_scale=True,
+                desc=self.choice,
+                leave=False,
+            )
+        self.progress_bar.update(block_size)
 
     def extract_tar(self, catalogue: Path) -> None:
         """Extract tar file
@@ -132,7 +121,7 @@ class Downloader(Session):
                 / self.catalogues_config[self.choice][self.data_type]["filename"]
             )
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
-            print(flush=True)
+            # print(flush=True)
             if self.choice == Downloader.TEST_CATALOGUE:
                 for sample in self.catalogues_config[self.choice]["samples"]:
                     logging.info("Download %s fastq file", sample)
@@ -151,6 +140,7 @@ class Downloader(Session):
                     urlretrieve(
                         url_fastq, filename=fastq_test, reporthook=self.show_progress
                     )
+                    self.progress_bar.close()
                     print(flush=True)
                     assert md5fastq_expect == self.getmd5(fastq_test)
             if self.check_md5:

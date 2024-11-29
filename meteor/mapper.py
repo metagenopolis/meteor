@@ -73,6 +73,12 @@ class Mapper(Session):
                 "reference_name": self.census["reference"]["reference_info"][
                     "reference_name"
                 ],
+                "reference_date": self.census["reference"]["reference_info"][
+                    "reference_date"
+                ],
+                "database_type": self.census["reference"]["reference_info"][
+                    "database_type"
+                ],
                 "trim": str(self.trim),
                 "alignment_number": self.alignment_number,
                 "mapping_type": self.mapping_type,
