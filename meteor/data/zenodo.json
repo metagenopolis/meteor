@@ -3,8 +3,7 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/14181283/files/fc_1_3_gut.tar.xz",
             "filename": "fc_1_3_gut.tar.xz",
-            "md5": "7d49c3a0e565e3e74a2e6bb67886d4c2",
-            "size": "1.4GB"
+            "md5": "7d49c3a0e565e3e74a2e6bb67886d4c2"
         },
         "taxonomy_info": {
             "catalogue": "https://zenodo.org/records/14181283/files/fc_1_3_gut_taxo.tar.xz",
