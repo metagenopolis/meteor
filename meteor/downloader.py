@@ -121,7 +121,7 @@ class Downloader(Session):
                 / self.catalogues_config[self.choice][self.data_type]["filename"]
             )
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
-            # print(flush=True)
+            self.progress_bar.close()
             if self.choice == Downloader.TEST_CATALOGUE:
                 for sample in self.catalogues_config[self.choice]["samples"]:
                     logging.info("Download %s fastq file", sample)
@@ -141,7 +141,6 @@ class Downloader(Session):
                         url_fastq, filename=fastq_test, reporthook=self.show_progress
                     )
                     self.progress_bar.close()
-                    print(flush=True)
                     assert md5fastq_expect == self.getmd5(fastq_test)
             if self.check_md5:
                 assert md5_expect == self.getmd5(catalogue)

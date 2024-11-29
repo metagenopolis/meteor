@@ -3,11 +3,13 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/14181283/files/fc_1_3_gut.tar.xz",
             "filename": "fc_1_3_gut.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "7d49c3a0e565e3e74a2e6bb67886d4c2"
         },
         "taxonomy_info": {
             "catalogue": "https://zenodo.org/records/14181283/files/fc_1_3_gut_taxo.tar.xz",
             "filename": "fc_1_3_gut_taxo.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "50942ab4f4f0aae43d7f3dd19df041d8"
         }
     },
@@ -15,11 +17,13 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/14181300/files/gg_13_6_caecal.tar.xz",
             "filename": "gg_13_6_caecal.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "8e35a94d01aaded8fb322b7e22e0441f"
         },
         "taxonomy_info": {
             "catalogue": "https://zenodo.org/records/14181300/files/gg_13_6_caecal_taxo.tar.xz",
             "filename": "gg_13_6_caecal_taxo.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "10b2e0e208cba88e4b635f5a317f94a2"
         }
     },
@@ -27,11 +31,13 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/14180833/files/clf_1_0_gut.tar.xz",
             "filename": "clf_1_0_gut.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "e3a0b9c30461f2d478c77be7c3cdc529"
         },
         "taxonomy_info": {
             "catalogue": "https://zenodo.org/records/14180833/files/clf_1_0_gut_taxo.tar.xz",
             "filename": "clf_1_0_gut_taxo.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "8b1b709c741eed98ccc0c5fcdfa299ab"
         }
     },
@@ -39,11 +45,13 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/14181329/files/hs_10_4_gut.tar.xz",
             "filename": "hs_10_4_gut.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "dd295f2ac27d68389a4a7ebc8f5b4125"
         },
         "taxonomy_info": {
             "catalogue": "https://zenodo.org/records/14181329/files/hs_10_4_gut_taxo.tar.xz",
             "filename": "hs_10_4_gut_taxo.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "730b62479d835af5b217f0d9eda4ce2d"
         }
     },
@@ -51,11 +59,13 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/14181351/files/hs_8_4_oral.tar.xz",
             "filename": "hs_8_4_oral.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "5b4d832b226c69766e6b35be229a9aa4"
         },
         "taxonomy_info": {
             "catalogue": "https://zenodo.org/records/14181351/files/hs_8_4_oral_taxo.tar.xz",
             "filename": "hs_8_4_oral_taxo.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "10565aafc059b663cbf1f7297a56047b"
         }
     },
@@ -63,11 +73,13 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/14181341/files/hs_2_9_skin.tar.xz",
             "filename": "hs_2_9_skin.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "4860182792a44058ffa671217c71d789"
         },
         "taxonomy_info": {
             "catalogue": "https://zenodo.org/records/14181341/files/hs_2_9_skin_taxo.tar.xz",
             "filename": "hs_2_9_skin_taxo.tar.xz",
+            "reference_date": "2024-11-18",
             "md5": "68a011b4f319b118cda9b05b637dbc19"
         }
     },
@@ -75,11 +87,13 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/14184128/files/mm_5_0_gut.tar.xz",
             "filename": "mm_5_0_gut.tar.xz",
+            "reference_date": "2024-11-19",
             "md5": "029bd928c4d5b00462bcc12950857f54"
         },
         "taxonomy_info": {
             "catalogue": "https://zenodo.org/records/14184128/files/mm_5_0_gut_taxo.tar.xz",
             "filename": "mm_5_0_gut_taxo.tar.xz",
+            "reference_date": "2024-11-19",
             "md5": "cd404b109553cc01cb93ead46a85b07b"
         }
     },
@@ -87,11 +101,13 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/14184141/files/oc_5_7_gut.tar.xz",
             "filename": "oc_5_7_gut.tar.xz",
+            "reference_date": "2024-11-19",
             "md5": "071d2ac2bcb90545edc2104cc2aa6aef"
         },
         "taxonomy_info": {
             "catalogue": "https://zenodo.org/records/14184141/files/oc_5_7_gut_taxo.tar.xz",
             "filename": "oc_5_7_gut_taxo.tar.xz",
+            "reference_date": "2024-11-19",
             "md5": "f2fea0c805acc7f527e32bacfc93d59a"
         }
     },
@@ -99,11 +115,13 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/14184150/files/rn_5_9_gut.tar.xz",
             "filename": "rn_5_9_gut.tar.xz",
+            "reference_date": "2024-11-19",
             "md5": "6b860f2ca7826a5f8473c30337635cd2"
         },
         "taxonomy_info": {
             "catalogue": "https://zenodo.org/records/14184150/files/rn_5_9_gut_taxo.tar.xz",
             "filename": "rn_5_9_gut_taxo.tar.xz",
+            "reference_date": "2024-11-19",
             "md5": "131df23bfb7758c539c012bd8726eeb5"
         }
     },
@@ -111,11 +129,13 @@
         "file_info": {
             "complete": "https://zenodo.org/records/14184158/files/ssc_9_3_gut.tar.xz",
             "filename": "ssc_9_3_gut.tar.xz",
+            "reference_date": "2024-11-19",
             "md5": "9b0df528d4c74662393b4c7358f69121"
         },
         "taxonomy_info": {
             "taxo": "https://zenodo.org/records/14184158/files/ssc_9_3_gut_taxo.tar.xz",
             "filename": "ssc_9_3_gut_taxo.tar.xz",
+            "reference_date": "2024-11-19",
             "md5": "8cbdb0bb7cbbdcd90981ed9d7fc4ad38"
         }
     },
@@ -123,6 +143,7 @@
         "file_info": {
             "catalogue": "https://zenodo.org/records/13693446/files/mock.tar.xz",
             "filename": "mock.tar.xz",
+            "reference_date": "2023-03-14",
             "md5": "f021d007f6c1d0dffc4e94a786fa182c"
         },
         "samples": {
