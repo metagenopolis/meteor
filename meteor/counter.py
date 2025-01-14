@@ -16,7 +16,6 @@ import logging
 import sys
 import pysam
 import lzma
-import pandas as pd
 from dataclasses import dataclass, field
 from tempfile import mkdtemp, mkstemp
 from pathlib import Path
@@ -38,7 +37,7 @@ class Counter(Session):
     DEFAULT_COUNTING_TYPE: ClassVar[str] = "smart_shared"
     NO_IDENTITY_THRESHOLD: ClassVar[float] = 0.0
     DEFAULT_IDENTITY_THRESHOLD_COMPLETE: ClassVar[float] = 0.95
-    DEFAULT_IDENTITY_THRESHOLD_TAXO: ClassVar[float] = 0.97
+    DEFAULT_IDENTITY_THRESHOLD_TAXO: ClassVar[float] = 0.98
 
     meteor: type[Component]
     counting_type: str
