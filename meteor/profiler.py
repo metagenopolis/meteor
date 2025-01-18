@@ -571,7 +571,7 @@ class Profiler(Session):
         # Initialize dictionnary for json file
         config_param = {}
         config_stats = {}
-        config_mapping = {"database_type": self.database_type}
+        # config_mapping = {"database_type": self.database_type}
         # Part 1: NORMALIZATION
         if self.rarefaction_level > Profiler.NO_RAREFACTION:
             logging.info("Run rarefaction.")
@@ -748,7 +748,7 @@ class Profiler(Session):
             self.sample_config, "profiling_parameters", config_param
         )
         update_config = self.update_json(update_config, "profiling_stats", config_stats)
-        update_config = self.update_json(update_config, "mapping", config_mapping)
+        # update_config = self.update_json(update_config, "mapping", config_mapping)
         self.save_config(
             update_config,
             self.stage2_dir / f"{self.output_base_filename}_census_stage_2.json",
