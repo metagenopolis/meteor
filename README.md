@@ -59,7 +59,7 @@ Ten catalogues are currently available:
 |  *Gallus gallus domesticus* | chicken_caecal  | 13.6  | 2420 | 19.6 | 1.2 |[link](https://zenodo.org/records/12820776)
 |  *Canis lupus familiaris* | dog_gut  | 0.95  | 234 | 1.4 | 0.1 |[link](https://zenodo.org/records/12820719)
 | *Homo sapiens gut* |  human_gut | 10.4  | 1990 | 12.6 | 0.7 |[link](https://zenodo.org/records/12820832)
-| *Homo sapiens oral*  |  human_oral | 8.4  | 853 | 13.7 | 0.5 |[link](https://zenodo.org/records/2821296)
+| *Homo sapiens oral*  |  human_oral | 8.4  | 853 | 13.7 | 0.5 |[link](https://zenodo.org/records/14181351)
 | *Homo sapiens skin*  |  human_skin | 2.9  | 392 | 3.9 | 0.2 |[link](https://zenodo.org/records/12820845)
 | *Mus musculus*  | mouse_gut  | 5.0  | 1252 | 10.3 | 0.6 |[link](https://zenodo.org/records/12821471)
 | *Oryctolagus cuniculus* | rabbit_gut  | 5.7 | 1053 | 8.0 | 0.4 |[link](https://zenodo.org/records/12821585)
