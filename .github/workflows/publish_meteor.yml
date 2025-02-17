@@ -7,7 +7,7 @@ on:
 jobs:
   meteortest:
     if: ${{ github.event.release.prerelease }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: ConorMacBride/install-package@v1
@@ -26,7 +26,7 @@ jobs:
   docker:
     if: ${{ !github.event.release.prerelease }}
     needs: conda
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
 
   conda:
     if: ${{ !github.event.release.prerelease }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: conda-incubator/setup-miniconda@v3
@@ -70,7 +70,7 @@ jobs:
 
   pypi:
     if: ${{ !github.event.release.prerelease }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Install Python
