@@ -17,12 +17,14 @@ jobs:
           apt: bowtie2 freebayes
       - name: Install Python
         uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
       - name: Install poetry
         uses: abatilo/actions-poetry@v2
       - name: Install the project dependencies
-        run: poetry install --only test -C meteor
+        run: poetry install --only test
       - name: Run the automated tests (for example)
-        run: poetry run  -C meteor pytest --cache-clear -s -vv --cov=meteor --cov-report xml
+        run: poetry run pytest --cache-clear -s -vv --cov=meteor --cov-report xml
         timeout-minutes: 15
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
