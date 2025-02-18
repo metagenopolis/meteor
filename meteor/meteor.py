@@ -554,7 +554,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=int,
         help=f"""Minimum snp depth (default: >= %(default)d).
         Values should be comprised between {Strain.MIN_MIN_SNP_DEPTH} and the maximum depth
-        ({Strain.MAX_MIN_SNP_DEPTH} reads are taken in account).""",
+        ({Strain.MAX_MIN_SNP_DEPTH} reads are taken in account), take in account that s >= p.""",
     )
     strain_parser.add_argument(
         "-f",
