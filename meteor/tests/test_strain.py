@@ -93,9 +93,9 @@ def test_get_msp_variant(strain_builder, datadir: Path, tmp_path: Path):
         assert md5(out.read()).hexdigest() == "cec667aad0449853b3bd7db689dd7ed3"
 
 
-# def test_execute(strain_builder, tmp_path: Path) -> None:
-#     strain_builder.execute()
-#     BS = tmp_path / "strain" / "test" / "BS.fasta.xz"
-#     assert BS.exists()
-#     with BS.open("rb") as out:
-#         assert md5(out.read()).hexdigest() == "895e02fd5a74c8930673061228aa23db"
+def test_execute(strain_builder, tmp_path: Path) -> None:
+    strain_builder.execute()
+    BS = tmp_path / "strain" / "test" / "BS.fasta.xz"
+    assert BS.exists()
+    with BS.open("rb") as out:
+        assert md5(out.read()).hexdigest() == "895e02fd5a74c8930673061228aa23db"
