@@ -17,7 +17,6 @@ from ..session import Component
 from ..downloader import Downloader
 from pathlib import Path
 import pytest
-import shutil
 
 
 @pytest.fixture
@@ -29,20 +28,6 @@ def downer(tmp_path: Path) -> Downloader:
     meteor.ref_name = "test"
     meteor.threads = 1
     return Downloader(meteor, choice="test", taxonomy=False, check_md5=True)
-
-
-@pytest.fixture(autouse=True)
-def cleanup_downloaded_files(tmp_path: Path, request: pytest.FixtureRequest) -> None:
-    # This fixture will run before and after each test
-    def teardown():
-        # Remove the temporary directory and its contents
-        for item in tmp_path.iterdir():
-            if item.is_dir():
-                shutil.rmtree(item)
-            else:
-                item.unlink()
-
-    request.addfinalizer(teardown)
 
 
 def test_check_md5(downer: Downloader, datadir: Path) -> None:
