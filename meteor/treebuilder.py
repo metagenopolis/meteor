@@ -11,18 +11,19 @@
 #    http://www.gnu.org/licenses/gpl-3.0.html
 
 """Process msp and compute tree"""
+import logging
+import sys
+import pandas as pd
+import lzma
+import csv
+import ete3  # type: ignore[import]
 from pathlib import Path
 from collections import defaultdict
 from meteor.session import Session, Component
 from meteor.phylogeny import Phylogeny
 from dataclasses import dataclass
 from tempfile import mkdtemp
-import ete3  # type: ignore[import]
-from ete3 import Tree  # , TreeStyle
-import logging
-import sys
-import pandas as pd
-import lzma
+from ete3 import Tree
 from shutil import rmtree
 from typing import ClassVar
 
@@ -117,7 +118,11 @@ class TreeBuilder(Session):
             msp_tree = Tree(str(tree_file.resolve()))
             # Generate a distance msp by msp
             matrix = self.get_msp_distance(msp_tree)
-            matrix.to_csv(self.meteor.tree_dir / f"{output.stem}.tsv", sep="\t")
+            matrix.to_csv(
+                self.meteor.tree_dir / f"{output.stem}.tsv",
+                sep="\t",
+                quoting=csv.QUOTE_NONE,
+            )
             # Draw trees
             if not self.format:
                 pass

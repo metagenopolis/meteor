@@ -530,10 +530,8 @@ class Counter(Session):
         mapping_done = True
         try:
             # Get the ini ref
-            ref_json_file_list = list(self.meteor.ref_dir.glob("**/*_reference.json"))
-            assert len(ref_json_file_list) == 1
-            ref_json_file = ref_json_file_list[0]
-            ref_json = self.read_json(ref_json_file)
+            ref_json = self.get_reference_info(self.meteor.ref_dir)
+            Component.check_catalogue(ref_json)
             self.meteor.ref_name = ref_json["reference_info"]["reference_name"]
             if not self.identity_user:
                 if ref_json["reference_info"]["database_type"] == "complete":

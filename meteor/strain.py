@@ -238,6 +238,7 @@ class Strain(Session):
         logging.info("Launch strain analysis")
         try:
             ref_json = self.get_reference_info(self.meteor.ref_dir)
+            Component.check_catalogue(ref_json)
             self.meteor.ref_name = ref_json["reference_info"]["reference_name"]
         except AssertionError:
             logging.error(

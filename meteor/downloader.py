@@ -13,26 +13,19 @@
 """Download and index reference"""
 
 import logging
-import importlib.resources
+import tarfile
+import sys
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
 from pathlib import Path
 from hashlib import md5
 from urllib.request import urlretrieve
 from tqdm import tqdm
-from time import time
-import tarfile
-import json
-from typing import ClassVar
-import sys
 
 
 @dataclass
 class Downloader(Session):
     """Download and prepare catalogues"""
-
-    CONFIG_DATA_FILE: ClassVar[Path] = Path("data/zenodo.json")
-    TEST_CATALOGUE: ClassVar[str] = "test"
 
     meteor: type[Component]
     choice: str
@@ -43,31 +36,8 @@ class Downloader(Session):
     start_time: float = field(default_factory=float)
     progress_bar: tqdm = field(init=False)
 
-    @staticmethod
-    def load_catalogues_config() -> dict:
-        try:
-            config_data = importlib.resources.files("meteor") / str(
-                Downloader.CONFIG_DATA_FILE
-            )
-            with importlib.resources.as_file(config_data) as configuration_path:
-                with configuration_path.open("rt", encoding="UTF-8") as config:
-                    return json.load(config)
-        except FileNotFoundError:
-            logging.error(
-                "The file %s is missing in meteor source",
-                Downloader.CONFIG_DATA_FILE.name,
-            )
-            sys.exit(1)
-
-    @staticmethod
-    def get_available_catalogues() -> list[str]:
-        catalogues_config = Downloader.load_catalogues_config()
-        available_catalogues = list(catalogues_config.keys())
-        available_catalogues.remove(Downloader.TEST_CATALOGUE)
-        return available_catalogues
-
     def __post_init__(self) -> None:
-        self.catalogues_config = Downloader.load_catalogues_config()
+        self.catalogues_config = Component.load_catalogues_config()
         self.meteor.ref_dir.mkdir(exist_ok=True, parents=True)
         if self.taxonomy:
             self.data_type = "taxonomy_info"
@@ -122,7 +92,7 @@ class Downloader(Session):
             )
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
             self.progress_bar.close()
-            if self.choice == Downloader.TEST_CATALOGUE:
+            if self.choice == Component.TEST_CATALOGUE:
                 for sample in self.catalogues_config[self.choice]["samples"]:
                     logging.info("Download %s fastq file", sample)
                     url_fastq = self.catalogues_config[self.choice]["samples"][sample][

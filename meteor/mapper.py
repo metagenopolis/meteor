@@ -154,6 +154,11 @@ class Mapper(Session):
             stderr=PIPE,
         ) as mapping_exec:
             assert mapping_exec.stdout is not None and mapping_exec.stderr is not None
+            print("THE FUCK")
+            print(reference)
+            print(mapping_exec)
+            print(bowtie_index)
+            print(parameters)
             with pysam.AlignmentFile(
                 mapping_exec.stdout, "r", threads=self.meteor.threads
             ) as samdesc:

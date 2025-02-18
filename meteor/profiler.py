@@ -88,6 +88,7 @@ class Profiler(Session):
 
         # Initialize the ini ref config parser:
         self.ref_config = self.get_reference_info(self.meteor.ref_dir)
+        Component.check_catalogue(self.ref_config)
 
         # Get the database type
         self.database_type = self.ref_config["reference_info"]["database_type"]

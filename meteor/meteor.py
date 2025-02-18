@@ -144,7 +144,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="user_choice",
         type=str,
         required=True,
-        choices=Downloader.get_available_catalogues(),
+        choices=Component.get_available_catalogues(),
         help="Select the catalogue to download.",
     )
     download_parser.add_argument(
@@ -648,8 +648,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
     tree_parser.add_argument(
         "-r",
         dest="gtr",
-        action="store_true",
-        help="Compute GTR model (default: False, slower).",
+        action="store_false",
+        help="Compute tn93 model (faster) (default: GTR).",
     )
     tree_parser.add_argument(
         "-f",

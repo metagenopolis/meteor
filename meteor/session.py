@@ -19,6 +19,7 @@ import logging
 import sys
 import json
 import lzma
+import importlib.resources
 from importlib.metadata import version
 from packaging.version import Version
 import pandas as pd
@@ -28,6 +29,8 @@ import pandas as pd
 class Component:
     """Set of important constant for meteor"""
 
+    CONFIG_DATA_FILE: ClassVar[Path] = Path("data/zenodo.json")
+    TEST_CATALOGUE: ClassVar[str] = "test"
     MIN_BOWTIE2_VERSION: ClassVar[Version] = Version("2.3.5")
     MIN_FREEBAYES_VERSION: ClassVar[Version] = Version("1.3.6")
     DEFAULT_GAP_CHAR: ClassVar[str] = "N"
@@ -51,6 +54,53 @@ class Component:
     extension: tuple = (".fq", ".fastq")
     compression: tuple = (".gz", ".bz2", ".xz", "")
     version: str = version("meteor")
+
+    @staticmethod
+    def load_catalogues_config() -> dict:
+        try:
+            config_data = importlib.resources.files("meteor") / str(
+                Component.CONFIG_DATA_FILE
+            )
+            with importlib.resources.as_file(config_data) as configuration_path:
+                with configuration_path.open("rt", encoding="UTF-8") as config:
+                    return json.load(config)
+        except FileNotFoundError:
+            logging.error(
+                "The file %s is missing in meteor source",
+                Component.CONFIG_DATA_FILE.name,
+            )
+            sys.exit(1)
+
+    @staticmethod
+    def get_available_catalogues() -> list[str]:
+        catalogues_config = Component.load_catalogues_config()
+        available_catalogues = list(catalogues_config.keys())
+        available_catalogues.remove(Component.TEST_CATALOGUE)
+        return available_catalogues
+
+    @staticmethod
+    def check_catalogue(ref_json: dict) -> None:
+        """Check that the catalogue is present in the config file
+
+        :param config: A Dict object of the json file
+        """
+        try:
+            zenodo = Component.load_catalogues_config()
+            assert (
+                ref_json["reference_info"]["reference_date"]
+                == zenodo[ref_json["reference_info"]["reference_name"]]["file_info"][
+                    "reference_date"
+                ]
+            )
+        except AssertionError:
+            logging.warning(
+                "This is not the version of the catalogue expected with "
+                "Meteor %s. You might encounter crash/bug. Consider "
+                "to download a new version of the catalogue with "
+                "meteor download.",
+                version("meteor"),
+            )
+            # sys.exit(1)
 
 
 class Session(Protocol):
