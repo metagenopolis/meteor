@@ -175,7 +175,8 @@ class Strain(Session):
             )
         # Filter the DataFrame to only include MSPs with at least min_msp_coverage overlapping gene IDs
         msp_with_overlapping_genes = overlapping_gene_counts[
-            overlapping_gene_counts["overlapping_gene_count"] >= self.min_msp_coverage
+            overlapping_gene_counts["overlapping_gene_count"]
+            >= self.min_msp_coverage / 100 * self.core_size
         ]
         # msp_covered = joined_df.merge(msp_with_overlapping_genes, on="msp_name")
         # clear first ?

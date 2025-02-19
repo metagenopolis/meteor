@@ -577,8 +577,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
         choices=range(Strain.MIN_MIN_MSP_COVERAGE, Strain.MAX_MIN_MSP_COVERAGE + 1),
         metavar="MIN_MSP_COVERAGE",
         type=int,
-        help=f"""Minimum number of genes from the MSP that are covered (default: >= %(default)d).
-        Values should be comprised between {Strain.MIN_MIN_MSP_COVERAGE} and {Strain.MAX_MIN_MSP_COVERAGE}""",
+        help=f"""Minimum percentage of signature genes from the MSP that are covered (default: >= %(default)d%%).
+        Values should be comprised between {Strain.MIN_MIN_MSP_COVERAGE}%% and {Strain.MAX_MIN_MSP_COVERAGE}%%""",
     )
     strain_parser.add_argument(
         "-c",
