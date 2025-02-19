@@ -27,7 +27,9 @@ def downer(tmp_path: Path) -> Downloader:
     meteor.tmp_dir = tmp_path
     meteor.ref_name = "test"
     meteor.threads = 1
-    return Downloader(meteor, choice="test", taxonomy=False, check_md5=True)
+    return Downloader(
+        meteor, choice=Component.TEST_CATALOGUE, taxonomy=False, check_md5=True
+    )
 
 
 def test_check_md5(downer: Downloader, datadir: Path) -> None:

@@ -139,7 +139,7 @@
             "md5": "8cbdb0bb7cbbdcd90981ed9d7fc4ad38"
         }
     },
-    "test": {
+    "mock": {
         "file_info": {
             "catalogue": "https://zenodo.org/records/13693446/files/mock.tar.xz",
             "filename": "mock.tar.xz",

@@ -837,7 +837,7 @@ def main() -> None:  # pragma: no cover
             meteor.tmp_dir = Path(tmpdirname)
             meteor.mapping_dir = Path(tmpdirname) / "map"
             meteor.fastq_dir = Path(tmpdirname)
-            downloader = Downloader(meteor, Downloader.TEST_CATALOGUE, False, True)
+            downloader = Downloader(meteor, Component.TEST_CATALOGUE, False, True)
             downloader.execute()
             fastq_importer = FastqImporter(meteor, meteor.tmp_dir, False, None)
             fastq_importer.execute()

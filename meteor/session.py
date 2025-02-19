@@ -30,7 +30,7 @@ class Component:
     """Set of important constant for meteor"""
 
     CONFIG_DATA_FILE: ClassVar[Path] = Path("data/zenodo.json")
-    TEST_CATALOGUE: ClassVar[str] = "test"
+    TEST_CATALOGUE: ClassVar[str] = "mock"
     MIN_BOWTIE2_VERSION: ClassVar[Version] = Version("2.3.5")
     MIN_FREEBAYES_VERSION: ClassVar[Version] = Version("1.3.6")
     DEFAULT_GAP_CHAR: ClassVar[str] = "N"

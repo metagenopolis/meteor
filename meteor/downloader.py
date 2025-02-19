@@ -80,6 +80,8 @@ class Downloader(Session):
     def execute(self) -> None:
         try:
             # for choice in self.user_choice:
+            print(self.choice)
+            print(self.data_type)
             logging.info(
                 "Download %s catalogue",
                 self.catalogues_config[self.choice][self.data_type]["filename"],
@@ -93,6 +95,7 @@ class Downloader(Session):
             urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
             self.progress_bar.close()
             if self.choice == Component.TEST_CATALOGUE:
+                print(self.catalogues_config[self.choice]["samples"])
                 for sample in self.catalogues_config[self.choice]["samples"]:
                     logging.info("Download %s fastq file", sample)
                     url_fastq = self.catalogues_config[self.choice]["samples"][sample][

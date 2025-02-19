@@ -18,6 +18,8 @@ import lzma
 import bgzip
 import pickle
 import shutil
+import pandas as pd
+import numpy as np
 from subprocess import CalledProcessError, run, Popen, PIPE
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,9 +31,8 @@ from packaging.version import parse
 from pysam import AlignmentFile, FastaFile, VariantFile, faidx, tabix_index
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import defaultdict
-import pandas as pd
 from typing import ClassVar
-import numpy as np
+from tqdm import tqdm
 
 
 def run_freebayes_chunk(
@@ -419,10 +420,9 @@ class VariantCalling(Session):
             with FastaFile(filename=str(reference_file.resolve())) as Fasta:
                 with lzma.open(consensus_file, "wt", preset=0) as consensus_f:
                     # Iterate over all reference sequences in the fasta file
-                    len_bed_set = len(bed_set)
-                    for i, gene_id in enumerate(bed_set):
-                        if i % 1000 == 0:
-                            logging.info(f"{i}/{len_bed_set}")
+                    for gene_id in tqdm(
+                        bed_set, desc="Creating consensus", unit="gene"
+                    ):
                         ref = str(gene_id)
                         if gene_id in gene_ignore.index:
                             consensus = [
