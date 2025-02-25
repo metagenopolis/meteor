@@ -562,7 +562,9 @@ class VariantCalling(Session):
         msp_content = self.load_data(msp_file)
         gene_details = self.load_data(annotation_file)
         freebayes_exec = run(
-            ["freebayes", "--version"], check=False, capture_output=True, timeout=60
+            ["freebayes", "--version"],
+            check=False,
+            capture_output=True,
         )
         if freebayes_exec.returncode != 0:
             logging.error(

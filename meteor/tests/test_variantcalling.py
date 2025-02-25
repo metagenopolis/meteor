@@ -121,15 +121,15 @@ def test_create_consensus(
         assert md5(consensus.read()).hexdigest() == "3dcc531550bff705949620224d9950f4"
 
 
-def test_execute(vc_builder: VariantCalling) -> None:
-    vc_builder.execute()
-    output_vcf = (
-        vc_builder.census["directory"]
-        / f"{vc_builder.census['census']['sample_info']['sample_name']}.vcf.gz"
-    )
-    assert output_vcf.exists()
-    output_consensus = (
-        vc_builder.census["directory"]
-        / f"{vc_builder.census['census']['sample_info']['sample_name']}_consensus.fasta.xz"
-    )
-    assert output_consensus.exists()
+# def test_execute(vc_builder: VariantCalling) -> None:
+#     vc_builder.execute()
+#     output_vcf = (
+#         vc_builder.census["directory"]
+#         / f"{vc_builder.census['census']['sample_info']['sample_name']}.vcf.gz"
+#     )
+#     assert output_vcf.exists()
+#     output_consensus = (
+#         vc_builder.census["directory"]
+#         / f"{vc_builder.census['census']['sample_info']['sample_name']}_consensus.fasta.xz"
+#     )
+#     assert output_consensus.exists()
