@@ -642,7 +642,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-s",
         dest="min_info_sites",
         default=TreeBuilder.DEFAULT_MIN_INFO_SITES,
-        type=isborned01,
+        type=int,
         help="Minimum number of informative sites in the alignment (default: >= %(default)d).",
     )
     tree_parser.add_argument(
