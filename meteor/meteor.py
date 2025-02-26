@@ -72,6 +72,25 @@ def isfile(path: str) -> Path:  # pragma: no cover
     return myfile
 
 
+def isinputdir(path: str) -> Path:  # pragma: no cover
+    """Check if path can be valid directory.
+
+    :param path: Path to the directory
+
+    :raises ArgumentTypeError: If directory does not exist
+
+    :return: (str) Path object of the directory
+    """
+    mydir = Path(path)
+    if mydir.is_file():
+        msg = f"{mydir.name} is a file."
+        raise ArgumentTypeError(msg)
+    elif not mydir.exists():
+        msg = f"{mydir.name} does not exist."
+        raise ArgumentTypeError(msg)
+    return mydir
+
+
 def isdir(path: str) -> Path:  # pragma: no cover
     """Check if path can be valid directory.
 
@@ -206,7 +225,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     fastq_parser.add_argument(
         "-i",
         dest="input_fastq_dir",
-        type=isdir,
+        type=isinputdir,
         required=True,
         help="Directory containing all input fastq files with .fastq or .fq. extensions "
         "(gzip, bzip2 and xz compression accepted).\n"
@@ -241,7 +260,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     mapping_parser.add_argument(
         "-i",
         dest="fastq_dir",
-        type=isdir,
+        type=isinputdir,
         required=True,
         help="Directory corresponding to the sample to process.\n"
         "(contains sequencing metadata files ending with _census_stage_0.json)",
@@ -249,7 +268,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     mapping_parser.add_argument(
         "-r",
         dest="ref_dir",
-        type=isdir,
+        type=isinputdir,
         required=True,
         help="Directory corresponding to the gene catalog against which reads are mapped.\n"
         "(contains a file ending with *_reference.json)",
@@ -344,14 +363,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-i",
         dest="mapped_sample_dir",
         required=True,
-        type=isdir,
+        type=isinputdir,
         help="Directory with raw gene counts of the sample to process.\n"
         "(contains a metadata file ending with _census_stage_1.json)",
     )
     profiling_parser.add_argument(
         "-r",
         dest="ref_dir",
-        type=isdir,
+        type=isinputdir,
         required=True,
         help="Directory corresponding to the catalog used to generate raw gene counts.\n"
         "(contains a file ending with *_reference.json)",
@@ -429,14 +448,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-i",
         dest="profile_dir",
         required=True,
-        type=isdir,
+        type=isinputdir,
         help="Directory containing subdirectories (one per sample) with abundance tables to be merged.\n"
         "(each subdirectory contains a metadata file ending with _census_stage_2.json)",
     )
     merging_parser.add_argument(
         "-r",
         dest="ref_dir",
-        type=isdir,
+        type=isinputdir,
         required=True,
         help="Directory corresponding to the gene catalog used to generate the abundance tables.\n"
         "(contains a file ending with *_reference.json)",
@@ -519,13 +538,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-i",
         dest="mapped_sample_dir",
         required=True,
-        type=isdir,
+        type=isinputdir,
         help="Path to the mapped sample directory.",
     )
     strain_parser.add_argument(
         "-r",
         dest="ref_dir",
-        type=isdir,
+        type=isinputdir,
         required=True,
         help="Path to reference directory (Path containing *_reference.json)",
     )
@@ -628,7 +647,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-i",
         dest="strain_dir",
         required=True,
-        type=isdir,
+        type=isinputdir,
         help="Path to the strain directory.",
     )
     tree_parser.add_argument(
