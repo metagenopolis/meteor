@@ -132,7 +132,7 @@ This profiling step will generate:
 To merge output from different samples into a single table, use the following command:
 
 ```
-meteor merge -i <profiledir> -o <mergingdir>
+meteor merge -i <profiledir> -r <refdir> -o <mergingdir>
 ```
 
 ### 5. Strain profiling
