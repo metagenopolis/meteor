@@ -86,12 +86,23 @@ class Component:
         """
         try:
             zenodo = Component.load_catalogues_config()
-            assert (
-                ref_json["reference_info"]["reference_date"]
-                == zenodo[ref_json["reference_info"]["reference_name"]]["file_info"][
-                    "reference_date"
-                ]
-            )
+            if ref_json["reference_info"]["database_type"] == "complete":
+                assert (
+                    ref_json["reference_info"]["reference_date"]
+                    == zenodo[ref_json["reference_info"]["reference_name"]][
+                        "file_info"
+                    ]["reference_date"]
+                )
+            else:
+                # we could do better
+                assert (
+                    ref_json["reference_info"]["reference_date"]
+                    == zenodo[
+                        ref_json["reference_info"]["reference_name"].replace(
+                            "_" + ref_json["reference_info"]["database_type"], ""
+                        )
+                    ]["taxonomy_info"]["reference_date"]
+                )
         except AssertionError:
             logging.warning(
                 "This is not the version of the catalogue expected with "
