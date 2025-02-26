@@ -73,20 +73,20 @@ def isfile(path: str) -> Path:  # pragma: no cover
 
 
 def isinputdir(path: str) -> Path:  # pragma: no cover
-    """Check if path can be valid directory.
+    """Check if path is valid directory.
 
     :param path: Path to the directory
 
-    :raises ArgumentTypeError: If directory does not exist
+    :raises ArgumentTypeError: If path does not exist or is not a directory
 
     :return: (str) Path object of the directory
     """
     mydir = Path(path)
-    if mydir.is_file():
-        msg = f"{mydir.name} is a file."
+    if not mydir.exists():
+        msg = f"{mydir} does not exist."
         raise ArgumentTypeError(msg)
-    elif not mydir.exists():
-        msg = f"{mydir.name} does not exist."
+    elif not mydir.is_dir():
+        msg = f"{mydir} is not a directory."
         raise ArgumentTypeError(msg)
     return mydir
 
@@ -96,13 +96,13 @@ def isdir(path: str) -> Path:  # pragma: no cover
 
     :param path: Path to the directory
 
-    :raises ArgumentTypeError: If directory does not exist
+    :raises ArgumentTypeError: If path exists and is not a directory
 
     :return: (str) Path object of the directory
     """
     mydir = Path(path)
-    if mydir.is_file():
-        msg = f"{mydir.name} is a file."
+    if mydir.exists() and not mydir.is_dir():
+        msg = f"{mydir} is not a directory."
         raise ArgumentTypeError(msg)
     return mydir
 

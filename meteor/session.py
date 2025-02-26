@@ -154,40 +154,56 @@ class Session(Protocol):
 
     def get_reference_info(self, ref_dir: Path) -> dict:
         # Get the json ref
-        try:
-            ref_json_file_list = list(ref_dir.glob("*_reference.json"))
-            assert len(ref_json_file_list) == 1
-            ref_json_file = ref_json_file_list[0]
-            ref_json = self.read_json(ref_json_file)
-        except AssertionError:
+
+        ref_json_file_list = list(ref_dir.glob("*_reference.json"))
+        if len(ref_json_file_list) == 0:
             logging.error(
-                "No *_reference.json file found in %s. "
-                "One *_reference.json is expected",
+                "No *_reference.json file found in %s.",
                 ref_dir.name,
             )
             sys.exit(1)
+        elif len(ref_json_file_list) > 1:
+            logging.error(
+                "Multiple *_reference.json files found in %s. "
+                "One *_reference.json file is expected.",
+                ref_dir.name,
+            )
+            sys.exit(1)
+
+        ref_json_file = ref_json_file_list[0]
+        ref_json = self.read_json(ref_json_file)
+
         return ref_json
 
     def get_census_stage(self, mapping_dir: Path, stage: int) -> dict:
-        """Find census_stage_X.json file of a given repertory
+        """Find census_stage_X.json file of a given directory
 
         :param mapping_dir: A directory containing one census_stage file
         : param stage: Stage of the census file to find (census_stage_1, census_stage_2, etc)
         """
-        try:
-            census_json_file_list = list(
-                mapping_dir.glob(f"*_census_stage_{stage}.json")
-            )
-            assert len(census_json_file_list) == 1
-            census_json_file = census_json_file_list[0]
-            census_json = self.read_json(census_json_file)
-        except AssertionError:
+
+        census_json_file_list = list(mapping_dir.glob(f"*_census_stage_{stage}.json"))
+
+        if len(census_json_file_list) == 0:
             logging.error(
                 "No *_census_stage_%d.json file found in %s.",
                 stage,
                 mapping_dir,
             )
             sys.exit(1)
+        elif len(census_json_file_list) > 1:
+            logging.error(
+                "Multiple *_census_stage_%d.json files found in %s. "
+                "One *_census_stage_%d.json file is expected.",
+                stage,
+                mapping_dir,
+                stage,
+            )
+            sys.exit(1)
+
+        census_json_file = census_json_file_list[0]
+        census_json = self.read_json(census_json_file)
+
         return census_json
 
     def update_json(
