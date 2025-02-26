@@ -25,6 +25,9 @@ jobs:
         run: poetry install --only test
       - name: Run the automated tests (for example)
         run: poetry run pytest --log-level=DEBUG --cache-clear -s -vv --cov=meteor --cov-report xml
+        resources:
+            requests:
+              memory: "4Gi"
         timeout-minutes: 15
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
