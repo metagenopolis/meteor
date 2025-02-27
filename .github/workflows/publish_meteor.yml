@@ -19,9 +19,9 @@ jobs:
       - name: Install poetry
         uses: abatilo/actions-poetry@v2
       - name: Install the project dependencies
-        run: poetry install -C meteor
+        run: poetry install
       - name: Run the automated tests (for example)
-        run: poetry run -C meteor meteor test
+        run: poetry run meteor test
 
   docker:
     if: ${{ !github.event.release.prerelease }}
@@ -82,7 +82,7 @@ jobs:
       - name: Build and publish to PyPI
         run: |
           poetry config http-basic.pypi __token__ ${{ secrets.PYPI_TOKEN }}
-          poetry build -C meteor
-          poetry publish --skip-existing -C meteor
+          poetry build
+          poetry publish --skip-existing
 
 
