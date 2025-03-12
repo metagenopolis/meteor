@@ -147,7 +147,7 @@ class Session(Protocol):
         :param config_path: (Path) An output path object
         """
         with config_path.open("wt", encoding="utf-8") as configfile:
-            json.dump(config, configfile)
+            json.dump(config, configfile, indent = 4)
 
     def read_json(self, input_json: Path) -> dict:  # pragma: no cover
         """Read json file
