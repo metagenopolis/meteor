@@ -393,7 +393,12 @@ class VariantCalling(Session):
         gene_ignore = gene_interest[
             gene_interest["coverage"] < self.min_depth
         ].set_index("gene_id")
-        sum_cov_bed = pd.concat(dfs, ignore_index=True).set_index("gene_id")
+        
+        if len(dfs) == 0:
+            logging.error("No low coverage regions detected, it might be linked to no coverage at all")
+            sys.exit(1)
+        else:
+            sum_cov_bed = pd.concat(dfs, ignore_index=True).set_index("gene_id")
         return sum_cov_bed, gene_ignore
 
     # @memory_profiler.profile
