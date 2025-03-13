@@ -535,11 +535,6 @@ class VariantCalling(Session):
             self.census["directory"]
             / f"{self.census['census']['sample_info']['sample_name']}.vcf.gz"
         )
-        bed_file = (
-            self.meteor.ref_dir
-            / self.census["reference"]["reference_file"]["database_dir"]
-            / self.census["reference"]["annotation"]["bed"]["filename"]
-        ).resolve()
         low_cov_sites_file = (
             self.census["directory"]
             / f"{self.census['census']['sample_info']['sample_name']}.pickle"
@@ -622,8 +617,6 @@ class VariantCalling(Session):
             merged_df["gene_length"] = merged_df["gene_length"].astype(
                 int
             )  # Ensure these are integers
-            result_df = merged_df[["gene_id", "startpos", "gene_length"]]
-            result_df.to_csv(bed_file, sep="\t", index=False, header=False)
             # Create bed_chunk files. Each file stores multiple `msp_name` regions
             bed_chunks = self.create_bed_chunks(
                 merged_df, self.meteor.threads, self.meteor.tmp_dir
