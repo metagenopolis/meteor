@@ -585,6 +585,25 @@ class VariantCalling(Session):
         start = perf_counter()
         startfreebayes = perf_counter()
         temp_ref_file_path = None
+        # Prepare the gene data by merging content and creating the necessary fields for the BED format
+        msp_content = msp_content[msp_content["gene_category"] == "core"]
+        msp_content = (
+            msp_content.groupby("msp_name")
+            .head(self.core_size)
+            .reset_index(drop=True)
+        )  # Limit to core_size per `msp_name`
+
+        # Merge with gene details
+        merged_df = pd.merge(msp_content, gene_details, on="gene_id")
+
+        # Add BED columns (we assume `startpos` is 0 and `gene_length` is the length of the gene)
+        merged_df["startpos"] = 0
+        merged_df["gene_length"] = merged_df["gene_length"].astype(
+            int
+        )  # Ensure these are integers
+        result_df = merged_df[["gene_id", "startpos", "gene_length"]]
+        temp_bed_file = NamedTemporaryFile(suffix=".bed", dir=self.meteor.tmp_dir, delete=False)
+        result_df.to_csv(temp_bed_file, sep="\t", index=False, header=False)
         if vcf_file.exists():
             logging.info("Vcf already exist, skipping freebayes..")
         else:
@@ -601,22 +620,6 @@ class VariantCalling(Session):
                 temp_ref_file_path = temp_ref_file.name
             # index on the fly
             faidx(temp_ref_file.name)
-            # Prepare the gene data by merging content and creating the necessary fields for the BED format
-            msp_content = msp_content[msp_content["gene_category"] == "core"]
-            msp_content = (
-                msp_content.groupby("msp_name")
-                .head(self.core_size)
-                .reset_index(drop=True)
-            )  # Limit to core_size per `msp_name`
-
-            # Merge with gene details
-            merged_df = pd.merge(msp_content, gene_details, on="gene_id")
-
-            # Add BED columns (we assume `startpos` is 0 and `gene_length` is the length of the gene)
-            merged_df["startpos"] = 0
-            merged_df["gene_length"] = merged_df["gene_length"].astype(
-                int
-            )  # Ensure these are integers
             # Create bed_chunk files. Each file stores multiple `msp_name` regions
             bed_chunks = self.create_bed_chunks(
                 merged_df, self.meteor.threads, self.meteor.tmp_dir
@@ -715,7 +718,7 @@ class VariantCalling(Session):
             low_cov_sites,
             gene_ignore,
             vcf_file,
-            bed_file,
+            temp_bed_file.name,
         )
         logging.info(
             "Completed consensus step in %f seconds",
