@@ -12,17 +12,19 @@
 
 """Merge profiles"""
 
-from meteor.session import Session, Component
-from dataclasses import dataclass, field
+import numpy as np
+import importlib.resources
 import pandas as pd
-from pathlib import Path
 import logging
 import sys
+import os
+import fnmatch
+from meteor.session import Session, Component
+from dataclasses import dataclass, field
+from pathlib import Path
 from biom.table import Table  # type: ignore
 from typing import ClassVar
 from functools import partial
-import numpy as np
-import importlib.resources
 
 
 @dataclass
@@ -225,7 +227,12 @@ class Merging(Session):
             )
             sys.exit(1)
         # Fetch all census ini files
-        all_census = list(Path(self.meteor.profile_dir).glob("**/*census_stage_2.json"))
+        # all_census = list(Path(self.meteor.profile_dir).glob("**/*census_stage_2.json"))
+        all_census = [
+            Path(root, filename)
+            for root, _, files in os.walk(self.meteor.profile_dir, followlinks=True)
+            for filename in fnmatch.filter(files, "*census_stage_2.json")
+        ]
         if len(all_census) == 0:
             logging.error("No census stage 2 found in the specified repository.")
             sys.exit(1)
