@@ -24,9 +24,10 @@ from meteor.session import Session, Component
 from typing import Generator, Iterator, ClassVar
 from collections import defaultdict
 from itertools import chain
-from pysam import index, idxstats, AlignmentFile, sort, AlignedSegment  # type: ignore[attr-defined]
+from pysam import index, idxstats, AlignmentFile, AlignmentHeader, sort  # type: ignore[attr-defined]
 from time import perf_counter
 from shutil import rmtree
+import heapq
 
 
 @dataclass
@@ -136,7 +137,7 @@ class Counter(Session):
 
     def filter_alignments(
         self, cramdesc: AlignmentFile
-    ) -> tuple[dict[str, list[AlignedSegment]], dict[str, list[int]]]:
+    ) -> tuple[dict[str, list[int]], dict[str, list[int]]]:
         """Filter read according to their identity with reference and reads with multiple
         alignments with different score. We keep the best scoring reads when total count is
         applied.
@@ -152,8 +153,8 @@ class Counter(Session):
         tmp_score: dict[str, float] = {}
         genes: dict[str, list[int]] = {}
         # contains a list of alignment of each read
-        reads: dict[str, list[AlignedSegment]] = {}
-        for element in cramdesc:
+        reads: dict[str, list[int]] = {}
+        for element_id, element  in enumerate(cramdesc):
             assert element.query_name is not None and element.reference_name is not None
 
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
@@ -184,14 +185,14 @@ class Counter(Session):
             # if same score
             if prev_score == score:
                 # add the genes to the list if it doesn't exist
-                reads[read_id].append(element)
+                reads[read_id].append(element_id)
                 genes[read_id].append(int(element.reference_name))
             # case new score is higher
             elif prev_score < score:
                 # set the new score
                 tmp_score[read_id] = score
                 # We keep the new score and forget the previous one
-                reads[read_id] = [element]
+                reads[read_id] = [element_id]
                 genes[read_id] = [int(element.reference_name)]
         return reads, genes
 
@@ -368,15 +369,16 @@ class Counter(Session):
 
     def save_cram_strain(
         self,
-        outcramfile: Path,
-        cramdesc: AlignmentFile,
+        raw_cramfile: Path,
+        out_cramfile: Path,
+        raw_cram_header: AlignmentHeader,
         read_chain: chain,
         ref_json: dict,
     ):
         """Writing the filtered CRAM file for strain analysis.
-
-        :param outsamfile: [Path] Temporary cram file
-        :param cramdesc: Pysam cram descriptor
+        :param raw_cramfile: [Path]
+        :param out_cramfile: [Path] Temporary cram file
+        :param raw_cram_header: Pysam cram header
         :param read_chain: [chain] Chain of pysam reads objects
         """
         reference = (
@@ -397,17 +399,26 @@ class Counter(Session):
         )
         # Sort the 'gene_id' values and convert directly to a list
         gene_id_set = set(msp_content["gene_id"])
+
         with AlignmentFile(
-            str(outcramfile.resolve()),
+            str(raw_cramfile.resolve()), threads=self.meteor.threads
+        ) as raw_cram_desc, AlignmentFile(
+            str(out_cramfile.resolve()),
             "wc",
-            template=cramdesc,
+            header=raw_cram_header,
             reference_filename=str(reference.resolve()),
             threads=self.meteor.threads,
-        ) as total_reads:
-            for element in read_chain:
-                if int(element.reference_name) in gene_id_set:
-                    # if int(element.reference_name) in ref_json["reference_file"]:
-                    total_reads.write(element)
+        ) as out_cram_desc:
+            valid_element_ids = read_chain
+            try:
+                cur_valid_element_id = next(valid_element_ids)
+                for element_id, element in enumerate(raw_cram_desc):
+                    if element_id == cur_valid_element_id:
+                        if int(element.reference_name) in gene_id_set:
+                            out_cram_desc.write(element)
+                        cur_valid_element_id = next(valid_element_ids)
+            except StopIteration:
+                pass
 
     def launch_counting(
         self,
@@ -436,94 +447,106 @@ class Counter(Session):
         pysam.set_verbosity(0)
         with AlignmentFile(
             str(raw_cramfile.resolve()), threads=self.meteor.threads
-        ) as cramdesc:
+        ) as raw_cram_desc:
             # create a dictionary containing the length of reference genes
             # get name of reference sequence
-            references = [int(ref) for ref in cramdesc.references]
+            references = [int(ref) for ref in raw_cram_desc.references]
+            # get cram header
+            raw_cram_header = raw_cram_desc.header
             # get reference length
-            lengths = cramdesc.lengths
+            lengths = raw_cram_desc.lengths
             # All references with their length
             database = dict(zip(references, lengths))
             # Filter reads according to quality and score
-            reads, genes = self.filter_alignments(cramdesc)
-            # Filter reads according to quality, score and counting
-            # genes mapped by multiple reads
-            unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(
-                reads, genes, database
-            )
-            if self.counting_type == "smart_shared":
-                # For multiple reads compute Co
-                read_dict, coef_read = self.compute_co(genes_mult, unique_on_gene)
-                # calculate abundance
-                multiple = self.compute_abm(read_dict, coef_read, database)
-                # Calculate reference abundance & write count table
-                abundance = self.compute_abs_meteor(database, unique_on_gene, multiple)
-                # abundance = self.compute_abs(unique_on_gene, multiple)
-                total_read_count = self.write_stat(count_file, abundance, database)
+            reads, genes = self.filter_alignments(raw_cram_desc)
 
-            else:
-                if self.counting_type == "unique":
-                    reads = unique_reads
-                cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                cramfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                # self.json_data[library]["directory"]
-                #     / f"{sample_info['sample_name']}_raw.cram"
-                # self.save_cram(
-                #     cramfile_unsorted, cramdesc, list(chain(*reads.values())), ref_json
-                # )
-                reference = (
-                    self.meteor.ref_dir
-                    / ref_json["reference_file"]["fasta_dir"]
-                    / ref_json["reference_file"]["fasta_filename"]
-                )
-                # Save a temporary cram for the counting
-                with AlignmentFile(
-                    str(cramfile_unsorted.resolve()),
-                    "wc",
-                    template=cramdesc,
-                    reference_filename=str(reference.resolve()),
-                    threads=self.meteor.threads,
-                ) as total_reads:
-                    for element in chain.from_iterable(reads.values()):
-                        # if int(element.reference_name) in ref_json["reference_file"]:
-                        total_reads.write(element)
-                sort(
-                    "-o",
-                    str(cramfile_sorted.resolve()),
-                    "-@",
-                    str(self.meteor.threads),
-                    "-O",
-                    "cram",
-                    str(cramfile_unsorted.resolve()),
-                    catch_stdout=False,
-                )
-                total_read_count = self.write_table(cramfile_sorted, count_file)
-            config = self.set_counter_config(total_read_count, count_file)
-            census_json.update(config)
-            self.save_config(census_json, Stage1Json)
-            if self.keep_filtered_alignments:
-                cramfile_strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-                self.save_cram_strain(
-                    cramfile_strain_unsorted,
-                    cramdesc,
-                    chain.from_iterable(reads.values()),
-                    ref_json,
-                )
-                sort(
-                    "-o",
-                    str(cramfile_strain.resolve()),
-                    "-@",
-                    str(self.meteor.threads),
-                    "-O",
-                    "cram",
-                    str(cramfile_strain_unsorted.resolve()),
-                    catch_stdout=False,
-                )
-                index(str(cramfile_strain.resolve()))
-            else:
-                logging.info(
-                    "Cram file is not kept (--kf). Strain analysis will require a new mapping."
-                )
+        # Filter reads according to quality, score and counting
+        # genes mapped by multiple reads
+        unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(
+            reads, genes, database
+        )
+        if self.counting_type == "smart_shared":
+            # For multiple reads compute Co
+            read_dict, coef_read = self.compute_co(genes_mult, unique_on_gene)
+            # calculate abundance
+            multiple = self.compute_abm(read_dict, coef_read, database)
+            # Calculate reference abundance & write count table
+            abundance = self.compute_abs_meteor(database, unique_on_gene, multiple)
+            # abundance = self.compute_abs(unique_on_gene, multiple)
+            total_read_count = self.write_stat(count_file, abundance, database)
+
+        else:
+            if self.counting_type == "unique":
+                reads = unique_reads
+            cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+            cramfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+            # self.json_data[library]["directory"]
+            #     / f"{sample_info['sample_name']}_raw.cram"
+            # self.save_cram(
+            #     cramfile_unsorted, cramdesc, list(chain(*reads.values())), ref_json
+            # )
+            reference = (
+                self.meteor.ref_dir
+                / ref_json["reference_file"]["fasta_dir"]
+                / ref_json["reference_file"]["fasta_filename"]
+            )
+            # Save a temporary cram for the counting
+            with AlignmentFile(
+                str(raw_cramfile.resolve()), threads=self.meteor.threads
+            ) as raw_cram_desc, AlignmentFile(
+                str(cramfile_unsorted.resolve()),
+                "wc",
+                header=raw_cram_header,
+                reference_filename=str(reference.resolve()),
+                threads=self.meteor.threads,
+            ) as unsorted_cram_desc:
+                valid_element_ids = heapq.merge(*(reads.values()))
+                try:
+                    cur_valid_element_id = next(valid_element_ids)
+                    for element_id, element in enumerate(raw_cram_desc):
+                        if element_id == cur_valid_element_id:
+                            unsorted_cram_desc.write(element)
+                            cur_valid_element_id = next(valid_element_ids)
+                except StopIteration:
+                    pass
+            sort(
+                "-o",
+                str(cramfile_sorted.resolve()),
+                "-@",
+                str(self.meteor.threads),
+                "-O",
+                "cram",
+                str(cramfile_unsorted.resolve()),
+                catch_stdout=False,
+            )
+            total_read_count = self.write_table(cramfile_sorted, count_file)
+        config = self.set_counter_config(total_read_count, count_file)
+        census_json.update(config)
+        self.save_config(census_json, Stage1Json)
+        if self.keep_filtered_alignments:
+            cramfile_strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+            self.save_cram_strain(
+                raw_cramfile,
+                cramfile_strain_unsorted,
+                raw_cram_header,
+                heapq.merge(*(reads.values())),
+                ref_json,
+            )
+            sort(
+                "-o",
+                str(cramfile_strain.resolve()),
+                "-@",
+                str(self.meteor.threads),
+                "-O",
+                "cram",
+                str(cramfile_strain_unsorted.resolve()),
+                catch_stdout=False,
+            )
+            index(str(cramfile_strain.resolve()))
+        else:
+            logging.info(
+                "Cram file is not kept (--kf). Strain analysis will require a new mapping."
+            )
 
     def execute(self) -> None:
         """Compute the mapping"""
