@@ -21,6 +21,7 @@ from pysam import AlignmentFile
 from itertools import chain
 import pytest
 import pandas as pd
+import hashlib
 
 # No more best count
 # @pytest.fixture
@@ -122,15 +123,16 @@ def test_launch_mapping(counter_total: Counter):
     }
     counter_total.launch_mapping()
     assert counter_total.json_data[census_json_file]["Stage1FileName"].exists()
-    # Fail with changing day
-    # with counter_best.json_data[census_ini_file]["Stage1FileName"].open("rb") as stage1:
-    #    assert md5(stage1.read()).hexdigest() == "a8a5b5e400dafb226ce3bab1a2cee69d"
     cram = stage1_dir / "part1_raw.cram"
     assert cram.exists()
-    # cram = stage1_dir / "part1.cram"
-    # bai = stage1_dir / "part1.cram.bai"
-    # assert cram.exists()
-    # assert bai.exists()
+    # Compute md5 of alignments in the cram file
+    # Cannot compute md5 of the entire file as header may change
+    md5 = hashlib.md5()
+    with AlignmentFile(str(cram.resolve()), "rc") as cramdesc:
+        for element in cramdesc:
+            md5.update(str(element).encode())
+    assert md5.hexdigest() == "1cf38d80be2e2ee35573d3b5606aa58e"
+
 
 
 def test_write_table(counter_total: Counter, datadir: Path, tmp_path: Path) -> None:
@@ -290,14 +292,19 @@ def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> No
         reads, _ = counter_unique.filter_alignments(
             cramdesc
         )  # pylint: disable=unused-variable
-        read_list = reads.values()
-        merged_list = chain.from_iterable(read_list)
-        tmpcramfile = tmp_path / "test"
-        counter_unique.save_cram_strain(tmpcramfile, cramdesc, merged_list, ref_json)
-        assert tmpcramfile.exists()
-        # issues at testing content
-        # with tmpcramfile.open("rb") as out:
-        #     assert md5(out.read()).hexdigest() == "ef47276b6fcb7ad398801b7f5c52ef04"
+        cram_header = cramdesc.header
+    read_list = reads.values()
+    merged_list = chain.from_iterable(read_list)
+    tmpcramfile = tmp_path / "test"
+    counter_unique.save_cram_strain(tmpcramfile, cram_header, merged_list, ref_json)
+    assert tmpcramfile.exists()
+    # Compute md5 of alignments in the cram file
+    # Cannot compute md5 of the entire file as header may change
+    md5 = hashlib.md5()
+    with AlignmentFile(str(tmpcramfile.resolve()), "rc") as cramdesc:
+        for element in cramdesc:
+            md5.update(str(element).encode())
+    assert md5.hexdigest() == "8107485ec5e3ec00c73d518528c4a4b2"
 
 
 def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path: Path):
