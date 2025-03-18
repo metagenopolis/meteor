@@ -290,14 +290,15 @@ def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> No
         reads, _ = counter_unique.filter_alignments(
             cramdesc
         )  # pylint: disable=unused-variable
-        read_list = reads.values()
-        merged_list = chain.from_iterable(read_list)
-        tmpcramfile = tmp_path / "test"
-        counter_unique.save_cram_strain(tmpcramfile, cramdesc, merged_list, ref_json)
-        assert tmpcramfile.exists()
-        # issues at testing content
-        # with tmpcramfile.open("rb") as out:
-        #     assert md5(out.read()).hexdigest() == "ef47276b6fcb7ad398801b7f5c52ef04"
+        cram_header = cramdesc.header
+    read_list = reads.values()
+    merged_list = chain.from_iterable(read_list)
+    tmpcramfile = tmp_path / "test"
+    counter_unique.save_cram_strain(tmpcramfile, cram_header, merged_list, ref_json)
+    assert tmpcramfile.exists()
+    # issues at testing content
+    # with tmpcramfile.open("rb") as out:
+    #     assert md5(out.read()).hexdigest() == "ef47276b6fcb7ad398801b7f5c52ef04"
 
 
 def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path: Path):
