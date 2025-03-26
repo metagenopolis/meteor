@@ -150,17 +150,8 @@ Meteor computes mutation rates and trees between strains from samples using a GT
 meteor tree -i <straindir> -o <treedir>
 ```
 
-## The METEOR team
-The main contributors to METEOR:
+## Citing Meteor2
 
-* Franck Gauthier
-* Amine Ghozlane
-* Florian Plaza Oñate
-* Nicolas Pons
-* Florence Thirion
-
-
-## Acknowledgements
-Special thanks to the following people:
-* Mathieu Almeida
-* Emmanuelle Le Chatelier
+Please cite the following publication if you use Meteor2:  
+[Accurate profiling of microbial communities for shotgun metagenomic sequencing with Meteor2.](https://doi.org/10.21203/rs.3.rs-6122276/v1)   
+Amine Ghozlane, Florence Thirion, Florian Plaza Oñate, Franck Gauthier, Emmanuelle Le Chatelier, Anita Annamalé, Mathieu Almeida, Stanislav D. Ehrlich, Nicolas Pons.
