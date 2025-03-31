@@ -323,7 +323,7 @@ class Counter(Session):
             multiple_dict[gene] = sum(self.get_co_coefficient(gene, read_dict, co_dict))
         return multiple_dict
 
-    def compute_abs_meteor(
+    def compute_abs(
         self, database: dict, unique_dict: dict, multiple_dict: dict
     ) -> dict:
         """Compute the abundance of a each genes.
@@ -335,17 +335,6 @@ class Counter(Session):
         """
         return {gene: unique_dict[gene] + multiple_dict[gene] for gene in database}
 
-    def compute_abs(self, unique_dict: dict, multiple_dict: dict) -> dict:
-        """Compute the abundance of a each genes.
-            Abundance = Abundance unique reads + Abundance multiple reads
-
-        :param unique_dict: [DICT] = nb of unique read of each reference genes
-        :param multiple_dict: [DICT] = abundance of multiple reads for each genes
-        :return: abundance_dict [DICT] = contains abundance of each reference genes
-        """
-        return {
-            genes: unique_dict[genes] + multiple_dict[genes] for genes in unique_dict
-        }
 
     def write_stat(self, output: Path, abundance_dict: dict, database: dict) -> int:
         """Write count table.
@@ -456,7 +445,7 @@ class Counter(Session):
             # calculate abundance
             multiple = self.compute_abm(read_dict, coef_read, database)
             # Calculate reference abundance & write count table
-            abundance = self.compute_abs_meteor(database, unique_on_gene, multiple)
+            abundance = self.compute_abs(database, unique_on_gene, multiple)
             # abundance = self.compute_abs(unique_on_gene, multiple)
             total_read_count = self.write_stat(count_file, abundance, database)
 

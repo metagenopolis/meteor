@@ -270,7 +270,7 @@ def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
             genes_mult, unique_on_gene
         )
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
-        abundance = counter_smart_shared.compute_abs(unique_on_gene, multiple_dict)
+        abundance = counter_smart_shared.compute_abs(database, unique_on_gene, multiple_dict)
         assert abundance[18783] == 2 + 2 / 3
 
 
