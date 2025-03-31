@@ -508,6 +508,8 @@ class Counter(Session):
                 chain.from_iterable(reads.values()),
                 ref_json,
             )
+            del reads
+            del unique_reads
             sort(
                 "-o",
                 str(cramfile_strain.resolve()),
