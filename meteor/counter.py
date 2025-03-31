@@ -62,27 +62,24 @@ class Counter(Session):
 
     def launch_mapping(self) -> None:
         """Create temporary indexed files and map against"""
-        list_fastq_path = []
+        fastq_paths = []
         # loop on each library
-        for (
-            _,
-            dict_data,
-        ) in self.json_data.items():  # pylint: disable=unused-variable
+        for dict_data in self.json_data.values():
             census = dict_data["census"]
             sample_file = census["sample_file"]
             # reindexing this library reads and fill FLibraryIndexerReport
-            list_fastq_path += [str(self.meteor.fastq_dir / sample_file["fastq_file"])]
-        else:
-            # mapping this library on the reference
-            mapping_process = Mapper(
-                self.meteor,
-                dict_data,
-                list_fastq_path,
-                self.mapping_type,
-                self.trim,
-                self.alignment_number,
-            )
-            mapping_process.execute()
+            fastq_paths.append(str(self.meteor.fastq_dir / sample_file["fastq_file"]))
+
+        # mapping this library on the reference
+        mapping_process = Mapper(
+            self.meteor,
+            dict_data,
+            fastq_paths,
+            self.mapping_type,
+            self.trim,
+            self.alignment_number,
+        )
+        mapping_process.execute()
 
     def write_table(self, cramfile: Path, outfile: Path) -> int:
         """Function that create a count table using pysam. First index the cram file,
@@ -571,53 +568,52 @@ class Counter(Session):
                 }
                 if not self.json_data[library]["Stage1FileName"].exists():
                     mapping_done = False
+            # mapping already done and no overwriting
+            if mapping_done:
+                logging.info(
+                    "Mapping already done for sample: %s",
+                    sample_info["sample_name"],
+                )
+                logging.info("Skipped !")
             else:
-                # mapping already done and no overwriting
-                if mapping_done:
-                    logging.info(
-                        "Mapping already done for sample: %s",
-                        sample_info["sample_name"],
-                    )
-                    logging.info("Skipped !")
-                else:
-                    logging.info("Launch mapping")
-                    self.launch_mapping()
-                # running counter
-                raw_cram_file = (
-                    self.json_data[library]["directory"]
-                    / f"{sample_info['sample_name']}_raw.cram"
+                logging.info("Launch mapping")
+                self.launch_mapping()
+            # running counter
+            raw_cram_file = (
+                self.json_data[library]["directory"]
+                / f"{sample_info['sample_name']}_raw.cram"
+            )
+            cram_file = (
+                self.json_data[library]["directory"]
+                / f"{sample_info['sample_name']}.cram"
+            )
+            count_file = (
+                self.json_data[library]["directory"]
+                / f"{sample_info['sample_name']}.tsv.xz"
+            )
+            start = perf_counter()
+            Stage1Json = (
+                self.meteor.mapping_dir
+                / sample_info["sample_name"]
+                / f"{sample_info['sample_name']}_census_stage_1.json"
+            )
+            census_json = self.read_json(Stage1Json)
+            self.launch_counting(
+                raw_cram_file,
+                cram_file,
+                count_file,
+                ref_json,
+                census_json,
+                Stage1Json,
+            )
+            logging.info("Completed counting in %f seconds", perf_counter() - start)
+            if not self.keep_all_alignments:
+                logging.info(
+                    "Raw cram file is not kept (--ka). "
+                    "Re-counting operation will need to be performed from scratch."
                 )
-                cram_file = (
-                    self.json_data[library]["directory"]
-                    / f"{sample_info['sample_name']}.cram"
-                )
-                count_file = (
-                    self.json_data[library]["directory"]
-                    / f"{sample_info['sample_name']}.tsv.xz"
-                )
-                start = perf_counter()
-                Stage1Json = (
-                    self.meteor.mapping_dir
-                    / sample_info["sample_name"]
-                    / f"{sample_info['sample_name']}_census_stage_1.json"
-                )
-                census_json = self.read_json(Stage1Json)
-                self.launch_counting(
-                    raw_cram_file,
-                    cram_file,
-                    count_file,
-                    ref_json,
-                    census_json,
-                    Stage1Json,
-                )
-                logging.info("Completed counting in %f seconds", perf_counter() - start)
-                if not self.keep_all_alignments:
-                    logging.info(
-                        "Raw cram file is not kept (--ka). "
-                        "Re-counting operation will need to be performed from scratch."
-                    )
-                    raw_cram_file.unlink(missing_ok=True)
-                    raw_cram_file.with_suffix(".cram.crai").unlink(missing_ok=True)
+                raw_cram_file.unlink(missing_ok=True)
+                raw_cram_file.with_suffix(".cram.crai").unlink(missing_ok=True)
         except AssertionError:
             logging.error(
                 "No *_census_stage_0.json file found in %s",
