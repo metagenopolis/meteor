@@ -236,7 +236,9 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
             genes_mult, unique_on_gene
         )
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
-    assert compute_dict_md5(multiple_dict) == "0db5a50c3986edf8beb6608b00029c37"
+    # Round as float representation changes between Python <= 3.11 and >= 3.12 
+    multiple_dict.update({k: round(v,2) for k, v in multiple_dict.items()})
+    assert compute_dict_md5(multiple_dict) == "f7158221e2384261ffa35c54478625af"
 
 
 def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
