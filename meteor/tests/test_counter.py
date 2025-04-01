@@ -236,7 +236,7 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
             genes_mult, unique_on_gene
         )
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
-    # Round as float representation changes between Python <= 3.11 and >= 3.12 
+    # Round as float representation changes between Python <= 3.11 and >= 3.12
     multiple_dict.update({k: round(v,2) for k, v in multiple_dict.items()})
     assert compute_dict_md5(multiple_dict) == "f7158221e2384261ffa35c54478625af"
 
@@ -259,7 +259,9 @@ def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
         )
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
         abundance = counter_smart_shared.compute_abs(database, unique_on_gene, multiple_dict)
-    assert compute_dict_md5(abundance) == '71100155813a9fa356389d9e908ba9dc'
+    # Round as float representation changes between Python <= 3.11 and >= 3.12
+    abundance.update({k: round(v,2) for k, v in abundance.items()})
+    assert compute_dict_md5(abundance) == '049107fba2db5fd89fc1e534f83524bc'
 
 
 def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
