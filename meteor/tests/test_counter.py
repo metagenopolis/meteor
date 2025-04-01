@@ -21,7 +21,7 @@ from pysam import AlignmentFile
 from itertools import chain
 import pytest
 import pandas as pd
-import hashlib
+import json
 
 # No more best count
 # @pytest.fixture
@@ -104,6 +104,8 @@ def counter_total(datadir: Path, tmp_path: Path) -> Counter:
         core_size=100,
     )
 
+def compute_dict_md5(d):
+    return md5(json.dumps(d, sort_keys=True).encode('utf-8')).hexdigest()
 
 def test_launch_mapping(counter_total: Counter):
     ref_json = counter_total.read_json(
@@ -127,12 +129,11 @@ def test_launch_mapping(counter_total: Counter):
     assert cram.exists()
     # Compute md5 of alignments in the cram file
     # Cannot compute md5 of the entire file as header may change
-    md5 = hashlib.md5()
+    h = md5()
     with AlignmentFile(str(cram.resolve()), "rc") as cramdesc:
         for element in cramdesc:
-            md5.update(str(element).encode())
-    assert md5.hexdigest() == "1cf38d80be2e2ee35573d3b5606aa58e"
-
+            h.update(str(element).encode())
+    assert h.hexdigest() == "1cf38d80be2e2ee35573d3b5606aa58e"
 
 
 def test_write_table(counter_total: Counter, datadir: Path, tmp_path: Path) -> None:
@@ -155,39 +156,27 @@ def test_filter_alignments(counter_total: Counter, datadir: Path) -> None:
     cramfile = datadir / "total_raw.cram"
     with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_total.filter_alignments(cramdesc)
-        # We check that genes and reads are correctly associated
-        # 11003 is mapped by two reads
-        assert 26485 in genes["1368"]
-        genes_list = list(set(map(int, chain.from_iterable(genes.values()))))
-        # Detect correct reads within
-        # read with 91.35802469135802 identity
-        assert "1787" not in reads
-        # read with multiple alignment with same identity 1.0 against gene 26485, 24457, 23617 and 24600
-        assert "1368" in reads
-        # 465 genes highlighted
-        # All alignments are kept
-        assert len(genes_list) == 9853
+    # Convert pysam alignments to str
+    reads.update({k: list(map(str,v)) for k, v in reads.items()})
+    assert compute_dict_md5(reads) == "185466d4cdd562eca286ab5ec1df7bab"
+    assert compute_dict_md5(genes) == "d7e9e2b9b93ad7c449ca90d560de1bd5"
 
 
 def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
     cramfile = datadir / "total_raw.cram"
     with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
         reads, genes = counter_unique.filter_alignments(cramdesc)
-        # print(genes)
         references = map(int, cramdesc.references)
-        # get reference length
         lengths = cramdesc.lengths
         database = dict(zip(references, lengths))
         (unique_reads, genes_mult, unique_on_gene) = counter_unique.uniq_from_mult(
             reads, genes, database
         )
-        genes_list = list(set(map(int, chain.from_iterable(genes_mult.values()))))
-        assert len(genes_list) == 126
-        assert "382" in unique_reads
-        assert "1791" not in unique_reads
-        assert "382" not in genes_mult
-        assert "1791" in genes_mult
-        assert 16622 in unique_on_gene
+    # Convert pysam alignments to str
+    unique_reads.update({k: list(map(str,v)) for k, v in reads.items()})
+    assert compute_dict_md5(unique_reads) == '185466d4cdd562eca286ab5ec1df7bab'
+    assert compute_dict_md5(genes_mult) == 'a4161a7477c9610a48669f4834eff776'
+    assert compute_dict_md5(unique_on_gene) == 'b6d3ba88bdcfcd6dec7cb14d4e01e954'
 
 
 def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
@@ -204,13 +193,10 @@ def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
             unique_on_gene,
         ) = counter_smart_shared.uniq_from_mult(reads, genes, database)
         read_dict, co = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
-        # We check genes with no unique counts, but multiple reads
-        assert co[("1368", 26485)] == 0.25
-        assert "1368" in read_dict[26485]
-        # We check multiple alignment on the same read
-        assert co[("11619", 6205)] == 1.0
-        # We check the normal case
-        assert co[("11450", 18783)] == 2 / 3
+    read_dict.update({k: v.sort() for k, v in read_dict.items()})
+    assert compute_dict_md5(read_dict) == '0e6bd9cb3694fb22fa31721513d55fca'
+    co = {str(k): v for k, v in co.items()}
+    assert compute_dict_md5(co) == 'ccc7fb1c452f80af32738559d7441690'
 
 
 def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> None:
@@ -250,7 +236,9 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
             genes_mult, unique_on_gene
         )
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
-        assert multiple_dict[18783] == 2 / 3
+    # Round as float representation changes between Python <= 3.11 and >= 3.12
+    multiple_dict.update({k: round(v,2) for k, v in multiple_dict.items()})
+    assert compute_dict_md5(multiple_dict) == "f7158221e2384261ffa35c54478625af"
 
 
 def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
@@ -271,7 +259,9 @@ def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
         )
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
         abundance = counter_smart_shared.compute_abs(database, unique_on_gene, multiple_dict)
-        assert abundance[18783] == 2 + 2 / 3
+    # Round as float representation changes between Python <= 3.11 and >= 3.12
+    abundance.update({k: round(v,2) for k, v in abundance.items()})
+    assert compute_dict_md5(abundance) == '049107fba2db5fd89fc1e534f83524bc'
 
 
 def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
@@ -300,11 +290,11 @@ def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> No
     assert tmpcramfile.exists()
     # Compute md5 of alignments in the cram file
     # Cannot compute md5 of the entire file as header may change
-    md5 = hashlib.md5()
+    h = md5()
     with AlignmentFile(str(tmpcramfile.resolve()), "rc") as cramdesc:
         for element in cramdesc:
-            md5.update(str(element).encode())
-    assert md5.hexdigest() == "8107485ec5e3ec00c73d518528c4a4b2"
+            h.update(str(element).encode())
+    assert h.hexdigest() == "8107485ec5e3ec00c73d518528c4a4b2"
 
 
 def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path: Path):

@@ -18,6 +18,8 @@ from ..mapper import Mapper
 from pathlib import Path
 import pytest
 import json
+from hashlib import md5
+from pysam import AlignmentFile
 
 
 @pytest.fixture
