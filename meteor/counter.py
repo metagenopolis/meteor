@@ -24,7 +24,7 @@ from meteor.session import Session, Component
 from typing import Generator, Iterator, ClassVar
 from collections import defaultdict
 from itertools import chain
-from pysam import index, idxstats, sort, AlignmentFile, AlignmentHeader, AlignedSegment  # type: ignore[attr-defined]
+from pysam import index, sort, AlignmentFile, AlignmentHeader, AlignedSegment  # type: ignore[attr-defined]
 from time import perf_counter
 from shutil import rmtree
 
@@ -80,35 +80,6 @@ class Counter(Session):
             self.alignment_number,
         )
         mapping_process.execute()
-
-    def write_table(self, cramfile: Path, outfile: Path) -> int:
-        """Function that create a count table using pysam. First index the cram file,
-        then count reads using the function idxstats from pysam, and output a count
-        table.
-
-        :param cramfile: (Path) cram file to count
-        :param outfile: (Path) count table
-        :return: The total read count of aligned sequence
-        """
-        # indStats = pd.read_csv(StringIO(pysam.idxstats(cramfile)), sep = '\t',
-        # header = None, names = ['contig', 'length', 'mapped', 'unmapped'])
-        # create count table
-        table = idxstats(str(cramfile.resolve()))
-        total_reads = 0
-        # write the count table
-        with lzma.open(outfile, "wt", preset=0) as out:
-            out.write("gene_id\tgene_length\tvalue\n")
-            for line in table.split("\n")[:-2]:
-                # print(int(line.split("\t")[0]))
-                # print(unique_on_gene[int(line.split("\t")[0])])
-                # print(line.split("\t")[2])
-                # assert unique_on_gene[int(line.split("\t")[0])] == int(
-                #     line.split("\t")[2]
-                # ), "Gene length does not match counted nucleotides"
-                s = "\t".join(line.split("\t")[0:3])
-                out.write(f"{s}\n")
-                total_reads += int(line.split("\t")[2])
-        return total_reads
 
     def get_aligned_nucleotides(self, element) -> Iterator[int]:
         """Select aligned nucleotides
@@ -335,6 +306,18 @@ class Counter(Session):
         """
         return {gene: unique_dict[gene] + multiple_dict[gene] for gene in database}
 
+    def compute_abs_total(self, database: dict, genes: dict) -> dict:
+        """Compute the abundance of a each gene in total counting mode
+
+        :params genes: [DICT] = dictionary containing reads as key and a list of
+                                genes where read mapped as value
+        :return: abundance_dict [DICT] = contains abundance of each reference genes
+        """
+        abundance: dict[int, int] = dict.fromkeys(database, 0)
+        for gene in chain.from_iterable(genes.values()):
+            abundance[gene] += 1
+
+        return abundance
 
     def write_stat(self, output: Path, abundance_dict: dict, database: dict) -> int:
         """Write count table.
@@ -434,58 +417,24 @@ class Counter(Session):
             # Filter reads according to quality and score
             reads, genes = self.filter_alignments(cramdesc)
 
-        # Filter reads according to quality, score and counting
-        # genes mapped by multiple reads
-        unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(
-            reads, genes, database
-        )
-        if self.counting_type == "smart_shared":
-            # For multiple reads compute Co
-            read_dict, coef_read = self.compute_co(genes_mult, unique_on_gene)
-            # calculate abundance
-            multiple = self.compute_abm(read_dict, coef_read, database)
-            # Calculate reference abundance & write count table
-            abundance = self.compute_abs(database, unique_on_gene, multiple)
-            # abundance = self.compute_abs(unique_on_gene, multiple)
-            total_read_count = self.write_stat(count_file, abundance, database)
-
-        else:
-            if self.counting_type == "unique":
+        if self.counting_type in ("smart_shared", "unique"):
+            # Filter unique and multiple reads
+            unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(
+                reads, genes, database
+            )
+            if self.counting_type == "smart_shared":
+                # For multiple reads compute Co
+                read_dict, coef_read = self.compute_co(genes_mult, unique_on_gene)
+                # calculate abundance
+                multiple = self.compute_abm(read_dict, coef_read, database)
+                # Calculate reference abundance & write count table
+                abundance = self.compute_abs(database, unique_on_gene, multiple)
+            else: # self.counting_type == "unique"
                 reads = unique_reads
-            cramfile_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-            cramfile_sorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-            # self.json_data[library]["directory"]
-            #     / f"{sample_info['sample_name']}_raw.cram"
-            # self.save_cram(
-            #     cramfile_unsorted, cramdesc, list(chain(*reads.values())), ref_json
-            # )
-            reference = (
-                self.meteor.ref_dir
-                / ref_json["reference_file"]["fasta_dir"]
-                / ref_json["reference_file"]["fasta_filename"]
-            )
-            # Save a temporary cram for the counting
-            with AlignmentFile(
-                str(cramfile_unsorted.resolve()),
-                "wc",
-                header=cram_header,
-                reference_filename=str(reference.resolve()),
-                threads=self.meteor.threads,
-            ) as total_reads:
-                for element in chain.from_iterable(reads.values()):
-                    # if int(element.reference_name) in ref_json["reference_file"]:
-                    total_reads.write(element)
-            sort(
-                "-o",
-                str(cramfile_sorted.resolve()),
-                "-@",
-                str(self.meteor.threads),
-                "-O",
-                "cram",
-                str(cramfile_unsorted.resolve()),
-                catch_stdout=False,
-            )
-            total_read_count = self.write_table(cramfile_sorted, count_file)
+                abundance = unique_on_gene
+        else: # self.counting_type == "total"
+            abundance = self.compute_abs_total(database, genes)
+        total_read_count = self.write_stat(count_file, abundance, database)
         config = self.set_counter_config(total_read_count, count_file)
         census_json.update(config)
         self.save_config(census_json, Stage1Json)
@@ -498,7 +447,10 @@ class Counter(Session):
                 ref_json,
             )
             del reads
-            del unique_reads
+            try:
+                del unique_reads
+            except NameError:
+                pass
             sort(
                 "-o",
                 str(cramfile_strain.resolve()),

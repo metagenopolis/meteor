@@ -136,15 +136,6 @@ def test_launch_mapping(counter_total: Counter):
     assert h.hexdigest() == "1cf38d80be2e2ee35573d3b5606aa58e"
 
 
-def test_write_table(counter_total: Counter, datadir: Path, tmp_path: Path) -> None:
-    cramfile = datadir / "total_raw.cram"
-    output = tmp_path / "total.tsv.xz"
-    counter_total.write_table(cramfile, output)
-    assert output.exists()
-    with output.open("rb") as out:
-        assert md5(out.read()).hexdigest() == "006c2be62428ecf58cc20310d36078c1"
-
-
 # detail of the mapping
 # 2000 reads; of these:
 #   2000 (100.00%) were unpaired; of these:
@@ -262,6 +253,19 @@ def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
     # Round as float representation changes between Python <= 3.11 and >= 3.12
     abundance.update({k: round(v,2) for k, v in abundance.items()})
     assert compute_dict_md5(abundance) == '049107fba2db5fd89fc1e534f83524bc'
+
+def test_compute_abs_total(counter_total: Counter, datadir: Path) -> None:
+    cramfile = datadir / "total_raw.cram"
+    with AlignmentFile(str(cramfile.resolve()), "rc") as cramdesc:
+        _, genes = counter_total.filter_alignments(cramdesc)
+        references = map(int, cramdesc.references)
+        # get reference length
+        lengths = cramdesc.lengths
+        database = dict(zip(references, lengths))
+        abundance = counter_total.compute_abs_total(database, genes)
+    # Round as float representation changes between Python <= 3.11 and >= 3.12
+    abundance.update({k: round(v,2) for k, v in abundance.items()})
+    assert compute_dict_md5(abundance) == '5089a67644c53346e416ab43ae6d832c'
 
 
 def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
