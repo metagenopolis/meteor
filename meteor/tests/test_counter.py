@@ -315,6 +315,8 @@ def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path
     )
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "f5bc528dcbf594b5089ad7f6228ebab5"
+    census_json = counter_unique.read_json(census_json_file)
+    assert census_json['counting']['counted_reads'] == 14386
 
 
 def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: Path):
@@ -331,6 +333,8 @@ def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: 
     )
     with countfile.open("rb") as out:
         assert md5(out.read()).hexdigest() == "f010e4136323ac408d4c127e243756c2"
+    census_json = counter_total.read_json(census_json_file)
+    assert census_json['counting']['counted_reads'] == 14438
 
 
 def test_launch_counting_smart_shared(
@@ -356,6 +360,8 @@ def test_launch_counting_smart_shared(
     )
     count_data = pd.read_csv(countfile, sep="\t")
     assert count_data.equals(expected_output)
+    census_json = counter_smart_shared.read_json(census_json_file)
+    assert census_json['counting']['counted_reads'] == 14438
 
 
 def test_execute(counter_smart_shared: Counter, tmp_path: Path):
