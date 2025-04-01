@@ -18,6 +18,8 @@ from ..mapper import Mapper
 from pathlib import Path
 import pytest
 import json
+from hashlib import md5
+from pysam import AlignmentFile
 
 
 @pytest.fixture
@@ -76,3 +78,10 @@ def test_execute(mapping_builder: Mapper) -> None:
         / f"{mapping_builder.census['census']['sample_info']['sample_name']}_raw.cram"
     )
     assert output_cram.exists()
+    # Compute md5 of alignments in the cram file
+    # Cannot compute md5 of the entire file as header may change
+    h = md5()
+    with AlignmentFile(str(output_cram.resolve()), "rc") as cramdesc:
+        for element in cramdesc:
+            h.update(str(element).encode())
+    assert h.hexdigest() == '9f93ddc76deb1e4ce882bc2446228e58'
