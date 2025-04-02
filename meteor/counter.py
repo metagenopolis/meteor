@@ -96,7 +96,7 @@ class Counter(Session):
         """
         return {
             "counting": {
-                "counted_reads": int(round(counted_reads, 0)),
+                "counted_reads": counted_reads,
                 "identity_threshold": round(self.identity_threshold, 2),
                 "count_file": count_file.name,
             }
@@ -319,21 +319,17 @@ class Counter(Session):
 
         return abundance
 
-    def write_stat(self, output: Path, abundance_dict: dict, database: dict) -> int:
+    def write_stat(self, output: Path, abundance: dict, database: dict) -> None:
         """Write count table.
 
         :param output: [STRING] = output filename
-        :param abundance_dict: [DICT] = contains abundance of each reference genes
-        :param database: [DICT] = contrains length of each reference genes
-        :return: (float) The total number of reads aligned
+        :param abundance_dict: [DICT] = contains abundance of each reference gene
+        :param database: [DICT] = contains length of each reference gene
         """
-        total_reads = 0
         with lzma.open(output, "wt", preset=0) as out:
             out.write("gene_id\tgene_length\tvalue\n")
-            for genes, abundance in sorted(abundance_dict.items()):
-                out.write(f"{genes}\t{database[genes]}\t{abundance}\n")
-                total_reads += abundance
-        return total_reads
+            for gene in sorted(abundance.keys()):
+                out.write(f"{gene}\t{database[gene]}\t{abundance[gene]}\n")
 
     def save_cram_strain(
         self,
@@ -434,8 +430,9 @@ class Counter(Session):
                 abundance = unique_on_gene
         else: # self.counting_type == "total"
             abundance = self.compute_abs_total(database, genes)
-        total_read_count = self.write_stat(count_file, abundance, database)
-        config = self.set_counter_config(total_read_count, count_file)
+        self.write_stat(count_file, abundance, database)
+        counted_reads = len(reads)
+        config = self.set_counter_config(counted_reads, count_file)
         census_json.update(config)
         self.save_config(census_json, Stage1Json)
         if self.keep_filtered_alignments:
@@ -447,10 +444,8 @@ class Counter(Session):
                 ref_json,
             )
             del reads
-            try:
+            if self.counting_type in ("smart_shared", "unique"):
                 del unique_reads
-            except NameError:
-                pass
             sort(
                 "-o",
                 str(cramfile_strain.resolve()),
