@@ -167,7 +167,7 @@ class Counter(Session):
     def uniq_from_mult(
         self, reads: dict, genes: dict[str, list[int]], database: dict[int, int]
     ) -> tuple[
-        defaultdict[str, list[pysam.libcalignedsegment.AlignedSegment]],
+        defaultdict[str, list[AlignedSegment]],
         dict[str, list[int]],
         dict[int, int],
     ]:
@@ -185,7 +185,7 @@ class Counter(Session):
             unique [DICT] = nb of unique read of each reference genes
         """
         unique_reads: defaultdict[
-            str, list[pysam.libcalignedsegment.AlignedSegment]
+            str, list[AlignedSegment]
         ] = defaultdict(list)
         unique_reads_list = []
         unique_on_gene: dict[int, int] = dict.fromkeys(database, 0)
