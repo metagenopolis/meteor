@@ -219,13 +219,13 @@ class Counter(Session):
                  Co [DICT] = contains coefficient values for each couple (read, genes)
                  read_dict [DICT] = list of multiple reads for each reference gene
         """
-        read_dict: dict[int, list[str]] = {}
-        co_dict: dict[tuple[str, int], float] = {}
-        for read_id in genes_mult:
-            # for a multiple read, gets nb of unique reads from each genes
+        read_dict: dict[int, list[str]] = defaultdict(list)
+        co_dict: dict[tuple[str, int], float] = defaultdict(float)
+        for read_id, genes in genes_mult.items():
+            # for a multiple read, gets nb of unique reads from each gene
             # total number of unique reads
             som = sum(
-                unique_on_gene[genes] for genes in genes_mult[read_id]
+                unique_on_gene[gene] for gene in genes
             )  # Sum the values directly
             # som = reduce(lambda x, y: x + y, s)
             # No unique counts on these genes
@@ -233,41 +233,37 @@ class Counter(Session):
             if som == 0:
                 # Specific count of Meteor
                 # 1 / nb genes aligned by the read
-                for genes in genes_mult[read_id]:
-                    co_dict[(read_id, genes)] = 1.0 / len(genes_mult[read_id])
-                    read_dict.setdefault(genes, []).append(read_id)
+                for gene in genes:
+                    co_dict[(read_id, gene)] = 1.0 / len(genes)
+                    read_dict[gene].append(read_id)
                 # Normally we continue here
                 continue
             # We get the unique set of duplicated genes
             # These genes are mapped several time
-            # duplicated_genes = set([genes for genes in genes_mult[read_id] if genes_mult[read_id].count(genes) > 1])
             duplicated_genes = {
-                genes
-                for genes in genes_mult[read_id]
-                if genes_mult[read_id].count(genes) > 1
+                gene
+                for gene in genes
+                if genes.count(gene) > 1
             }
             # otherwise
-            for genes in genes_mult[read_id]:
+            for gene in genes:
                 # get the nb of unique reads
-                nb_unique = unique_on_gene[genes]
+                nb_unique = unique_on_gene[gene]
                 if nb_unique == 0:
                     # test if meteor do that
                     # co_dict[(read_id, genes)] = 1.0 / len(genes_mult[read_id])
                     continue
                 # else:
                 # calculate Co of multiple read for the given genes
-                if genes in duplicated_genes:
-                    if (read_id, genes) in co_dict:
-                        co_dict[(read_id, genes)] += nb_unique / float(som)
-                    else:
-                        co_dict[(read_id, genes)] = nb_unique / float(som)
+                if gene in duplicated_genes:
+                    co_dict[(read_id, gene)] += nb_unique / float(som)
                 else:
-                    co_dict[(read_id, genes)] = nb_unique / float(som)
+                    co_dict[(read_id, gene)] = nb_unique / float(som)
                 # append to the dict
-                read_dict.setdefault(genes, []).append(read_id)
+                read_dict[gene].append(read_id)
         # get all the multiple reads of a genes and uniquify
-        for genes, reads in read_dict.items():
-            read_dict[genes] = list(set(reads))
+        for gene, reads in read_dict.items():
+            read_dict[gene] = list(set(reads))
         return read_dict, co_dict
 
     def get_co_coefficient(
