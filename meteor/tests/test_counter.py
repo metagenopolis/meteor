@@ -270,8 +270,8 @@ def test_compute_abs_total(counter_total: Counter, datadir: Path) -> None:
 
 def test_write_stat(counter_smart_shared: Counter, tmp_path: Path) -> None:
     test = tmp_path / "test.tsv.xz"
-    abundance_dict = {"11003": 1.5}
-    database = {"11003": 500}
+    abundance_dict = {11003: 1.5}
+    database = {11003: 500}
     counter_smart_shared.write_stat(test, abundance_dict, database)
     with test.open("rb") as out:
         assert md5(out.read()).hexdigest() == "64cc59536603837848cbbfbb563d04fc"
