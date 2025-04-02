@@ -21,7 +21,7 @@ from tempfile import mkdtemp, mkstemp
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
-from typing import Generator, Iterator, ClassVar
+from typing import Iterator, ClassVar
 from collections import defaultdict
 from itertools import chain
 from pysam import index, sort, AlignmentFile, AlignmentHeader, AlignedSegment  # type: ignore[attr-defined]
@@ -275,7 +275,7 @@ class Counter(Session):
         gene: int,
         read_dict: dict[int, list[str]],
         co_dict: dict[tuple[str, int], float],
-    ) -> Generator[float]:
+    ) -> Iterator[float]:
         """
         Compute genes specific coefficient "Co" for each multiple read.
 
@@ -302,7 +302,7 @@ class Counter(Session):
         :param database: [DICT] = contains length of each reference gene
         :return: multiple_dict [DICT] = abundance of multiple reads for each gene
         """
-        multiple_dict: dict[int, float] = dict.fromkeys(database, 0.0)
+        multiple_dict: dict[int, float] = dict.fromkeys(database, 0)
         for gene in read_dict:
             # get a list of all the Co coefficient for each reference genes
             # sum them, (we obtain the abundance)
