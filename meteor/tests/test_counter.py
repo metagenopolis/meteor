@@ -105,7 +105,7 @@ def counter_total(datadir: Path, tmp_path: Path) -> Counter:
     )
 
 def compute_dict_md5(d):
-    return md5(json.dumps(d, sort_keys=True).encode('utf-8')).hexdigest()
+    return md5(json.dumps(d, sort_keys=True).encode("utf-8")).hexdigest()
 
 def test_launch_mapping(counter_total: Counter):
     ref_json = counter_total.read_json(
