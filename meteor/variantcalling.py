@@ -668,7 +668,7 @@ class VariantCalling(Session):
                 logging.info("Merging vcf")
                 self.merge_vcf_files(vcf_chunk_files, vcf_file)
             else:
-                shutil.move(str(vcf_chunk_files[0]), str(vcf_file.resolve()))
+                shutil.copyfile(str(vcf_chunk_files[0]), str(vcf_file.resolve()))
         logging.info(
             "Completed freebayes step in %f seconds", perf_counter() - startfreebayes
         )
