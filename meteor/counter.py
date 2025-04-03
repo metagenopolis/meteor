@@ -21,7 +21,7 @@ from tempfile import mkdtemp, mkstemp
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
-from typing import Generator, Iterator, ClassVar
+from typing import Iterator, ClassVar
 from collections import defaultdict
 from itertools import chain
 from pysam import index, sort, AlignmentFile, AlignmentHeader, AlignedSegment  # type: ignore[attr-defined]
@@ -81,11 +81,12 @@ class Counter(Session):
         )
         mapping_process.execute()
 
-    def get_aligned_nucleotides(self, element) -> Iterator[int]:
+    def get_aligned_nucleotides(self, element: AlignedSegment) -> Iterator[int]:
         """Select aligned nucleotides
         :param element: Alignment object
         :return: Aligned item
         """
+        assert element.cigartuples is not None
         yield from (item[1] for item in element.cigartuples if item[0] < 3)
 
     def set_counter_config(self, counted_reads: float, count_file: Path) -> dict:
@@ -164,8 +165,12 @@ class Counter(Session):
         return reads, genes
 
     def uniq_from_mult(
-        self, reads: dict, genes: dict, database: dict
-    ) -> tuple[defaultdict, dict, dict]:
+        self, reads: dict, genes: dict[str, list[int]], database: dict[int, int]
+    ) -> tuple[
+        defaultdict[str, list[AlignedSegment]],
+        dict[str, list[int]],
+        dict[int, int],
+    ]:
         """
         Function that filter unique reads from all reads. Multiple reads are
         reads that map to more than one genes. And Unique reads are reads that map
@@ -174,14 +179,13 @@ class Counter(Session):
         :params reads: [DICT] = dictionary containing reads as key and pysam alignment as value
         :params genes: [DICT] = dictionary containing reads as key and a list of
                                 genes where read mapped as value
-        :params database: [DICT] = contains for each reference genes the number of
-                                unique reads
+        :param database: [DICT] = contains length of each reference gene
         :return: A tuple with:
             genes [DICT] = the dictionary without unique reads
             unique [DICT] = nb of unique read of each reference genes
         """
         unique_reads: defaultdict[
-            str, list[pysam.libcalignedsegment.AlignedSegment]
+            str, list[AlignedSegment]
         ] = defaultdict(list)
         unique_reads_list = []
         unique_on_gene: dict[int, int] = dict.fromkeys(database, 0)
@@ -203,24 +207,25 @@ class Counter(Session):
             del genes[read_id]
         return unique_reads, genes, unique_on_gene
 
-    def compute_co(self, genes_mult: dict, unique_on_gene: dict) -> tuple[dict, dict]:
+    def compute_co(
+        self, genes_mult: dict[str, list[int]], unique_on_gene: dict[int, int]
+    ) -> tuple[dict[int, list[str]], dict[tuple[str, int], float]]:
         """Compute genes specific coefficient "Co" for each multiple read.
 
         :param genes_mult: [DICT] = Contains for each multiple read, all the reference
                                 genes name where it mapped
         :param unique_on_gene: [DICT] = nb of unique read of each reference genes
-        :return: Co [DICT] = contains coefficient values for each couple (read, genes)
-                read_dict [DICT] = contains all the multiple reads of a genes
-                                read_id : genes
-                                value : list a multiple reads
+        :return: A tuple with:
+                 Co [DICT] = contains coefficient values for each couple (read, genes)
+                 read_dict [DICT] = list of multiple reads for each reference gene
         """
-        co_dict: dict[tuple[str, int], float] = {}
-        read_dict: dict[str, list[str]] = {}
-        for read_id in genes_mult:
-            # for a multiple read, gets nb of unique reads from each genes
+        read_dict: dict[int, list[str]] = defaultdict(list)
+        co_dict: dict[tuple[str, int], float] = defaultdict(float)
+        for read_id, genes in genes_mult.items():
+            # for a multiple read, gets nb of unique reads from each gene
             # total number of unique reads
             som = sum(
-                unique_on_gene[genes] for genes in genes_mult[read_id]
+                unique_on_gene[gene] for gene in genes
             )  # Sum the values directly
             # som = reduce(lambda x, y: x + y, s)
             # No unique counts on these genes
@@ -228,66 +233,72 @@ class Counter(Session):
             if som == 0:
                 # Specific count of Meteor
                 # 1 / nb genes aligned by the read
-                for genes in genes_mult[read_id]:
-                    co_dict[(read_id, genes)] = 1.0 / len(genes_mult[read_id])
-                    read_dict.setdefault(genes, []).append(read_id)
+                for gene in genes:
+                    co_dict[(read_id, gene)] = 1.0 / len(genes)
+                    read_dict[gene].append(read_id)
                 # Normally we continue here
                 continue
             # We get the unique set of duplicated genes
             # These genes are mapped several time
-            # duplicated_genes = set([genes for genes in genes_mult[read_id] if genes_mult[read_id].count(genes) > 1])
             duplicated_genes = {
-                genes
-                for genes in genes_mult[read_id]
-                if genes_mult[read_id].count(genes) > 1
+                gene
+                for gene in genes
+                if genes.count(gene) > 1
             }
             # otherwise
-            for genes in genes_mult[read_id]:
+            for gene in genes:
                 # get the nb of unique reads
-                nb_unique = unique_on_gene[genes]
+                nb_unique = unique_on_gene[gene]
                 if nb_unique == 0:
                     # test if meteor do that
                     # co_dict[(read_id, genes)] = 1.0 / len(genes_mult[read_id])
                     continue
                 # else:
                 # calculate Co of multiple read for the given genes
-                if genes in duplicated_genes:
-                    if (read_id, genes) in co_dict:
-                        co_dict[(read_id, genes)] += nb_unique / float(som)
-                    else:
-                        co_dict[(read_id, genes)] = nb_unique / float(som)
+                if gene in duplicated_genes:
+                    co_dict[(read_id, gene)] += nb_unique / float(som)
                 else:
-                    co_dict[(read_id, genes)] = nb_unique / float(som)
+                    co_dict[(read_id, gene)] = nb_unique / float(som)
                 # append to the dict
-                read_dict.setdefault(genes, []).append(read_id)
+                read_dict[gene].append(read_id)
         # get all the multiple reads of a genes and uniquify
-        for genes, reads in read_dict.items():
-            read_dict[genes] = list(set(reads))
+        for gene, reads in read_dict.items():
+            read_dict[gene] = list(set(reads))
         return read_dict, co_dict
 
-    def get_co_coefficient(self, gene, read_dict: dict, co_dict: dict) -> Generator:
+    def get_co_coefficient(
+        self,
+        gene: int,
+        read_dict: dict[int, list[str]],
+        co_dict: dict[tuple[str, int], float],
+    ) -> Iterator[float]:
         """
         Compute genes specific coefficient "Co" for each multiple read.
 
         :param gene: [str] = A gene name
-        :param read_dict: [DICT] = contains all the multiple reads of a genes
-        :param co_dict: [DICT] = contains coefficient values for each couple (read, genes)
+        :param read_dict: [DICT] = list of multiple reads for each reference gene
+        :param co_dict: [DICT] = contains coefficient value for each couple (read, gene)
         :return: [float] = coefficient obtain for each pair (read, gene)
         """
         for read in read_dict[gene]:
             yield co_dict[(read, gene)]
 
-    def compute_abm(self, read_dict: dict, co_dict: dict, database: dict) -> dict:
+    def compute_abm(
+        self,
+        read_dict: dict[int, list[str]],
+        co_dict: dict[tuple[str, int], float],
+        database: dict[int, int],
+    ) -> dict[int, float]:
         """Compute multiple reads abundance for each genes.
         Multiple reads abundance of a genes is equal to the sum of all Co
         coefficient
 
-        :param read_dict: [DICT] = list of multiple read for each reference genes
-        :param co_dict: [DICT] = contains coefficient values for each couple (read, genes)
-        :param multiple_dict: [DICT] = abundance of multiple reads for each genes
-        :return: multiple_dict [DICT] = abundance of multiple reads for each genes
+        :param read_dict: [DICT] = list of multiple reads for each reference gene
+        :param co_dict: [DICT] = contains coefficient value for each couple (read, gene)
+        :param database: [DICT] = contains length of each reference gene
+        :return: multiple_dict [DICT] = abundance of multiple reads for each gene
         """
-        multiple_dict = dict.fromkeys(database, 0)
+        multiple_dict: dict[int, float] = dict.fromkeys(database, 0)
         for gene in read_dict:
             # get a list of all the Co coefficient for each reference genes
             # sum them, (we obtain the abundance)
@@ -295,20 +306,27 @@ class Counter(Session):
         return multiple_dict
 
     def compute_abs(
-        self, database: dict, unique_dict: dict, multiple_dict: dict
-    ) -> dict:
+        self,
+        database: dict[int, int],
+        unique_dict: dict[int, int],
+        multiple_dict: dict[int, float],
+    ) -> dict[int, float]:
         """Compute the abundance of a each genes.
             Abundance = Abundance unique reads + Abundance multiple reads
 
+        :param database: [DICT] = contains length of each reference gene
         :param unique_dict: [DICT] = nb of unique read of each reference genes
         :param multiple_dict: [DICT] = abundance of multiple reads for each genes
         :return: abundance_dict [DICT] = contains abundance of each reference genes
         """
         return {gene: unique_dict[gene] + multiple_dict[gene] for gene in database}
 
-    def compute_abs_total(self, database: dict, genes: dict) -> dict:
+    def compute_abs_total(
+        self, database: dict[int, int], genes: dict[str, list[int]]
+    ) -> dict[int, int]:
         """Compute the abundance of a each gene in total counting mode
 
+        :param database: [DICT] = contains length of each reference gene
         :params genes: [DICT] = dictionary containing reads as key and a list of
                                 genes where read mapped as value
         :return: abundance_dict [DICT] = contains abundance of each reference genes
@@ -319,7 +337,9 @@ class Counter(Session):
 
         return abundance
 
-    def write_stat(self, output: Path, abundance: dict, database: dict) -> None:
+    def write_stat(
+        self, output: Path, abundance: dict[int, int | float], database: dict[int, int]
+    ) -> None:
         """Write count table.
 
         :param output: [STRING] = output filename
@@ -335,7 +355,7 @@ class Counter(Session):
         self,
         outcramfile: Path,
         cram_header: AlignmentHeader,
-        read_chain: chain,
+        read_chain: chain[AlignedSegment],
         ref_json: dict,
     ):
         """Writing the filtered CRAM file for strain analysis.
@@ -370,6 +390,7 @@ class Counter(Session):
             threads=self.meteor.threads,
         ) as total_reads:
             for element in read_chain:
+                assert element.reference_name is not None
                 if int(element.reference_name) in gene_id_set:
                     # if int(element.reference_name) in ref_json["reference_file"]:
                     total_reads.write(element)
@@ -381,7 +402,7 @@ class Counter(Session):
         count_file: Path,
         ref_json: dict,
         census_json: dict,
-        Stage1Json: Path,
+        stage1_json: Path,
     ):
         """Function that count reads from a cram file, using the given methods in count:
         "total" or "shared" or "unique".
@@ -412,7 +433,6 @@ class Counter(Session):
             database = dict(zip(references, lengths))
             # Filter reads according to quality and score
             reads, genes = self.filter_alignments(cramdesc)
-
         if self.counting_type in ("smart_shared", "unique"):
             # Filter unique and multiple reads
             unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(
@@ -434,7 +454,7 @@ class Counter(Session):
         counted_reads = len(reads)
         config = self.set_counter_config(counted_reads, count_file)
         census_json.update(config)
-        self.save_config(census_json, Stage1Json)
+        self.save_config(census_json, stage1_json)
         if self.keep_filtered_alignments:
             cramfile_strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
             self.save_cram_strain(
@@ -530,19 +550,19 @@ class Counter(Session):
                 / f"{sample_info['sample_name']}.tsv.xz"
             )
             start = perf_counter()
-            Stage1Json = (
+            stage1_json = (
                 self.meteor.mapping_dir
                 / sample_info["sample_name"]
                 / f"{sample_info['sample_name']}_census_stage_1.json"
             )
-            census_json = self.read_json(Stage1Json)
+            census_json = self.read_json(stage1_json)
             self.launch_counting(
                 raw_cram_file,
                 cram_file,
                 count_file,
                 ref_json,
                 census_json,
-                Stage1Json,
+                stage1_json,
             )
             logging.info("Completed counting in %f seconds", perf_counter() - start)
             if not self.keep_all_alignments:
