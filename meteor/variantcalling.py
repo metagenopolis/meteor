@@ -28,7 +28,7 @@ from meteor.session import Session, Component
 from time import perf_counter
 from tempfile import NamedTemporaryFile
 from packaging.version import parse
-from pysam import AlignmentFile, FastaFile, VariantFile, faidx, tabix_index
+from pysam import AlignmentFile, FastaFile, VariantFile, faidx, tabix_index, bcftools
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import defaultdict
 from typing import ClassVar
@@ -89,6 +89,7 @@ def run_freebayes_chunk(
                 with vcf_chunk_file.open("wb") as raw:
                     with bgzip.BGZipWriter(raw) as fh:
                         fh.write(freebayes_output)
+                bcftools.sort('-Oz', '-o', str(vcf_chunk_file.resolve()), str(vcf_chunk_file.resolve()), catch_stdout=False)
                 tabix_index(str(vcf_chunk_file.resolve()), preset="vcf", force=True)
             else:
                 logging.error(
@@ -676,6 +677,7 @@ class VariantCalling(Session):
         startindexing = perf_counter()
         if not Path(f"{vcf_file}.tbi").exists():
             logging.info("Indexing")
+            bcftools.sort('-Oz','-o', str(vcf_file.resolve()), str(vcf_file.resolve()), catch_stdout=False)
             tabix_index(str(vcf_file.resolve()), preset="vcf", force=True)
         else:
             logging.info("Index already exist, skipping...")
