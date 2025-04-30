@@ -124,18 +124,18 @@ def isbounded01(x: str) -> float:
     return x_float
 
 
-def num_threads(value):
+def num_threads(x: str) -> int:
 
     try:
-        value = int(value)
+        x_int = int(x)
     except ValueError as value_err:
         raise ArgumentTypeError(
             "the number of threads is not an integer"
         ) from value_err
 
-    if value <= 0:
+    if x_int <= 0:
         raise ArgumentTypeError("the minimum number of threads is 1")
-    return value
+    return x_int
 
 
 def get_arguments() -> Namespace:  # pragma: no cover
