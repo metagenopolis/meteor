@@ -107,20 +107,20 @@ def isdir(path: str) -> Path:  # pragma: no cover
     return mydir
 
 
-def isborned01(x: str) -> float:
+def isbounded01(x: str) -> float:
     """Check if a float is comprised between 0 and 1.
 
     :param x: float number to check
     :raises ArgumentTypeError: If x is > 1 or < 0
     :return: (float) float number
     """
-    # print(x)
-    # if not isinstance(x, float):
-    #     raise ArgumentTypeError("Value must be a numerical")
-    x_float = float(x)
-    if x_float < 0.0 or x_float > 1.0:
-        msg = "Should be comprised between 0 and 1."
-        raise ArgumentTypeError(msg)
+    try:
+        x_float = float(x)
+    except ValueError as value_err:
+        raise ArgumentTypeError(f"{x} is not a valid float") from value_err
+
+    if not 0.0 <= x_float <= 1.0:
+        raise ArgumentTypeError("should be comprised between 0 and 1")
     return x_float
 
 
@@ -322,7 +322,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
     mapping_parser.add_argument(
         "--id",
         dest="identity_threshold",
-        type=isborned01,
+        type=isbounded01,
         # default=Counter.DEFAULT_IDENTITY_THRESHOLD,
         help="Select only read alignments with a nucleotide identity >= IDENTITY_THRESHOLD "
         f"(default: auto).\nIf {Counter.NO_IDENTITY_THRESHOLD}, no filtering.",
@@ -425,14 +425,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
     profiling_parser.add_argument(
         "--msp_filter",
         dest="msp_filter",
-        type=isborned01,
+        type=isbounded01,
         # default=Profiler.DEFAULT_MSP_FILTER,
         help="Minimal proportion of core genes detected in a sample to consider a species (MSP) as present "
         "(default: auto).",
     )
     profiling_parser.add_argument(
         "--completeness",
-        type=isborned01,
+        type=isbounded01,
         default=Profiler.DEFAULT_COMPLETENESS,
         help="Cutoff above which a module is considered as present in a species.\n"
         "Value between 0.0 and 1.0 (default: %(default).1f)."
@@ -579,7 +579,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-f",
         dest="min_frequency",
         default=Strain.DEFAULT_MIN_FREQUENCY,
-        type=isborned01,
+        type=isbounded01,
         help="Minimum frequency for alleles (default: >= %(default).2f).",
     )
     strain_parser.add_argument(
@@ -603,7 +603,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-c",
         dest="min_gene_coverage",
         default=Strain.DEFAULT_MIN_GENE_COVERAGE,
-        type=isborned01,
+        type=isbounded01,
         help="Minimum gene coverage from 0 to 1 (default: >= %(default).1f).",
     )
     strain_parser.add_argument(
@@ -654,7 +654,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "-g",
         dest="max_gap",
         default=TreeBuilder.DEFAULT_MAX_GAP,
-        type=isborned01,
+        type=isbounded01,
         help="Removes sites constitued of >= cutoff gap character (default: >= %(default).1f).",
     )
     tree_parser.add_argument(
