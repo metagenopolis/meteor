@@ -46,7 +46,7 @@ A basic usage of meteor will require to:
 4. **Compute taxonomical and/or functional abundances**
 5. **Strain profiling**
 
-### 1. Download or build a custom reference
+### 1. Download a reference
 -------------------------------------------
 
 Meteor requires to download locally a microbial gene catalogue specif, either in 'full' or 'light' version. The 'full' version contains all genes of the catalogue, whereas the 'light' version contains only the marker genes that will be used to infer species abundance profiles. Of note, no functional profiling can be performed when using the 'light' version of a catalogue.
@@ -73,11 +73,6 @@ meteor download -i <name> -c -o <refdir>
 The 'light' catalogues are available with the tag (--fast) :
 ```
 meteor download -i <name> -c --fast -o <refdir>
-```
-
-Users can also import custom gene catalogue with the command:
-```
-meteor build -i <fastafile> -n <name> -o <refdir> -t <threads>
 ```
 
 ### 2. Import fastq
