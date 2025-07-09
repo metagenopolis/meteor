@@ -18,6 +18,7 @@ from ..profiler import Profiler
 from pathlib import Path
 import pytest
 import pandas as pd
+import re
 
 
 @pytest.fixture
@@ -38,6 +39,24 @@ def profiler_standard(datadir: Path, tmp_path: Path) -> Profiler:
         msp_filter=0.5,
     )
 
+
+def test_module_definition_format(profiler_standard: Profiler) -> None:
+    # Check the file format is correct
+    module_def = profiler_standard.load_data(profiler_standard.module_path)
+    assert module_def.shape[1] == 4
+    expected_columns = ["id", "type", "name", "definition"]
+    assert list(module_def.columns) == expected_columns
+    # Check no NA
+    assert not module_def.isna().any().any(), "Missing values in the module definition file."
+    assert not (module_def == "").any().any(), "Empty fields in the module definition file."
+    # Check column type
+    valid_types = {"GMM", "GBM", "KEGG", "Pathway Module", "Complex Module", "Signature Module"}
+    invalid = set(module_def["type"].dropna().unique()) - valid_types
+    assert not invalid, f"Unexpected values in the column 'type' : {invalid}"
+    # Check column definition
+    pattern = re.compile(r"^[\w\s(),\-\+]+$")
+    invalid_rows = module_def[~module_def["definition"].apply(lambda x: bool(pattern.fullmatch(x)))]
+    assert invalid_rows.empty, f"Invalid characters in 'definition' :\n{invalid_rows['definition'].tolist()}"
 
 def test_rarefy(profiler_standard: Profiler, datadir: Path) -> None:
     # No rarefaction with 0 unmapped reads
