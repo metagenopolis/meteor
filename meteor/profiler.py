@@ -23,7 +23,7 @@ import logging
 import sys
 import lzma
 from datetime import datetime
-from typing import ClassVar
+from typing import ClassVar, Any
 
 
 @dataclass
@@ -570,8 +570,8 @@ class Profiler(Session):
     def execute(self) -> None:
         "Normalize the samples and compute MSP and functions abundances."
         # Initialize dictionnary for json file
-        config_param = {}
-        config_stats = {}
+        config_param: dict[str, Any] = {}
+        config_stats: dict[str, Any] = {}
         # config_mapping = {"database_type": self.database_type}
         # Part 1: NORMALIZATION
         if self.rarefaction_level > Profiler.NO_RAREFACTION:
@@ -605,17 +605,15 @@ class Profiler(Session):
         config_param.update(
             {
                 "normalization": str(self.normalization),
-                "rarefaction_level": str(self.rarefaction_level),
-                "seed": str(self.seed),
+                "rarefaction_level": self.rarefaction_level,
+                "seed": self.seed,
             }
         )
-        config_stats["gene_count"] = str(
-            len(
-                self.gene_count.loc[
-                    self.gene_count["value"] > 0,
-                    "gene_id",
-                ]
-            )
+        config_stats["gene_count"] = len(
+            self.gene_count.loc[
+                self.gene_count["value"] > 0,
+                "gene_id",
+            ]
         )
         # Part 2: TAXONOMIC PROFILING
         # Restrict to MSP of interest
@@ -635,22 +633,20 @@ class Profiler(Session):
         # Update and save config file
         config_param.update(
             {
-                "msp_core_size": str(self.core_size),
-                "msp_filter": str(self.msp_filter),
+                "msp_core_size": self.core_size,
+                "msp_filter": self.msp_filter,
                 "msp_def": self.msp_filename.name,
             }
         )
         config_stats.update(
             {
-                "msp_count": str(
-                    len(
-                        self.msp_table.loc[
-                            self.msp_table["value"] > 0,
-                            "msp_name",
+                "msp_count": len(
+                    self.msp_table.loc[
+                        self.msp_table["value"] > 0,
+                        "msp_name",
                         ]
-                    )
                 ),
-                "msp_signal": str(msp_stats),
+                "msp_signal": msp_stats,
             }
         )
         # Part 3: FUNCTIONAL PROFILING
@@ -684,7 +680,7 @@ class Profiler(Session):
 
                     # Update config file
                     config_param[f"{db}_filename"] = self.db_filenames[db].name
-                    config_stats[f"{db}_signal_by_genes"] = str(functional_stats)
+                    config_stats[f"{db}_signal_by_genes"] = functional_stats
                 # By sum of MSPs
                 if db in single_fun_by_msp_db:
                     logging.info("Compute %s abundances as sum of MSP abundances.", db)
@@ -708,7 +704,7 @@ class Profiler(Session):
 
                     # Update config file
                     config_param[f"{db}_filename"] = self.db_filenames[db].name
-                    config_stats[f"{db}_signal_by_msp"] = str(functional_stats)
+                    config_stats[f"{db}_signal_by_msp"] = functional_stats
 
             # Part 4 Module computation
             # Get db filenames required for module computation
@@ -742,7 +738,7 @@ class Profiler(Session):
                 [value.name for value in module_db_filenames.values()]
             )
             config_param["modules_def"] = self.module_path.name
-            config_param["module_completeness"] = str(self.completeness)
+            config_param["module_completeness"] = self.completeness
 
         # Update and write ini file
         update_config = self.update_json(
