@@ -223,6 +223,10 @@ def test_merge_df(merging_profiles: Merging, datadir: Path):
 def test_execute1(merging_profiles: Merging, datadir: Path) -> None:
     merging_profiles.execute()
 
+    # What is in the directory
+    for path in Path(merging_profiles.meteor.merging_dir).iterdir():
+        print(path)
+
     # Check report
     real_output = merging_profiles.meteor.merging_dir / "my_test_report.tsv"
     assert real_output.exists()

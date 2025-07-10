@@ -14,7 +14,7 @@
 
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Protocol, Iterator, ClassVar, Union
+from typing import Protocol, Iterator, ClassVar, Union, Any
 import logging
 import sys
 import json
@@ -218,7 +218,7 @@ class Session(Protocol):
         return census_json
 
     def update_json(
-        self, config: dict, section: str, new_fields: dict[str, str]
+        self, config: dict, section: str, new_fields: dict[str, Any]
     ) -> dict:
         """Add information in the ini configuaration"""
         if section in config:
