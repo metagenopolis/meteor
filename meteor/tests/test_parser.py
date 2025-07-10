@@ -21,8 +21,6 @@ import pytest
 
 @pytest.fixture
 def parser_standard(datadir: Path) -> Parser:
-    meteor = Component
-    meteor.profile_dir = datadir / "profiles"
     module_file = datadir / "module_def.tsv"
     return Parser(module_file=module_file)
 
