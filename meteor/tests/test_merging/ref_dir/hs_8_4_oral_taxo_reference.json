@@ -1,1 +1,1 @@
-{"reference_file": {"database_dir": "database"}, "annotation": {"taxonomy": {"filename": "test_gtdb_r207.tsv", "version": "207"}}}
+{"reference_info": {"database_type": "complete"}, "reference_file": {"database_dir": "database"}, "annotation": {"taxonomy": {"filename": "test_gtdb_r207.tsv", "version": "207"}}}
