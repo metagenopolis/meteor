@@ -1,5 +1,8 @@
 {
   "sample_info": {
     "sample_name": "sample"
+  },
+  "counting": {
+    "count_file": "sample.tsv.xz"
   }
 }
