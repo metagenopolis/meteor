@@ -564,6 +564,21 @@ class Counter(Session):
                 census_json,
                 stage1_json,
             )
+            # Add final mapping rate
+            census_json = self.read_json(stage1_json)
+            census_json["counting"]["final_mapping_rate"] = (
+                round(
+                    census_json["counting"]["counted_reads"]
+                    / census_json["mapping"]["total_read_count"]
+                    * 100,
+                    2
+                )
+            )
+            self.save_config(
+                census_json,
+                stage1_json
+            )
+
             logging.info("Completed counting in %f seconds", perf_counter() - start)
             if not self.keep_all_alignments:
                 logging.info(
