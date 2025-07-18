@@ -102,7 +102,7 @@ class Profiler(Session):
             self.msp_filter = self.msp_filter_user
 
         # Get the associated count table
-        self.input_count_table = self.meteor.mapping_dir / f"{self.sample_name}.tsv.xz"
+        self.input_count_table = self.meteor.mapping_dir / self.sample_config["counting"]["count_file"]
         try:
             assert self.input_count_table.is_file()
         except AssertionError:
