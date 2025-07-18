@@ -299,7 +299,7 @@ def test_compute_ko_stats(profiler_standard: Profiler) -> None:
         by_msp=False,
         msp_def_filename=profiler_standard.msp_filename,
     )
-    assert ko_stats == 0.83
+    assert ko_stats == (0.827896, 10)
     # Compute stats on ko computed as sum of MSP
     # Use the raw gene cout only
     ko_stats = profiler_standard.compute_ko_stats(
@@ -307,7 +307,7 @@ def test_compute_ko_stats(profiler_standard: Profiler) -> None:
         by_msp=True,
         msp_def_filename=profiler_standard.msp_filename,
     )
-    assert ko_stats == 0.82
+    assert ko_stats == (0.815585, 9)
 
 
 def test_merge_catalogue_info(profiler_standard: Profiler, datadir: Path) -> None:
