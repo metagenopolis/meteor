@@ -104,7 +104,7 @@ class Profiler(Session):
             self.msp_filter = self.msp_filter_user
 
         # Get the associated count table
-        self.input_count_table = self.meteor.mapping_dir / f"{self.sample_name}.tsv.xz"
+        self.input_count_table = self.meteor.mapping_dir / self.sample_config["counting"]["count_file"]
         try:
             assert self.input_count_table.is_file()
         except AssertionError:
@@ -421,8 +421,9 @@ class Profiler(Session):
 
     def compute_ko_stats(
         self, annot_file: Path, by_msp: bool, msp_def_filename: Path
-    ) -> float:
-        """Compute percentage of reads that map on annotated genes.
+    ) -> tuple[float, int]:
+        """Compute percentage of reads that map on annotated genes,
+        and count annotated genes with strictly positive counts.
 
         :param annot_file: path to the annotation file (kegg, mustard, etc)
         :param by_msp: should the genes be restricted to those belonging to an MSP
@@ -436,16 +437,22 @@ class Profiler(Session):
             # Merge both data frames
             annot_df = pd.merge(msp_df, annot_df)
         # Get the genes in MSP AND annotated
-        all_msp_genes = annot_df["gene_id"].unique()
+        annotated_genes = annot_df["gene_id"].unique()
+        # Filter for genes with annotation
+        filtered_gene_counts = self.gene_count[
+            self.gene_count["gene_id"].isin(annotated_genes)
+        ]
         # Get the percentage of reads that map on these genes
         annot_reads_pc = (
-            self.gene_count.loc[
-                self.gene_count["gene_id"].isin(all_msp_genes),
-                "value",
-            ].sum()
+            filtered_gene_counts["value"].sum() 
             / self.gene_count["value"].sum()
+            if not self.gene_count.empty
+            else 0
         )
-        return round(annot_reads_pc, 2)
+        count_positive_genes = (filtered_gene_counts["value"] > 0).sum()
+
+
+        return round(annot_reads_pc, 6), int(count_positive_genes)
 
     def merge_catalogue_info(
         self, msp_file: Path, annot_file: dict[str, Path]
@@ -688,7 +695,9 @@ class Profiler(Session):
                     )
 
                     # Update config file
-                    config_stats[f"{db}_signal_by_genes"] = functional_stats
+                    config_stats[f"{db}_signal_by_genes"] = functional_stats[0]
+                    config_stats[f"{db}_gene_count_by_genes"] = functional_stats[1]
+
                 # By sum of MSPs
                 if db in single_fun_by_msp_db:
                     logging.info("Compute %s abundances as sum of MSP abundances.", db)
@@ -711,7 +720,8 @@ class Profiler(Session):
                     )
 
                     # Update config file
-                    config_stats[f"{db}_signal_by_msp"] = functional_stats
+                    config_stats[f"{db}_signal_by_msp"] = functional_stats[0]
+                    config_stats[f"{db}_gene_count_by_msp"] = functional_stats[1]
 
             # Part 4 Module computation
             # Get db filenames required for module computation
