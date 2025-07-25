@@ -370,3 +370,7 @@ def test_execute(counter_smart_shared: Counter, tmp_path: Path):
     assert part1.exists()
     with part1.open("rb") as out:
         assert md5(out.read()).hexdigest() == "5db950a4404793f73ba034e99cb676fa"
+    census_file = tmp_path / "part1/part1_census_stage_1.json"
+    assert census_file.exists()
+    census_json = counter_smart_shared.read_json(census_file)
+    assert census_json["counting"]["final_mapping_rate"] == 70.80

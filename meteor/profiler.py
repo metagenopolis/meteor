@@ -61,7 +61,7 @@ class Profiler(Session):
         config_session = {}
         config_session.update(
             {
-                "meteor_version": self.meteor.version,
+                "profiling_meteor_version": self.meteor.version,
                 "profiling_date": str(datetime.now().strftime("%Y-%m-%d")),
             }
         )
@@ -92,6 +92,8 @@ class Profiler(Session):
 
         # Get the database type
         self.database_type = self.ref_config["reference_info"]["database_type"]
+        self.reference_name = self.ref_config["reference_info"]["reference_name"]
+        self.reference_date = self.ref_config["reference_info"]["reference_date"]
 
         if not self.msp_filter_user:
             if self.database_type == "complete":
@@ -579,6 +581,14 @@ class Profiler(Session):
         # Initialize dictionnary for json file
         config_param: dict[str, Any] = {}
         config_stats: dict[str, Any] = {}
+        # Add reference info
+        config_param.update(
+            {
+                "profiling_reference_name": self.reference_name,
+                "profiling_reference_date": self.reference_date,
+                "profiling_database_type": self.database_type
+            }
+        )
         # config_mapping = {"database_type": self.database_type}
         # Part 1: NORMALIZATION
         if self.rarefaction_level > Profiler.NO_RAREFACTION:
@@ -641,8 +651,7 @@ class Profiler(Session):
         config_param.update(
             {
                 "msp_core_size": self.core_size,
-                "msp_filter": self.msp_filter,
-                "msp_def": self.msp_filename.name,
+                "msp_filter": self.msp_filter
             }
         )
         config_stats.update(
@@ -686,9 +695,9 @@ class Profiler(Session):
                     )
 
                     # Update config file
-                    config_param[f"{db}_filename"] = self.db_filenames[db].name
                     config_stats[f"{db}_signal_by_genes"] = functional_stats[0]
                     config_stats[f"{db}_gene_count_by_genes"] = functional_stats[1]
+
                 # By sum of MSPs
                 if db in single_fun_by_msp_db:
                     logging.info("Compute %s abundances as sum of MSP abundances.", db)
@@ -711,10 +720,8 @@ class Profiler(Session):
                     )
 
                     # Update config file
-                    config_param[f"{db}_filename"] = self.db_filenames[db].name
                     config_stats[f"{db}_signal_by_msp"] = functional_stats[0]
                     config_stats[f"{db}_gene_count_by_msp"] = functional_stats[1]
-
 
             # Part 4 Module computation
             # Get db filenames required for module computation
@@ -744,10 +751,6 @@ class Profiler(Session):
                 self.mod_completeness.to_csv(out, sep="\t", index=False)
             # Update config files
             config_param["modules_db"] = ",".join(module_db_filenames.keys())
-            config_param["modules_db_filenames"] = ",".join(
-                [value.name for value in module_db_filenames.values()]
-            )
-            config_param["modules_def"] = self.module_path.name
             config_param["module_completeness"] = self.completeness
 
         # Update and write ini file
