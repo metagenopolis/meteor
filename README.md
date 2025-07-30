@@ -79,7 +79,7 @@ meteor download -i <name> -c --fast -o <refdir>
 -------------------
 Meteor requires a first of fastq indexing:
 ```
-meteor fastq -i <fastqdir>  [-p paired reads] -n <projectname> -o <outputdir>
+meteor fastq -i <fastqdir>  [-p paired reads] -o <outputdir>
 ```
 When multiple sequencing are available for a library, the option -m allows to group these samples.
 Example:
@@ -91,7 +91,7 @@ Illumina_lib2-**SAMPLE_02**.fastq <br />
 
 In this case, the following command will group these samples the same library:
 ```
-meteor fastq -i ./  -m SAMPLE_\\d+ -n projectname -o outputdir
+meteor fastq -i ./  -m SAMPLE_\\d+ -o outputdir
 ```
 
 ### 3. Mapping
