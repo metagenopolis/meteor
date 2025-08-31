@@ -23,7 +23,7 @@ import logging
 import sys
 import lzma
 from datetime import datetime
-from typing import ClassVar
+from typing import ClassVar, Any
 
 
 @dataclass
@@ -61,7 +61,7 @@ class Profiler(Session):
         config_session = {}
         config_session.update(
             {
-                "meteor_version": self.meteor.version,
+                "profiling_meteor_version": self.meteor.version,
                 "profiling_date": str(datetime.now().strftime("%Y-%m-%d")),
             }
         )
@@ -92,6 +92,8 @@ class Profiler(Session):
 
         # Get the database type
         self.database_type = self.ref_config["reference_info"]["database_type"]
+        self.reference_name = self.ref_config["reference_info"]["reference_name"]
+        self.reference_date = self.ref_config["reference_info"]["reference_date"]
 
         if not self.msp_filter_user:
             if self.database_type == "complete":
@@ -102,7 +104,7 @@ class Profiler(Session):
             self.msp_filter = self.msp_filter_user
 
         # Get the associated count table
-        self.input_count_table = self.meteor.mapping_dir / f"{self.sample_name}.tsv.xz"
+        self.input_count_table = self.meteor.mapping_dir / self.sample_config["counting"]["count_file"]
         try:
             assert self.input_count_table.is_file()
         except AssertionError:
@@ -419,8 +421,9 @@ class Profiler(Session):
 
     def compute_ko_stats(
         self, annot_file: Path, by_msp: bool, msp_def_filename: Path
-    ) -> float:
-        """Compute percentage of reads that map on annotated genes.
+    ) -> tuple[float, int]:
+        """Compute percentage of reads that map on annotated genes,
+        and count annotated genes with strictly positive counts.
 
         :param annot_file: path to the annotation file (kegg, mustard, etc)
         :param by_msp: should the genes be restricted to those belonging to an MSP
@@ -434,16 +437,22 @@ class Profiler(Session):
             # Merge both data frames
             annot_df = pd.merge(msp_df, annot_df)
         # Get the genes in MSP AND annotated
-        all_msp_genes = annot_df["gene_id"].unique()
+        annotated_genes = annot_df["gene_id"].unique()
+        # Filter for genes with annotation
+        filtered_gene_counts = self.gene_count[
+            self.gene_count["gene_id"].isin(annotated_genes)
+        ]
         # Get the percentage of reads that map on these genes
         annot_reads_pc = (
-            self.gene_count.loc[
-                self.gene_count["gene_id"].isin(all_msp_genes),
-                "value",
-            ].sum()
+            filtered_gene_counts["value"].sum() 
             / self.gene_count["value"].sum()
+            if not self.gene_count.empty
+            else 0
         )
-        return round(annot_reads_pc, 2)
+        count_positive_genes = (filtered_gene_counts["value"] > 0).sum()
+
+
+        return round(annot_reads_pc, 6), int(count_positive_genes)
 
     def merge_catalogue_info(
         self, msp_file: Path, annot_file: dict[str, Path]
@@ -570,8 +579,16 @@ class Profiler(Session):
     def execute(self) -> None:
         "Normalize the samples and compute MSP and functions abundances."
         # Initialize dictionnary for json file
-        config_param = {}
-        config_stats = {}
+        config_param: dict[str, Any] = {}
+        config_stats: dict[str, Any] = {}
+        # Add reference info
+        config_param.update(
+            {
+                "profiling_reference_name": self.reference_name,
+                "profiling_reference_date": self.reference_date,
+                "profiling_database_type": self.database_type
+            }
+        )
         # config_mapping = {"database_type": self.database_type}
         # Part 1: NORMALIZATION
         if self.rarefaction_level > Profiler.NO_RAREFACTION:
@@ -605,17 +622,15 @@ class Profiler(Session):
         config_param.update(
             {
                 "normalization": str(self.normalization),
-                "rarefaction_level": str(self.rarefaction_level),
-                "seed": str(self.seed),
+                "rarefaction_level": self.rarefaction_level,
+                "seed": self.seed,
             }
         )
-        config_stats["gene_count"] = str(
-            len(
-                self.gene_count.loc[
-                    self.gene_count["value"] > 0,
-                    "gene_id",
-                ]
-            )
+        config_stats["gene_count"] = len(
+            self.gene_count.loc[
+                self.gene_count["value"] > 0,
+                "gene_id",
+            ]
         )
         # Part 2: TAXONOMIC PROFILING
         # Restrict to MSP of interest
@@ -635,22 +650,19 @@ class Profiler(Session):
         # Update and save config file
         config_param.update(
             {
-                "msp_core_size": str(self.core_size),
-                "msp_filter": str(self.msp_filter),
-                "msp_def": self.msp_filename.name,
+                "msp_core_size": self.core_size,
+                "msp_filter": self.msp_filter
             }
         )
         config_stats.update(
             {
-                "msp_count": str(
-                    len(
-                        self.msp_table.loc[
-                            self.msp_table["value"] > 0,
-                            "msp_name",
+                "msp_count": len(
+                    self.msp_table.loc[
+                        self.msp_table["value"] > 0,
+                        "msp_name",
                         ]
-                    )
                 ),
-                "msp_signal": str(msp_stats),
+                "msp_signal": msp_stats,
             }
         )
         # Part 3: FUNCTIONAL PROFILING
@@ -683,8 +695,9 @@ class Profiler(Session):
                     )
 
                     # Update config file
-                    config_param[f"{db}_filename"] = self.db_filenames[db].name
-                    config_stats[f"{db}_signal_by_genes"] = str(functional_stats)
+                    config_stats[f"{db}_signal_by_genes"] = functional_stats[0]
+                    config_stats[f"{db}_gene_count_by_genes"] = functional_stats[1]
+
                 # By sum of MSPs
                 if db in single_fun_by_msp_db:
                     logging.info("Compute %s abundances as sum of MSP abundances.", db)
@@ -707,8 +720,8 @@ class Profiler(Session):
                     )
 
                     # Update config file
-                    config_param[f"{db}_filename"] = self.db_filenames[db].name
-                    config_stats[f"{db}_signal_by_msp"] = str(functional_stats)
+                    config_stats[f"{db}_signal_by_msp"] = functional_stats[0]
+                    config_stats[f"{db}_gene_count_by_msp"] = functional_stats[1]
 
             # Part 4 Module computation
             # Get db filenames required for module computation
@@ -738,11 +751,7 @@ class Profiler(Session):
                 self.mod_completeness.to_csv(out, sep="\t", index=False)
             # Update config files
             config_param["modules_db"] = ",".join(module_db_filenames.keys())
-            config_param["modules_db_filenames"] = ",".join(
-                [value.name for value in module_db_filenames.values()]
-            )
-            config_param["modules_def"] = self.module_path.name
-            config_param["module_completeness"] = str(self.completeness)
+            config_param["module_completeness"] = self.completeness
 
         # Update and write ini file
         update_config = self.update_json(

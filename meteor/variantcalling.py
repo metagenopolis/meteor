@@ -607,6 +607,7 @@ class VariantCalling(Session):
         result_df.to_csv(temp_bed_file, sep="\t", index=False, header=False)
         if vcf_file.exists():
             logging.info("Vcf already exist, skipping freebayes..")
+            vcf_chunk_files = []
         else:
             logging.info("Run freebayes")
             with reference_file.open("rb") as ref_fh:

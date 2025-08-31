@@ -67,6 +67,7 @@ class Mapper(Session):
             "meteor_version": self.meteor.version,
             "sample_info": self.census["census"]["sample_info"],
             "mapping": {
+                "mapping_meteor_version": self.meteor.version,
                 "mapping_tool": "bowtie2",
                 "mapping_tool_version": bowtie_version,
                 "mapping_date": datetime.now().strftime("%Y-%m-%d"),
