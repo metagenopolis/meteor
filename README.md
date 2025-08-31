@@ -55,16 +55,16 @@ Ten catalogues are currently available:
 
 |  Microbial gene catalogue | \<name\> | Genes count (M) | Metagenomic Species Pan-genomes (MSPs) |Size (full) (GB) | Size (light) (GB)  | Description  |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
-|  *Felis catus* | fc_1_3_gut  | 1.3  | 344 | 2.0 | 0.2 |[link](https://zenodo.org/records/12820763)
-|  *Gallus gallus domesticus* | gg_13_6_caecal  | 13.6  | 2420 | 19.6 | 1.2 |[link](https://zenodo.org/records/12820776)
-|  *Canis lupus familiaris* | clf_1_0_gut  | 0.95  | 234 | 1.4 | 0.1 |[link](https://zenodo.org/records/12820719)
-| *Homo sapiens gut* |  hs_10_4_gut | 10.4  | 1990 | 12.6 | 0.7 |[link](https://zenodo.org/records/12820832)
-| *Homo sapiens oral*  |  hs_8_4_oral | 8.4  | 853 | 13.7 | 0.5 |[link](https://zenodo.org/records/14181351)
-| *Homo sapiens skin*  |  hs_2_9_skin | 2.9  | 392 | 3.9 | 0.2 |[link](https://zenodo.org/records/12820845)
-| *Mus musculus*  | mm_5_0_gut  | 5.0  | 1252 | 10.3 | 0.6 |[link](https://zenodo.org/records/12821471)
-| *Oryctolagus cuniculus* | oc_5_7_gut  | 5.7 | 1053 | 8.0 | 0.4 |[link](https://zenodo.org/records/12821585)
-| *Rattus norvegicus* | rn_5_9_gut  | 5.9 | 1627 | 7.0 | 0.6 |[link](https://zenodo.org/records/13119584)
-| *Sus domesticus* | ssc_9_3_gut  | 9.3  | 1523 | 11.3 | 0.7 |[link](https://zenodo.org/records/13119585)
+|  *Canis lupus familiaris* | clf_1_0_gut  | 0.95  | 234 | 1.4 | 0.1 |[link](https://zenodo.org/records/16982647)
+|  *Felis catus* | fc_1_3_gut  | 1.3  | 344 | 2.0 | 0.2 |[link](https://zenodo.org/records/16982752)
+|  *Gallus gallus domesticus* | gg_13_6_caecal  | 13.6  | 2420 | 19.6 | 1.2 |[link](https://zenodo.org/records/16982807)
+| *Homo sapiens gut* |  hs_10_4_gut | 10.4  | 1990 | 12.6 | 0.7 |[link](https://zenodo.org/records/16982835)
+| *Homo sapiens oral*  |  hs_8_4_oral | 8.4  | 853 | 13.7 | 0.5 |[link](https://zenodo.org/records/16983006)
+| *Homo sapiens skin*  |  hs_2_9_skin | 2.9  | 392 | 3.9 | 0.2 |[link](https://zenodo.org/records/16982908)
+| *Mus musculus*  | mm_5_0_gut  | 5.0  | 1252 | 10.3 | 0.6 |[link](https://zenodo.org/records/16983064)
+| *Oryctolagus cuniculus* | oc_5_7_gut  | 5.7 | 1053 | 8.0 | 0.4 |[link](https://zenodo.org/records/16983124)
+| *Rattus norvegicus* | rn_5_9_gut  | 5.9 | 1627 | 7.0 | 0.6 |[link](https://zenodo.org/records/16983154)
+| *Sus domesticus* | ssc_9_3_gut  | 9.3  | 1523 | 11.3 | 0.7 |[link](https://zenodo.org/records/16983194)
 
 These references can be downloaded with the following command:
 ```
