@@ -186,38 +186,39 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Check the md5sum of the catalogue after download.",
     )
     # Define download argument parsing
-    reference_parser = subparsers.add_parser(
-        "build", help="Import a custom gene catalogue"
-    )
-    reference_parser.add_argument(
-        "-i",
-        dest="input_fasta_file",
-        type=isfile,
-        required=True,
-        help="Fasta file of the custom gene catalogue (gzip, bzip2 and xz compression accepted).",
-    )
-    reference_parser.add_argument(
-        "-o",
-        dest="ref_dir",
-        type=isdir,
-        required=True,
-        help="Directory where the catalogue and its index are saved.",
-    )
-    reference_parser.add_argument(
-        "-n",
-        dest="ref_name",
-        metavar="REFERENCE_NAME",
-        type=str,
-        required=True,
-        help="Name of the gene catalogue (ansi-string without space).",
-    )
-    reference_parser.add_argument(
-        "-t",
-        dest="threads",
-        default=ReferenceBuilder.DEFAULT_NUM_THREADS,
-        type=num_threads,
-        help="Number of threads to launch while indexing the catalogue (default: %(default)d).",
-    )
+    if False:
+        reference_parser = subparsers.add_parser(
+            "build", help="Import a custom gene catalogue"
+        )
+        reference_parser.add_argument(
+            "-i",
+            dest="input_fasta_file",
+            type=isfile,
+            required=True,
+            help="Fasta file of the custom gene catalogue (gzip, bzip2 and xz compression accepted).",
+        )
+        reference_parser.add_argument(
+            "-o",
+            dest="ref_dir",
+            type=isdir,
+            required=True,
+            help="Directory where the catalogue and its index are saved.",
+        )
+        reference_parser.add_argument(
+            "-n",
+            dest="ref_name",
+            metavar="REFERENCE_NAME",
+            type=str,
+            required=True,
+            help="Name of the gene catalogue (ansi-string without space).",
+        )
+        reference_parser.add_argument(
+            "-t",
+            dest="threads",
+            default=ReferenceBuilder.DEFAULT_NUM_THREADS,
+            type=num_threads,
+            help="Number of threads to launch while indexing the catalogue (default: %(default)d).",
+        )
     # Define fastq argument parsing
     fastq_parser = subparsers.add_parser(
         "fastq", formatter_class=RawTextHelpFormatter, help="Import fastq files"
