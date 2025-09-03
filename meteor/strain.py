@@ -63,24 +63,15 @@ class Strain(Session):
         self.meteor.strain_dir.mkdir(exist_ok=True, parents=True)
 
     def filter_coverage(
-        self, cram_file: Path, bed_file: Path, reference_file: Path
+        self, cram_file: Path, msp_content: pd.DataFrame, reference_file: Path
     ) -> pd.DataFrame:
         """Filter gene coverage
         :param cram_file: (Path) Path to the cram file
-        :param bed_file: (Path) Path to the bed file
+        :param msp_content: (pd.DataFrame) Path to the bed file
+        :param reference_file: (Path) Path to the reference file
         :return: (pd.DataFrame) Return a matrix with gene having a coverage above threshold
         """
         # Read the abundance file
-        gene_interest = pd.read_csv(
-            bed_file,
-            sep="\t",
-            names=[
-                "gene_id",
-                "startpos",
-                "endpos",
-            ],
-            # header=1,
-        )
         cov_df = pd.read_csv(
             StringIO(
                 pysam.coverage(
@@ -105,7 +96,7 @@ class Strain(Session):
                 "meanmapq",
             ],
         )
-        merged_df = cov_df.merge(gene_interest, on="gene_id", how="inner")
+        merged_df = cov_df.merge(msp_content, on="gene_id", how="inner")
         filtered_df = merged_df[
             merged_df["coverage"] >= round(self.min_gene_coverage * 100.0)
         ]
@@ -128,7 +119,6 @@ class Strain(Session):
         # count_file: Path,
         msp_file: Path,
         cram_file: Path,
-        bed_file: Path,
         reference_file: Path,
     ) -> None:
         """Produce meaning full msp variants
@@ -136,7 +126,7 @@ class Strain(Session):
         :param count_file: (Path) A path to count file
         :param msp_file: (Path) A path to msp file
         :param cram_file: (Path) A path to cram file
-        :param bed_file: (Path) A path to bed file
+        :param reference_file: (Path) A path to reference file
         """
         # Read the abundance file
         # count = pd.read_csv(
@@ -153,15 +143,15 @@ class Strain(Session):
         # Filter for gene with a minimum count
         if self.min_gene_coverage:
             filtered_coverage = self.filter_coverage(
-                cram_file, bed_file, reference_file
+                cram_file, msp_content, reference_file
             )
-            joined_df = msp_content.merge(filtered_coverage, on="gene_id")
+            # joined_df = msp_content.merge(filtered_coverage, on="gene_id")
             # filtered_coverage = filtered_count.groupby("gene_id")
             # Join the two DataFrames based on gene_id
             # joined_df = msp_content.merge(filtered_count, on="gene_id")
             # Count the number of overlapping gene IDs for each MSP
             overlapping_gene_counts = (
-                joined_df.groupby("msp_name")["gene_id"]
+                filtered_coverage.groupby("msp_name")["gene_id"]
                 .nunique()
                 .to_frame(name="overlapping_gene_count")
                 .reset_index()
@@ -313,14 +303,9 @@ class Strain(Session):
                 / self.json_data["reference"]["reference_file"]["fasta_dir"]
                 / self.json_data["reference"]["reference_file"]["fasta_filename"]
             )
-            bed_file = (
-                self.meteor.ref_dir
-                / self.json_data["reference"]["reference_file"]["database_dir"]
-                / self.json_data["reference"]["annotation"]["bed"]["filename"]
-            )
             # count_file,
             self.get_msp_variant(
-                consensus_file, msp_file, cram_file, bed_file, reference_file
+                consensus_file, msp_file, cram_file, reference_file
             )
             logging.info(
                 "Completed strain analysis in %f seconds", perf_counter() - start

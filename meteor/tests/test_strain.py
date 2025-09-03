@@ -44,12 +44,16 @@ def test_filter_coverage(
     strain_builder: Strain,
     datadir: Path,
 ) -> None:
+    msp_file = strain_builder.meteor.ref_dir / "database" / "mock_genomes.tsv"
+    msp_content = strain_builder.load_data(msp_file)
+    msp_content = msp_content.loc[msp_content["gene_category"] == "core"]
     filtered_cov = strain_builder.filter_coverage(
         strain_builder.json_data["mapped_sample_dir"] / "test.cram",
-        strain_builder.meteor.ref_dir / "database" / "mock.bed",
+        msp_content,
         strain_builder.meteor.ref_dir / "fasta" / "mock.fasta.gz",
     )
     expected_output = pd.read_table(datadir / "expected_output" / "filtered_cov.tsv")
+    filtered_cov.to_csv("/pasteur/appa/homes/aghozlan/meteor/filtered_cov.tsv", sep="\t", index=False)
     assert filtered_cov.reset_index(drop=True).equals(expected_output)
 
 
@@ -76,10 +80,9 @@ def test_get_msp_variant(strain_builder, datadir: Path, tmp_path: Path):
     consensus_file = datadir / "strain" / "test_consensus.fasta.xz"
     msp_file = strain_builder.meteor.ref_dir / "database" / "mock_genomes.tsv"
     cram_file = strain_builder.json_data["mapped_sample_dir"] / "test.cram"
-    bed_file = strain_builder.meteor.ref_dir / "database" / "mock.bed"
     reference_file = strain_builder.meteor.ref_dir / "fasta" / "mock.fasta.gz"
     strain_builder.get_msp_variant(
-        consensus_file, msp_file, cram_file, bed_file, reference_file
+        consensus_file, msp_file, cram_file, reference_file
     )
     BS = tmp_path / "BS.fasta.xz"
     PA = tmp_path / "PA.fasta.xz"
