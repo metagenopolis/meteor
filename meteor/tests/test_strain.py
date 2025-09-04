@@ -53,7 +53,6 @@ def test_filter_coverage(
         strain_builder.meteor.ref_dir / "fasta" / "mock.fasta.gz",
     )
     expected_output = pd.read_table(datadir / "expected_output" / "filtered_cov.tsv")
-    filtered_cov.to_csv("/pasteur/appa/homes/aghozlan/meteor/filtered_cov.tsv", sep="\t", index=False)
     assert filtered_cov.reset_index(drop=True).equals(expected_output)
 
 
