@@ -37,6 +37,23 @@ You can test the installation of meteor with:
 ```
 meteor test
 ```
+
+## Nextflow wrapper
+
+For automated pipeline execution, a Nextflow wrapper `nf-meteor.nf` is available that streamlines the entire Meteor workflow:
+
+```bash
+nf-meteor.nf --in <fastq_dir> --catalogue_name <catalogue_name> --out <output_dir> --cpus <nb_cpus> -w <temp_work_dir>
+Parameters:
+--in Directory containing paired fastq.gz files (default: ).
+--out Output directory (default: ).
+--cpus Number of cpus to use (default: 4).
+--catalogue_name Name of the prebuilt catalogue to use (default: none). Allowed values are: fc_1_3_gut, gg_13_6_caecal, clf_1_0_gut, hs_10_4_gut, hs_8_4_oral, hs_2_9_skin, mm_5_0_gut, oc_5_7_gut, rn_5_9_gut, ssc_9_3_gut
+--catalogue Path to a catalogue (overrides --catalogue_name if both are provided).
+--fast Enable fast mode for meteor (no functional analysis) (default: false).
+--check_catalogue Check md5sum of the catalogue is compatible with the input reads (default: false).
+```
+
 ## Getting started
 
 A basic usage of meteor will require to:
