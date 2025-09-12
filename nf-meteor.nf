@@ -202,7 +202,6 @@ workflow {
                         def count = file1.countFastq() / 500000
                         [sample_id, file1, file2, count.round(2)]
                     }
-                    .view()
     meteor_fastq(readChannel)
     meteor_mapping(meteor_fastq.out, catalogue_ch)
     meteor_profile(meteor_mapping.out.mapping, catalogue_ch)
