@@ -69,6 +69,63 @@ def test_remove_edge_labels(phylogeny_builder: Phylogeny):
         == "(A:0.1, B:0.2):0.3"
     )
 
+def test_write_distance_matrix_to_tsv(phylogeny_builder: Phylogeny, tmp_path: Path):
+    """Test _write_distance_matrix_to_tsv method"""
+    
+    # Create a mock distance matrix object similar to cogent3's DistanceMatrix
+    class MockDistanceMatrix:
+        def __init__(self):
+            self.names = ['seq1', 'seq2', 'seq3']
+            self._distances = {
+                ('seq1', 'seq1'): 0.0,
+                ('seq1', 'seq2'): 0.1,
+                ('seq1', 'seq3'): 0.2,
+                ('seq2', 'seq1'): 0.1,
+                ('seq2', 'seq2'): 0.0,
+                ('seq2', 'seq3'): 0.15,
+                ('seq3', 'seq1'): 0.2,
+                ('seq3', 'seq2'): 0.15,
+                ('seq3', 'seq3'): 0.0,
+            }
+        
+        def get_distance(self, name1, name2):
+            return self._distances.get((name1, name2), 0.0)
+    
+    # Create mock distance matrix
+    mock_dists = MockDistanceMatrix()
+    
+    # Define output file
+    dist_file = tmp_path / "msp_0864.tsv"
+    
+    # Call the method
+    phylogeny_builder._write_distance_matrix_to_tsv(mock_dists, dist_file)
+    
+    # Verify file exists
+    assert dist_file.exists()
+    
+    # Read and verify content
+    with dist_file.open('r') as f:
+        lines = f.readlines()
+    
+    # Check header line
+    expected_header = "\tseq1\tseq2\tseq3\n"
+    assert lines[0] == expected_header
+    
+    # Check data lines
+    expected_lines = [
+        "seq1\t0.0\t0.1\t0.2\n",
+        "seq2\t0.1\t0.0\t0.15\n", 
+        "seq3\t0.2\t0.15\t0.0\n"
+    ]
+    
+    for i, expected_line in enumerate(expected_lines, 1):
+        assert lines[i] == expected_line
+    
+    # Verify total number of lines (header + 3 data lines)
+    assert len(lines) == 4
+
+
+
 
 def test_execute(phylogeny_builder: Phylogeny):
     phylogeny_builder.execute()

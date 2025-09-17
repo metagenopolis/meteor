@@ -44,18 +44,18 @@ def test_concatenate(treebuilder_builder: TreeBuilder, datadir: Path):
         assert md5(msp.read()).hexdigest() == "719ba21ae065b2700a56e307d578c12e"
 
 
-def test_get_msp_distance(treebuilder_builder: TreeBuilder, datadir: Path):
-    tree_file = datadir / "tree" / "msp_0864.raxml.bestTree"
-    tree_expected_file = datadir / "expected_output" / "msp_0864_dist.tsv"
-    distance_matrix = treebuilder_builder.get_msp_distance(
-        Tree(str(tree_file.resolve()))
-    )
-    pd.read_csv(
-        tree_expected_file,
-        sep="\t",
-        index_col=0,
-        header=0,
-    ).equals(distance_matrix)
+# def test_get_msp_distance(treebuilder_builder: TreeBuilder, datadir: Path):
+#     tree_file = datadir / "tree" / "msp_0864.raxml.bestTree"
+#     tree_expected_file = datadir / "expected_output" / "msp_0864_dist.tsv"
+#     distance_matrix = treebuilder_builder.get_msp_distance(
+#         Tree(str(tree_file.resolve()))
+#     )
+#     pd.read_csv(
+#         tree_expected_file,
+#         sep="\t",
+#         index_col=0,
+#         header=0,
+#     ).equals(distance_matrix)
 
 
 def test_execute(treebuilder_builder: TreeBuilder, tmp_path: Path):

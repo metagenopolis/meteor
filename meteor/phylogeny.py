@@ -13,6 +13,7 @@
 """Effective phylogeny"""
 import re
 import logging
+import pandas as pd
 
 # import sys
 # from subprocess import run, Popen, PIPE
@@ -116,6 +117,31 @@ class Phylogeny(Session):
         pattern = r"\b(edge\.\d+):\b"
         # Replace matched patterns with ":" (effectively removing the edge label)
         return re.sub(pattern, ":", newick)
+    
+    def _write_distance_matrix_to_tsv(self, dists, dist_file: Path):
+        """Write distance matrix to TSV file."""        
+        # Get sequence names
+        seq_names = list(dists.names)
+        
+        # Convert distance matrix to DataFrame
+        dist_data = []
+        for i, name1 in enumerate(seq_names):
+            row = []
+            for j, name2 in enumerate(seq_names):
+                if hasattr(dists, 'get_distance'):
+                    # For cogent3 distance matrices
+                    distance = dists.get_distance(name1, name2)
+                else:
+                    # For numpy-like matrices
+                    distance = dists[i, j]
+                row.append(distance)
+            dist_data.append(row)
+        
+        # Create DataFrame and save to TSV
+        df = pd.DataFrame(dist_data, index=seq_names, columns=seq_names)
+        df.to_csv(dist_file, sep='\t')
+        
+        logging.info(f"Distance matrix saved to {dist_file}")
 
     def process_msp_file(
         self, msp_file: Path, idx: int, msp_count: int, tree_dir, tmp_dir
@@ -127,6 +153,7 @@ class Phylogeny(Session):
             msp_count,
             msp_file.name.replace(".fasta", ""),
         )
+        dist_file = tree_dir / f"{msp_file.stem}.tsv"
         tree_file = tree_dir / f"{msp_file.stem}.tree"
         # ali_file = tree_dir / f"{msp_file.stem}_aligned.fasta"
         self.tree_files: list[Path] = []
@@ -176,10 +203,14 @@ class Phylogeny(Session):
                 d = EstimateDistances(aligned_seqs, submodel=GTR())
                 d.run(show_progress=False)
                 # Create UPGMA Tree
-                mycluster = upgma(d.get_pairwise_distances())
+                dists = d.get_pairwise_distances()
+                mycluster = upgma(dists)
             else:
                 dists = aligned_seqs.distance_matrix(calc="tn93", show_progress=False)
                 mycluster = upgma(dists)
+
+            # Save distance matrix
+            self._write_distance_matrix_to_tsv(dists, dist_file)
 
             mycluster = mycluster.unrooted_deepcopy()
 
