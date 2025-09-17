@@ -251,6 +251,10 @@ class Strain(Session):
             self.json_data["Stage3FileName"] = (
                 stage3_dir / f"{sample_info['sample_name']}_census_stage_3.json"
             )
+            cram_file = (
+                self.json_data["mapped_sample_dir"]
+                / f"{sample_info['sample_name']}.cram"
+            )
 
             # Get the cram
             # Get the variant calling
@@ -271,7 +275,8 @@ class Strain(Session):
                     sample_info["sample_name"],
                 )
                 logging.info("Skipped !")
-            else:
+            
+            elif cram_file.exists():
                 variant_calling_process.execute()
                 self.update_json(
                     ref_json,
@@ -282,6 +287,12 @@ class Strain(Session):
                         # "min_gene_comptage": str(self.min_gene_count),
                     },
                 )
+            else:
+                logging.error(
+                    "No cram file found for sample: %s. Please check the mapping step (--kf is mandatory at mapping step).",
+                    sample_info["sample_name"],
+                )
+                sys.exit(1)
             consensus_file = (
                 self.json_data["directory"]
                 / f"{sample_info['sample_name']}_consensus.fasta.xz"
@@ -293,10 +304,6 @@ class Strain(Session):
                 self.meteor.ref_dir
                 / self.json_data["reference"]["reference_file"]["database_dir"]
                 / self.json_data["reference"]["annotation"]["msp"]["filename"]
-            )
-            cram_file = (
-                self.json_data["mapped_sample_dir"]
-                / f"{sample_info['sample_name']}.cram"
             )
             reference_file = (
                 self.meteor.ref_dir
