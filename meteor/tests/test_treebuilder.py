@@ -17,8 +17,6 @@ from ..treebuilder import TreeBuilder
 import pytest
 from pathlib import Path
 from hashlib import md5
-from ete3 import Tree
-import pandas as pd
 
 
 @pytest.fixture

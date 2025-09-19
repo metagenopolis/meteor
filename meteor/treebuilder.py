@@ -13,10 +13,8 @@
 """Process msp and compute tree"""
 import logging
 import sys
-import pandas as pd
 import lzma
-import csv
-import ete3  # type: ignore[import]
+# import ete3  # type: ignore[import]
 import os
 import fnmatch
 from pathlib import Path
@@ -25,7 +23,7 @@ from meteor.session import Session, Component
 from meteor.phylogeny import Phylogeny
 from dataclasses import dataclass
 from tempfile import mkdtemp
-from ete3 import Tree
+from ete4 import Tree
 from shutil import rmtree
 from typing import ClassVar
 

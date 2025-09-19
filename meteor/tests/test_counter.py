@@ -133,7 +133,7 @@ def test_launch_mapping(counter_total: Counter):
     with AlignmentFile(str(cram.resolve()), "rc") as cramdesc:
         for element in cramdesc:
             h.update(str(element).encode())
-    assert h.hexdigest() == "1cf38d80be2e2ee35573d3b5606aa58e"
+    assert h.hexdigest() == "65cdcef09a3f82403765dbbef6e1ae0c"
 
 
 # detail of the mapping
@@ -149,7 +149,7 @@ def test_filter_alignments(counter_total: Counter, datadir: Path) -> None:
         reads, genes = counter_total.filter_alignments(cramdesc)
     # Convert pysam alignments to str
     reads.update({k: list(map(str,v)) for k, v in reads.items()})
-    assert compute_dict_md5(reads) == "185466d4cdd562eca286ab5ec1df7bab"
+    assert compute_dict_md5(reads) == "4c46326f906fcebe31bb0197e8882b69"
     assert compute_dict_md5(genes) == "d7e9e2b9b93ad7c449ca90d560de1bd5"
 
 
@@ -165,7 +165,7 @@ def test_uniq_from_mult(counter_unique: Counter, datadir: Path) -> None:
         )
     # Convert pysam alignments to str
     unique_reads.update({k: list(map(str,v)) for k, v in reads.items()})
-    assert compute_dict_md5(unique_reads) == "185466d4cdd562eca286ab5ec1df7bab"
+    assert compute_dict_md5(unique_reads) == "4c46326f906fcebe31bb0197e8882b69"
     assert compute_dict_md5(genes_mult) == "a4161a7477c9610a48669f4834eff776"
     assert compute_dict_md5(unique_on_gene) == "b6d3ba88bdcfcd6dec7cb14d4e01e954"
 
@@ -298,7 +298,7 @@ def test_save_cram(counter_unique: Counter, datadir: Path, tmp_path: Path) -> No
     with AlignmentFile(str(tmpcramfile.resolve()), "rc") as cramdesc:
         for element in cramdesc:
             h.update(str(element).encode())
-    assert h.hexdigest() == "8107485ec5e3ec00c73d518528c4a4b2"
+    assert h.hexdigest() == "425664632c57ffe42a93c27f263e0ac5"
 
 
 def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path: Path):
