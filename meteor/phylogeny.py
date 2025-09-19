@@ -206,7 +206,7 @@ class Phylogeny(Session):
                 dists = d.get_pairwise_distances()
                 mycluster = upgma(dists)
             else:
-                dists = aligned_seqs.distance_matrix(calc="tn93", show_progress=False)
+                dists = aligned_seqs.distance_matrix(calc="tn93")
                 mycluster = upgma(dists)
 
             # Save distance matrix
