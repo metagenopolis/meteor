@@ -105,7 +105,7 @@ class Phylogeny(Session):
         config = {
             "meteor_version": self.meteor.version,
             "phylogeny": {
-                "" "phylogeny_tool": "cogent3",
+                "phylogeny_tool": "cogent3",
                 "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
                 "tree_files": ",".join([tree.name for tree in self.tree_files]),
             },
