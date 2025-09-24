@@ -74,7 +74,7 @@ class Downloader(Session):
         """
         logging.info("Extracting %s catalogue", self.choice)
         with tarfile.open(catalogue) as tar:
-            tar.extractall(path=self.meteor.ref_dir)
+            tar.extractall(path=self.meteor.ref_dir, filter='data')
         catalogue.unlink(missing_ok=True)
 
     def execute(self) -> None:

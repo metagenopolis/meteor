@@ -118,30 +118,30 @@ class Phylogeny(Session):
         # Replace matched patterns with ":" (effectively removing the edge label)
         return re.sub(pattern, ":", newick)
     
-    def _write_distance_matrix_to_tsv(self, dists, dist_file: Path):
-        """Write distance matrix to TSV file."""        
-        # Get sequence names
-        seq_names = list(dists.names)
+    # def _write_distance_matrix_to_tsv(self, dists, dist_file: Path):
+    #     """Write distance matrix to TSV file."""        
+    #     # Get sequence names
+    #     seq_names = list(dists.names)
         
-        # Convert distance matrix to DataFrame
-        dist_data = []
-        for i, name1 in enumerate(seq_names):
-            row = []
-            for j, name2 in enumerate(seq_names):
-                if hasattr(dists, 'get_distance'):
-                    # For cogent3 distance matrices
-                    distance = dists.get_distance(name1, name2)
-                else:
-                    # For numpy-like matrices
-                    distance = dists[i, j]
-                row.append(distance)
-            dist_data.append(row)
+    #     # Convert distance matrix to DataFrame
+    #     dist_data = []
+    #     for i, name1 in enumerate(seq_names):
+    #         row = []
+    #         for j, name2 in enumerate(seq_names):
+    #             if hasattr(dists, 'get_distance'):
+    #                 # For cogent3 distance matrices
+    #                 distance = dists.get_distance(name1, name2)
+    #             else:
+    #                 # For numpy-like matrices
+    #                 distance = dists[i, j]
+    #             row.append(distance)
+    #         dist_data.append(row)
         
-        # Create DataFrame and save to TSV
-        df = pd.DataFrame(dist_data, index=seq_names, columns=seq_names)
-        df.to_csv(dist_file, sep='\t')
+    #     # Create DataFrame and save to TSV
+    #     df = pd.DataFrame(dist_data, index=seq_names, columns=seq_names)
+    #     df.to_csv(dist_file, sep='\t')
         
-        logging.info(f"Distance matrix saved to {dist_file}")
+    #     logging.info(f"Distance matrix saved to {dist_file}")
 
     def process_msp_file(
         self, msp_file: Path, idx: int, msp_count: int, tree_dir, tmp_dir
@@ -210,9 +210,15 @@ class Phylogeny(Session):
                 mycluster = upgma(dists)
 
             # Save distance matrix
-            self._write_distance_matrix_to_tsv(dists, dist_file)
+            # self._write_distance_matrix_to_tsv(dists, dist_file)
 
             mycluster = mycluster.unrooted_deepcopy()
+            # Get distance matrix and tip order
+            ultrametric_dist = mycluster.tip_to_tip_distances()
+ 
+            # Convert to squareform DataFrame
+            df = pd.DataFrame(ultrametric_dist, index=ultrametric_dist.names, columns=ultrametric_dist.names)
+            df.to_csv(dist_file, sep="\t")
 
             with tree_file.open("w") as f:
                 f.write(

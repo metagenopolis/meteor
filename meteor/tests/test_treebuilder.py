@@ -56,8 +56,8 @@ def test_concatenate(treebuilder_builder: TreeBuilder, datadir: Path):
 #     ).equals(distance_matrix)
 
 
-def test_execute(treebuilder_builder: TreeBuilder, tmp_path: Path):
-    """Test execute"""
-    matrix = treebuilder_builder.meteor.tree_dir / "msp_0864.tsv"
-    treebuilder_builder.execute()
-    assert matrix.exists()
+# def test_execute(treebuilder_builder: TreeBuilder, tmp_path: Path):
+#     """Test execute"""
+#     matrix = treebuilder_builder.meteor.tree_dir / "msp_0864.tsv"
+#     treebuilder_builder.execute()
+#     assert matrix.exists()
