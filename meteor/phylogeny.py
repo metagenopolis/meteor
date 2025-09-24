@@ -103,10 +103,11 @@ class Phylogeny(Session):
         :return: (Dict) A dict object with the census 1 config
         """
         config = {
-            "meteor_version": self.meteor.version,
             "phylogeny": {
+                "meteor_version": self.meteor.version,
                 "phylogeny_tool": "cogent3",
                 "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
+                "tree_mode": "GTR" if self.gtr else "TN93",
                 "tree_files": ",".join([tree.name for tree in self.tree_files]),
             },
         }
