@@ -19,7 +19,7 @@ params.check_catalogue = false
 params.catalogue_name = ""
 params.catalogue = ""
 params.minimum_memory = 30.GB
-params.allowed_catalogues = "cat_gut,chicken_caecal,dog_gut,human_gut,human_oral,human_skin,mouse_gut,rabbit_gut,rat_gut,pig_gut"
+params.allowed_catalogues = "fc_1_3_gut,gg_13_6_caecal,clf_1_0_gut,hs_10_4_gut,hs_8_4_oral,hs_2_9_skin,mm_5_0_gut,oc_5_7_gut,rn_5_9_gut,ssc_9_3_gut"
 
 def usage() {
     println("nf-meteor.nf --in <fastq_dir> --catalogue_name <catalogue_name> --out <output_dir> --cpus <nb_cpus> -w <temp_work_dir>")
@@ -48,29 +48,6 @@ if (params.catalogue_name && !allowed_catalogues.contains(params.catalogue_name)
     exit 1
 }
 
-params.catalogue_mapping = [
-    'human_gut': 'hs_10_4_gut',
-    'human_oral': 'hs_8_4_oral', 
-    'human_skin': 'hs_2_9_skin',
-    'mouse_gut': 'mm_5_0_gut',
-    'rat_gut': 'rn_5_9_gut',
-    'dog_gut': 'clf_1_0_gut',
-    'cat_gut': 'fc_1_3_gut',
-    'pig_gut': 'ssc_9_3_gut',
-    'chicken_caecal': 'gg_13_6_caecal',
-    'rabbit_gut': 'oc_5_7_gut'
-]
-
-
-// Helper function to get the correct output directory name
-def getOutputDir() {
-    def base_name = params.catalogue_mapping[params.catalogue_name]
-    if (!base_name) {
-        // Fallback to parameter name if no mapping found
-        base_name = params.catalogue_name
-    }
-    return params.fast ? "${base_name}_taxo" : base_name
-}
 
 myDir = file(params.out)
 myDir.mkdirs()
@@ -80,7 +57,7 @@ process meteor_download {
     conda "meteor=2.0.20"
     
     output:
-    path("${getOutputDir()}"), emit: catalogue
+    path("${params.catalogue_name}${params.fast ? '_taxo' : ''}"), emit: catalogue
 
     script:
     def fast_option = params.fast ? "--fast" : ""
