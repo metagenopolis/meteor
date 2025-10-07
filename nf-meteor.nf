@@ -80,7 +80,7 @@ process meteor_download {
     conda "meteor=2.0.20"
     
     output:
-    path("${getOutputDir()}${params.fast ? '_taxo' : ''}"), emit: catalogue
+    path("${getOutputDir()}"), emit: catalogue
 
     script:
     def fast_option = params.fast ? "--fast" : ""
