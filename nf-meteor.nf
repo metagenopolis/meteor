@@ -219,7 +219,7 @@ workflow {
         exit 1, "ERROR: Either --catalogue_name or --catalogue must be provided"
     }
 
-    readChannel = Channel.fromFilePairs("${params.in}/*_R{1,2}.{fastq,fastq.gz,fq,fq.gz}", flat: true)
+    readChannel = Channel.fromFilePairs("${params.in}/*_R{1,2}(_00[0-9])?.{fastq,fastq.gz,fq,fq.gz}", flat: true)
                     .ifEmpty { exit 1, "Cannot find any reads matching: ${params.in}"}
                     .map { sample_id, file1, file2 ->
                         def count = file1.countFastq() / 500000
