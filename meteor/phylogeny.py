@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from meteor.session import Session, Component
 
 # from subprocess import check_call, run, DEVNULL
+
 from time import perf_counter
 from pathlib import Path
 import tempfile
@@ -148,6 +149,7 @@ class Phylogeny(Session):
         self, msp_file: Path, idx: int, msp_count: int, tree_dir, tmp_dir
     ) -> Tuple[Path, bool]:
         """Process a single MSP file and generate its phylogeny tree."""
+        logging.info("Version of cogent3: %s", cogent3.__version__)
         logging.info(
             "%d/%d %s: Start analysis",
             idx,
@@ -156,6 +158,24 @@ class Phylogeny(Session):
         )
         dist_file = tree_dir / f"{msp_file.stem}.tsv"
         tree_file = tree_dir / f"{msp_file.stem}.tree"
+        # Check if tree file already exists and is not empty
+        if tree_file.exists() and tree_file.stat().st_size > 0:
+            # Also check if distance file exists (optional but recommended)
+            if dist_file.exists() and dist_file.stat().st_size > 0:
+                logging.info(
+                    "%d/%d %s: Tree file already exists, skipping computation",
+                    idx,
+                    msp_count,
+                    msp_file.name.replace(".fasta", ""),
+                )
+                return tree_file, True
+            else:
+                logging.warning(
+                    "%d/%d %s: Tree file exists but distance file is missing, reprocessing",
+                    idx,
+                    msp_count,
+                    msp_file.name.replace(".fasta", ""),
+                )
         # ali_file = tree_dir / f"{msp_file.stem}_aligned.fasta"
         self.tree_files: list[Path] = []
         with NamedTemporaryFile(mode="wt", dir=tmp_dir, suffix=".fasta") as temp_clean:
@@ -197,6 +217,7 @@ class Phylogeny(Session):
             aligned_seqs = load_aligned_seqs(
                 temp_clean.name,
                 moltype="dna",
+                format_name="fasta",
             )
             # cleaned_alignment = load_aligned_seqs(ali_file, moltype="dna")
             # d = EstimateDistances(cleaned_alignment, submodel=GTR())

@@ -55,23 +55,52 @@ class TreeBuilder(Session):
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.tree_dir.mkdir(exist_ok=True, parents=True)
 
+    # def concatenate(self, msp_file_dict: dict[str, list[Path]]) -> list[Path]:
+    #     """Concatenate fasta file from distinct samples
+    #     :param msp_file_dict: (dict) A dictionnary of each msp version in the different samples
+    #     :return: (list) A list of all concatenated fasta
+    #     """
+    #     msp_list = []
+    #     # Concatenate files that occur in more than one directory
+    #     for filename, paths in msp_file_dict.items():
+    #         if len(paths) > 1:
+    #             res = self.meteor.tree_dir / f"{filename}".replace(
+    #                 ".fasta.xz", ".fasta"
+    #             )
+    #             with res.open("wt", encoding="UTF-8") as outfile:
+    #                 for path in paths:
+    #                     with lzma.open(path, "rt") as infile:
+    #                         outfile.write(infile.read())
+    #             msp_list += [res]
+    #     logging.info("%d MSPs are available for tree analysis.", len(msp_list))
+    #     return msp_list
+
     def concatenate(self, msp_file_dict: dict[str, list[Path]]) -> list[Path]:
         """Concatenate fasta file from distinct samples
-        :param msp_file_dict: (dict) A dictionnary of each msp version in the different samples
+        :param msp_file_dict: (dict) A dictionary of each msp version in the different samples
         :return: (list) A list of all concatenated fasta
         """
         msp_list = []
-        # Concatenate files that occur in more than one directory
+        
         for filename, paths in msp_file_dict.items():
             if len(paths) > 1:
-                res = self.meteor.tree_dir / f"{filename}".replace(
-                    ".fasta.xz", ".fasta"
-                )
+                res = self.meteor.tree_dir / f"{filename}".replace(".fasta.xz", ".fasta")
+                
+                # Skip if file exists and passes all checks
+                if res.exists() and res.stat().st_size > 0:
+                    # Basic check: file exists and has content
+                    logging.debug("File %s exists, checking if concatenation is needed...", res)
+                    msp_list.append(res)
+                    continue
+                    
+                # Concatenate if file doesn't exist or is empty
+                logging.debug("Creating concatenated file %s", res)
                 with res.open("wt", encoding="UTF-8") as outfile:
                     for path in paths:
                         with lzma.open(path, "rt") as infile:
                             outfile.write(infile.read())
-                msp_list += [res]
+                msp_list.append(res)
+        
         logging.info("%d MSPs are available for tree analysis.", len(msp_list))
         return msp_list
 
