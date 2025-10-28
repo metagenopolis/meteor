@@ -149,7 +149,6 @@ class Phylogeny(Session):
         self, msp_file: Path, idx: int, msp_count: int, tree_dir, tmp_dir
     ) -> Tuple[Path, bool]:
         """Process a single MSP file and generate its phylogeny tree."""
-        logging.info("Version of cogent3: %s", cogent3.__version__)
         logging.info(
             "%d/%d %s: Start analysis",
             idx,
