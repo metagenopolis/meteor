@@ -13,3 +13,4 @@ dist
 .pytest_cache
 .dmypy.json
 myenv
+nextflow.config

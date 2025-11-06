@@ -54,7 +54,7 @@ myDir.mkdirs()
 
 process meteor_download {
     tag { params.catalogue_name }
-    conda "meteor=2.0.20"
+    conda "meteor=2.0.21"
     
     output:
     path("${params.catalogue_name}${params.fast ? '_taxo' : ''}"), emit: catalogue
@@ -69,7 +69,7 @@ process meteor_download {
 
 process meteor_fastq {
     tag { reads_id }
-    conda "meteor=2.0.20"
+    conda "meteor=2.0.21"
 
     input:
     tuple val(reads_id), path(forward), path(reverse), val(count)
@@ -97,7 +97,7 @@ process meteor_mapping {
             "${totalMemoryGB}G"
         }
     }
-    conda "meteor=2.0.20"
+    conda "meteor=2.0.21"
 
     input:
     tuple val(reads_id), path(fastq), val(count)
@@ -114,7 +114,7 @@ process meteor_mapping {
 process meteor_profile {
     tag { reads_id }
     cpus params.cpus
-    conda "meteor=2.0.20"
+    conda "meteor=2.0.21"
 
     input:
     tuple val(reads_id), path(mapping)
@@ -135,7 +135,7 @@ process meteor_merge {
         def memoryGB = Math.ceil(samples * 0.2 * 1.5) 
         return "${memoryGB}G"
     }
-    conda "meteor=2.0.20"
+    conda "meteor=2.0.21"
     publishDir "$myDir", mode: 'copy'
 
     input:
@@ -152,7 +152,7 @@ process meteor_merge {
 
 process meteor_strain {
     tag { reads_id }
-    conda "meteor=2.0.20"
+    conda "meteor=2.0.21"
     memory { 
         def baseMemoryGB = params.minimum_memory.toGiga()
         def memoryGB = params.fast ? Math.min(baseMemoryGB, 10) : baseMemoryGB
@@ -173,7 +173,7 @@ process meteor_strain {
 
 process meteor_tree {
     cpus params.cpus
-    conda "meteor=2.0.20"
+    conda "meteor=2.0.21"
     publishDir "$myDir", mode: 'copy'
 
     input:
