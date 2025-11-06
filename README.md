@@ -165,5 +165,5 @@ meteor tree -i <straindir> -o <treedir>
 ## Citing Meteor2
 
 Please cite the following publication if you use Meteor2:  
-[Accurate profiling of microbial communities for shotgun metagenomic sequencing with Meteor2.](https://doi.org/10.21203/rs.3.rs-6122276/v1)   
+[Accurate profiling of microbial communities for shotgun metagenomic sequencing with Meteor2.](https://doi.org/10.1186/s40168-025-02249-w)   
 Amine Ghozlane, Florence Thirion, Florian Plaza Oñate, Franck Gauthier, Emmanuelle Le Chatelier, Anita Annamalé, Mathieu Almeida, Stanislav D. Ehrlich, Nicolas Pons.
