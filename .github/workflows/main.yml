@@ -12,33 +12,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up conda
+      - name: Set up conda with recipe file
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          python-version: ${{ matrix.python-version }}
+          environment-file: conda_recipe/meta.yaml
+          activate-environment: meteor-test
           
-      - name: Create and activate meteor-test environment
+      - name: Install additional bioinformatics tools
         shell: bash -l {0}
-        run: |
-          conda create -n meteor-test python=${{ matrix.python-version }} -y
-          conda activate meteor-test
-          conda install -c bioconda -c conda-forge bowtie2 freebayes -y
+        run: conda install -c bioconda -c conda-forge bowtie2 freebayes -y
           
       - name: Install poetry
-        uses: abatilo/actions-poetry@v2
-        
-      - name: Install the project dependencies
+        shell: bash -l {0}
+        run: pip install poetry
+          
+      - name: Install project dependencies
         shell: bash -l {0}
         run: poetry install --only test
-        
-      - name: Run the automated tests
+          
+      - name: Run tests
         shell: bash -l {0}
         run: poetry run pytest --deselect meteor/tests/test_variantcalling.py::test_execute --deselect meteor/tests/test_strain.py::test_execute --log-level=DEBUG --cache-clear -s -vv --cov=meteor --cov-report xml
         timeout-minutes: 15
-        
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4.0.1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          slug: metagenopolis/meteor
