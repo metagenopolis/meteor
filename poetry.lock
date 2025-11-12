@@ -450,9 +450,9 @@ files = [
 charset_normalizer = "*"
 loky = "!=3.5.0"
 numba = [
-    {version = ">=0.57.0", markers = "python_version == \"3.11\""},
     {version = ">=0.59.0", markers = "python_version == \"3.12\""},
     {version = ">=0.61.0", markers = "python_version == \"3.13\""},
+    {version = ">=0.57.0", markers = "python_version == \"3.11\""},
 ]
 numpy = "*"
 scipy = "*"
@@ -1071,8 +1071,8 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.23.2", markers = "python_version == \"3.11\""},
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.2", markers = "python_version == \"3.11\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -1235,8 +1235,8 @@ files = [
 astroid = ">=3.3.8,<=3.4.0.dev0"
 colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
 dill = [
-    {version = ">=0.3.6", markers = "python_version >= \"3.11\""},
     {version = ">=0.3.7", markers = "python_version >= \"3.12\""},
+    {version = ">=0.3.6", markers = "python_version == \"3.11\""},
 ]
 isort = ">=4.2.5,<5.13 || >5.13,<7"
 mccabe = ">=0.6,<0.8"
@@ -1608,4 +1608,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "876dc9ec8ddeb358e261bb4b61216ff86b1111244e8bee4784dccfb9d76fdc02"
+content-hash = "3cacbef29310613f85115b829536b059a9ee73019af2041ab13e12fc1aada0f2"
