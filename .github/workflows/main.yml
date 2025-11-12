@@ -4,28 +4,39 @@ on: [push, pull_request]
 
 jobs:
   pytest:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-        os: [ubuntu-22.04, macos-latest]
+        os: [ubuntu-24.04, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - uses: ConorMacBride/install-package@v1
+      
+      - name: Set up conda
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          brew: bowtie2 freebayes
-          apt: bowtie2 freebayes
-      - name: Install Python
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          
+      - name: Install bioinformatics tools with conda
+        run: |
+          conda install -c bioconda -c conda-forge bowtie2 freebayes
+          
+      - name: Install Python (if needed for other steps)
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          
       - name: Install poetry
         uses: abatilo/actions-poetry@v2
+        
       - name: Install the project dependencies
         run: poetry install --only test
-      - name: Run the automated tests (for example)
+        
+      - name: Run the automated tests
         run: poetry run pytest --deselect meteor/tests/test_variantcalling.py::test_execute --deselect meteor/tests/test_strain.py::test_execute --log-level=DEBUG --cache-clear -s -vv --cov=meteor --cov-report xml
         timeout-minutes: 15
+        
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
         with:
