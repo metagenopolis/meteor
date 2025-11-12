@@ -32,6 +32,7 @@ ete4 = "^4.4.0"
 biom-format = "^2.1.15"
 cogent3 = "^2025.9.8a8"
 bgzip = "^0.5.1"
+numpy = "^2.2.6"
 
 
 [tool.poetry.group.test.dependencies]
@@ -45,6 +46,7 @@ biom-format = "^2.1.15"
 cogent3 = "^2025.9.8a8"
 ete4 = "^4.4.0"
 bgzip = "^0.5.0"
+numpy = "^2.2.6"
 
 
 [tool.poetry.group.mypy.dependencies]
