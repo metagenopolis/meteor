@@ -16,7 +16,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          environment-file: conda_recipe/meta.yaml
+          environment-file: conda_recipe/environment.yml
           activate-environment: meteor-test
           
       - name: Install additional bioinformatics tools
