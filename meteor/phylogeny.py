@@ -120,6 +120,100 @@ class Phylogeny(Session):
         # Replace matched patterns with ":" (effectively removing the edge label)
         return re.sub(pattern, ":", newick)
     
+    def _generate_pairwise_comparison_table(self, sequences: dict, dists, output_file: Path) -> None:
+        """Generate a pairwise comparison table for each tree with detailed statistics.
+        
+        :param sequences: Dictionary of sequence IDs and their sequences
+        :param dists: Distance matrix from cogent3
+        :param output_file: Output TSV file path
+        """
+        # Define ambiguous bases (excluding standard nucleotides A, T, G, C)
+        ambiguous_bases = set(['N', '-', '?', 'R', 'Y', 'S', 'W', 'K', 'M', 'B', 'D', 'H', 'V'])
+        gap_chars_nq = set(['N', '?'])  # N and ? characters
+        
+        # Get sequence names
+        seq_names = list(sequences.keys()) if hasattr(sequences, 'keys') else list(sequences.names)
+        
+        # Prepare data for DataFrame
+        table_data = []
+        
+        # Generate pairwise comparisons
+        for i, name1 in enumerate(seq_names):
+            seq1 = sequences[name1] if name1 in sequences else sequences.get_seq(name1)
+            for j, name2 in enumerate(seq_names):
+                if i >= j:  # Skip diagonal and lower triangle
+                    continue
+                    
+                seq2 = sequences[name2] if name2 in sequences else sequences.get_seq(name2)
+                
+                # Calculate statistics
+                total_length = len(seq1)
+                
+                # Count positions without gaps/ambiguous characters
+                valid_positions_nq = []  # Not counting N/?
+                valid_positions_all = []  # Not counting any ambiguous base
+                
+                for k in range(total_length):
+                    base1 = seq1[k].upper()
+                    base2 = seq2[k].upper()
+                    
+                    # Check if both positions are valid (not N or ?)
+                    if base1 not in gap_chars_nq and base2 not in gap_chars_nq:
+                        valid_positions_nq.append(k)
+                    
+                    # Check if both positions are valid (not any ambiguous base)
+                    if base1 not in ambiguous_bases and base2 not in ambiguous_bases:
+                        valid_positions_all.append(k)
+                
+                # Calculate overlaps
+                coverage_overlap_nq = len(valid_positions_nq)
+                coverage_overlap_all = len(valid_positions_all)
+                
+                # Calculate compared bases count
+                compared_bases_count = len(valid_positions_all)  # Without any ambiguous base
+                
+                # Calculate coverage percentages
+                coverage_sample1_nq = (sum(1 for base in seq1.upper() if base not in gap_chars_nq) / total_length) * 100 if total_length > 0 else 0
+                coverage_sample2_nq = (sum(1 for base in seq2.upper() if base not in gap_chars_nq) / total_length) * 100 if total_length > 0 else 0
+                
+                # For mean depths, we don't have actual depth information in the sequences,
+                # so we'll set them to 0 or a default value
+                mean_depth_sample1 = 0.0
+                mean_depth_sample2 = 0.0
+                
+                # Get distance from distance matrix
+                if hasattr(dists, 'get_distance'):
+                    distance = dists.get_distance(name1, name2)
+                else:
+                    distance = dists[i, j] if hasattr(dists, '__getitem__') else 0.0
+                
+                # Add row to table data
+                table_data.append({
+                    'sample1': name1,
+                    'sample2': name2,
+                    'total_length': total_length,
+                    'coverage_overlap_nq': coverage_overlap_nq,  # not taking N, ? into account
+                    'coverage_overlap_all': coverage_overlap_all,  # not taking any ambiguous base into account
+                    'compared_bases_count': compared_bases_count,  # without N/? and without any ambiguous base
+                    'coverage_sample1_pct': coverage_sample1_nq,  # coverage sample 1 (%)
+                    'coverage_sample2_pct': coverage_sample2_nq,  # coverage sample 2 (%)
+                    'mean_depth_sample1': mean_depth_sample1,
+                    'mean_depth_sample2': mean_depth_sample2,
+                    'distance': distance
+                })
+        
+        # Create DataFrame and save to TSV
+        if table_data:
+            df = pd.DataFrame(table_data)
+            df.to_csv(output_file, sep='\t', index=False)
+            logging.info(f"Pairwise comparison table saved to {output_file}")
+        else:
+            # Create empty file with headers if no data
+            columns = ['sample1', 'sample2', 'total_length', 'coverage_overlap_nq',
+                      'coverage_overlap_all', 'compared_bases_count', 'coverage_sample1_pct',
+                      'coverage_sample2_pct', 'mean_depth_sample1', 'mean_depth_sample2', 'distance']
+            pd.DataFrame(columns=columns).to_csv(output_file, sep='\t', index=False)
+            logging.info(f"Empty pairwise comparison table saved to {output_file}")
     # def _write_distance_matrix_to_tsv(self, dists, dist_file: Path):
     #     """Write distance matrix to TSV file."""        
     #     # Get sequence names
@@ -240,6 +334,10 @@ class Phylogeny(Session):
             # Convert to squareform DataFrame
             df = pd.DataFrame(ultrametric_dist, index=ultrametric_dist.names, columns=ultrametric_dist.names)
             df.to_csv(dist_file, sep="\t")
+
+            # Generate pairwise comparison table
+            comparison_table_file = tree_dir / f"{msp_file.stem}_comparison.tsv"
+            self._generate_pairwise_comparison_table(aligned_seqs, dists, comparison_table_file)
 
             with tree_file.open("w") as f:
                 f.write(

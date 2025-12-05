@@ -17,7 +17,7 @@ from ..phylogeny import Phylogeny
 import pytest
 from pathlib import Path
 import pickle
-
+import pandas as pd
 
 @pytest.fixture
 def phylogeny_builder(datadir: Path, tmp_path: Path) -> Phylogeny:
@@ -124,7 +124,52 @@ def test_remove_edge_labels(phylogeny_builder: Phylogeny):
 #     # Verify total number of lines (header + 3 data lines)
 #     assert len(lines) == 4
 
-
+def test_generate_pairwise_comparison_table(phylogeny_builder: Phylogeny, tmp_path: Path):
+    """Test _generate_pairwise_comparison_table method"""
+    # Create mock sequences
+    sequences = {
+        "sample1": "ATCGATCGATCG",
+        "sample2": "ATCGATCGATCG",
+        "sample3": "ATCGNTCGATCG"
+    }
+    
+    # Create mock distance matrix
+    class MockDistanceMatrix:
+        def __init__(self):
+            self.names = ['sample1', 'sample2', 'sample3']
+            
+        def get_distance(self, name1, name2):
+            # Simple distance calculation for testing
+            if name1 == name2:
+                return 0.0
+            return 0.1
+    
+    dists = MockDistanceMatrix()
+    
+    # Define output file
+    output_file = tmp_path / "test_comparison.tsv"
+    
+    # Call the method
+    phylogeny_builder._generate_pairwise_comparison_table(sequences, dists, output_file)
+    
+    # Verify file exists
+    assert output_file.exists()
+    
+    # Read and verify content
+    df = pd.read_csv(output_file, sep='\t')
+    
+    # Check that we have the expected columns
+    expected_columns = ['sample1', 'sample2', 'total_length', 'coverage_overlap_nq', 
+                       'coverage_overlap_all', 'compared_bases_count', 'coverage_sample1_pct',
+                       'coverage_sample2_pct', 'mean_depth_sample1', 'mean_depth_sample2', 'distance']
+    assert all(col in df.columns for col in expected_columns)
+    
+    # Check that we have the expected number of rows (3 samples, so 3 pairs: 1-2, 1-3, 2-3)
+    # Actually, with 3 samples we should have 3 pairs: (0,1), (0,2), (1,2)
+    assert len(df) == 3
+    
+    # Check that distances are properly recorded
+    assert all(df['distance'] >= 0)
 
 
 def test_execute(phylogeny_builder: Phylogeny):
