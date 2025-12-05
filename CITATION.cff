@@ -1,0 +1,45 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Accurate profiling of microbial communities for shotgun metagenomic sequencing with Meteor2"
+type: software
+version: 2.0.22
+doi: 10.1186/s40168-025-02249-w
+date-released: 2025-12-11
+licence: GPL-3.0-or-later
+authors:
+  - family-names: Ghozlane
+    given-names: Amine
+    email: amine.ghozlane@pasteur.fr
+    affiliation: Institut Pasteur
+  - family-names: Thirion
+    given-names: Florence
+    email: florence.thirion@inrae.fr
+    affiliation: INRAE
+  - family-names: Plaza Oñate
+    given-names: Florian
+    email: florian.plaza-onate@inrae.fr
+    affiliation: INRAE
+  - family-names: Gauthier
+    given-names: Franck
+    email: franck.gauthier@inrae.fr
+    affiliation: INRAE
+  - family-names: Le Chatelier
+    given-names: Emmanuelle
+    email: emmanuelle.le-chatelier@inrae.fr
+    affiliation: INRAE
+  - family-names: Annamalé
+    given-names: Anita
+    email: anita.annamale@gmail.com
+    affiliation: Institut Pasteur
+  - family-names: Almeida
+    given-names: Mathieu
+    email: mathieu.almeida@inrae.fr
+    affiliation: INRAE
+  - family-names: Ehrlich
+    given-names: Stanislav D.
+    email: s.ehrlich@ucl.ac.uk
+    affiliation: INRAE
+  - family-names: Pons
+    given-names: Nicolas
+    email: nicolas.pons@inrae.fr
+    affiliation: INRAE
