@@ -84,10 +84,10 @@ class Mapper(Session):
                 "alignment_number": self.alignment_number,
                 "mapping_type": self.mapping_type,
                 "total_read_count": mapping_data[0],
-                "mapped_reads": mapping_data[2] + mapping_data[3],
-                "overall_alignment_rate": round(
-                    (mapping_data[2] + mapping_data[3]) / mapping_data[0] * 100, 2
-                ),
+                #"mapped_reads": mapping_data[2] + mapping_data[3],
+                #"overall_alignment_rate": round(
+                #    (mapping_data[2] + mapping_data[3]) / mapping_data[0] * 100, 2
+                #),
                 "fastq_files": self.fastq_list,
                 "mapping_file": cram_file.name,
             },
