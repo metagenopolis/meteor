@@ -1,0 +1,10 @@
+*.bt2 binary
+*.crai binary
+*.cram binary
+*.vcf.gz.csi binary
+*.fai binary
+*.feather binary
+*.gz binary
+*.gzi binary
+*.pck binary
+*.xz binary
