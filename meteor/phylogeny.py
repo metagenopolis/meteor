@@ -123,63 +123,97 @@ class Phylogeny(Session):
     def _generate_pairwise_comparison_table(self, sequences: dict, dists, output_file: Path) -> None:
         """Generate a pairwise comparison table for each tree with detailed statistics.
         
-        :param sequences: Dictionary of sequence IDs and their sequences
+        Distance categories (based on similarity thresholds):
+        - <= 0.0001: same_strain (99.99% similarity)
+        - <= 0.01: same_species (≥98% similarity) 
+        - <= 0.015: same_subspecies (≥97% similarity)
+        - > 0.015: divergent (<97% similarity)
+        
+        :param sequences: Dictionary of sequence IDs and their sequences or cogent3 Alignment object
         :param dists: Distance matrix from cogent3
         :param output_file: Output TSV file path
         """
-        # Define ambiguous bases (excluding standard nucleotides A, T, G, C)
-        ambiguous_bases = set(['N', '-', '?', 'R', 'Y', 'S', 'W', 'K', 'M', 'B', 'D', 'H', 'V'])
-        gap_chars_nq = set(['N', '?'])  # N and ? characters
+        # Define nucleotide information categories
+        # Maximal information: strictly A, C, G, or T (unambiguous)
+        MAXIMAL_INFO = {'A', 'C', 'G', 'T'}
         
-        # Get sequence names
-        seq_names = list(sequences.keys()) if hasattr(sequences, 'keys') else list(sequences.names)
+        # Minimal information: A, C, G, T, or IUPAC codes (excluding N, gaps, and ?)
+        # IUPAC codes: R, Y, S, W, K, M, B, D, H, V (N is excluded as it's "unknown")
+        MINIMAL_INFO = {'A', 'C', 'G', 'T', 'R', 'Y', 'S', 'W', 'K', 'M', 'B', 'D', 'H', 'V'}
+        
+        # Get sequence names and sequence getter function
+        if hasattr(sequences, 'keys'):
+            seq_names = list(sequences.keys())
+            get_seq = lambda name: str(sequences[name])
+        else:
+            seq_names = list(sequences.names)
+            get_seq = lambda name: str(sequences.get_seq(name))
+        
+        # Pre-convert all sequences to uppercase strings and calculate per-sample statistics
+        seq_strs = {}
+        per_sample_stats = {}
+        for name in seq_names:
+            seq_str = get_seq(name).upper()
+            seq_strs[name] = seq_str
+            total_len = len(seq_str)
+            
+            # Count positions with minimal and maximal information for this sample
+            minimal_info_count = sum(1 for base in seq_str if base in MINIMAL_INFO)
+            maximal_info_count = sum(1 for base in seq_str if base in MAXIMAL_INFO)
+            
+            per_sample_stats[name] = {
+                'total_len': total_len,
+                'minimal_info_count': minimal_info_count,
+                'maximal_info_count': maximal_info_count,
+            }
         
         # Prepare data for DataFrame
         table_data = []
         
-        # Generate pairwise comparisons
+        # Generate pairwise comparisons (upper triangle only)
         for i, name1 in enumerate(seq_names):
-            seq1 = sequences[name1] if name1 in sequences else sequences.get_seq(name1)
+            seq1_str = seq_strs[name1]
+            stats1 = per_sample_stats[name1]
+            
             for j, name2 in enumerate(seq_names):
                 if i >= j:  # Skip diagonal and lower triangle
                     continue
                     
-                seq2 = sequences[name2] if name2 in sequences else sequences.get_seq(name2)
+                seq2_str = seq_strs[name2]
+                stats2 = per_sample_stats[name2]
                 
-                # Calculate statistics
-                total_length = len(seq1)
+                # Ensure sequences have the same length
+                total_length = stats1['total_len']
+                if stats2['total_len'] != total_length:
+                    logging.warning(f"Sequence lengths differ for {name1} ({stats1['total_len']}) and {name2} ({stats2['total_len']})")
+                    continue
                 
-                # Count positions without gaps/ambiguous characters
-                valid_positions_nq = []  # Not counting N/?
-                valid_positions_all = []  # Not counting any ambiguous base
+                # Initialize overlap counters
+                overlap_minimal_info = 0  # Both samples have minimal information (ACGT+IUPAC)
+                overlap_maximal_info = 0  # Both samples have maximal information (ACGT only)
                 
+                # Calculate overlap statistics position by position
                 for k in range(total_length):
-                    base1 = seq1[k].upper()
-                    base2 = seq2[k].upper()
+                    base1 = seq1_str[k]
+                    base2 = seq2_str[k]
                     
-                    # Check if both positions are valid (not N or ?)
-                    if base1 not in gap_chars_nq and base2 not in gap_chars_nq:
-                        valid_positions_nq.append(k)
+                    # Check if both positions have minimal information (not N, -, or ?)
+                    if base1 in MINIMAL_INFO and base2 in MINIMAL_INFO:
+                        overlap_minimal_info += 1
                     
-                    # Check if both positions are valid (not any ambiguous base)
-                    if base1 not in ambiguous_bases and base2 not in ambiguous_bases:
-                        valid_positions_all.append(k)
+                    # Check if both positions have maximal information (strictly ACGT)
+                    if base1 in MAXIMAL_INFO and base2 in MAXIMAL_INFO:
+                        overlap_maximal_info += 1
                 
-                # Calculate overlaps
-                coverage_overlap_nq = len(valid_positions_nq)
-                coverage_overlap_all = len(valid_positions_all)
+                # Calculate percentages
+                overlap_minimal_info_pc = (overlap_minimal_info / total_length * 100) if total_length > 0 else 0.0
+                overlap_maximal_info_pc = (overlap_maximal_info / total_length * 100) if total_length > 0 else 0.0
                 
-                # Calculate compared bases count
-                compared_bases_count = len(valid_positions_all)  # Without any ambiguous base
+                minimal_info_pc_sample1 = (stats1['minimal_info_count'] / total_length * 100) if total_length > 0 else 0.0
+                maximal_info_pc_sample1 = (stats1['maximal_info_count'] / total_length * 100) if total_length > 0 else 0.0
                 
-                # Calculate coverage percentages
-                coverage_sample1_nq = (sum(1 for base in seq1.upper() if base not in gap_chars_nq) / total_length) * 100 if total_length > 0 else 0
-                coverage_sample2_nq = (sum(1 for base in seq2.upper() if base not in gap_chars_nq) / total_length) * 100 if total_length > 0 else 0
-                
-                # For mean depths, we don't have actual depth information in the sequences,
-                # so we'll set them to 0 or a default value
-                mean_depth_sample1 = 0.0
-                mean_depth_sample2 = 0.0
+                minimal_info_pc_sample2 = (stats2['minimal_info_count'] / total_length * 100) if total_length > 0 else 0.0
+                maximal_info_pc_sample2 = (stats2['maximal_info_count'] / total_length * 100) if total_length > 0 else 0.0
                 
                 # Get distance from distance matrix
                 if hasattr(dists, 'get_distance'):
@@ -187,19 +221,31 @@ class Phylogeny(Session):
                 else:
                     distance = dists[i, j] if hasattr(dists, '__getitem__') else 0.0
                 
-                # Add row to table data
+                # Categorize distance based on similarity thresholds
+                if distance <= 0.0001:
+                    distance_category = "same_strain"
+                elif distance <= 0.01:
+                    distance_category = "same_species"
+                elif distance <= 0.015:
+                    distance_category = "same_subspecies"
+                else:
+                    distance_category = "divergent"
+                
+                # Add row to table data with the requested column names
                 table_data.append({
                     'sample1': name1,
                     'sample2': name2,
                     'total_length': total_length,
-                    'coverage_overlap_nq': coverage_overlap_nq,  # not taking N, ? into account
-                    'coverage_overlap_all': coverage_overlap_all,  # not taking any ambiguous base into account
-                    'compared_bases_count': compared_bases_count,  # without N/? and without any ambiguous base
-                    'coverage_sample1_pct': coverage_sample1_nq,  # coverage sample 1 (%)
-                    'coverage_sample2_pct': coverage_sample2_nq,  # coverage sample 2 (%)
-                    'mean_depth_sample1': mean_depth_sample1,
-                    'mean_depth_sample2': mean_depth_sample2,
-                    'distance': distance
+                    'overlap_noN_info_count': overlap_minimal_info,
+                    'overlap_noIUPAC_info_count': overlap_maximal_info,
+                    'overlap_noN_info_pc': overlap_minimal_info_pc,
+                    'overlap_noIUPAC_info_pc': overlap_maximal_info_pc,
+                    'noN_info_pc_sample1': minimal_info_pc_sample1,
+                    'noN_info_pc_sample2': minimal_info_pc_sample2,
+                    'noIUPAC_info_pc_sample1': maximal_info_pc_sample1,
+                    'noIUPAC_info_pc_sample2': maximal_info_pc_sample2,
+                    'distance': distance,
+                    'distance_category': distance_category,
                 })
         
         # Create DataFrame and save to TSV
@@ -209,9 +255,10 @@ class Phylogeny(Session):
             logging.info(f"Pairwise comparison table saved to {output_file}")
         else:
             # Create empty file with headers if no data
-            columns = ['sample1', 'sample2', 'total_length', 'coverage_overlap_nq',
-                      'coverage_overlap_all', 'compared_bases_count', 'coverage_sample1_pct',
-                      'coverage_sample2_pct', 'mean_depth_sample1', 'mean_depth_sample2', 'distance']
+            columns = ['sample1', 'sample2', 'total_length', 'overlap_noN_info_count',
+                    'overlap_noIUPAC_info_count', 'overlap_noN_info_pc', 'overlap_noIUPAC_info_pc',
+                    'noN_info_pc_sample1', 'noN_info_pc_sample2', 'noIUPAC_info_pc_sample1',
+                    'noIUPAC_info_pc_sample2', 'distance', 'distance_category']
             pd.DataFrame(columns=columns).to_csv(output_file, sep='\t', index=False)
             logging.info(f"Empty pairwise comparison table saved to {output_file}")
     # def _write_distance_matrix_to_tsv(self, dists, dist_file: Path):
