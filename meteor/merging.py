@@ -428,5 +428,45 @@ class Merging(Session):
                     sep="\t",
                     index=False,
                 )
+            elif my_pattern == "mustard_as_genes_sum":
+                mustard_annotation_path = Path(
+                    str(
+                        importlib.resources.files("meteor")
+                        / "data/category_pcm.feather"
+                    )
+                )
+                mustard_annotation = self.load_data(mustard_annotation_path)
+                mustard_annotation = mustard_annotation[
+                    mustard_annotation["ARD"].isin(filtered_df["annotation"])
+                ]
+                mustard_annotation[
+                    [
+                        "ARD",
+                        "Antimicrobial"]
+                ].to_csv(
+                    Path(f"{output_name}_antimicrobial.tsv"),
+                    sep="\t",
+                    index=False,
+                )
+            elif my_pattern == "kegg_as_genes_sum":
+                kegg_annotation_path = Path(
+                    str(
+                        importlib.resources.files("meteor")
+                        / "data/ko_list_v116.feather"
+                    )
+                )
+                kegg_annotation = self.load_data(kegg_annotation_path)
+                kegg_annotation = kegg_annotation[
+                    kegg_annotation["knum"].isin(filtered_df["annotation"])
+                ]
+                kegg_annotation[
+                    [
+                        "knum",
+                        "definition"]
+                ].to_csv(
+                    Path(f"{output_name}_description.tsv"),
+                    sep="\t",
+                    index=False,
+                )
             filtered_df.to_csv(output_name.with_suffix(".tsv"), sep="\t", index=False)
             logging.info("Data saved as %s", output_name)
