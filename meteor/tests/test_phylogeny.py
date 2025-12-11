@@ -125,51 +125,99 @@ def test_remove_edge_labels(phylogeny_builder: Phylogeny):
 #     assert len(lines) == 4
 
 def test_generate_pairwise_comparison_table(phylogeny_builder: Phylogeny, tmp_path: Path):
-    """Test _generate_pairwise_comparison_table method"""
-    # Create mock sequences
+    """Test _generate_pairwise_comparison_table method with current implementation"""
+    # Create test sequences with clear, verifiable patterns
     sequences = {
-        "sample1": "ATCGATCGATCG",
-        "sample2": "ATCGATCGATCG",
-        "sample3": "ATCGNTCGATCG"
+        "sample1": "ATCGATCGATCG",  # All ACGT (12 maximal info positions)
+        "sample2": "ATCGATCGATCG",  # Identical to sample1
+        "sample3": "ATRYNNNHBVVT",  # Mixed: ACGT, 2-base IUPAC (R,Y), 3-base IUPAC (H,B,V), and N's
+        "sample4": "ATNYNNNHBVNT",  # Similar to sample3 but with more Ns
     }
     
-    # Create mock distance matrix
+    # Mock distance matrix with proper get_distance method
     class MockDistanceMatrix:
         def __init__(self):
-            self.names = ['sample1', 'sample2', 'sample3']
+            self.names = ['sample1', 'sample2', 'sample3', 'sample4']
+            self.distances = {
+                'sample1-sample2': 0.00005,  # same_strain
+                'sample1-sample3': 0.008,    # same_species
+                'sample1-sample4': 0.012,    # same_subspecies
+                'sample2-sample3': 0.008,    # same_species
+                'sample2-sample4': 0.012,    # same_subspecies
+                'sample3-sample4': 0.025,    # divergent
+            }
             
         def get_distance(self, name1, name2):
-            # Simple distance calculation for testing
             if name1 == name2:
                 return 0.0
-            return 0.1
+            key1 = f"{name1}-{name2}"
+            key2 = f"{name2}-{name1}"
+            return self.distances.get(key1, self.distances.get(key2, 0.1))
     
     dists = MockDistanceMatrix()
-    
-    # Define output file
     output_file = tmp_path / "test_comparison.tsv"
     
     # Call the method
     phylogeny_builder._generate_pairwise_comparison_table(sequences, dists, output_file)
     
-    # Verify file exists
+    # Verify file exists and can be read
     assert output_file.exists()
-    
-    # Read and verify content
     df = pd.read_csv(output_file, sep='\t')
     
-    # Check that we have the expected columns
-    expected_columns = ['sample1', 'sample2', 'total_length', 'coverage_overlap_nq', 
-                       'coverage_overlap_all', 'compared_bases_count', 'coverage_sample1_pct',
-                       'coverage_sample2_pct', 'mean_depth_sample1', 'mean_depth_sample2', 'distance']
-    assert all(col in df.columns for col in expected_columns)
+    # Check columns match current implementation exactly
+    expected_columns = [
+        'sample1', 'sample2', 'total_length', 'overlap_noN_info_count',
+        'overlap_noIUPAC_info_count', 'overlap_noN_info_pc', 'overlap_noIUPAC_info_pc',
+        'noN_info_pc_sample1', 'noN_info_pc_sample2', 'noIUPAC_info_pc_sample1',
+        'noIUPAC_info_pc_sample2', 'distance', 'distance_category'
+    ]
+    assert list(df.columns) == expected_columns
     
-    # Check that we have the expected number of rows (3 samples, so 3 pairs: 1-2, 1-3, 2-3)
-    # Actually, with 3 samples we should have 3 pairs: (0,1), (0,2), (1,2)
-    assert len(df) == 3
+    # Check 6 rows for 4 samples (C(4,2) = 6)
+    assert len(df) == 6
     
-    # Check that distances are properly recorded
+    # Test sample1 vs sample2 (identical, all ACGT, distance 0.00005 -> same_strain)
+    row_12 = df[(df['sample1'] == 'sample1') & (df['sample2'] == 'sample2')].iloc[0]
+    assert row_12['total_length'] == 12
+    assert row_12['overlap_noN_info_count'] == 12
+    assert row_12['overlap_noIUPAC_info_count'] == 12
+    assert row_12['distance_category'] == 'same_strain'
+    
+    # Test sample1 vs sample3 (distance 0.008 -> same_species)
+    row_13 = df[(df['sample1'] == 'sample1') & (df['sample2'] == 'sample3')].iloc[0]
+    assert row_13['total_length'] == 12
+    
+    # Both have minimal info at positions: 0,1,2,3,7,8,9,10,11 = 9 positions
+    # (positions 4,5,6 have N in sample3 which is NOT in MINIMAL_INFO)
+    assert row_13['overlap_noN_info_count'] == 9
+    
+    # Both have maximal info (ACGT) at positions: 0,1,11 = 3 positions
+    assert row_13['overlap_noIUPAC_info_count'] == 3
+    assert row_13['distance_category'] == 'same_species'
+    
+    # Test sample3 vs sample4 (distance 0.025 -> divergent)
+    row_34 = df[(df['sample1'] == 'sample3') & (df['sample2'] == 'sample4')].iloc[0]
+    assert row_34['distance_category'] == 'divergent'
+    
+    # Verify data integrity
+    assert all(df['total_length'] == 12)
+    assert all(df['overlap_noN_info_count'] >= df['overlap_noIUPAC_info_count'])
+    assert all(df['overlap_noN_info_pc'] >= df['overlap_noIUPAC_info_pc'])
     assert all(df['distance'] >= 0)
+    assert all(df['distance_category'].isin(['same_strain', 'same_species', 'same_subspecies', 'divergent']))
+    
+    # Check each category has correct distance ranges
+    strain_rows = df[df['distance_category'] == 'same_strain']
+    assert all(strain_rows['distance'] <= 0.0001)
+    
+    species_rows = df[df['distance_category'] == 'same_species']
+    assert all((species_rows['distance'] > 0.0001) & (species_rows['distance'] <= 0.01))
+    
+    subspecies_rows = df[df['distance_category'] == 'same_subspecies']
+    assert all((subspecies_rows['distance'] > 0.01) & (subspecies_rows['distance'] <= 0.015))
+    
+    divergent_rows = df[df['distance_category'] == 'divergent']
+    assert all(divergent_rows['distance'] > 0.015)
 
 
 def test_execute(phylogeny_builder: Phylogeny):
