@@ -58,15 +58,14 @@ jobs:
       - uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
+          python-version: "3.12"
           channels: conda-forge,bioconda
       - name: Build and upload the conda package
         shell: bash -el {0}
         run: |
           conda config --set anaconda_upload yes
-          conda install -y anaconda-client
-          conda install -y conda-build
-          conda install -y conda-verify
-          conda build --token ${{ secrets.ANACONDA_TOKEN }} conda_recipe
+          conda install -y python=3.12 anaconda-client conda-build conda-verify
+          conda build --token ${{ secrets.ANACONDA_TOKEN }} --python 3.12 conda_recipe
 
   pypi:
     if: ${{ !github.event.release.prerelease }}
@@ -75,6 +74,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Python
         uses: actions/setup-python@v4
+        with:
+          python-version: '3.12' 
         # see details (matrix, python-version, python-version-file, etc.)
         # https://github.com/actions/setup-python
       - name: Install poetry

@@ -23,11 +23,11 @@ build:
 
 requirements:
     host:
-        - python >=3.11,<3.13
+        - python 3.12.*
         - pip
         - poetry-core
     run:
-        - python >=3.11,<3.13
+        - python 3.12.*
         - bowtie2 >=2.3.5
         - pysam
         - pyarrow
@@ -47,7 +47,7 @@ test:
         - pysam
         - pandas
         - pyarrow
-        - ete3
+        - ete4
         - packaging
         - biom
         - cogent3
