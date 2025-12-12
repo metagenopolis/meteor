@@ -162,6 +162,41 @@ Meteor computes mutation rates and trees between strains from samples using a GT
 meteor tree -i <straindir> -o <treedir>
 ```
 
+This profiling step will generate:
+- a mutation rate matrix;
+- a fasta file of each strain for each sample;
+- a table giving detailed comparison per strain. The file is a tab-separated values (TSV) file with one row per sample pair. Each row contains the following columns:
+
+| Column | Description |
+|--------|-------------|
+| `sample1` | First sample in the comparison |
+| `sample2` | Second sample in the comparison |
+| `total_length` | Total length of the alignment (in bases) |
+| `overlap_noN_info_count` | Number of positions where **both** samples have minimal information (A,C,G,T or IUPAC codes *excluding* N, gaps, and ?) |
+| `overlap_noIUPAC_info_count` | Number of positions where **both** samples have maximal information (strictly A,C,G,T only) |
+| `overlap_noN_info_pc` | Percentage of `total_length` with minimal information overlap |
+| `overlap_noIUPAC_info_pc` | Percentage of `total_length` with maximal information overlap |
+| `noN_info_pc_sample1` | In sample1, percentage of positions with minimal information |
+| `noN_info_pc_sample2` | In sample2, percentage of positions with minimal information |
+| `noIUPAC_info_pc_sample1` | In sample1, percentage of positions with maximal information |
+| `noIUPAC_info_pc_sample2` | In sample2, percentage of positions with maximal information |
+| `distance` | Genetic distance between samples (0.0 = identical) |
+| `distance_category` | Categorical classification: `same_strain`, `same_species`, `same_subspecies`, or `divergent` |
+
+
+Samples are automatically classified based on their genetic distance:
+
+| Category | Distance Threshold | Approximate Similarity | Biological Interpretation |
+|----------|-------------------|------------------------|---------------------------|
+| `same_strain` | ≤ 0.0001 | ≥ 99.99% | Same strain/clone |
+| `same_species` | ≤ 0.01 | ≥ 98% | Same species |
+| `same_subspecies` | ≤ 0.015 | ≥ 97% | Same subspecies |
+| `divergent` | > 0.015 | < 97% | Different lineage |
+
+**Note**: 
+- **Maximal Information**: Unambiguous nucleotides (A, C, G, T only)
+- **Minimal Information**: Includes IUPAC ambiguity codes (R, Y, S, W, K, M, B, D, H, V) but excludes N, gaps (-), and unknown (?)
+
 ## Citing Meteor2
 
 Please cite the following publication if you use Meteor2:  
