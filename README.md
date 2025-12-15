@@ -3,7 +3,7 @@
 [![install with conda](https://img.shields.io/conda/vn/bioconda/meteor?color=green&label=bioconda%2Fmeteor&logo=anaconda)](https://anaconda.org/bioconda/meteor)
 ![Anaconda downloads](https://anaconda.org/bioconda/meteor/badges/downloads.svg)
 [![PyPI](https://img.shields.io/pypi/v/METEOR?label=pypi%20package)](https://pypi.org/project/meteor/)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/meteor?label=meteor%20on%20PyPi)
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/meteor?period=total&units=INTERNATIONAL_SYSTEM&left_color=GRAY&right_color=BLUE&left_text=meteor%20on%20PyPi)](https://pepy.tech/projects/meteor)
 [![dockerhub](https://img.shields.io/docker/v/aghozlane/meteor?label=aghozlane/meteor&logo=docker)](https://hub.docker.com/r/aghozlane/meteor/)
 ![Github Actions](https://github.com/metagenopolis/meteor/actions/workflows/main.yml/badge.svg)
 [![codecov](https://codecov.io/gh/metagenopolis/meteor/graph/badge.svg?token=AXAEIUY7DX)](https://codecov.io/gh/metagenopolis/meteor)
