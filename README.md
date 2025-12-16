@@ -189,7 +189,6 @@ Samples are automatically classified based on their genetic distance:
 | Category | Distance Threshold | Approximate Similarity | Biological Interpretation |
 |----------|-------------------|------------------------|---------------------------|
 | `same_strain` | ≤ 0.0001 | ≥ 99.99% | Same strain/clone |
-| `same_species` | ≤ 0.01 | ≥ 98% | Same species |
 | `same_subspecies` | ≤ 0.015 | ≥ 97% | Same subspecies |
 | `divergent` | > 0.015 | < 97% | Different lineage |
 
