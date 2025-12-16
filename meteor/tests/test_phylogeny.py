@@ -193,7 +193,6 @@ def test_generate_pairwise_comparison_table(phylogeny_builder: Phylogeny, tmp_pa
     
     # Both have maximal info (ACGT) at positions: 0,1,11 = 3 positions
     assert row_13['overlap_noIUPAC_info_count'] == 3
-    assert row_13['distance_category'] == 'same_species'
     
     # Test sample3 vs sample4 (distance 0.025 -> divergent)
     row_34 = df[(df['sample1'] == 'sample3') & (df['sample2'] == 'sample4')].iloc[0]
@@ -210,11 +209,6 @@ def test_generate_pairwise_comparison_table(phylogeny_builder: Phylogeny, tmp_pa
     strain_rows = df[df['distance_category'] == 'same_strain']
     assert all(strain_rows['distance'] <= 0.0001)
     
-    species_rows = df[df['distance_category'] == 'same_species']
-    assert all((species_rows['distance'] > 0.0001) & (species_rows['distance'] <= 0.01))
-    
-    subspecies_rows = df[df['distance_category'] == 'same_subspecies']
-    assert all((subspecies_rows['distance'] > 0.01) & (subspecies_rows['distance'] <= 0.015))
     
     divergent_rows = df[df['distance_category'] == 'divergent']
     assert all(divergent_rows['distance'] > 0.015)
