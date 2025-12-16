@@ -105,7 +105,7 @@ class Phylogeny(Session):
         """
         config = {
             "phylogeny": {
-                "meteor_version": self.meteor.version,
+                "phylogeny_meteor_version": self.meteor.version,
                 "phylogeny_tool": "cogent3",
                 "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
                 "tree_mode": "GTR" if self.gtr else "TN93",
