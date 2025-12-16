@@ -125,7 +125,6 @@ class Phylogeny(Session):
         
         Distance categories (based on similarity thresholds):
         - <= 0.0001: same_strain (99.99% similarity)
-        - <= 0.01: same_species (≥98% similarity) 
         - <= 0.015: same_subspecies (≥97% similarity)
         - > 0.015: divergent (<97% similarity)
         
@@ -224,8 +223,6 @@ class Phylogeny(Session):
                 # Categorize distance based on similarity thresholds
                 if distance <= 0.0001:
                     distance_category = "same_strain"
-                elif distance <= 0.01:
-                    distance_category = "same_species"
                 elif distance <= 0.015:
                     distance_category = "same_subspecies"
                 else:
