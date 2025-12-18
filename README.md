@@ -181,7 +181,7 @@ This profiling step will generate:
 | `noIUPAC_info_pc_sample1` | In sample1, percentage of positions with maximal information |
 | `noIUPAC_info_pc_sample2` | In sample2, percentage of positions with maximal information |
 | `distance` | Genetic distance between samples (0.0 = identical) |
-| `distance_category` | Categorical classification: `same_strain`, `same_species`, `same_subspecies`, or `divergent` |
+| `distance_category` | Categorical classification: `same_strain`, `same_subspecies`, or `divergent` |
 
 
 Samples are automatically classified based on their genetic distance:
