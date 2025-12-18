@@ -43,6 +43,8 @@ def get_logging() -> logging.Logger:  # pragma: no cover
     :return: (logging.logger) A logger object
     """
     logger = logging.getLogger()
+    if logger.hasHandlers():
+        logger.handlers.clear()
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s :: %(levelname)s :: %(message)s")
     # Stream in the the console
