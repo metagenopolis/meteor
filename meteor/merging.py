@@ -223,7 +223,10 @@ class Merging(Session):
             for filename in fnmatch.filter(files, "*census_stage_2.json")
         ]
         if len(all_census) == 0:
-            logging.error("No census stage 2 found in the specified repository.")
+            logging.error(
+                "No *_census_stage_2.json files found in %s",
+                self.meteor.profile_dir,
+            )
             sys.exit(1)
         else:
             logging.info("%d census files have been detected.", len(all_census))
