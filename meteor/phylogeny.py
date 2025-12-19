@@ -14,8 +14,7 @@
 import re
 import logging
 import pandas as pd
-
-# import sys
+import sys
 # from subprocess import run, Popen, PIPE
 # from packaging.version import parse
 
@@ -444,6 +443,7 @@ class Phylogeny(Session):
                     logging.error(
                         "MSP %s generated an exception: %s", msp_file.name, exc
                     )
+                    sys.exit(1)
 
         logging.info("Completed phylogeny in %f seconds", perf_counter() - start)
         logging.info(
