@@ -504,92 +504,90 @@ class Counter(Session):
                 self.meteor.ref_dir,
             )
             sys.exit(1)
-        try:
-            census_json_files = list(
-                self.meteor.fastq_dir.glob("*_census_stage_0.json")
-            )
-            assert len(census_json_files) > 0
 
-            #  mapping of each sample against reference
-            for library in census_json_files:
-                census_json = self.read_json(library)
-                sample_info = census_json["sample_info"]
-                stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"]
-                stage1_dir.mkdir(exist_ok=True, parents=True)
-                stage1_json = (
-                    self.meteor.mapping_dir
-                    / sample_info["sample_name"]
-                    / f"{sample_info['sample_name']}_census_stage_1.json"
-                )
-                self.json_data[library] = {
-                    "census": census_json,
-                    "directory": stage1_dir,
-                    "Stage1FileName": stage1_json,
-                    "reference": ref_json,
-                }
-                if not stage1_json.exists():
-                    mapping_done = False
-            # mapping already done and no overwriting
-            if mapping_done:
-                logging.info(
-                    "Mapping already done for sample: %s",
-                    sample_info["sample_name"],
-                )
-                logging.info("Skipped !")
-            else:
-                logging.info("Launch mapping")
-                self.launch_mapping()
-            # running counter
-            stage1_json_data = self.read_json(stage1_json)
-            raw_cram_file = (stage1_dir /
-                stage1_json_data["mapping"]["mapping_file"]
-            )
-            cram_file = (
-                stage1_dir
-                / f"{sample_info['sample_name']}.cram"
-            )
-            count_file = (
-                stage1_dir
-                / f"{sample_info['sample_name']}.tsv.xz"
-            )
-            start = perf_counter()
-            self.launch_counting(
-                raw_cram_file,
-                cram_file,
-                count_file,
-                ref_json,
-                stage1_json_data,
-                stage1_json,
-            )
-            # Add final mapping rate
-            stage1_json_data = self.read_json(stage1_json)
-            stage1_json_data["counting"]["final_mapping_rate"] = (
-                round(
-                    stage1_json_data["counting"]["counted_reads"]
-                    / stage1_json_data["mapping"]["total_read_count"]
-                    * 100,
-                    2
-                )
-            )
-            self.save_config(
-                stage1_json_data,
-                stage1_json
-            )
-
-            logging.info("Completed counting in %f seconds", perf_counter() - start)
-            if not self.keep_all_alignments:
-                logging.info(
-                    "Raw cram file is not kept (--ka). "
-                    "Re-counting operation will need to be performed from scratch."
-                )
-                raw_cram_file.unlink(missing_ok=True)
-                raw_cram_file.with_suffix(".cram.crai").unlink(missing_ok=True)
-        except AssertionError:
+        census_json_files = list(
+            self.meteor.fastq_dir.glob("*_census_stage_0.json")
+        )
+        if len(census_json_files) == 0:
             logging.error(
                 "No *_census_stage_0.json file found in %s",
                 self.meteor.fastq_dir,
             )
             sys.exit(1)
+
+        #  mapping of each sample against reference
+        for library in census_json_files:
+            census_json = self.read_json(library)
+            sample_name = census_json["sample_info"]["sample_name"]
+            stage1_dir = self.meteor.mapping_dir / sample_name
+            stage1_dir.mkdir(exist_ok=True, parents=True)
+            stage1_json = (
+                self.meteor.mapping_dir
+                / sample_name
+                / f"{sample_name}_census_stage_1.json"
+            )
+            self.json_data[library] = {
+                "census": census_json,
+                "directory": stage1_dir,
+                "Stage1FileName": stage1_json,
+                "reference": ref_json,
+            }
+            if not stage1_json.exists():
+                mapping_done = False
+        # mapping already done and no overwriting
+        if mapping_done:
+            logging.info(
+                "Mapping already done for sample: %s",
+                sample_name,
+            )
+            logging.info("Skipped !")
         else:
-            # Not sure if it's a good idea to delete a temporary file
-            rmtree(self.meteor.tmp_dir, ignore_errors=True)
+            logging.info("Launch mapping")
+            self.launch_mapping()
+        # running counter
+        stage1_json_data = self.read_json(stage1_json)
+        raw_cram_file = (stage1_dir /
+            stage1_json_data["mapping"]["mapping_file"]
+        )
+        cram_file = (
+            stage1_dir
+            / f"{sample_name}.cram"
+        )
+        count_file = (
+            stage1_dir
+            / f"{sample_name}.tsv.xz"
+        )
+        start = perf_counter()
+        self.launch_counting(
+            raw_cram_file,
+            cram_file,
+            count_file,
+            ref_json,
+            stage1_json_data,
+            stage1_json,
+        )
+        # Add final mapping rate
+        stage1_json_data = self.read_json(stage1_json)
+        stage1_json_data["counting"]["final_mapping_rate"] = (
+            round(
+                stage1_json_data["counting"]["counted_reads"]
+                / stage1_json_data["mapping"]["total_read_count"]
+                * 100,
+                2
+            )
+        )
+        self.save_config(
+            stage1_json_data,
+            stage1_json
+        )
+        logging.info("Completed counting in %f seconds", perf_counter() - start)
+        if not self.keep_all_alignments:
+            logging.info(
+                "Raw cram file is not kept (--ka). "
+                "Re-counting operation will need to be performed from scratch."
+            )
+            raw_cram_file.unlink(missing_ok=True)
+            raw_cram_file.with_suffix(".cram.crai").unlink(missing_ok=True)
+
+        # Not sure if it's a good idea to delete a temporary file
+        rmtree(self.meteor.tmp_dir, ignore_errors=True)
