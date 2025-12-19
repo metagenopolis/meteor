@@ -401,7 +401,7 @@ class Counter(Session):
         cramfile_strain: Path,
         count_file: Path,
         ref_json: dict,
-        census_json: dict,
+        stage1_json_data: dict,
         stage1_json: Path,
     ):
         """Function that count reads from a cram file, using the given methods in count:
@@ -453,8 +453,8 @@ class Counter(Session):
         self.write_stat(count_file, abundance, database)
         counted_reads = len(reads)
         config = self.set_counter_config(counted_reads, count_file)
-        census_json.update(config)
-        self.save_config(census_json, stage1_json)
+        stage1_json_data.update(config)
+        self.save_config(stage1_json_data, stage1_json)
         if self.keep_filtered_alignments:
             cramfile_strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
             self.save_cram_strain(
@@ -516,15 +516,18 @@ class Counter(Session):
                 sample_info = census_json["sample_info"]
                 stage1_dir = self.meteor.mapping_dir / sample_info["sample_name"]
                 stage1_dir.mkdir(exist_ok=True, parents=True)
-                # if self.pysam_test:
+                stage1_json = (
+                    self.meteor.mapping_dir
+                    / sample_info["sample_name"]
+                    / f"{sample_info['sample_name']}_census_stage_1.json"
+                )
                 self.json_data[library] = {
                     "census": census_json,
                     "directory": stage1_dir,
-                    "Stage1FileName": stage1_dir
-                    / f"{sample_info['sample_name']}_census_stage_1.json",
+                    "Stage1FileName": stage1_json,
                     "reference": ref_json,
                 }
-                if not self.json_data[library]["Stage1FileName"].exists():
+                if not stage1_json.exists():
                     mapping_done = False
             # mapping already done and no overwriting
             if mapping_done:
@@ -537,45 +540,39 @@ class Counter(Session):
                 logging.info("Launch mapping")
                 self.launch_mapping()
             # running counter
-            raw_cram_file = (
-                self.json_data[library]["directory"]
-                / f"{sample_info['sample_name']}_raw.cram"
+            stage1_json_data = self.read_json(stage1_json)
+            raw_cram_file = (stage1_dir /
+                stage1_json_data["mapping"]["mapping_file"]
             )
             cram_file = (
-                self.json_data[library]["directory"]
+                stage1_dir
                 / f"{sample_info['sample_name']}.cram"
             )
             count_file = (
-                self.json_data[library]["directory"]
+                stage1_dir
                 / f"{sample_info['sample_name']}.tsv.xz"
             )
             start = perf_counter()
-            stage1_json = (
-                self.meteor.mapping_dir
-                / sample_info["sample_name"]
-                / f"{sample_info['sample_name']}_census_stage_1.json"
-            )
-            census_json = self.read_json(stage1_json)
             self.launch_counting(
                 raw_cram_file,
                 cram_file,
                 count_file,
                 ref_json,
-                census_json,
+                stage1_json_data,
                 stage1_json,
             )
             # Add final mapping rate
-            census_json = self.read_json(stage1_json)
-            census_json["counting"]["final_mapping_rate"] = (
+            stage1_json_data = self.read_json(stage1_json)
+            stage1_json_data["counting"]["final_mapping_rate"] = (
                 round(
-                    census_json["counting"]["counted_reads"]
-                    / census_json["mapping"]["total_read_count"]
+                    stage1_json_data["counting"]["counted_reads"]
+                    / stage1_json_data["mapping"]["total_read_count"]
                     * 100,
                     2
                 )
             )
             self.save_config(
-                census_json,
+                stage1_json_data,
                 stage1_json
             )
 
