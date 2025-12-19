@@ -485,25 +485,15 @@ class Counter(Session):
     def execute(self) -> None:
         """Compute the mapping"""
         mapping_done = True
-        try:
-            # Get the ini ref
-            ref_json = self.get_reference_info(self.meteor.ref_dir)
-            Component.check_catalogue(ref_json)
-            self.meteor.ref_name = ref_json["reference_info"]["reference_name"]
-            if not self.identity_user:
-                if ref_json["reference_info"]["database_type"] == "complete":
-                    self.identity_threshold = self.DEFAULT_IDENTITY_THRESHOLD_COMPLETE
-                else:
-                    self.identity_threshold = self.DEFAULT_IDENTITY_THRESHOLD_TAXO
-            else:
-                self.identity_threshold = self.identity_user
-        except AssertionError:
-            logging.error(
-                "No *_reference.json file found in %s. "
-                "One *_reference.json is expected",
-                self.meteor.ref_dir,
-            )
-            sys.exit(1)
+        ref_json = self.get_reference_info(self.meteor.ref_dir)
+        Component.check_catalogue(ref_json)
+        self.meteor.ref_name = ref_json["reference_info"]["reference_name"]
+        if self.identity_user:
+            self.identity_threshold = self.identity_user
+        elif ref_json["reference_info"]["database_type"] == "complete":
+            self.identity_threshold = self.DEFAULT_IDENTITY_THRESHOLD_COMPLETE
+        else:
+             self.identity_threshold = self.DEFAULT_IDENTITY_THRESHOLD_TAXO
 
         census_json_files = list(
             self.meteor.fastq_dir.glob("*_census_stage_0.json")
