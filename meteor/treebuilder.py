@@ -124,7 +124,10 @@ class TreeBuilder(Session):
         all_census = [Path(root) / f for root, _, files in os.walk(self.meteor.strain_dir, followlinks=True)
                       for f in fnmatch.filter(files, "*census_stage_3.json")]
         if len(all_census) == 0:
-            logging.error("No census stage found in the specified repository.")
+            logging.error(
+                "No *_census_stage_3.json files found in %s",
+                self.meteor.strain_dir,
+            )
             sys.exit(1)
         else:
             logging.info("%d samples have been detected.", len(all_census))
