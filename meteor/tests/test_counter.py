@@ -305,7 +305,7 @@ def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path
     raw_cramfile = datadir / "total_raw.cram"
     cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv.xz"
-    census_json_file = counter_unique.meteor.fastq_dir / "part1_census_stage_0.json"
+    census_json_file = counter_unique.meteor.fastq_dir / "part1_census_stage_1.json"
     census_json = counter_unique.read_json(census_json_file)
     ref_json = counter_unique.read_json(
         counter_unique.meteor.ref_dir / "mock_reference.json"
@@ -317,13 +317,14 @@ def test_launch_counting_unique(counter_unique: Counter, datadir: Path, tmp_path
         assert md5(out.read()).hexdigest() == "f5bc528dcbf594b5089ad7f6228ebab5"
     census_json = counter_unique.read_json(census_json_file)
     assert census_json["counting"]["counted_reads"] == 14386
+    assert census_json["counting"]["final_mapping_rate"] == 71.93
 
 
 def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: Path):
     raw_cramfile = datadir / "total_raw.cram"
     cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv.xz"
-    census_json_file = counter_total.meteor.fastq_dir / "part1_census_stage_0.json"
+    census_json_file = counter_total.meteor.fastq_dir / "part1_census_stage_1.json"
     census_json = counter_total.read_json(census_json_file)
     ref_json = counter_total.read_json(
         counter_total.meteor.ref_dir / "mock_reference.json"
@@ -335,6 +336,7 @@ def test_launch_counting_total(counter_total: Counter, datadir: Path, tmp_path: 
         assert md5(out.read()).hexdigest() == "f010e4136323ac408d4c127e243756c2"
     census_json = counter_total.read_json(census_json_file)
     assert census_json["counting"]["counted_reads"] == 14438
+    assert census_json["counting"]["final_mapping_rate"] == 72.19
 
 
 def test_launch_counting_smart_shared(
@@ -344,7 +346,7 @@ def test_launch_counting_smart_shared(
     cramfile = datadir / "total.cram"
     countfile = tmp_path / "count.tsv.xz"
     census_json_file = (
-        counter_smart_shared.meteor.fastq_dir / "part1_census_stage_0.json"
+        counter_smart_shared.meteor.fastq_dir / "part1_census_stage_1.json"
     )
     census_json = counter_smart_shared.read_json(census_json_file)
     ref_json = counter_smart_shared.read_json(
@@ -362,6 +364,7 @@ def test_launch_counting_smart_shared(
     assert count_data.equals(expected_output)
     census_json = counter_smart_shared.read_json(census_json_file)
     assert census_json["counting"]["counted_reads"] == 14438
+    assert census_json["counting"]["final_mapping_rate"] == 72.19
 
 
 def test_execute(counter_smart_shared: Counter, tmp_path: Path):
@@ -370,7 +373,3 @@ def test_execute(counter_smart_shared: Counter, tmp_path: Path):
     assert part1.exists()
     with part1.open("rb") as out:
         assert md5(out.read()).hexdigest() == "5db950a4404793f73ba034e99cb676fa"
-    census_file = tmp_path / "part1/part1_census_stage_1.json"
-    assert census_file.exists()
-    census_json = counter_smart_shared.read_json(census_file)
-    assert census_json["counting"]["final_mapping_rate"] == 70.80
