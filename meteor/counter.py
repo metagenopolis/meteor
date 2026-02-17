@@ -89,15 +89,17 @@ class Counter(Session):
         assert element.cigartuples is not None
         yield from (item[1] for item in element.cigartuples if item[0] < 3)
 
-    def set_counter_config(self, counted_reads: float, count_file: Path) -> dict:
+    def set_counter_config(self, total_read_count: int, counted_reads: float, count_file: Path) -> dict:
         """Save in the json essential info
-        :param counted_read: (float) Number of reads counted
+        :param total_read_count: (int) Number of reads mapped on the catalogue
+        :param counted_read: (float) Number of reads counted after filtering
         :param count_file: (Path) Count file
         :return: (Dict) dictionnary data
         """
         return {
             "counting": {
                 "counted_reads": counted_reads,
+                "final_mapping_rate": round(100 * counted_reads / total_read_count, 2),
                 "identity_threshold": round(self.identity_threshold, 2),
                 "count_file": count_file.name,
             }
@@ -452,7 +454,8 @@ class Counter(Session):
             abundance = self.compute_abs_total(database, genes)
         self.write_stat(count_file, abundance, database)
         counted_reads = len(reads)
-        config = self.set_counter_config(counted_reads, count_file)
+        total_read_count = stage1_json_data["mapping"]["total_read_count"]
+        config = self.set_counter_config(total_read_count, counted_reads, count_file)
         stage1_json_data.update(config)
         self.save_config(stage1_json_data, stage1_json)
         if self.keep_filtered_alignments:
@@ -555,20 +558,6 @@ class Counter(Session):
             ref_json,
             stage1_json_data,
             stage1_json,
-        )
-        # Add final mapping rate
-        stage1_json_data = self.read_json(stage1_json)
-        stage1_json_data["counting"]["final_mapping_rate"] = (
-            round(
-                stage1_json_data["counting"]["counted_reads"]
-                / stage1_json_data["mapping"]["total_read_count"]
-                * 100,
-                2
-            )
-        )
-        self.save_config(
-            stage1_json_data,
-            stage1_json
         )
         logging.info("Completed counting in %f seconds", perf_counter() - start)
         if not self.keep_all_alignments:
