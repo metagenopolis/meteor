@@ -67,22 +67,22 @@ class Downloader(Session):
             )
         self.progress_bar.update(block_size)
 
-    def extract_tar(self, catalogue: Path) -> None:
+    def extract_tar(self, tar_archive: Path) -> None:
         """Extract tar file
 
-        :param catalogue: (Path) A path object to the given catalog
+        :param tar_archive: (Path) A path object to the tar archive file
         """
-        logging.info("Extracting %s catalogue", self.choice)
-        with tarfile.open(catalogue) as tar:
+        logging.info("Extracting archive %s", tar_archive.name)
+        with tarfile.open(tar_archive) as tar:
             tar.extractall(path=self.meteor.ref_dir, filter='data')
-        catalogue.unlink(missing_ok=True)
+        tar_archive.unlink(missing_ok=True)
 
     def execute(self) -> None:
         try:
-            # for choice in self.user_choice:
             logging.info(
-                "Download %s catalogue",
-                self.catalogues_config[self.choice][self.data_type]["filename"],
+                "Downloading %s catalogue (%s version)",
+                self.choice,
+                "fast" if self.taxonomy else "full"
             )
             url = self.catalogues_config[self.choice][self.data_type]["catalogue"]
             md5_expect = self.catalogues_config[self.choice][self.data_type]["md5"]
@@ -94,7 +94,7 @@ class Downloader(Session):
             self.progress_bar.close()
             if self.choice == Component.TEST_CATALOGUE:
                 for sample in self.catalogues_config[self.choice]["samples"]:
-                    logging.info("Download %s fastq file", sample)
+                    logging.info("Downloading %s fastq file", sample)
                     url_fastq = self.catalogues_config[self.choice]["samples"][sample][
                         "catalogue"
                     ]
@@ -116,8 +116,8 @@ class Downloader(Session):
                 assert md5_expect == self.getmd5(catalogue)
             self.extract_tar(catalogue)
             logging.info(
-                "The catalogue is now ready to be used in the folder: %s",
-                str(catalogue.with_suffix("").stem),
+                "The catalogue is now available in the directory %s",
+                str(catalogue).removesuffix('.tar.xz'),
             )
         except AssertionError:
             logging.error("MD5sum of %s has a different value than expected", catalogue)
