@@ -83,7 +83,7 @@ def isinputdir(path: str) -> Path:  # pragma: no cover
 
     :return: (str) Path object of the directory
     """
-    mydir = Path(path)
+    mydir = Path(path).resolve()
     if not mydir.exists():
         msg = f"{mydir} does not exist."
         raise ArgumentTypeError(msg)
@@ -102,7 +102,7 @@ def isdir(path: str) -> Path:  # pragma: no cover
 
     :return: (str) Path object of the directory
     """
-    mydir = Path(path)
+    mydir = Path(path).resolve()
     if mydir.exists() and not mydir.is_dir():
         msg = f"{mydir} is not a directory."
         raise ArgumentTypeError(msg)
@@ -172,7 +172,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--fast",
         dest="taxonomy",
         action="store_true",
-        help="Select the short catalogue variant (only for taxonomic profiling).",
+        help="Select the short catalogue version (only for taxonomic profiling).",
     )
     download_parser.add_argument(
         "-o",
