@@ -43,6 +43,7 @@ def run_freebayes_chunk(
     min_snp_depth: int,
     min_frequency: float,
     ploidy: int,
+    tmp_dir: Path,
 ):
     """Function to run freebayes on a chunk of the BED file (i.e., a portion of the genome)."""
     try:
@@ -89,7 +90,7 @@ def run_freebayes_chunk(
                 with vcf_chunk_file.open("wb") as raw:
                     with bgzip.BGZipWriter(raw) as fh:
                         fh.write(freebayes_output)
-                bcftools.sort('-Oz', '-o', str(vcf_chunk_file.resolve()), str(vcf_chunk_file.resolve()), catch_stdout=False)
+                bcftools.sort('-Oz', '-o', str(vcf_chunk_file.resolve()), '-T', str(tmp_dir), str(vcf_chunk_file.resolve()), catch_stdout=False)
                 tabix_index(str(vcf_chunk_file.resolve()), preset="vcf", force=True)
             else:
                 logging.error(
@@ -645,6 +646,7 @@ class VariantCalling(Session):
                         self.min_snp_depth,
                         self.min_frequency,
                         self.ploidy,
+                        self.meteor.tmp_dir,
                     ): bed_chunk_file
                     for bed_chunk_file, vcf_chunk_file in zip(
                         bed_chunks, vcf_chunk_files
@@ -678,7 +680,7 @@ class VariantCalling(Session):
         startindexing = perf_counter()
         if not Path(f"{vcf_file}.tbi").exists():
             logging.info("Indexing")
-            bcftools.sort('-Oz','-o', str(vcf_file.resolve()), str(vcf_file.resolve()), catch_stdout=False)
+            bcftools.sort('-Oz','-o', str(vcf_file.resolve()), '-T', str(self.meteor.tmp_dir), str(vcf_file.resolve()), catch_stdout=False)
             tabix_index(str(vcf_file.resolve()), preset="vcf", force=True)
         else:
             logging.info("Index already exist, skipping...")
