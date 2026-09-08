@@ -94,6 +94,24 @@ runs `cargo clippy -- -D warnings`. The Python test matrix also builds the
 extension before running pytest so the Rust parity tests are exercised on
 CI.
 
+## Performance caveats
+
+See [docs/benchmarks.md](benchmarks.md) for the measured numbers. The report is
+honest about both wins and regressions:
+
+- **Counter**: the Rust `meteor_core.count_msp` implementation is currently on
+  par with or slightly slower than the Python hot loop on the repository
+  fixture. The reason is that `count_msp` returns per-gene **read lists**
+  (Python string objects for every classified read) across the PyO3 boundary,
+  so the conversion cost dominates the small-fixture run time. A future redesign
+  that returns only per-gene aggregates from Rust is the expected path to a
+  real speed-up.
+- **Variant calling**: the Rust-accelerated `meteor strain` path is slower on
+  the small fixture because most of the time is spent launching short
+  `freebayes` subprocesses. The Rust helpers are expected to become beneficial
+  on larger catalogues with many more regions, but that has not been
+  benchmarked yet.
+
 ## Benchmarks
 
 See [docs/benchmarks.md](benchmarks.md) for replicated benchmark results on the
