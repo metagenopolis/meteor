@@ -415,20 +415,15 @@ class Counter(Session):
             return int(value)
         return value
 
-    def _launch_counting_rust(
+    def _launch_counting_rust_legacy(
         self,
         raw_cramfile: Path,
         count_file: Path,
-        ref_json: dict,
+        reference: Path,
         stage1_json_data: dict,
         stage1_json: Path,
     ) -> None:
-        """Run the counting hot path through the Rust meteor_core extension."""
-        reference = (
-            self.meteor.ref_dir
-            / ref_json["reference_file"]["fasta_dir"]
-            / ref_json["reference_file"]["fasta_filename"]
-        )
+        """Run the counting hot path through the legacy ``count_msp`` API."""
         result = meteor_core.count_msp(
             str(raw_cramfile.resolve()),
             str(reference.resolve()),
@@ -445,6 +440,85 @@ class Counter(Session):
         config = self.set_counter_config(total_read_count, result.counted_reads, count_file)
         stage1_json_data.update(config)
         self.save_config(stage1_json_data, stage1_json)
+
+    def _launch_counting_rust_aggregates(
+        self,
+        raw_cramfile: Path,
+        count_file: Path,
+        reference: Path,
+        msp_map: Path,
+        stage1_json_data: dict,
+        stage1_json: Path,
+    ) -> None:
+        """Run the counting hot path through the aggregates-only Rust API."""
+        result = meteor_core.count_msp_aggregates(
+            str(raw_cramfile.resolve()),
+            str(msp_map.resolve()),
+            self.identity_threshold,
+            self.counting_type,
+        )
+        abundance = {
+            int(row.gene): self._normalise_count_value(row.count) for row in result
+        }
+        all_reads: set[str] = set()
+        for row in result:
+            if row.reads:
+                all_reads.update(row.reads.splitlines())
+        counted_reads = len(all_reads)
+        with AlignmentFile(
+            str(raw_cramfile.resolve()),
+            "rc",
+            reference_filename=str(reference.resolve()),
+        ) as cramdesc:
+            database = {
+                int(ref): length for ref, length in zip(cramdesc.references, cramdesc.lengths)
+            }
+        self.write_stat(count_file, abundance, database)
+        total_read_count = stage1_json_data["mapping"]["total_read_count"]
+        config = self.set_counter_config(total_read_count, counted_reads, count_file)
+        stage1_json_data.update(config)
+        self.save_config(stage1_json_data, stage1_json)
+
+    def _launch_counting_rust(
+        self,
+        raw_cramfile: Path,
+        count_file: Path,
+        ref_json: dict,
+        stage1_json_data: dict,
+        stage1_json: Path,
+    ) -> None:
+        """Run the counting hot path through the Rust meteor_core extension."""
+        reference = (
+            self.meteor.ref_dir
+            / ref_json["reference_file"]["fasta_dir"]
+            / ref_json["reference_file"]["fasta_filename"]
+        )
+        msp_map = (
+            self.meteor.ref_dir
+            / ref_json["reference_file"]["database_dir"]
+            / ref_json["annotation"]["msp"]["filename"]
+        )
+        if hasattr(meteor_core, "count_msp_aggregates"):
+            try:
+                self._launch_counting_rust_aggregates(
+                    raw_cramfile,
+                    count_file,
+                    reference,
+                    msp_map,
+                    stage1_json_data,
+                    stage1_json,
+                )
+                return
+            except Exception as exc:  # noqa: BLE001
+                logging.warning(
+                    "Rust aggregates counter failed (%s); falling back to count_msp.", exc
+                )
+        if hasattr(meteor_core, "count_msp"):
+            self._launch_counting_rust_legacy(
+                raw_cramfile, count_file, reference, stage1_json_data, stage1_json
+            )
+            return
+        raise RuntimeError("meteor_core does not provide a counting function")
 
     def launch_counting(
         self,
