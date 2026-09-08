@@ -54,10 +54,20 @@ METEOR_USE_RUST_COUNTER=1 meteor mapping ...
 # Variant-calling step (strain)
 meteor strain ... --use-rust-variant-calling
 METEOR_USE_RUST_VARIANT_CALLING=1 meteor strain ...
+
+# Use Rust for every supported step in the current command
+meteor mapping ... --use-rust
+meteor strain ... --use-rust
+METEOR_USE_RUST=1 meteor mapping ...
+METEOR_USE_RUST=1 meteor strain ...
 ```
 
-When a flag is unset the original Python implementation is used, so the new
-code is fully opt-in.
+The `METEOR_USE_RUST=1` / `--use-rust` shortcut sets both the counter and
+variant-calling flags for the command it is applied to.
+
+When the Rust extension is not installed or a Rust helper panics at runtime,
+Meteor logs a warning and falls back to the original Python implementation,
+so the new code is fully opt-in and never crashes a pipeline.
 
 ## Nextflow wrapper
 

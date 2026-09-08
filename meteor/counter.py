@@ -28,6 +28,11 @@ from pysam import index, sort, AlignmentFile, AlignmentHeader, AlignedSegment  #
 from time import perf_counter
 from shutil import rmtree
 
+try:
+    import meteor_core
+except ImportError:
+    meteor_core = None  # type: ignore[assignment]
+
 
 @dataclass
 class Counter(Session):
@@ -406,8 +411,6 @@ class Counter(Session):
         stage1_json: Path,
     ) -> None:
         """Run the counting hot path through the Rust meteor_core extension."""
-        import meteor_core  # type: ignore[import-not-found]
-
         reference = (
             self.meteor.ref_dir
             / ref_json["reference_file"]["fasta_dir"]
@@ -454,19 +457,21 @@ class Counter(Session):
 
         use_rust_counter = getattr(self.meteor, "use_rust_counter", False)
         if use_rust_counter and not self.keep_filtered_alignments:
-            try:
-                self._launch_counting_rust(
-                    raw_cramfile, count_file, ref_json, stage1_json_data, stage1_json
-                )
-                logging.info("Used Rust counter implementation")
-                return
-            except ImportError:
+            if meteor_core is None:
                 logging.warning(
                     "Rust counter requested but meteor_core is not available. Falling back to Python."
                 )
-            except Exception as exc:
-                logging.error("Rust counter failed: %s", exc)
-                raise
+            else:
+                try:
+                    self._launch_counting_rust(
+                        raw_cramfile, count_file, ref_json, stage1_json_data, stage1_json
+                    )
+                    logging.info("Used Rust counter implementation")
+                    return
+                except Exception as exc:
+                    logging.warning(
+                        "Rust counter failed (%s); falling back to Python.", exc
+                    )
 
         pysam.set_verbosity(0)
         with AlignmentFile(

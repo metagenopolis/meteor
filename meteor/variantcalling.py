@@ -30,7 +30,10 @@ from tempfile import NamedTemporaryFile
 from packaging.version import parse
 from pysam import AlignmentFile, FastaFile, VariantFile, faidx, tabix_index, bcftools
 from concurrent.futures import ProcessPoolExecutor, as_completed
-import meteor_core  # type: ignore[import-not-found]
+try:
+    import meteor_core
+except ImportError:
+    meteor_core = None  # type: ignore[assignment]
 from collections import defaultdict
 from typing import ClassVar
 from tqdm import tqdm
@@ -371,21 +374,36 @@ class VariantCalling(Session):
         ]
         dfs = []
         use_rust_variant_calling = getattr(self.meteor, "use_rust_variant_calling", False)
+        if use_rust_variant_calling and meteor_core is None:
+            logging.warning(
+                "Rust variant calling requested but meteor_core is not available. Falling back to Python."
+            )
+            use_rust_variant_calling = False
+
+        rust_succeeded = False
         if use_rust_variant_calling:
-            for _, row in gene_tofilter.iterrows():
-                reads_dict = meteor_core.count_reads_in_gene(
-                    str(cram_file.resolve()),
-                    str(reference_file.resolve()),
-                    str(row["gene_id"]),
-                    int(row["gene_length"]),
-                    int(self.max_depth),
+            try:
+                for _, row in gene_tofilter.iterrows():
+                    reads_dict = meteor_core.count_reads_in_gene(
+                        str(cram_file.resolve()),
+                        str(reference_file.resolve()),
+                        str(row["gene_id"]),
+                        int(row["gene_length"]),
+                        int(self.max_depth),
+                    )
+                    df = self.group_consecutive_positions(
+                        reads_dict, str(row["gene_id"]), row["gene_length"]
+                    )
+                    if len(df) > 0:
+                        dfs.append(df)
+                rust_succeeded = True
+            except Exception as exc:
+                logging.warning(
+                    "Rust count_reads_in_gene failed (%s); falling back to Python.", exc
                 )
-                df = self.group_consecutive_positions(
-                    reads_dict, str(row["gene_id"]), row["gene_length"]
-                )
-                if len(df) > 0:
-                    dfs.append(df)
-        else:
+                dfs = []
+
+        if not rust_succeeded:
             with AlignmentFile(
                 str(cram_file.resolve()),
                 "rc",
@@ -434,40 +452,51 @@ class VariantCalling(Session):
             )
         )
         use_rust_variant_calling = getattr(self.meteor, "use_rust_variant_calling", False)
+        if use_rust_variant_calling and meteor_core is None:
+            logging.warning(
+                "Rust variant calling requested but meteor_core is not available. Falling back to Python."
+            )
+            use_rust_variant_calling = False
+
         if use_rust_variant_calling:
-            low_cov_list = (
-                [
-                    (int(g), int(s), int(e))
-                    for g, s, e in low_cov_sites.reset_index()[
-                        ["gene_id", "startpos", "endpos"]
-                    ].itertuples(index=False, name=None)
-                ]
-                if not low_cov_sites.empty
-                else []
-            )
-            ignore_list = (
-                [
-                    (int(g), int(l))
-                    for g, l in gene_ignore.reset_index()[
-                        ["gene_id", "gene_length"]
-                    ].itertuples(index=False, name=None)
-                ]
-                if not gene_ignore.empty
-                else []
-            )
-            records = meteor_core.create_consensus(
-                str(reference_file.resolve()),
-                str(vcf_file.resolve()),
-                str(bed_file),
-                low_cov_list,
-                ignore_list,
-                float(self.min_frequency),
-                str(self.meteor.DEFAULT_GAP_CHAR),
-            )
-            with lzma.open(consensus_file, "wt", preset=0) as consensus_f:
-                for gene_id, sequence in records:
-                    consensus_f.write(f">{gene_id}\n{sequence}\n")
-            return
+            try:
+                low_cov_list = (
+                    [
+                        (int(g), int(s), int(e))
+                        for g, s, e in low_cov_sites.reset_index()[
+                            ["gene_id", "startpos", "endpos"]
+                        ].itertuples(index=False, name=None)
+                    ]
+                    if not low_cov_sites.empty
+                    else []
+                )
+                ignore_list = (
+                    [
+                        (int(g), int(l))
+                        for g, l in gene_ignore.reset_index()[
+                            ["gene_id", "gene_length"]
+                        ].itertuples(index=False, name=None)
+                    ]
+                    if not gene_ignore.empty
+                    else []
+                )
+                records = meteor_core.create_consensus(
+                    str(reference_file.resolve()),
+                    str(vcf_file.resolve()),
+                    str(bed_file),
+                    low_cov_list,
+                    ignore_list,
+                    float(self.min_frequency),
+                    str(self.meteor.DEFAULT_GAP_CHAR),
+                )
+                with lzma.open(consensus_file, "wt", preset=0) as consensus_f:
+                    for gene_id, sequence in records:
+                        consensus_f.write(f">{gene_id}\n{sequence}\n")
+                return
+            except Exception as exc:
+                logging.warning(
+                    "Rust create_consensus failed (%s); falling back to Python.", exc
+                )
         with VariantFile(str(vcf_file.resolve()), threads=self.meteor.threads) as vcf:
             with FastaFile(filename=str(reference_file.resolve())) as Fasta:
                 with lzma.open(consensus_file, "wt", preset=0) as consensus_f:
@@ -626,41 +655,55 @@ class VariantCalling(Session):
             use_rust_variant_calling = getattr(
                 self.meteor, "use_rust_variant_calling", False
             )
+            if use_rust_variant_calling and meteor_core is None:
+                logging.warning(
+                    "Rust variant calling requested but meteor_core is not available. Falling back to Python."
+                )
+                use_rust_variant_calling = False
+
+            rust_freebayes_succeeded = False
             if use_rust_variant_calling:
-                logging.info("Run freebayes (Rust parallel dispatcher)")
-                freebayes_options = meteor_core.FreebayesOptions(
-                    int(self.min_snp_depth),
-                    float(self.min_frequency),
-                    int(self.ploidy),
-                )
-                with NamedTemporaryFile(
-                    suffix=".vcf", dir=self.meteor.tmp_dir, delete=False
-                ) as rust_vcf_tmp:
-                    rust_vcf_path = rust_vcf_tmp.name
-                meteor_core.call_variants_parallel(
-                    str(cram_file.resolve()),
-                    temp_ref_file_path,
-                    str(temp_bed_file.name),
-                    "freebayes",
-                    freebayes_options,
-                    int(self.meteor.threads),
-                    rust_vcf_path,
-                )
-                bcftools.sort(
-                    "-Oz",
-                    "-o",
-                    str(vcf_file.resolve()),
-                    "-T",
-                    str(self.meteor.tmp_dir),
-                    rust_vcf_path,
-                    catch_stdout=False,
-                )
-                tabix_index(
-                    str(vcf_file.resolve()), preset="vcf", force=True
-                )
-                Path(rust_vcf_path).unlink(missing_ok=True)
-                vcf_chunk_files = []
-            else:
+                try:
+                    logging.info("Run freebayes (Rust parallel dispatcher)")
+                    freebayes_options = meteor_core.FreebayesOptions(
+                        int(self.min_snp_depth),
+                        float(self.min_frequency),
+                        int(self.ploidy),
+                    )
+                    with NamedTemporaryFile(
+                        suffix=".vcf", dir=self.meteor.tmp_dir, delete=False
+                    ) as rust_vcf_tmp:
+                        rust_vcf_path = rust_vcf_tmp.name
+                    meteor_core.call_variants_parallel(
+                        str(cram_file.resolve()),
+                        temp_ref_file_path,
+                        str(temp_bed_file.name),
+                        "freebayes",
+                        freebayes_options,
+                        int(self.meteor.threads),
+                        rust_vcf_path,
+                    )
+                    bcftools.sort(
+                        "-Oz",
+                        "-o",
+                        str(vcf_file.resolve()),
+                        "-T",
+                        str(self.meteor.tmp_dir),
+                        rust_vcf_path,
+                        catch_stdout=False,
+                    )
+                    tabix_index(
+                        str(vcf_file.resolve()), preset="vcf", force=True
+                    )
+                    Path(rust_vcf_path).unlink(missing_ok=True)
+                    vcf_chunk_files = []
+                    rust_freebayes_succeeded = True
+                except Exception as exc:
+                    logging.warning(
+                        "Rust freebayes dispatcher failed (%s); falling back to Python.", exc
+                    )
+
+            if not rust_freebayes_succeeded:
                 # List to store the VCF chunk files
                 vcf_chunk_files = [
                     NamedTemporaryFile(

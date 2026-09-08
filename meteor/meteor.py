@@ -141,11 +141,11 @@ def num_threads(x: str) -> int:
     return x_int
 
 
-def get_arguments() -> Namespace:  # pragma: no cover
+def get_arguments(argv: list[str] | None = None) -> Namespace:  # pragma: no cover
     """
     Meteor help and arguments
 
-    No arguments
+    :param argv: Optional argument list. When None, arguments are read from ``sys.argv``.
 
     Return : parser
     """
@@ -356,6 +356,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         action="store_true",
         help="Use the Rust-accelerated counter implementation (default: False). "
         "Can also be enabled with METEOR_USE_RUST_COUNTER=1.",
+    )
+    mapping_parser.add_argument(
+        "--use-rust",
+        dest="use_rust",
+        action="store_true",
+        help="Use all available Rust-accelerated implementations for this command (default: False). "
+        "Can also be enabled with METEOR_USE_RUST=1.",
     )
     mapping_parser.add_argument(
         "-t",
@@ -652,6 +659,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "Can also be enabled with METEOR_USE_RUST_VARIANT_CALLING=1.",
     )
     strain_parser.add_argument(
+        "--use-rust",
+        dest="use_rust",
+        action="store_true",
+        help="Use all available Rust-accelerated implementations for this command (default: False). "
+        "Can also be enabled with METEOR_USE_RUST=1.",
+    )
+    strain_parser.add_argument(
         "-t",
         dest="threads",
         default=Strain.DEFAULT_NUM_THREADS,
@@ -731,6 +745,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Number of threads when infering each tree (default: %(default)d).",
     )
     subparsers.add_parser("test", help="Test meteor installation")
+    if argv is not None:
+        return parser.parse_args(args=argv)
     return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
 
 
@@ -774,8 +790,11 @@ def main() -> None:  # pragma: no cover
         meteor.ref_dir = args.ref_dir
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
+        use_rust_combined = args.use_rust or os.environ.get("METEOR_USE_RUST", "") == "1"
         meteor.use_rust_counter = (
-            args.use_rust_counter or os.environ.get("METEOR_USE_RUST_COUNTER", "") == "1"
+            args.use_rust_counter
+            or use_rust_combined
+            or os.environ.get("METEOR_USE_RUST_COUNTER", "") == "1"
         )
         # args.pysam_test
         counter = Counter(
@@ -797,9 +816,12 @@ def main() -> None:  # pragma: no cover
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
         meteor.strain_dir = args.strain_dir
-        rust_variant_calling = args.use_rust_variant_calling
-        if os.environ.get("METEOR_USE_RUST_VARIANT_CALLING", "") == "1":
-            rust_variant_calling = True
+        use_rust_combined = args.use_rust or os.environ.get("METEOR_USE_RUST", "") == "1"
+        rust_variant_calling = (
+            args.use_rust_variant_calling
+            or use_rust_combined
+            or os.environ.get("METEOR_USE_RUST_VARIANT_CALLING", "") == "1"
+        )
         if os.environ.get("METEOR_USE_RUST_VARIANT", "") == "1":
             logger.warning(
                 "METEOR_USE_RUST_VARIANT is deprecated; use METEOR_USE_RUST_VARIANT_CALLING"
