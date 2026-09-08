@@ -73,6 +73,9 @@ fn open_cram_with_msp_map(cram_path: &str, msp_map_path: &str) -> PyResult<Reade
                 ))
             })?;
     }
+    reader
+        .set_threads(crate::threads::resolve_thread_count())
+        .map_err(|e| PyIOError::new_err(format!("failed to set CRAM thread pool: {e}")))?;
     Ok(reader)
 }
 

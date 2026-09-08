@@ -11,6 +11,7 @@ use std::io::{BufRead, BufReader};
 mod aggregates;
 mod cram;
 mod freebayes;
+mod threads;
 mod vcf;
 
 fn open_cram(cram_path: &str, ref_path: &str) -> PyResult<Reader> {
@@ -19,6 +20,9 @@ fn open_cram(cram_path: &str, ref_path: &str) -> PyResult<Reader> {
     reader
         .set_reference(ref_path)
         .map_err(|e| PyIOError::new_err(format!("failed to set CRAM reference {ref_path}: {e}")))?;
+    reader
+        .set_threads(threads::resolve_thread_count())
+        .map_err(|e| PyIOError::new_err(format!("failed to set CRAM thread pool: {e}")))?;
     Ok(reader)
 }
 
@@ -180,6 +184,9 @@ fn count_reads_in_gene(
     reader
         .set_reference(ref_path)
         .map_err(|e| PyIOError::new_err(format!("failed to set CRAM reference {ref_path}: {e}")))?;
+    reader
+        .set_threads(threads::resolve_thread_count())
+        .map_err(|e| PyIOError::new_err(format!("failed to set CRAM thread pool: {e}")))?;
 
     let header = reader.header().clone();
     let tid = header
