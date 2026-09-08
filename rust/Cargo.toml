@@ -11,3 +11,5 @@ crate-type = ["cdylib"]
 pyo3 = { version = "0.24", features = ["extension-module"] }
 rust-htslib = { version = "0.49", default-features = false, features = ["bzip2", "lzma", "curl"] }
 flate2 = "1.0"
+tempfile = "3"
+wait-timeout = "0.2"

@@ -8,6 +8,8 @@ use rust_htslib::faidx;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+mod freebayes;
+
 fn open_cram(cram_path: &str, ref_path: &str) -> PyResult<Reader> {
     let mut reader = Reader::from_path(cram_path)
         .map_err(|e| PyIOError::new_err(format!("failed to open CRAM {cram_path}: {e}")))?;
@@ -663,8 +665,11 @@ fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bed_chunks, m)?)?;
     m.add_function(wrap_pyfunction!(count_reads_in_gene, m)?)?;
     m.add_function(wrap_pyfunction!(create_consensus, m)?)?;
+    m.add_function(wrap_pyfunction!(freebayes::call_variants_parallel, m)?)?;
     m.add_class::<CramRecord>()?;
     m.add_class::<GeneCount>()?;
     m.add_class::<MspCountResult>()?;
+    m.add_class::<freebayes::FreebayesOptions>()?;
+    m.add("FreebayesError", m.py().get_type::<freebayes::FreebayesError>())?;
     Ok(())
 }

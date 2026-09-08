@@ -623,52 +623,90 @@ class VariantCalling(Session):
             bed_chunks = self.create_bed_chunks(
                 merged_df, self.meteor.threads, self.meteor.tmp_dir
             )
-            # List to store the VCF chunk files
-            vcf_chunk_files = [
-                NamedTemporaryFile(
-                    suffix=".vcf.gz", dir=self.meteor.tmp_dir, delete=False
-                ).name
-                for _ in bed_chunks
-            ]
-            # Use ProcessPoolExecutor to run freebayes in parallel on each BED chunk
-            with ProcessPoolExecutor(max_workers=self.meteor.threads) as executor:
-                futures = {
-                    executor.submit(
-                        run_freebayes_chunk,
-                        temp_ref_file_path,  # Pass the path to the reference file
-                        bed_chunk_file,  # Each BED chunk
-                        cram_file,
-                        Path(vcf_chunk_file),
-                        self.min_snp_depth,
-                        self.min_frequency,
-                        self.ploidy,
-                        self.meteor.tmp_dir,
-                    ): bed_chunk_file
-                    for bed_chunk_file, vcf_chunk_file in zip(
-                        bed_chunks, vcf_chunk_files
-                    )
-                }
-
-                # Iterate through completed futures
-                for future in as_completed(futures):
-                    bed_chunk = futures[future]
-                    try:
-                        vcf_chunk_file = future.result()
-                        logging.info(
-                            "Processed BED chunk %s -> VCF chunk %s",
-                            bed_chunk,
-                            vcf_chunk_file,
-                        )
-                    except Exception as exc:
-                        logging.error("Error processing chunk %s: %s", bed_chunk, exc)
-
-            logging.info("All chunks have been processed")
-            # Combine VCF chunk files into the final VCF
-            if len(vcf_chunk_files) > 1:
-                logging.info("Merging vcf")
-                self.merge_vcf_files(vcf_chunk_files, vcf_file)
+            use_rust_variant_calling = getattr(
+                self.meteor, "use_rust_variant_calling", False
+            )
+            if use_rust_variant_calling:
+                logging.info("Run freebayes (Rust parallel dispatcher)")
+                freebayes_options = meteor_core.FreebayesOptions(
+                    int(self.min_snp_depth),
+                    float(self.min_frequency),
+                    int(self.ploidy),
+                )
+                with NamedTemporaryFile(
+                    suffix=".vcf", dir=self.meteor.tmp_dir, delete=False
+                ) as rust_vcf_tmp:
+                    rust_vcf_path = rust_vcf_tmp.name
+                meteor_core.call_variants_parallel(
+                    str(cram_file.resolve()),
+                    temp_ref_file_path,
+                    str(temp_bed_file.name),
+                    "freebayes",
+                    freebayes_options,
+                    int(self.meteor.threads),
+                    rust_vcf_path,
+                )
+                bcftools.sort(
+                    "-Oz",
+                    "-o",
+                    str(vcf_file.resolve()),
+                    "-T",
+                    str(self.meteor.tmp_dir),
+                    rust_vcf_path,
+                    catch_stdout=False,
+                )
+                tabix_index(
+                    str(vcf_file.resolve()), preset="vcf", force=True
+                )
+                Path(rust_vcf_path).unlink(missing_ok=True)
+                vcf_chunk_files = []
             else:
-                shutil.copyfile(str(vcf_chunk_files[0]), str(vcf_file.resolve()))
+                # List to store the VCF chunk files
+                vcf_chunk_files = [
+                    NamedTemporaryFile(
+                        suffix=".vcf.gz", dir=self.meteor.tmp_dir, delete=False
+                    ).name
+                    for _ in bed_chunks
+                ]
+                # Use ProcessPoolExecutor to run freebayes in parallel on each BED chunk
+                with ProcessPoolExecutor(max_workers=self.meteor.threads) as executor:
+                    futures = {
+                        executor.submit(
+                            run_freebayes_chunk,
+                            temp_ref_file_path,  # Pass the path to the reference file
+                            bed_chunk_file,  # Each BED chunk
+                            cram_file,
+                            Path(vcf_chunk_file),
+                            self.min_snp_depth,
+                            self.min_frequency,
+                            self.ploidy,
+                            self.meteor.tmp_dir,
+                        ): bed_chunk_file
+                        for bed_chunk_file, vcf_chunk_file in zip(
+                            bed_chunks, vcf_chunk_files
+                        )
+                    }
+
+                    # Iterate through completed futures
+                    for future in as_completed(futures):
+                        bed_chunk = futures[future]
+                        try:
+                            vcf_chunk_file = future.result()
+                            logging.info(
+                                "Processed BED chunk %s -> VCF chunk %s",
+                                bed_chunk,
+                                vcf_chunk_file,
+                            )
+                        except Exception as exc:
+                            logging.error("Error processing chunk %s: %s", bed_chunk, exc)
+
+                logging.info("All chunks have been processed")
+                # Combine VCF chunk files into the final VCF
+                if len(vcf_chunk_files) > 1:
+                    logging.info("Merging vcf")
+                    self.merge_vcf_files(vcf_chunk_files, vcf_file)
+                else:
+                    shutil.copyfile(str(vcf_chunk_files[0]), str(vcf_file.resolve()))
         logging.info(
             "Completed freebayes step in %f seconds", perf_counter() - startfreebayes
         )
