@@ -8,6 +8,7 @@ use rust_htslib::faidx;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
+mod cram;
 mod freebayes;
 mod vcf;
 
@@ -20,57 +21,7 @@ fn open_cram(cram_path: &str, ref_path: &str) -> PyResult<Reader> {
     Ok(reader)
 }
 
-#[pyfunction]
-fn count_cram_records(cram_path: &str, ref_path: &str) -> PyResult<usize> {
-    let mut reader = open_cram(cram_path, ref_path)?;
-    let mut record = Record::new();
-    let mut count: usize = 0;
-    while let Some(result) = reader.read(&mut record) {
-        result.map_err(|e| PyIOError::new_err(format!("CRAM read error: {e}")))?;
-        count += 1;
-    }
-    Ok(count)
-}
-
-#[pyfunction]
-fn sum_cram_cigar_lengths(cram_path: &str, ref_path: &str) -> PyResult<(u64, u64)> {
-    let mut reader = open_cram(cram_path, ref_path)?;
-    let mut record = Record::new();
-    let mut total_len: u64 = 0;
-    let mut total_ops: u64 = 0;
-    while let Some(result) = reader.read(&mut record) {
-        result.map_err(|e| PyIOError::new_err(format!("CRAM read error: {e}")))?;
-        for cigar in record.cigar().iter() {
-            total_len += u64::from(cigar.len());
-            total_ops += 1;
-        }
-    }
-    Ok((total_len, total_ops))
-}
-
-fn cigar_op_to_int(op: Cigar) -> u32 {
-    match op {
-        Cigar::Match(_) => 0,
-        Cigar::Ins(_) => 1,
-        Cigar::Del(_) => 2,
-        Cigar::RefSkip(_) => 3,
-        Cigar::SoftClip(_) => 4,
-        Cigar::HardClip(_) => 5,
-        Cigar::Pad(_) => 6,
-        Cigar::Equal(_) => 7,
-        Cigar::Diff(_) => 8,
-    }
-}
-
-fn cigar_tuples(record: &Record) -> Vec<(u32, u32)> {
-    record
-        .cigar()
-        .iter()
-        .map(|cigar| (cigar_op_to_int(*cigar), cigar.len()))
-        .collect()
-}
-
-fn extract_nm(record: &Record) -> Option<u32> {
+pub(crate) fn extract_nm(record: &Record) -> Option<u32> {
     match record.aux(b"NM").ok()? {
         Aux::I8(v) if v >= 0 => Some(v as u32),
         Aux::U8(v) => Some(v as u32),
@@ -82,55 +33,10 @@ fn extract_nm(record: &Record) -> Option<u32> {
     }
 }
 
-fn bytes_to_string(bytes: &[u8]) -> String {
+pub(crate) fn bytes_to_string(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes)
         .trim_end_matches('\0')
         .to_string()
-}
-
-#[pyclass]
-#[derive(Clone)]
-struct CramRecord {
-    #[pyo3(get)]
-    query_name: String,
-    #[pyo3(get)]
-    reference_name: String,
-    #[pyo3(get)]
-    cigar_tuples: Vec<(u32, u32)>,
-    #[pyo3(get)]
-    nm: Option<u32>,
-}
-
-#[pyfunction]
-fn cram_records(cram_path: &str, ref_path: &str) -> PyResult<Vec<CramRecord>> {
-    let mut reader = open_cram(cram_path, ref_path)?;
-    let header = reader.header().clone();
-    let target_names: Vec<String> = header
-        .target_names()
-        .iter()
-        .map(|name| bytes_to_string(name))
-        .collect();
-
-    let mut record = Record::new();
-    let mut records: Vec<CramRecord> = Vec::new();
-    while let Some(result) = reader.read(&mut record) {
-        result.map_err(|e| PyIOError::new_err(format!("CRAM read error: {e}")))?;
-
-        let query_name = bytes_to_string(record.qname());
-        let reference_name = if record.tid() >= 0 && (record.tid() as usize) < target_names.len() {
-            target_names[record.tid() as usize].clone()
-        } else {
-            "*".to_string()
-        };
-
-        records.push(CramRecord {
-            query_name,
-            reference_name,
-            cigar_tuples: cigar_tuples(&record),
-            nm: extract_nm(&record),
-        });
-    }
-    Ok(records)
 }
 
 #[pyclass]
@@ -332,7 +238,12 @@ fn count_msp(
     for (gene, read_list) in read_dict {
         let multiple: f64 = read_list
             .iter()
-            .map(|read_id| co_dict.get(&(read_id.clone(), gene)).copied().unwrap_or(0.0))
+            .map(|read_id| {
+                co_dict
+                    .get(&(read_id.clone(), gene))
+                    .copied()
+                    .unwrap_or(0.0)
+            })
             .sum();
         *abundance.entry(gene).or_insert(0.0) += multiple;
     }
@@ -392,9 +303,9 @@ fn bed_chunks(bed_path: &str, num_chunks: usize) -> PyResult<Vec<Vec<(u32, u32, 
             continue;
         }
         rows.push((
-            cols[0]
-                .parse::<u32>()
-                .map_err(|e| PyValueError::new_err(format!("invalid gene_id {}: {}", cols[0], e)))?,
+            cols[0].parse::<u32>().map_err(|e| {
+                PyValueError::new_err(format!("invalid gene_id {}: {}", cols[0], e))
+            })?,
             cols[1]
                 .parse::<u32>()
                 .map_err(|e| PyValueError::new_err(format!("invalid start {}: {}", cols[1], e)))?,
@@ -439,7 +350,9 @@ fn count_reads_in_gene(
         .target_names()
         .iter()
         .position(|name| bytes_to_string(name) == gene_name)
-        .ok_or_else(|| PyValueError::new_err(format!("gene {gene_name} not found in CRAM header")))?;
+        .ok_or_else(|| {
+            PyValueError::new_err(format!("gene {gene_name} not found in CRAM header"))
+        })?;
 
     reader
         .fetch((tid as u32, 0, gene_length))
@@ -503,9 +416,11 @@ fn create_consensus(
 ) -> PyResult<Vec<(u32, String)>> {
     let ref_reader = faidx::Reader::from_path(reference_path)
         .map_err(|e| PyIOError::new_err(format!("failed to open FASTA {reference_path}: {e}")))?;
-    let ref_names = ref_reader
-        .seq_names()
-        .map_err(|e| PyIOError::new_err(format!("failed to read FASTA index for {reference_path}: {e}")))?;
+    let ref_names = ref_reader.seq_names().map_err(|e| {
+        PyIOError::new_err(format!(
+            "failed to read FASTA index for {reference_path}: {e}"
+        ))
+    })?;
     let mut references: HashMap<u32, String> = HashMap::with_capacity(ref_names.len());
     for name in ref_names {
         let gene_id = name.parse::<u32>().map_err(|_| {
@@ -530,9 +445,9 @@ fn create_consensus(
         }
         if let Some(gene_str) = line.split('\t').next() {
             gene_ids.push(
-                gene_str
-                    .parse::<u32>()
-                    .map_err(|e| PyValueError::new_err(format!("invalid gene_id {gene_str}: {e}")))?,
+                gene_str.parse::<u32>().map_err(|e| {
+                    PyValueError::new_err(format!("invalid gene_id {gene_str}: {e}"))
+                })?,
             );
         }
     }
@@ -556,9 +471,9 @@ fn create_consensus(
         let header = vcf_reader.header().clone();
         for record in vcf_reader.records() {
             let record = record.map_err(|e| PyIOError::new_err(format!("VCF read error: {e}")))?;
-            let rid = record.rid().ok_or_else(|| {
-                PyValueError::new_err("VCF record missing chromosome id")
-            })?;
+            let rid = record
+                .rid()
+                .ok_or_else(|| PyValueError::new_err("VCF record missing chromosome id"))?;
             let chrom = String::from_utf8_lossy(header.rid2name(rid).map_err(|e| {
                 PyValueError::new_err(format!("VCF header rid lookup failed: {e}"))
             })?)
@@ -591,7 +506,11 @@ fn create_consensus(
                 .map(|v| v.iter().map(|&x| x as f64).sum::<f64>())
                 .unwrap_or(0.0);
             let denominator = ro + ao_sum;
-            let ref_frequency = if denominator > 0.0 { ro / denominator } else { 0.0 };
+            let ref_frequency = if denominator > 0.0 {
+                ro / denominator
+            } else {
+                0.0
+            };
 
             let keep_alleles: Vec<String> = if ref_frequency >= min_frequency {
                 alleles
@@ -602,10 +521,13 @@ fn create_consensus(
                 continue;
             }
 
-            variants_by_gene.entry(gene_id).or_default().push(VcfVariant {
-                start,
-                alleles: keep_alleles,
-            });
+            variants_by_gene
+                .entry(gene_id)
+                .or_default()
+                .push(VcfVariant {
+                    start,
+                    alleles: keep_alleles,
+                });
         }
     }
 
@@ -620,12 +542,7 @@ fn create_consensus(
             let mut chars: Vec<char> = ref_seq.chars().collect();
             if let Some(variants) = variants_by_gene.get(&gene_id) {
                 for variant in variants {
-                    let max_len = variant
-                        .alleles
-                        .iter()
-                        .map(|a| a.len())
-                        .max()
-                        .unwrap_or(1);
+                    let max_len = variant.alleles.iter().map(|a| a.len()).max().unwrap_or(1);
                     for i in 0..max_len {
                         let mut bases: Vec<char> = variant
                             .alleles
@@ -658,9 +575,10 @@ fn create_consensus(
 #[pymodule]
 fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
-    m.add_function(wrap_pyfunction!(count_cram_records, m)?)?;
-    m.add_function(wrap_pyfunction!(sum_cram_cigar_lengths, m)?)?;
-    m.add_function(wrap_pyfunction!(cram_records, m)?)?;
+    m.add_function(wrap_pyfunction!(cram::count_cram_records, m)?)?;
+    m.add_function(wrap_pyfunction!(cram::sum_cram_cigar_lengths, m)?)?;
+    m.add_function(wrap_pyfunction!(cram::cram_records, m)?)?;
+    m.add_function(wrap_pyfunction!(cram::stream_cram_records, m)?)?;
     m.add_function(wrap_pyfunction!(count_msp, m)?)?;
     m.add_function(wrap_pyfunction!(load_fasta, m)?)?;
     m.add_function(wrap_pyfunction!(bed_chunks, m)?)?;
@@ -670,11 +588,14 @@ fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(vcf::write_vcf_text, m)?)?;
     m.add_function(wrap_pyfunction!(vcf::bgzip_file, m)?)?;
     m.add_function(wrap_pyfunction!(vcf::write_bcf, m)?)?;
-    m.add_class::<CramRecord>()?;
+    m.add_class::<cram::CramRecord>()?;
     m.add_class::<GeneCount>()?;
     m.add_class::<MspCountResult>()?;
     m.add_class::<freebayes::FreebayesOptions>()?;
-    m.add("FreebayesError", m.py().get_type::<freebayes::FreebayesError>())?;
+    m.add(
+        "FreebayesError",
+        m.py().get_type::<freebayes::FreebayesError>(),
+    )?;
     m.add_class::<vcf::VcfRecord>()?;
     m.add("VcfError", m.py().get_type::<vcf::VcfError>())?;
     Ok(())

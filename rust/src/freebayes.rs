@@ -44,7 +44,10 @@ struct ChunkTask {
 }
 
 enum ChunkOutcome {
-    Success { index: usize, stdout_path: std::path::PathBuf },
+    Success {
+        index: usize,
+        stdout_path: std::path::PathBuf,
+    },
     Failure {
         index: usize,
         exit_code: Option<i32>,
@@ -181,8 +184,8 @@ fn merge_vcf_chunks(stdout_paths: &[std::path::PathBuf]) -> PyResult<String> {
             .map_err(|e| PyIOError::new_err(format!("failed to open chunk VCF {path:?}: {e}")))?;
         let reader = BufReader::new(file);
         for line in reader.lines() {
-            let line =
-                line.map_err(|e| PyIOError::new_err(format!("failed to read chunk VCF line: {e}")))?;
+            let line = line
+                .map_err(|e| PyIOError::new_err(format!("failed to read chunk VCF line: {e}")))?;
             if line.starts_with('#') {
                 if !header_emitted {
                     merged.push_str(&line);
@@ -259,29 +262,27 @@ pub fn call_variants_parallel(
         for _ in 0..num_workers {
             let sender: Sender<ChunkOutcome> = sender.clone();
             let next_index = Arc::clone(&next_index);
-            scope.spawn(move || {
-                loop {
-                    let idx = {
-                        let mut guard = next_index.lock().unwrap();
-                        let idx = *guard;
-                        if idx >= chunks_ref.len() {
-                            break;
-                        }
-                        *guard += 1;
-                        idx
-                    };
-                    let task = &chunks_ref[idx];
-                    let outcome = run_freebayes_chunk(
-                        freebayes_path,
-                        cram_path,
-                        fasta_path,
-                        options,
-                        task,
-                        timeout,
-                    );
-                    if sender.send(outcome).is_err() {
+            scope.spawn(move || loop {
+                let idx = {
+                    let mut guard = next_index.lock().unwrap();
+                    let idx = *guard;
+                    if idx >= chunks_ref.len() {
                         break;
                     }
+                    *guard += 1;
+                    idx
+                };
+                let task = &chunks_ref[idx];
+                let outcome = run_freebayes_chunk(
+                    freebayes_path,
+                    cram_path,
+                    fasta_path,
+                    options,
+                    task,
+                    timeout,
+                );
+                if sender.send(outcome).is_err() {
+                    break;
                 }
             });
         }

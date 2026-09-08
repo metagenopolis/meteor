@@ -46,17 +46,33 @@ impl VcfRecord {
             return Err(VcfError::new_err("chrom must not be empty"));
         }
         if pos == 0 {
-            return Err(VcfError::new_err("VCF positions are 1-based and must be > 0"));
+            return Err(VcfError::new_err(
+                "VCF positions are 1-based and must be > 0",
+            ));
         }
         if ref_allele.is_empty() {
             return Err(VcfError::new_err("ref_allele must not be empty"));
         }
-        if !ref_allele.chars().all(|c| matches!(c, 'A' | 'C' | 'G' | 'T' | 'N' | 'a' | 'c' | 'g' | 't' | 'n')) {
-            return Err(VcfError::new_err(format!("ref_allele contains invalid bases: {ref_allele}")));
+        if !ref_allele
+            .chars()
+            .all(|c| matches!(c, 'A' | 'C' | 'G' | 'T' | 'N' | 'a' | 'c' | 'g' | 't' | 'n'))
+        {
+            return Err(VcfError::new_err(format!(
+                "ref_allele contains invalid bases: {ref_allele}"
+            )));
         }
         for alt in &alt_alleles {
-            if alt != "." && !alt.chars().all(|c| matches!(c, 'A' | 'C' | 'G' | 'T' | 'N' | 'a' | 'c' | 'g' | 't' | 'n' | '*')) {
-                return Err(VcfError::new_err(format!("alt_allele contains invalid bases: {alt}")));
+            if alt != "."
+                && !alt.chars().all(|c| {
+                    matches!(
+                        c,
+                        'A' | 'C' | 'G' | 'T' | 'N' | 'a' | 'c' | 'g' | 't' | 'n' | '*'
+                    )
+                })
+            {
+                return Err(VcfError::new_err(format!(
+                    "alt_allele contains invalid bases: {alt}"
+                )));
             }
         }
         Ok(Self {
@@ -157,15 +173,27 @@ pub fn write_vcf_text(
         } else {
             rec.alt_alleles.join(",")
         };
-        let qual = if rec.qual < 0.0 { ".".to_string() } else { rec.qual.to_string() };
-        let filter = if rec.filter.is_empty() { ".".to_string() } else { rec.filter };
+        let qual = if rec.qual < 0.0 {
+            ".".to_string()
+        } else {
+            rec.qual.to_string()
+        };
+        let filter = if rec.filter.is_empty() {
+            ".".to_string()
+        } else {
+            rec.filter
+        };
         let info = format_info(&rec.info);
         writeln!(
             file,
             "{chrom}\t{pos}\t{id}\t{ref_allele}\t{alt}\t{qual}\t{filter}\t{info}\tGT\t./.",
             chrom = rec.chrom,
             pos = rec.pos,
-            id = if rec.id.is_empty() { ".".to_string() } else { rec.id },
+            id = if rec.id.is_empty() {
+                ".".to_string()
+            } else {
+                rec.id
+            },
             ref_allele = rec.ref_allele,
         )
         .map_err(|e| PyIOError::new_err(format!("failed to write VCF record: {e}")))?;
@@ -179,11 +207,13 @@ pub fn bgzip_file(input_path: &str, output_path: &str) -> PyResult<()> {
     let reader = File::open(input_path)
         .map_err(|e| PyIOError::new_err(format!("failed to open input {input_path}: {e}")))?;
     let reader = BufReader::new(reader);
-    let mut writer = rust_htslib::bgzf::Writer::from_path(output_path)
-        .map_err(|e| PyIOError::new_err(format!("failed to create bgzip output {output_path}: {e}")))?;
+    let mut writer = rust_htslib::bgzf::Writer::from_path(output_path).map_err(|e| {
+        PyIOError::new_err(format!("failed to create bgzip output {output_path}: {e}"))
+    })?;
 
     for line in reader.lines() {
-        let line = line.map_err(|e| PyIOError::new_err(format!("failed to read input line: {e}")))?;
+        let line =
+            line.map_err(|e| PyIOError::new_err(format!("failed to read input line: {e}")))?;
         writer
             .write_all(line.as_bytes())
             .map_err(|e| PyIOError::new_err(format!("failed to write bgzip data: {e}")))?;
@@ -198,27 +228,34 @@ pub fn bgzip_file(input_path: &str, output_path: &str) -> PyResult<()> {
 }
 
 #[pyfunction]
-pub fn write_bcf(
-    records: Vec<VcfRecord>,
-    output_path: &str,
-    sample_name: &str,
-) -> PyResult<()> {
+pub fn write_bcf(records: Vec<VcfRecord>, output_path: &str, sample_name: &str) -> PyResult<()> {
     let temp_dir = tempfile::Builder::new()
         .prefix("meteor_bcf_")
         .tempdir()
         .map_err(|e| PyIOError::new_err(format!("failed to create temp dir: {e}")))?;
     let temp_vcf = temp_dir.path().join("temp.vcf");
-    write_vcf_text(records, temp_vcf.to_str().expect("temp path is valid UTF-8"), sample_name)?;
+    write_vcf_text(
+        records,
+        temp_vcf.to_str().expect("temp path is valid UTF-8"),
+        sample_name,
+    )?;
 
     use rust_htslib::bcf::Read;
-    let mut reader = rust_htslib::bcf::Reader::from_path(&temp_vcf)
-        .map_err(|e| PyIOError::new_err(format!("failed to open temp VCF for BCF conversion: {e}")))?;
+    let mut reader = rust_htslib::bcf::Reader::from_path(&temp_vcf).map_err(|e| {
+        PyIOError::new_err(format!("failed to open temp VCF for BCF conversion: {e}"))
+    })?;
     let header = rust_htslib::bcf::Header::from_template(reader.header());
-    let mut writer = rust_htslib::bcf::Writer::from_path(output_path, &header, false, rust_htslib::bcf::Format::Bcf)
-        .map_err(|e| PyIOError::new_err(format!("failed to create BCF writer {output_path}: {e}")))?;
+    let mut writer = rust_htslib::bcf::Writer::from_path(
+        output_path,
+        &header,
+        false,
+        rust_htslib::bcf::Format::Bcf,
+    )
+    .map_err(|e| PyIOError::new_err(format!("failed to create BCF writer {output_path}: {e}")))?;
 
     for record in reader.records() {
-        let record = record.map_err(|e| PyIOError::new_err(format!("failed to read temp VCF record: {e}")))?;
+        let record = record
+            .map_err(|e| PyIOError::new_err(format!("failed to read temp VCF record: {e}")))?;
         writer
             .write(&record)
             .map_err(|e| PyIOError::new_err(format!("failed to write BCF record: {e}")))?;
