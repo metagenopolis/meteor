@@ -74,7 +74,7 @@ fn extract_nm(record: &Record) -> Option<u32> {
         Aux::I16(v) if v >= 0 => Some(v as u32),
         Aux::U16(v) => Some(v as u32),
         Aux::I32(v) if v >= 0 => Some(v as u32),
-        Aux::U32(v) => Some(v as u32),
+        Aux::U32(v) => Some(v),
         _ => None,
     }
 }
@@ -180,7 +180,7 @@ fn count_msp(
     let header = reader.header().clone();
     let mut database: BTreeMap<i32, i32> = BTreeMap::new();
     for tid in 0..header.target_count() {
-        let name = bytes_to_string(&header.target_names()[tid as usize]);
+        let name = bytes_to_string(header.target_names()[tid as usize]);
         if let Ok(gene_id) = name.parse::<i32>() {
             let length = header.target_len(tid).unwrap_or(0) as i32;
             database.insert(gene_id, length);
@@ -195,7 +195,7 @@ fn count_msp(
 
         let query_name = bytes_to_string(record.qname());
         let reference_name = if record.tid() >= 0 && (record.tid() as u32) < header.target_count() {
-            bytes_to_string(&header.target_names()[record.tid() as usize])
+            bytes_to_string(header.target_names()[record.tid() as usize])
         } else {
             continue;
         };
