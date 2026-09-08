@@ -86,7 +86,7 @@ def _check_data(data_dir: Path) -> None:
         _fatal(f"Missing data file(s) in {data_dir}: {', '.join(missing)}")
 
 
-def _build_vc(data_dir: Path, tmp_dir: Path, use_rust_variant: bool) -> VariantCalling:
+def _build_vc(data_dir: Path, tmp_dir: Path, use_rust_variant_calling: bool) -> VariantCalling:
     ref_json = json.loads((data_dir / "eva71" / "eva71_reference.json").read_text(encoding="utf-8"))
     census_json = json.loads(
         (data_dir / "eva71_bench" / "eva71_bench_census_stage_1.json").read_text(
@@ -104,7 +104,7 @@ def _build_vc(data_dir: Path, tmp_dir: Path, use_rust_variant: bool) -> VariantC
     meteor.tmp_dir = tmp_dir
     meteor.tmp_path = tmp_dir
     meteor.strain_dir = tmp_dir / "out"
-    meteor.use_rust_variant = use_rust_variant
+    meteor.use_rust_variant_calling = use_rust_variant_calling
     meteor.DEFAULT_GAP_CHAR = "?"
 
     data_dict = {
@@ -128,9 +128,9 @@ def _median(runs: list[RunMeasurement]) -> BenchEntry:
 
 
 def _time_filter_low_cov_sites(
-    data_dir: Path, tmp_dir: Path, use_rust_variant: bool
+    data_dir: Path, tmp_dir: Path, use_rust_variant_calling: bool
 ) -> RunMeasurement:
-    vc = _build_vc(data_dir, tmp_dir, use_rust_variant)
+    vc = _build_vc(data_dir, tmp_dir, use_rust_variant_calling)
     cram_file = data_dir / "eva71_bench" / "eva71_bench.cram"
     reference_file = data_dir / "eva71" / "fasta" / "eva71.fasta.gz"
 
@@ -143,7 +143,7 @@ def _time_filter_low_cov_sites(
 
 
 def _time_create_consensus(
-    data_dir: Path, tmp_dir: Path, use_rust_variant: bool
+    data_dir: Path, tmp_dir: Path, use_rust_variant_calling: bool
 ) -> RunMeasurement:
     vc_py = _build_vc(data_dir, tmp_dir / "py", False)
     cram_file = data_dir / "eva71_bench" / "eva71_bench.cram"
@@ -154,7 +154,7 @@ def _time_create_consensus(
     bed_file = data_dir / "eva71" / "database" / "eva71.bed"
     consensus_file = tmp_dir / "consensus.fasta.xz"
 
-    vc = _build_vc(data_dir, tmp_dir, use_rust_variant)
+    vc = _build_vc(data_dir, tmp_dir, use_rust_variant_calling)
     wall_start = perf_counter()
     cpu_start = process_time()
     vc.create_consensus(

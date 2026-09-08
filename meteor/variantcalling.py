@@ -370,8 +370,8 @@ class VariantCalling(Session):
             ["gene_id", "gene_length"]
         ]
         dfs = []
-        use_rust_variant = getattr(self.meteor, "use_rust_variant", False)
-        if use_rust_variant:
+        use_rust_variant_calling = getattr(self.meteor, "use_rust_variant_calling", False)
+        if use_rust_variant_calling:
             for _, row in gene_tofilter.iterrows():
                 reads_dict = meteor_core.count_reads_in_gene(
                     str(cram_file.resolve()),
@@ -433,8 +433,8 @@ class VariantCalling(Session):
                 .astype(int)
             )
         )
-        use_rust_variant = getattr(self.meteor, "use_rust_variant", False)
-        if use_rust_variant:
+        use_rust_variant_calling = getattr(self.meteor, "use_rust_variant_calling", False)
+        if use_rust_variant_calling:
             low_cov_list = (
                 [
                     (int(g), int(s), int(e))

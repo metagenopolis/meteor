@@ -52,8 +52,8 @@ meteor mapping ... --use-rust-counter
 METEOR_USE_RUST_COUNTER=1 meteor mapping ...
 
 # Variant-calling step (strain)
-meteor strain ... --use-rust-variant
-METEOR_USE_RUST_VARIANT=1 meteor strain ...
+meteor strain ... --use-rust-variant-calling
+METEOR_USE_RUST_VARIANT_CALLING=1 meteor strain ...
 ```
 
 When a flag is unset the original Python implementation is used, so the new

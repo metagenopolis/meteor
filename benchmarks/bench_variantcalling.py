@@ -189,7 +189,7 @@ def _run_variantcalling(fixture_dir: Path, run_index: int, use_rust: bool) -> Ru
         meteor.tmp_dir = tmp_dir
         meteor.ref_dir = fixture_dir
         meteor.strain_dir = out_dir
-        meteor.use_rust_variant = use_rust
+        meteor.use_rust_variant_calling = use_rust
 
         census = {
             "mapped_sample_dir": fixture_dir,

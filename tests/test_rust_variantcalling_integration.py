@@ -19,13 +19,13 @@ EVA71_DIR = DATA_DIR / "eva71"
 EVA71_BENCH = DATA_DIR / "eva71_bench"
 
 
-def _build_vc(tmp_path: Path, use_rust_variant: bool) -> VariantCalling:
+def _build_vc(tmp_path: Path, use_rust_variant_calling: bool) -> VariantCalling:
     meteor = Component
     meteor.ref_dir = EVA71_DIR
     meteor.ref_name = "test"
     meteor.threads = 1
     meteor.tmp_dir = tmp_path
-    meteor.use_rust_variant = use_rust_variant
+    meteor.use_rust_variant_calling = use_rust_variant_calling
     meteor.DEFAULT_GAP_CHAR = "?"
 
     ref_json = json.loads((EVA71_DIR / "eva71_reference.json").read_text(encoding="utf-8"))
@@ -53,8 +53,8 @@ def test_filter_low_cov_sites_parity() -> None:
 
     with tempfile.TemporaryDirectory() as tmp_raw:
         tmp = Path(tmp_raw)
-        vc_py = _build_vc(tmp / "py", use_rust_variant=False)
-        vc_rust = _build_vc(tmp / "rust", use_rust_variant=True)
+        vc_py = _build_vc(tmp / "py", use_rust_variant_calling=False)
+        vc_rust = _build_vc(tmp / "rust", use_rust_variant_calling=True)
 
         py_low_cov, _ = vc_py.filter_low_cov_sites(cram_file, reference_file)
         rust_low_cov, _ = vc_rust.filter_low_cov_sites(cram_file, reference_file)
@@ -73,8 +73,8 @@ def test_create_consensus_parity() -> None:
 
     with tempfile.TemporaryDirectory() as tmp_raw:
         tmp = Path(tmp_raw)
-        vc_py = _build_vc(tmp / "py", use_rust_variant=False)
-        vc_rust = _build_vc(tmp / "rust", use_rust_variant=True)
+        vc_py = _build_vc(tmp / "py", use_rust_variant_calling=False)
+        vc_rust = _build_vc(tmp / "rust", use_rust_variant_calling=True)
 
         low_cov_sites = pd.read_table(
             DATA_DIR / "expected_output" / "coverage_expected.tsv", header=0, sep="\t"
