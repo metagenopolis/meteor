@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use pyo3::exceptions::{PyIOError, PyValueError};
 use pyo3::prelude::*;
 use rust_htslib::bam::record::{Aux, Cigar};
-use rust_htslib::bam::{Read, Reader, Record};
+use rust_htslib::bam::{IndexedReader, Read, Reader, Record};
 use rust_htslib::faidx;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -417,6 +417,241 @@ fn bed_chunks(bed_path: &str, num_chunks: usize) -> PyResult<Vec<Vec<(u32, u32, 
     Ok(chunks)
 }
 
+#[pyfunction]
+fn count_reads_in_gene(
+    cram_path: &str,
+    ref_path: &str,
+    gene_name: &str,
+    gene_length: u32,
+    max_depth: u32,
+) -> PyResult<HashMap<u32, u32>> {
+    let mut reader = IndexedReader::from_path(cram_path)
+        .map_err(|e| PyIOError::new_err(format!("failed to open indexed CRAM {cram_path}: {e}")))?;
+    reader
+        .set_reference(ref_path)
+        .map_err(|e| PyIOError::new_err(format!("failed to set CRAM reference {ref_path}: {e}")))?;
+
+    let header = reader.header().clone();
+    let tid = header
+        .target_names()
+        .iter()
+        .position(|name| bytes_to_string(name) == gene_name)
+        .ok_or_else(|| PyValueError::new_err(format!("gene {gene_name} not found in CRAM header")))?;
+
+    reader
+        .fetch((tid as u32, 0, gene_length))
+        .map_err(|e| PyIOError::new_err(format!("failed to fetch {gene_name}: {e}")))?;
+
+    let mut pileup = reader.pileup();
+    pileup.set_max_depth(max_depth);
+
+    let mut counts: HashMap<u32, u32> = HashMap::new();
+    for p in pileup {
+        let p = p.map_err(|e| PyIOError::new_err(format!("pileup error: {e}")))?;
+        let mut depth: u32 = 0;
+        for alignment in p.alignments() {
+            if !alignment.is_del() && !alignment.is_refskip() {
+                depth += 1;
+            }
+        }
+        counts.insert(p.pos(), depth);
+    }
+    Ok(counts)
+}
+
+fn iupac_code(bases: &mut Vec<char>) -> char {
+    bases.sort_unstable();
+    bases.dedup();
+    match bases.as_slice() {
+        ['A'] => 'A',
+        ['C'] => 'C',
+        ['G'] => 'G',
+        ['T'] => 'T',
+        ['A', 'G'] => 'R',
+        ['A', 'C'] => 'M',
+        ['A', 'T'] => 'W',
+        ['C', 'G'] => 'S',
+        ['C', 'T'] => 'Y',
+        ['G', 'T'] => 'K',
+        ['A', 'C', 'G'] => 'V',
+        ['A', 'C', 'T'] => 'H',
+        ['A', 'G', 'T'] => 'D',
+        ['C', 'G', 'T'] => 'B',
+        ['A', 'C', 'G', 'T'] => 'N',
+        _ => 'N',
+    }
+}
+
+#[derive(Debug)]
+struct VcfVariant {
+    start: u32,
+    alleles: Vec<String>,
+}
+
+#[pyfunction]
+fn create_consensus(
+    reference_path: &str,
+    vcf_path: &str,
+    bed_path: &str,
+    low_cov_sites: Vec<(u32, u32, u32)>,
+    gene_ignore: Vec<(u32, u32)>,
+    min_frequency: f64,
+    gap_char: char,
+) -> PyResult<Vec<(u32, String)>> {
+    let ref_reader = faidx::Reader::from_path(reference_path)
+        .map_err(|e| PyIOError::new_err(format!("failed to open FASTA {reference_path}: {e}")))?;
+    let ref_names = ref_reader
+        .seq_names()
+        .map_err(|e| PyIOError::new_err(format!("failed to read FASTA index for {reference_path}: {e}")))?;
+    let mut references: HashMap<u32, String> = HashMap::with_capacity(ref_names.len());
+    for name in ref_names {
+        let gene_id = name.parse::<u32>().map_err(|_| {
+            PyValueError::new_err(format!("reference name {name} is not a numeric gene id"))
+        })?;
+        let length = ref_reader.fetch_seq_len(&name) as usize;
+        let end = length.saturating_sub(1);
+        let seq = ref_reader
+            .fetch_seq_string(&name, 0, end)
+            .map_err(|e| PyIOError::new_err(format!("failed to fetch reference {name}: {e}")))?;
+        references.insert(gene_id, seq);
+    }
+
+    let bed_file = File::open(bed_path)
+        .map_err(|e| PyIOError::new_err(format!("failed to open BED {bed_path}: {e}")))?;
+    let bed_reader = BufReader::new(bed_file);
+    let mut gene_ids: Vec<u32> = Vec::new();
+    for line in bed_reader.lines() {
+        let line = line.map_err(|e| PyIOError::new_err(format!("failed to read BED line: {e}")))?;
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if let Some(gene_str) = line.split('\t').next() {
+            gene_ids.push(
+                gene_str
+                    .parse::<u32>()
+                    .map_err(|e| PyValueError::new_err(format!("invalid gene_id {gene_str}: {e}")))?,
+            );
+        }
+    }
+    gene_ids.sort_unstable();
+    gene_ids.dedup();
+
+    let mut low_cov_map: HashMap<u32, Vec<(u32, u32)>> = HashMap::new();
+    for (gene_id, start, end) in low_cov_sites {
+        low_cov_map.entry(gene_id).or_default().push((start, end));
+    }
+    let mut ignore_map: HashMap<u32, u32> = HashMap::new();
+    for (gene_id, length) in gene_ignore {
+        ignore_map.insert(gene_id, length);
+    }
+
+    let mut variants_by_gene: HashMap<u32, Vec<VcfVariant>> = HashMap::new();
+    {
+        use rust_htslib::bcf::Read;
+        let mut vcf_reader = rust_htslib::bcf::Reader::from_path(vcf_path)
+            .map_err(|e| PyIOError::new_err(format!("failed to open VCF {vcf_path}: {e}")))?;
+        let header = vcf_reader.header().clone();
+        for record in vcf_reader.records() {
+            let record = record.map_err(|e| PyIOError::new_err(format!("VCF read error: {e}")))?;
+            let rid = record.rid().ok_or_else(|| {
+                PyValueError::new_err("VCF record missing chromosome id")
+            })?;
+            let chrom = String::from_utf8_lossy(header.rid2name(rid).map_err(|e| {
+                PyValueError::new_err(format!("VCF header rid lookup failed: {e}"))
+            })?)
+            .to_string();
+            let gene_id = chrom.parse::<u32>().map_err(|_| {
+                PyValueError::new_err(format!("VCF chromosome {chrom} is not a numeric gene id"))
+            })?;
+
+            let start = record.pos() as u32;
+
+            let alleles: Vec<String> = record
+                .alleles()
+                .into_iter()
+                .map(|a| String::from_utf8_lossy(a).to_string().to_ascii_uppercase())
+                .collect();
+            if alleles.is_empty() {
+                continue;
+            }
+
+            let ro = record
+                .info(b"RO")
+                .integer()
+                .map_err(|e| PyValueError::new_err(format!("VCF INFO/RO read error: {e}")))?
+                .and_then(|v| v.first().copied())
+                .unwrap_or(0) as f64;
+            let ao_sum = record
+                .info(b"AO")
+                .integer()
+                .map_err(|e| PyValueError::new_err(format!("VCF INFO/AO read error: {e}")))?
+                .map(|v| v.iter().map(|&x| x as f64).sum::<f64>())
+                .unwrap_or(0.0);
+            let denominator = ro + ao_sum;
+            let ref_frequency = if denominator > 0.0 { ro / denominator } else { 0.0 };
+
+            let keep_alleles: Vec<String> = if ref_frequency >= min_frequency {
+                alleles
+            } else {
+                alleles.into_iter().skip(1).collect()
+            };
+            if keep_alleles.is_empty() {
+                continue;
+            }
+
+            variants_by_gene.entry(gene_id).or_default().push(VcfVariant {
+                start,
+                alleles: keep_alleles,
+            });
+        }
+    }
+
+    let mut results: Vec<(u32, String)> = Vec::with_capacity(gene_ids.len());
+    for gene_id in gene_ids {
+        let consensus = if let Some(&length) = ignore_map.get(&gene_id) {
+            gap_char.to_string().repeat(length as usize)
+        } else {
+            let ref_seq = references.get(&gene_id).ok_or_else(|| {
+                PyValueError::new_err(format!("reference sequence for gene {gene_id} not found"))
+            })?;
+            let mut chars: Vec<char> = ref_seq.chars().collect();
+            if let Some(variants) = variants_by_gene.get(&gene_id) {
+                for variant in variants {
+                    let max_len = variant
+                        .alleles
+                        .iter()
+                        .map(|a| a.len())
+                        .max()
+                        .unwrap_or(1);
+                    for i in 0..max_len {
+                        let mut bases: Vec<char> = variant
+                            .alleles
+                            .iter()
+                            .filter_map(|a| a.chars().nth(i))
+                            .collect();
+                        let pos = variant.start + i as u32;
+                        if pos < chars.len() as u32 && !bases.is_empty() {
+                            chars[pos as usize] = iupac_code(&mut bases);
+                        }
+                    }
+                }
+            }
+            if let Some(ranges) = low_cov_map.get(&gene_id) {
+                for &(start, end) in ranges {
+                    let start = start as usize;
+                    let end = (end as usize).min(chars.len());
+                    for c in chars.iter_mut().take(end).skip(start) {
+                        *c = gap_char;
+                    }
+                }
+            }
+            chars.into_iter().collect()
+        };
+        results.push((gene_id, consensus));
+    }
+    Ok(results)
+}
+
 #[pymodule]
 fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -426,6 +661,8 @@ fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(count_msp, m)?)?;
     m.add_function(wrap_pyfunction!(load_fasta, m)?)?;
     m.add_function(wrap_pyfunction!(bed_chunks, m)?)?;
+    m.add_function(wrap_pyfunction!(count_reads_in_gene, m)?)?;
+    m.add_function(wrap_pyfunction!(create_consensus, m)?)?;
     m.add_class::<CramRecord>()?;
     m.add_class::<GeneCount>()?;
     m.add_class::<MspCountResult>()?;
