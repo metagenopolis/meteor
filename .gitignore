@@ -13,4 +13,7 @@ dist
 .pytest_cache
 .dmypy.json
 myenv
+.venv/
+rust/target/
+.omo/
 nextflow.config

@@ -1,0 +1,28 @@
+{
+  "sample_info": {
+    "sample_name": "sample",
+    "sequencing_device": "Illumina",
+    "census_status": 0,
+    "full_sample_name": "sample"
+  },
+  "sample_file": {
+    "fastq_file": "sample.fq"
+  },
+  "mapping": {
+    "mapping_tool": "bowtie2",
+    "mapping_tool_version": "2.5.1",
+    "mapping_date": "2024-01-01",
+    "reference_name": "fixture_reference",
+    "trim": 80,
+    "alignment_number": 100,
+    "mapping_type": "end-to-end",
+    "identity_threshold": 0.95,
+    "total_read_count": 22000,
+    "mapped_read_count": 22000,
+    "overall_alignment_rate": 100.0,
+    "fastq_files": [
+      "sample.fq"
+    ],
+    "mapping_file": "sample.cram"
+  }
+}

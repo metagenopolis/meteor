@@ -28,6 +28,11 @@ from pysam import index, sort, AlignmentFile, AlignmentHeader, AlignedSegment  #
 from time import perf_counter
 from shutil import rmtree
 
+try:
+    import meteor_core
+except ImportError:
+    meteor_core = None  # type: ignore[assignment]
+
 
 @dataclass
 class Counter(Session):
@@ -397,6 +402,50 @@ class Counter(Session):
                     # if int(element.reference_name) in ref_json["reference_file"]:
                     total_reads.write(element)
 
+    @staticmethod
+    def _normalise_count_value(value: float) -> int | float:
+        """Return an int when a Rust count is a whole number.
+
+        Rust returns counts as floats, so values like 105 become 105.0 when
+        written by ``write_stat``. Python writes whole numbers without a
+        decimal point. Coercing whole-number floats to ints makes the Rust-path
+        TSV byte-identical to the Python-path TSV.
+        """
+        if isinstance(value, float) and value.is_integer():
+            return int(value)
+        return value
+
+    def _launch_counting_rust(
+        self,
+        raw_cramfile: Path,
+        count_file: Path,
+        ref_json: dict,
+        stage1_json_data: dict,
+        stage1_json: Path,
+    ) -> None:
+        """Run the counting hot path through the Rust meteor_core extension."""
+        reference = (
+            self.meteor.ref_dir
+            / ref_json["reference_file"]["fasta_dir"]
+            / ref_json["reference_file"]["fasta_filename"]
+        )
+        result = meteor_core.count_msp(
+            str(raw_cramfile.resolve()),
+            str(reference.resolve()),
+            self.identity_threshold,
+            self.counting_type,
+        )
+        abundance = {
+            gc.gene_id: self._normalise_count_value(gc.count)
+            for gc in result.gene_counts
+        }
+        database = {gc.gene_id: gc.gene_length for gc in result.gene_counts}
+        self.write_stat(count_file, abundance, database)
+        total_read_count = stage1_json_data["mapping"]["total_read_count"]
+        config = self.set_counter_config(total_read_count, result.counted_reads, count_file)
+        stage1_json_data.update(config)
+        self.save_config(stage1_json_data, stage1_json)
+
     def launch_counting(
         self,
         raw_cramfile: Path,
@@ -421,6 +470,25 @@ class Counter(Session):
             sys.exit(1)
         else:
             logging.info("Launch counting")
+
+        use_rust_counter = getattr(self.meteor, "use_rust_counter", False)
+        if use_rust_counter and not self.keep_filtered_alignments:
+            if meteor_core is None:
+                logging.warning(
+                    "Rust counter requested but meteor_core is not available. Falling back to Python."
+                )
+            else:
+                try:
+                    self._launch_counting_rust(
+                        raw_cramfile, count_file, ref_json, stage1_json_data, stage1_json
+                    )
+                    logging.info("Used Rust counter implementation")
+                    return
+                except Exception as exc:
+                    logging.warning(
+                        "Rust counter failed (%s); falling back to Python.", exc
+                    )
+
         pysam.set_verbosity(0)
         with AlignmentFile(
             str(raw_cramfile.resolve()), threads=self.meteor.threads
