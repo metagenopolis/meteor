@@ -38,6 +38,27 @@ You can test the installation of meteor with:
 meteor test
 ```
 
+## Rust acceleration (experimental)
+
+Meteor ships with an optional Rust extension (`meteor-core`) that accelerates
+CRAM counting and variant-calling hot paths. The extension is built with
+[maturin](https://www.maturin.rs/) and is disabled by default.
+
+Enable it with CLI flags or environment variables:
+
+```bash
+# Counting step (mapping/profile)
+meteor mapping ... --use-rust-counter
+METEOR_USE_RUST_COUNTER=1 meteor mapping ...
+
+# Variant-calling step (strain)
+meteor strain ... --use-rust-variant
+METEOR_USE_RUST_VARIANT=1 meteor strain ...
+```
+
+When a flag is unset the original Python implementation is used, so the new
+code is fully opt-in.
+
 ## Nextflow wrapper
 
 For automated pipeline execution, a Nextflow wrapper `nf-meteor.nf` is available that streamlines the entire Meteor workflow:
