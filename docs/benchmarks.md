@@ -1,7 +1,7 @@
 # Rust acceleration benchmarks
 
 These benchmarks compare the original Python implementation with the optional
-Rust-accelerated paths on the repository test fixtures.  Each configuration was
+Rust-accelerated paths on the repository test fixtures. Each configuration was
 run 3 times and the median wall and CPU time is reported.
 
 ## Environment
@@ -13,19 +13,19 @@ run 3 times and the median wall and CPU time is reported.
 
 ## Results
 
-| Step             | Implementation | Median wall (s) | Median CPU (s) | Notes                                      |
+| Step | Implementation | Median wall (s) | Median CPU (s) | Notes |
 |------------------|----------------|----------------:|---------------:|--------------------------------------------|
-| `counter`        | Python         |           0.172 |          0.081 | Baseline Python hot loop                   |
-| `counter`        | Rust           |           0.108 |          0.108 | ~1.6x wall-time speedup on this fixture    |
-| `variantcalling` | Python         |           2.867 |          1.076 | Python freebayes dispatcher + consensus    |
-| `variantcalling` | Rust           |           5.414 |          4.064 | Slower on the small fixture (see note)     |
+| `counter` | Python | 0.172 | 0.081 | Baseline Python hot loop |
+| `counter` | Rust | 0.108 | 0.108 | ~1.6x wall-time speedup on this fixture |
+| `variantcalling` | Python | 2.867 | 1.076 | Python freebayes dispatcher + consensus |
+| `variantcalling` | Rust | 5.414 | 4.064 | Slower on the small fixture (see note) |
 
 ### Honest note on variant calling
 
 The Rust-accelerated variant-calling path is **slower** than the Python path on
-this tiny fixture.  The Rust dispatcher adds serialisation overhead and the
+this tiny fixture. The Rust dispatcher adds serialisation overhead and the
 fixture spends most of its time launching short `freebayes` processes, so the
-fixed overhead dominates.  The Rust helpers are expected to become beneficial
+fixed overhead dominates. The Rust helpers are expected to become beneficial
 on larger catalogues with more regions and more reads per region, but this has
 not been benchmarked yet.
 

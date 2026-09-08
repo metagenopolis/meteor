@@ -1,7 +1,7 @@
 # Rust acceleration
 
 Meteor ships with an **optional** Rust extension (`meteor-core`) that accelerates
-CRAM counting and strain-profiling hot paths.  The extension is built with
+CRAM counting and strain-profiling hot paths. The extension is built with
 [maturin](https://www.maturin.rs/) and is **never required** at runtime: every
 Rust path has a pure-Python fallback.
 
@@ -77,7 +77,7 @@ and variant-calling flags for the command it is applied to.
 
 If `meteor-core` is not installed **or** a Rust helper raises any runtime
 error (including a Rust panic), Meteor logs a warning and silently falls back
-to the Python implementation.  The pipeline is never aborted just because the
+to the Python implementation. The pipeline is never aborted just because the
 optional extension is missing or failed.
 
 You can verify which implementation ran by checking the log output:
@@ -90,18 +90,18 @@ WARNING: Rust counter requested but meteor_core is not available. Falling back t
 ## Continuous integration
 
 The GitHub Actions workflow builds the Rust extension on Ubuntu and macOS and
-runs `cargo clippy -- -D warnings`.  The Python test matrix also builds the
+runs `cargo clippy -- -D warnings`. The Python test matrix also builds the
 extension before running pytest so the Rust parity tests are exercised on
 CI.
 
 ## Benchmarks
 
 See [docs/benchmarks.md](benchmarks.md) for replicated benchmark results on the
-repository fixtures.  The report includes both speedups and cases where the
+repository fixtures. The report includes both speedups and cases where the
 Rust path is slower on small inputs, so expectations are honest.
 
 ## Conda note
 
 The Bioconda `meteor` package is `noarch: python` and does not ship the
-compiled Rust extension.  Conda users who want Rust acceleration should install
+compiled Rust extension. Conda users who want Rust acceleration should install
 or build `meteor-core` separately.
