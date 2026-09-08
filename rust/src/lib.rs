@@ -9,6 +9,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 
 mod freebayes;
+mod vcf;
 
 fn open_cram(cram_path: &str, ref_path: &str) -> PyResult<Reader> {
     let mut reader = Reader::from_path(cram_path)
@@ -666,10 +667,15 @@ fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(count_reads_in_gene, m)?)?;
     m.add_function(wrap_pyfunction!(create_consensus, m)?)?;
     m.add_function(wrap_pyfunction!(freebayes::call_variants_parallel, m)?)?;
+    m.add_function(wrap_pyfunction!(vcf::write_vcf_text, m)?)?;
+    m.add_function(wrap_pyfunction!(vcf::bgzip_file, m)?)?;
+    m.add_function(wrap_pyfunction!(vcf::write_bcf, m)?)?;
     m.add_class::<CramRecord>()?;
     m.add_class::<GeneCount>()?;
     m.add_class::<MspCountResult>()?;
     m.add_class::<freebayes::FreebayesOptions>()?;
     m.add("FreebayesError", m.py().get_type::<freebayes::FreebayesError>())?;
+    m.add_class::<vcf::VcfRecord>()?;
+    m.add("VcfError", m.py().get_type::<vcf::VcfError>())?;
     Ok(())
 }
