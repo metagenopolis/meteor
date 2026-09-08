@@ -32,9 +32,7 @@ def _pysam_counts(gene_name: str, gene_length: int) -> dict[int, int]:
             multiple_iterators=False,
         ):
             counts[column.reference_pos] = sum(
-                1
-                for read in column.pileups
-                if not read.is_del and not read.is_refskip
+                1 for read in column.pileups if not read.is_del and not read.is_refskip
             )
     return counts
 

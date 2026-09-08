@@ -36,11 +36,7 @@ def test_cigar_parity():
 
     with _open_pysam() as handle:
         reads = list(handle)
-    py_total_len = sum(
-        length
-        for read in reads
-        for _op, length in read.cigartuples
-    )
+    py_total_len = sum(length for read in reads for _op, length in read.cigartuples)
     py_total_ops = sum(len(read.cigartuples) for read in reads)
 
     assert rust_total_len == py_total_len

@@ -88,13 +88,21 @@ def _normalize_vcf(input_vcf: Path, ref_path: Path, output_vcf: Path) -> None:
         str(output_vcf.parent),
         "-",
     ]
-    norm = subprocess.run(norm_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    norm = subprocess.run(
+        norm_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False
+    )
     if norm.returncode != 0:
         raise RuntimeError(
             f"bcftools norm failed (exit {norm.returncode}): "
             f"{norm.stderr.decode('utf-8', errors='replace')}"
         )
-    sort = subprocess.run(sort_cmd, input=norm.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    sort = subprocess.run(
+        sort_cmd,
+        input=norm.stdout,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
     if sort.returncode != 0:
         raise RuntimeError(
             f"bcftools sort failed (exit {sort.returncode}): "

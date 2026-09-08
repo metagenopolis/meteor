@@ -38,7 +38,12 @@ app = typer.Typer(add_completion=False, pretty_exceptions_short=True)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_FIXTURE_DIR = REPO_ROOT / "tests" / "data" / "fixtures"
 DEFAULT_BASELINE = (
-    REPO_ROOT / ".omo" / "evidence" / "meteor-rust-acceleration" / "benchmarks" / "baseline.json"
+    REPO_ROOT
+    / ".omo"
+    / "evidence"
+    / "meteor-rust-acceleration"
+    / "benchmarks"
+    / "baseline.json"
 )
 REQUIRED_FIXTURES = [
     "sample.cram",
@@ -94,7 +99,9 @@ class Baseline:
         return {
             "meta": asdict(self.meta),
             "counter": asdict(self.counter) if self.counter else None,
-            "variantcalling": asdict(self.variantcalling) if self.variantcalling else None,
+            "variantcalling": (
+                asdict(self.variantcalling) if self.variantcalling else None
+            ),
         }
 
 
@@ -132,10 +139,14 @@ def _load_baseline(path: Path) -> Baseline:
         data = json.loads(path.read_text(encoding="utf-8"))
         return Baseline(
             meta=FixtureMeta(**data.get("meta", {})),
-            counter=_bench_entry_from_dict(data["counter"]) if data.get("counter") else None,
-            variantcalling=_bench_entry_from_dict(data["variantcalling"])
-            if data.get("variantcalling")
-            else None,
+            counter=(
+                _bench_entry_from_dict(data["counter"]) if data.get("counter") else None
+            ),
+            variantcalling=(
+                _bench_entry_from_dict(data["variantcalling"])
+                if data.get("variantcalling")
+                else None
+            ),
         )
     return Baseline(
         meta=FixtureMeta(
@@ -170,7 +181,9 @@ def _median_measurement(measurements: list[RunMeasurement]) -> BenchEntry:
     )
 
 
-def _run_variantcalling(fixture_dir: Path, run_index: int, use_rust: bool) -> RunMeasurement:
+def _run_variantcalling(
+    fixture_dir: Path, run_index: int, use_rust: bool
+) -> RunMeasurement:
     ref_json = json.loads((fixture_dir / "reference.json").read_text(encoding="utf-8"))
     stage1_data = json.loads(
         (fixture_dir / "sample_census_stage_1.json").read_text(encoding="utf-8")

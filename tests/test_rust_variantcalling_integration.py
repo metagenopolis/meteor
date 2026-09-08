@@ -15,7 +15,9 @@ meteor_core = pytest.importorskip("meteor_core")
 from meteor.session import Component
 from meteor.variantcalling import VariantCalling
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "meteor" / "tests" / "test_variantcalling"
+DATA_DIR = (
+    Path(__file__).resolve().parent.parent / "meteor" / "tests" / "test_variantcalling"
+)
 EVA71_DIR = DATA_DIR / "eva71"
 EVA71_BENCH = DATA_DIR / "eva71_bench"
 
@@ -29,7 +31,9 @@ def _build_vc(tmp_path: Path, use_rust_variant_calling: bool) -> VariantCalling:
     meteor.use_rust_variant_calling = use_rust_variant_calling
     meteor.DEFAULT_GAP_CHAR = "?"
 
-    ref_json = json.loads((EVA71_DIR / "eva71_reference.json").read_text(encoding="utf-8"))
+    ref_json = json.loads(
+        (EVA71_DIR / "eva71_reference.json").read_text(encoding="utf-8")
+    )
     census_json = json.loads(
         (EVA71_BENCH / "eva71_bench_census_stage_1.json").read_text(encoding="utf-8")
     )
@@ -62,7 +66,9 @@ def test_filter_low_cov_sites_parity() -> None:
 
         assert_frame_equal(
             py_low_cov.sort_values(by=list(py_low_cov.columns)).reset_index(drop=True),
-            rust_low_cov.sort_values(by=list(rust_low_cov.columns)).reset_index(drop=True),
+            rust_low_cov.sort_values(by=list(rust_low_cov.columns)).reset_index(
+                drop=True
+            ),
             check_like=True,
         )
 

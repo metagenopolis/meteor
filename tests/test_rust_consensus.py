@@ -47,8 +47,8 @@ def test_create_consensus_basic() -> None:
         _make_vcf(
             vcf,
             [
-                '##contig=<ID=1,length=20>',
-                '##contig=<ID=2,length=10>',
+                "##contig=<ID=1,length=20>",
+                "##contig=<ID=2,length=10>",
                 '##INFO=<ID=RO,Number=1,Type=Integer,Description="Ref observations">',
                 '##INFO=<ID=AO,Number=A,Type=Integer,Description="Alt observations">',
             ],
@@ -102,7 +102,7 @@ def test_create_consensus_ignore_and_low_cov() -> None:
         _make_vcf(
             vcf,
             [
-                '##contig=<ID=1,length=12>',
+                "##contig=<ID=1,length=12>",
                 '##INFO=<ID=RO,Number=1,Type=Integer,Description="Ref observations">',
                 '##INFO=<ID=AO,Number=A,Type=Integer,Description="Alt observations">',
             ],

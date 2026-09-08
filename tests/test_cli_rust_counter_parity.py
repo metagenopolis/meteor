@@ -27,13 +27,13 @@ def _parse_tsv_bytes(data: bytes) -> dict[int, float]:
     return counts
 
 
-def _run_counter(
-    use_rust_counter: bool, identity_threshold: float
-) -> bytes:
+def _run_counter(use_rust_counter: bool, identity_threshold: float) -> bytes:
     ref_json = json.loads(REF_JSON.read_text(encoding="utf-8"))
     stage1_data = json.loads(STAGE1_JSON.read_text(encoding="utf-8"))
 
-    with tempfile.TemporaryDirectory(dir=FIXTURE_DIR, prefix="rust_counter_cli_") as tmp_raw:
+    with tempfile.TemporaryDirectory(
+        dir=FIXTURE_DIR, prefix="rust_counter_cli_"
+    ) as tmp_raw:
         tmp_dir = Path(tmp_raw)
         count_file = tmp_dir / "sample.tsv.xz"
         stage1_out = tmp_dir / "sample_census_stage_1.json"

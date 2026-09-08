@@ -43,7 +43,9 @@ def _run_counter(use_rust_counter: bool) -> dict[int, float]:
     ref_json = json.loads(REF_JSON.read_text(encoding="utf-8"))
     stage1_data = json.loads(STAGE1_JSON.read_text(encoding="utf-8"))
 
-    with tempfile.TemporaryDirectory(dir=FIXTURE_DIR, prefix="rust_combined_") as tmp_raw:
+    with tempfile.TemporaryDirectory(
+        dir=FIXTURE_DIR, prefix="rust_combined_"
+    ) as tmp_raw:
         tmp_dir = Path(tmp_raw)
         count_file = tmp_dir / "sample.tsv.xz"
         stage1_out = tmp_dir / "sample_census_stage_1.json"

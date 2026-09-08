@@ -37,7 +37,9 @@ def _import_bench_module(name: str) -> Any:
     return module
 
 
-def _profile_call(label: str, fixture_dir: Path, prof_path: Path, runner: Any) -> pstats.Stats:
+def _profile_call(
+    label: str, fixture_dir: Path, prof_path: Path, runner: Any
+) -> pstats.Stats:
     prof_path.parent.mkdir(parents=True, exist_ok=True)
     profiler = cProfile.Profile()
     profiler.enable()
@@ -47,7 +49,9 @@ def _profile_call(label: str, fixture_dir: Path, prof_path: Path, runner: Any) -
     return pstats.Stats(str(prof_path))
 
 
-def _top_functions(prof_path: Path, sort_key: str, limit: int = 5) -> list[dict[str, Any]]:
+def _top_functions(
+    prof_path: Path, sort_key: str, limit: int = 5
+) -> list[dict[str, Any]]:
     stats_full = pstats.Stats(str(prof_path))
     stats_full.calc_callees()
     total = sum(t[2] for t in stats_full.stats.values()) if stats_full.stats else 0.0
@@ -82,12 +86,14 @@ def _top_functions(prof_path: Path, sort_key: str, limit: int = 5) -> list[dict[
 
 
 def _module_in_meteor(func: dict[str, Any]) -> bool:
-    return "meteor/" in str(func["full_file"]).replace("\\", "/") or "site-packages/meteor" in str(
-        func["full_file"]
-    ).replace("\\", "/")
+    return "meteor/" in str(func["full_file"]).replace(
+        "\\", "/"
+    ) or "site-packages/meteor" in str(func["full_file"]).replace("\\", "/")
 
 
-def _decision(label: str, top_total: list[dict[str, Any]], top_cum: list[dict[str, Any]]) -> str:
+def _decision(
+    label: str, top_total: list[dict[str, Any]], top_cum: list[dict[str, Any]]
+) -> str:
     meteor_share = sum(f["percent"] for f in top_total if _module_in_meteor(f))
     if meteor_share >= 20.0:
         return (
@@ -151,7 +157,9 @@ Fixture: `{fixture_dir}`
     report += "\n".join(_format_row(f) for f in counter_total)
     report += "\n\n### Top 5 by cumulative CPU time (`cumtime`)\n\n| Function | Location | Calls | Tottime | Cumtime | % of profile |\n| --- | --- | --- | --- | --- | --- |\n"
     report += "\n".join(_format_row(f) for f in counter_cum)
-    report += f"\n\n**Decision:** {_decision('counter.py', counter_total, counter_cum)}\n"
+    report += (
+        f"\n\n**Decision:** {_decision('counter.py', counter_total, counter_cum)}\n"
+    )
 
     report += f"""\n## variantcalling.py (coverage / consensus / freebayes dispatch)
 

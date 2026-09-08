@@ -35,11 +35,7 @@ app = typer.Typer(add_completion=False, pretty_exceptions_short=True)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_FIXTURE_DIR = REPO_ROOT / "tests" / "data" / "fixtures"
 EVIDENCE_DIR = (
-    REPO_ROOT
-    / ".omo"
-    / "evidence"
-    / "meteor-rust-acceleration"
-    / "benchmarks"
+    REPO_ROOT / ".omo" / "evidence" / "meteor-rust-acceleration" / "benchmarks"
 )
 
 

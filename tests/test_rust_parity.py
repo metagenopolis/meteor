@@ -116,7 +116,11 @@ def _run_strain(use_rust_variant_calling: bool) -> tuple[Path, Path]:
         core_size=100,
     )
     variant_caller.execute()
-    return tmp_dir, out_dir / f"{sample_name}.vcf.gz", out_dir / f"{sample_name}_consensus.fasta.xz"
+    return (
+        tmp_dir,
+        out_dir / f"{sample_name}.vcf.gz",
+        out_dir / f"{sample_name}_consensus.fasta.xz",
+    )
 
 
 def _read_consensus(path: Path) -> str:
@@ -141,9 +145,9 @@ def _compare_vcfs(left: Path, right: Path) -> None:
 
     left_records = list(_records(left))
     right_records = list(_records(right))
-    assert len(left_records) == len(right_records), (
-        f"VCF record counts differ: {len(left_records)} vs {len(right_records)}"
-    )
+    assert len(left_records) == len(
+        right_records
+    ), f"VCF record counts differ: {len(left_records)} vs {len(right_records)}"
     for l_rec, r_rec in zip(left_records, right_records):
         assert l_rec == r_rec, f"VCF records differ: {l_rec} vs {r_rec}"
 

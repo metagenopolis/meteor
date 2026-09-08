@@ -30,7 +30,12 @@ app = typer.Typer(add_completion=False, pretty_exceptions_short=True)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA_DIR = REPO_ROOT / "meteor" / "tests" / "test_variantcalling"
 DEFAULT_REPORT = (
-    REPO_ROOT / ".omo" / "evidence" / "meteor-rust-acceleration" / "benchmarks" / "hot_paths.json"
+    REPO_ROOT
+    / ".omo"
+    / "evidence"
+    / "meteor-rust-acceleration"
+    / "benchmarks"
+    / "hot_paths.json"
 )
 
 
@@ -86,8 +91,12 @@ def _check_data(data_dir: Path) -> None:
         _fatal(f"Missing data file(s) in {data_dir}: {', '.join(missing)}")
 
 
-def _build_vc(data_dir: Path, tmp_dir: Path, use_rust_variant_calling: bool) -> VariantCalling:
-    ref_json = json.loads((data_dir / "eva71" / "eva71_reference.json").read_text(encoding="utf-8"))
+def _build_vc(
+    data_dir: Path, tmp_dir: Path, use_rust_variant_calling: bool
+) -> VariantCalling:
+    ref_json = json.loads(
+        (data_dir / "eva71" / "eva71_reference.json").read_text(encoding="utf-8")
+    )
     census_json = json.loads(
         (data_dir / "eva71_bench" / "eva71_bench_census_stage_1.json").read_text(
             encoding="utf-8"
