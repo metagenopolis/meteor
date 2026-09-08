@@ -60,4 +60,5 @@ about:
   summary: 'Meteor is a plateform for quantitative metagenomics profiling of complex ecosystems.'
   description: |
     Meteor is a plateform for quantitative metagenomics profiling of complex ecosystems. Meteor relies on genes catalogue to perform species-level taxonomic profiling (Bacteria, Archaea and Eukaryotes), functional analysis and strain-level population structure inference.
+    Note: the optional Rust-accelerated extension (meteor-core) is not included in the noarch conda package. Users who want Rust acceleration should install meteor-core from PyPI or build it from source with maturin.
   license_family: GPL3
