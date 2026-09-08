@@ -38,6 +38,25 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: metagenopolis/meteor
 
+  pytest-python-only:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ConorMacBride/install-package@v1
+        with:
+          apt: bowtie2 freebayes
+      - name: Install Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+      - name: Install meteor without Rust extra
+        run: pip install -e . pytest
+      - name: Verify Rust extension is absent
+        run: python -c "import meteor_core" && exit 1 || true
+      - name: Run pure-Python tests
+        run: pytest -q
+        timeout-minutes: 15
+
   rust:
     runs-on: ${{ matrix.os }}
     strategy:
