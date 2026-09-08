@@ -1,9 +1,12 @@
 use std::collections::{BTreeMap, HashMap};
 
-use pyo3::exceptions::PyIOError;
+use pyo3::exceptions::{PyIOError, PyValueError};
 use pyo3::prelude::*;
 use rust_htslib::bam::record::{Aux, Cigar};
 use rust_htslib::bam::{Read, Reader, Record};
+use rust_htslib::faidx;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 fn open_cram(cram_path: &str, ref_path: &str) -> PyResult<Reader> {
     let mut reader = Reader::from_path(cram_path)
@@ -345,6 +348,75 @@ fn count_msp(
     })
 }
 
+#[pyfunction]
+fn load_fasta(path: &str) -> PyResult<HashMap<String, String>> {
+    let reader = faidx::Reader::from_path(path)
+        .map_err(|e| PyIOError::new_err(format!("failed to open FASTA {path}: {e}")))?;
+    let names = reader
+        .seq_names()
+        .map_err(|e| PyIOError::new_err(format!("failed to read FASTA index for {path}: {e}")))?;
+
+    let mut sequences = HashMap::with_capacity(names.len());
+    for name in names {
+        let length = reader.fetch_seq_len(&name) as usize;
+        let end = length.saturating_sub(1);
+        let seq = reader
+            .fetch_seq_string(&name, 0, end)
+            .map_err(|e| PyIOError::new_err(format!("failed to fetch sequence {name}: {e}")))?;
+        sequences.insert(name, seq);
+    }
+    Ok(sequences)
+}
+
+#[pyfunction]
+fn bed_chunks(bed_path: &str, num_chunks: usize) -> PyResult<Vec<Vec<(u32, u32, u32)>>> {
+    if num_chunks == 0 {
+        return Err(PyValueError::new_err("num_chunks must be > 0"));
+    }
+
+    let file = File::open(bed_path)
+        .map_err(|e| PyIOError::new_err(format!("failed to open BED {bed_path}: {e}")))?;
+    let reader = BufReader::new(file);
+
+    let mut rows: Vec<(u32, u32, u32)> = Vec::new();
+    for line in reader.lines() {
+        let line = line.map_err(|e| PyIOError::new_err(format!("failed to read BED line: {e}")))?;
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let cols: Vec<&str> = line.split('\t').collect();
+        if cols.len() < 3 {
+            continue;
+        }
+        rows.push((
+            cols[0]
+                .parse::<u32>()
+                .map_err(|e| PyValueError::new_err(format!("invalid gene_id {}: {}", cols[0], e)))?,
+            cols[1]
+                .parse::<u32>()
+                .map_err(|e| PyValueError::new_err(format!("invalid start {}: {}", cols[1], e)))?,
+            cols[2]
+                .parse::<u32>()
+                .map_err(|e| PyValueError::new_err(format!("invalid end {}: {}", cols[2], e)))?,
+        ));
+    }
+
+    let n = rows.len();
+    let num_chunks = num_chunks.min(n.max(1));
+    let base = n / num_chunks;
+    let remainder = n % num_chunks;
+
+    let mut chunks: Vec<Vec<(u32, u32, u32)>> = Vec::with_capacity(num_chunks);
+    let mut start = 0;
+    for i in 0..num_chunks {
+        let chunk_size = base + if i < remainder { 1 } else { 0 };
+        let end = start + chunk_size;
+        chunks.push(rows[start..end].to_vec());
+        start = end;
+    }
+    Ok(chunks)
+}
+
 #[pymodule]
 fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -352,6 +424,8 @@ fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sum_cram_cigar_lengths, m)?)?;
     m.add_function(wrap_pyfunction!(cram_records, m)?)?;
     m.add_function(wrap_pyfunction!(count_msp, m)?)?;
+    m.add_function(wrap_pyfunction!(load_fasta, m)?)?;
+    m.add_function(wrap_pyfunction!(bed_chunks, m)?)?;
     m.add_class::<CramRecord>()?;
     m.add_class::<GeneCount>()?;
     m.add_class::<MspCountResult>()?;
