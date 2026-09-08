@@ -402,6 +402,19 @@ class Counter(Session):
                     # if int(element.reference_name) in ref_json["reference_file"]:
                     total_reads.write(element)
 
+    @staticmethod
+    def _normalise_count_value(value: float) -> int | float:
+        """Return an int when a Rust count is a whole number.
+
+        Rust returns counts as floats, so values like 105 become 105.0 when
+        written by ``write_stat``. Python writes whole numbers without a
+        decimal point. Coercing whole-number floats to ints makes the Rust-path
+        TSV byte-identical to the Python-path TSV.
+        """
+        if isinstance(value, float) and value.is_integer():
+            return int(value)
+        return value
+
     def _launch_counting_rust(
         self,
         raw_cramfile: Path,
@@ -422,7 +435,10 @@ class Counter(Session):
             self.identity_threshold,
             self.counting_type,
         )
-        abundance = {gc.gene_id: gc.count for gc in result.gene_counts}
+        abundance = {
+            gc.gene_id: self._normalise_count_value(gc.count)
+            for gc in result.gene_counts
+        }
         database = {gc.gene_id: gc.gene_length for gc in result.gene_counts}
         self.write_stat(count_file, abundance, database)
         total_read_count = stage1_json_data["mapping"]["total_read_count"]
