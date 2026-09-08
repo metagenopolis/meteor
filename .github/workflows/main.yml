@@ -74,5 +74,5 @@ jobs:
         run: pip install maturin
       - name: Lint Rust extension
         run: cargo clippy --manifest-path rust/Cargo.toml -- -D warnings
-      - name: Build Rust extension
-        run: maturin develop -m rust/Cargo.toml
+      - name: Build Rust extension (release)
+        run: maturin build --release -m rust/Cargo.toml
