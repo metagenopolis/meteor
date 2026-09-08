@@ -1,0 +1,13 @@
+[package]
+name = "meteor-core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "meteor_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.24", features = ["extension-module"] }
+rust-htslib = { version = "0.49", default-features = false, features = ["bzip2", "lzma", "curl"] }
+flate2 = "1.0"
