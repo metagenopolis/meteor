@@ -222,35 +222,54 @@ def main(
     fixture_dir: Path = typer.Option(
         DEFAULT_FIXTURE_DIR, "--fixture-dir", help="Directory containing fixture files."
     ),
-    baseline: Path = typer.Option(
-        DEFAULT_BASELINE, "--baseline", help="Path to the baseline JSON file."
+    output: Path = typer.Option(
+        None,
+        "--output",
+        help="Path to the JSON file to write. Defaults to python.json or rust.json under the evidence directory.",
     ),
     runs: int = typer.Option(3, "--runs", help="Number of replicated timing runs."),
-    use_rust: bool = typer.Option(
-        False, "--use-rust", help="Benchmark the Rust-accelerated counter implementation."
+    mode: str = typer.Option(
+        "python",
+        "--mode",
+        help="Which implementation to benchmark.",
+        case_sensitive=False,
     ),
 ) -> None:
     """Time meteor.counter.launch_counting on the fixture CRAM."""
     if runs < 1:
         _fatal("--runs must be >= 1")
+    mode = mode.lower()
+    if mode not in ("python", "rust"):
+        _fatal("--mode must be 'python' or 'rust'")
+    use_rust = mode == "rust"
 
     fixture_dir = fixture_dir.resolve()
     _check_fixtures(fixture_dir)
 
+    if output is None:
+        output = (
+            Path(__file__).resolve().parent.parent
+            / ".omo"
+            / "evidence"
+            / "meteor-rust-acceleration"
+            / "benchmarks"
+            / f"{mode}.json"
+        )
+
     measurements = [_run_counter(fixture_dir, i, use_rust) for i in range(runs)]
     bench_entry = _median_measurement(measurements)
 
-    baseline.parent.mkdir(parents=True, exist_ok=True)
-    baseline_data = _load_baseline(baseline)
-    baseline_data.meta = _build_meta(fixture_dir)
-    baseline_data.counter = bench_entry
+    output.parent.mkdir(parents=True, exist_ok=True)
+    data = _load_baseline(output)
+    data.meta = _build_meta(fixture_dir)
+    data.counter = bench_entry
 
-    baseline.write_text(json.dumps(baseline_data.to_dict(), indent=2), encoding="utf-8")
-    mode = "Rust" if use_rust else "Python"
+    output.write_text(json.dumps(data.to_dict(), indent=2), encoding="utf-8")
+    mode_label = mode.capitalize()
     typer.echo(
-        f"Counter ({mode}) median over {runs} runs: "
+        f"Counter ({mode_label}) median over {runs} runs: "
         f"wall={bench_entry.wall_seconds_median:.3f}s, "
-        f"cpu={bench_entry.cpu_seconds_median:.3f}s -> {baseline}"
+        f"cpu={bench_entry.cpu_seconds_median:.3f}s -> {output}"
     )
 
 
