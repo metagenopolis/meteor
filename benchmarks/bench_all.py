@@ -17,8 +17,11 @@ evidence directory, each containing 5 runs for `counter` and `variantcalling`.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+from typing import NoReturn
 
+import pysam
 import typer
 
 from bench_counter import (
@@ -37,6 +40,21 @@ DEFAULT_FIXTURE_DIR = REPO_ROOT / "tests" / "data" / "fixtures"
 EVIDENCE_DIR = (
     REPO_ROOT / ".omo" / "evidence" / "meteor-rust-acceleration" / "benchmarks"
 )
+REAL_DATA_EVIDENCE_DIR = (
+    REPO_ROOT / ".omo" / "evidence" / "meteor-rust-speedup-phase2" / "benchmarks"
+)
+
+REAL_DATA_ENV_VARS: dict[str, str] = {
+    "cram": "METEOR_BENCH_CRAM",
+    "ref": "METEOR_BENCH_REF",
+    "msp_map": "METEOR_BENCH_MSP_MAP",
+    "catalogue": "METEOR_BENCH_CATALOGUE",
+}
+
+
+def _fatal(message: str) -> NoReturn:
+    typer.echo(message, err=True)
+    raise typer.Exit(1)
 
 
 def _write_json(path: Path, meta, counter_runs, vc_runs) -> None:
@@ -49,17 +67,80 @@ def _write_json(path: Path, meta, counter_runs, vc_runs) -> None:
     path.write_text(json.dumps(data.to_dict(), indent=2), encoding="utf-8")
 
 
-@app.command()
-def main(
-    fixture_dir: Path = typer.Option(
-        DEFAULT_FIXTURE_DIR, "--fixture-dir", help="Directory containing fixture files."
-    ),
-    runs: int = typer.Option(5, "--runs", help="Number of interleaved runs per mode."),
-) -> None:
-    """Run counter and variant-calling benchmarks in interleaved Python/Rust order."""
-    if runs < 1:
-        raise typer.Exit("--runs must be >= 1")
+def _real_data_mode_selected(
+    cram: Path | None,
+    ref: Path | None,
+    msp_map: Path | None,
+    catalogue: Path | None,
+) -> bool:
+    return any(arg is not None for arg in (cram, ref, msp_map, catalogue))
 
+
+def _validate_real_data_env(
+    cram: Path | None,
+    ref: Path | None,
+    msp_map: Path | None,
+    catalogue: Path | None,
+) -> dict[str, str]:
+    """Return env-var values for the selected real-data args; fatal if any are missing."""
+    selected = {
+        name: arg
+        for name, arg in (
+            ("cram", cram),
+            ("ref", ref),
+            ("msp_map", msp_map),
+            ("catalogue", catalogue),
+        )
+        if arg is not None
+    }
+
+    missing_env: list[str] = []
+    values: dict[str, str] = {}
+    for name in selected:
+        env_name = REAL_DATA_ENV_VARS[name]
+        value = os.environ.get(env_name)
+        if not value:
+            missing_env.append(env_name)
+        else:
+            values[name] = value
+
+    if missing_env:
+        _fatal(
+            "Real-data benchmark mode requested but the following environment "
+            f"variable(s) are missing or empty: {', '.join(missing_env)}. "
+            "Set METEOR_BENCH_CRAM, METEOR_BENCH_REF, METEOR_BENCH_MSP_MAP "
+            "(and METEOR_BENCH_CATALOGUE if --catalogue is used) and retry."
+        )
+
+    missing_files: list[str] = []
+    for name, path_str in values.items():
+        path = Path(path_str)
+        if not path.is_file():
+            missing_files.append(f"{REAL_DATA_ENV_VARS[name]}={path_str}")
+        elif name == "cram":
+            index_path = path.with_suffix(path.suffix + ".crai")
+            if path.suffix == ".cram" and not index_path.is_file():
+                missing_files.append(f"CRAM index {index_path}")
+            try:
+                with pysam.AlignmentFile(str(path), "rc") as _:
+                    pass
+            except Exception as exc:
+                _fatal(
+                    f"METEOR_BENCH_CRAM does not point to a readable CRAM file: {path} "
+                    f"({exc})"
+                )
+
+    if missing_files:
+        _fatal(
+            "Real-data benchmark mode requested but the following file(s) are "
+            f"missing or invalid: {', '.join(missing_files)}"
+        )
+
+    return values
+
+
+def _run_fixture_mode(fixture_dir: Path, runs: int) -> None:
+    """Run the original phase-1 interleaved fixture benchmark."""
     fixture_dir = fixture_dir.resolve()
     meta = _build_meta(fixture_dir)
 
@@ -96,6 +177,76 @@ def main(
         f"cpu={rust_vc.cpu_seconds_median:.3f}s"
     )
     typer.echo(f"Results written to {EVIDENCE_DIR}/python.json and rust.json")
+
+
+def _run_real_data_mode(
+    cram: Path,
+    ref: Path,
+    msp_map: Path,
+    catalogue: Path | None,
+    runs: int,
+) -> None:
+    """Validate real-data env vars and leave an evidence marker.
+
+    The actual end-to-end real-data benchmark run is implemented in later todos
+    (Todo 9). Todo 1 only wires the CLI mode selectors, env-var contract and
+    validation so that missing configuration exits non-zero with a clear message.
+    """
+    values = _validate_real_data_env(cram, ref, msp_map, catalogue)
+    REAL_DATA_EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
+    marker = REAL_DATA_EVIDENCE_DIR / "realdata_mode_selected.marker"
+    marker.write_text(
+        f"Real-data mode selected with: {values}\nRuns requested: {runs}\n",
+        encoding="utf-8",
+    )
+    _fatal(
+        "Real-data benchmark mode is selected and env vars are valid, but the "
+        "actual real-data benchmark execution is not implemented yet (Todo 9). "
+        f"Validation marker written to {marker}"
+    )
+
+
+@app.command()
+def main(
+    fixture_dir: Path = typer.Option(
+        DEFAULT_FIXTURE_DIR, "--fixture-dir", help="Directory containing fixture files."
+    ),
+    runs: int = typer.Option(5, "--runs", help="Number of interleaved runs per mode."),
+    cram: Path | None = typer.Option(
+        None,
+        "--cram",
+        help="Mode selector: benchmark real data (CRAM path from METEOR_BENCH_CRAM).",
+    ),
+    ref: Path | None = typer.Option(
+        None,
+        "--ref",
+        help="Mode selector: benchmark real data (reference from METEOR_BENCH_REF).",
+    ),
+    msp_map: Path | None = typer.Option(
+        None,
+        "--msp-map",
+        help="Mode selector: benchmark real data (MSP map from METEOR_BENCH_MSP_MAP).",
+    ),
+    catalogue: Path | None = typer.Option(
+        None,
+        "--catalogue",
+        help="Mode selector: benchmark real data (catalogue from METEOR_BENCH_CATALOGUE).",
+    ),
+) -> None:
+    """Run counter and variant-calling benchmarks in interleaved Python/Rust order.
+
+    With no --cram/--ref/--msp-map/--catalogue arguments the fixture benchmark is
+    run exactly as in phase 1. Passing any of those arguments selects real-data
+    mode; the actual file paths are read from the METEOR_BENCH_* environment
+    variables, which must be set.
+    """
+    if runs < 1:
+        raise typer.Exit("--runs must be >= 1")
+
+    if _real_data_mode_selected(cram, ref, msp_map, catalogue):
+        _run_real_data_mode(cram, ref, msp_map, catalogue, runs)
+    else:
+        _run_fixture_mode(fixture_dir, runs)
 
 
 if __name__ == "__main__":
