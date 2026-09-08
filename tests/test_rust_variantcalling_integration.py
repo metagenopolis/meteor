@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
 
+meteor_core = pytest.importorskip("meteor_core")
 from meteor.session import Component
 from meteor.variantcalling import VariantCalling
 

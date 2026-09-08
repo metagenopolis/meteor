@@ -10,6 +10,14 @@ from pathlib import Path
 
 import pytest
 
+try:
+    import meteor_core
+
+    HAS_METEOR_CORE = True
+except ImportError:
+    meteor_core = None
+    HAS_METEOR_CORE = False
+
 import meteor.counter as counter_module
 from meteor.counter import Counter
 from meteor.session import Component

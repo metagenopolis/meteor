@@ -6,7 +6,9 @@ import lzma
 import tempfile
 from pathlib import Path
 
-import meteor_core
+import pytest
+
+meteor_core = pytest.importorskip("meteor_core")
 
 
 def _make_fasta(path: Path, sequences: dict[str, str]) -> None:

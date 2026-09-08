@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+meteor_core = pytest.importorskip("meteor_core")
 from meteor.counter import Counter
 from meteor.session import Component
 from meteor.variantcalling import VariantCalling

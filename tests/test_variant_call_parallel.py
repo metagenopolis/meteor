@@ -7,7 +7,7 @@ from pathlib import Path
 import pysam
 import pytest
 
-import meteor_core
+meteor_core = pytest.importorskip("meteor_core")
 
 FIXTURES = Path(__file__).parent / "data" / "fixtures"
 CRAM = FIXTURES / "sample.cram"

@@ -5,8 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pysam
+import pytest
 
-import meteor_core
+meteor_core = pytest.importorskip("meteor_core")
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "tests" / "data" / "fixtures"
 CRAM = FIXTURE_DIR / "sample.cram"

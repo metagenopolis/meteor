@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-import meteor_core
+meteor_core = pytest.importorskip("meteor_core")
 from meteor.counter import Counter
 from meteor.session import Component
 
