@@ -75,11 +75,12 @@ def _run_python_counter(
         return _parse_tsv(count_file)
 
 
-def test_count_msp_smart_shared_parity():
+@pytest.mark.parametrize("counting_type", ["smart_shared", "unique", "total"])
+def test_count_msp_parity(counting_type: str) -> None:
     identity_threshold = 0.95
-    expected = _run_python_counter(identity_threshold, "smart_shared")
+    expected = _run_python_counter(identity_threshold, counting_type)
     result = meteor_core.count_msp(
-        str(CRAM), str(REF), identity_threshold, "smart_shared"
+        str(CRAM), str(REF), identity_threshold, counting_type
     )
 
     expected_by_gene = {gene_id: value for gene_id, value in expected.items()}
