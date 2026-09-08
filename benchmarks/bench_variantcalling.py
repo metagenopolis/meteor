@@ -170,7 +170,7 @@ def _median_measurement(measurements: list[RunMeasurement]) -> BenchEntry:
     )
 
 
-def _run_variantcalling(fixture_dir: Path, run_index: int) -> RunMeasurement:
+def _run_variantcalling(fixture_dir: Path, run_index: int, use_rust: bool) -> RunMeasurement:
     ref_json = json.loads((fixture_dir / "reference.json").read_text(encoding="utf-8"))
     stage1_data = json.loads(
         (fixture_dir / "sample_census_stage_1.json").read_text(encoding="utf-8")
@@ -189,6 +189,7 @@ def _run_variantcalling(fixture_dir: Path, run_index: int) -> RunMeasurement:
         meteor.tmp_dir = tmp_dir
         meteor.ref_dir = fixture_dir
         meteor.strain_dir = out_dir
+        meteor.use_rust_variant = use_rust
 
         census = {
             "mapped_sample_dir": fixture_dir,
@@ -231,6 +232,9 @@ def main(
         DEFAULT_BASELINE, "--baseline", help="Path to the baseline JSON file."
     ),
     runs: int = typer.Option(3, "--runs", help="Number of replicated timing runs."),
+    use_rust: bool = typer.Option(
+        False, "--use-rust", help="Benchmark the Rust-accelerated variant-calling helpers."
+    ),
 ) -> None:
     """Time meteor.variantcalling.VariantCalling.execute on the fixture data."""
     if runs < 1:
@@ -239,7 +243,7 @@ def main(
     fixture_dir = fixture_dir.resolve()
     _check_fixtures(fixture_dir)
 
-    measurements = [_run_variantcalling(fixture_dir, i) for i in range(runs)]
+    measurements = [_run_variantcalling(fixture_dir, i, use_rust) for i in range(runs)]
     bench_entry = _median_measurement(measurements)
 
     baseline.parent.mkdir(parents=True, exist_ok=True)
@@ -248,8 +252,9 @@ def main(
     baseline_data.variantcalling = bench_entry
 
     baseline.write_text(json.dumps(baseline_data.to_dict(), indent=2), encoding="utf-8")
+    mode = "Rust" if use_rust else "Python"
     typer.echo(
-        f"Variant-calling median over {runs} runs: "
+        f"Variant-calling ({mode}) median over {runs} runs: "
         f"wall={bench_entry.wall_seconds_median:.3f}s, "
         f"cpu={bench_entry.cpu_seconds_median:.3f}s -> {baseline}"
     )
