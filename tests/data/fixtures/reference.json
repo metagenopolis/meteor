@@ -1,0 +1,26 @@
+{
+  "annotation": {
+    "bed": {
+      "filename": "regions.bed",
+      "version": "1.0"
+    },
+    "gene_id": {
+      "filename": "annotation.tsv",
+      "version": "1.0"
+    },
+    "msp": {
+      "filename": "msp_map.tsv",
+      "version": "1.0"
+    }
+  },
+  "reference_file": {
+    "database_dir": ".",
+    "fasta_dir": ".",
+    "fasta_filename": "reference.fa.gz"
+  },
+  "reference_info": {
+    "database_type": "complete",
+    "reference_date": "2024-01-01",
+    "reference_name": "fixture_reference"
+  }
+}
