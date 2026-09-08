@@ -4,6 +4,10 @@ These benchmarks compare the original Python implementation with the optional
 Rust-accelerated paths on the repository test fixtures. Each configuration was
 run 3 times and the median wall and CPU time is reported.
 
+The numbers below are derived directly from
+`.omo/evidence/meteor-rust-acceleration/benchmarks/python.json` and
+`rust.json` (see raw JSON blocks at the end of this file).
+
 ## Environment
 
 - Machine: Apple M-series, macOS (local development machine)
@@ -14,61 +18,68 @@ run 3 times and the median wall and CPU time is reported.
 ## Results
 
 | Step | Implementation | Median wall (s) | Median CPU (s) | Notes |
-|------------------|----------------|----------------:|---------------:|--------------------------------------------|
-| `counter` | Python | 0.172 | 0.081 | Baseline Python hot loop |
-| `counter` | Rust | 0.108 | 0.108 | ~1.6x wall-time speedup on this fixture |
-| `variantcalling` | Python | 2.867 | 1.076 | Python freebayes dispatcher + consensus |
-| `variantcalling` | Rust | 5.414 | 4.064 | Slower on the small fixture (see note) |
+|------|----------------|----------------:|---------------:|-------|
+| `counter` | Python | 0.152 | 0.110 | Baseline Python hot loop |
+| `counter` | Rust | 0.166 | 0.166 | Equivalent on this small fixture |
+| `variantcalling` | Python | 8.236 | 2.976 | Python freebayes dispatcher + consensus |
+| `variantcalling` | Rust | 15.465 | 10.481 | Slower on the small fixture (see note) |
 
-### Honest note on variant calling
+### Honest notes
 
-The Rust-accelerated variant-calling path is **slower** than the Python path on
-this tiny fixture. The Rust dispatcher adds serialisation overhead and the
-fixture spends most of its time launching short `freebayes` processes, so the
-fixed overhead dominates. The Rust helpers are expected to become beneficial
-on larger catalogues with more regions and more reads per region, but this has
-not been benchmarked yet.
+- `counter`: the Rust path is in the same ballpark as Python on this tiny fixture;
+  the overhead of crossing the Python/Rust boundary masks any raw-loop speed-up.
+- `variantcalling`: the Rust-accelerated path is **slower** than the Python path on
+  this tiny fixture. The Rust dispatcher adds serialisation overhead and the
+  fixture spends most of its time launching short `freebayes` processes, so the
+  fixed overhead dominates. The Rust helpers are expected to become beneficial
+  on larger catalogues with more regions and more reads per region, but this has
+  not been benchmarked yet.
 
-## Raw per-run data
+## Raw per-run data — Python
 
 ```json
 {
-  "meta": {
-    "timestamp": "2026-09-08T08:05:16.475243+00:00",
-    "fixture_dir": "/Users/aghozlan/workspace/meteor-rust-accel/tests/data/fixtures",
-    "fixture_sizes": {
-      "sample.cram": 1147931,
-      "sample.cram.crai": 804,
-      "reference.fa.gz": 75665,
-      "reference.fa.gz.fai": 2471,
-      "reference.json": 511,
-      "annotation.tsv": 1374,
-      "msp_map.tsv": 2465,
-      "sample.tsv.xz": 784,
-      "sample_census_stage_1.json": 659
-    },
-    "record_counts": {
-      "n_genes": 120,
-      "n_msps": 10,
-      "n_reads": 22000
-    }
-  },
   "counter": {
-    "wall_seconds_median": 0.10845762502867728,
-    "cpu_seconds_median": 0.10836500000000004,
+    "wall_seconds_median": 0.1520134579623118,
+    "cpu_seconds_median": 0.109591,
     "runs": [
-      { "wall_seconds": 0.11395387497032061, "cpu_seconds": 0.10983100000000001 },
-      { "wall_seconds": 0.10716558300191537, "cpu_seconds": 0.10714300000000004 },
-      { "wall_seconds": 0.10845762502867728, "cpu_seconds": 0.10836500000000004 }
+      { "wall_seconds": 0.17252983298385516, "cpu_seconds": 0.10992399999999997 },
+      { "wall_seconds": 0.1510044580209069, "cpu_seconds": 0.109591 },
+      { "wall_seconds": 0.1520134579623118, "cpu_seconds": 0.10910300000000006 }
     ]
   },
   "variantcalling": {
-    "wall_seconds_median": 5.414290707965847,
-    "cpu_seconds_median": 4.064042000000001,
+    "wall_seconds_median": 8.236228374997154,
+    "cpu_seconds_median": 2.975575,
     "runs": [
-      { "wall_seconds": 5.4513325419975445, "cpu_seconds": 4.0791450000000005 },
-      { "wall_seconds": 5.377010792028159, "cpu_seconds": 4.033555000000001 },
-      { "wall_seconds": 5.414290707965847, "cpu_seconds": 4.064042000000001 }
+      { "wall_seconds": 8.236228374997154, "cpu_seconds": 2.862864 },
+      { "wall_seconds": 8.957224791985936, "cpu_seconds": 3.0513979999999994 },
+      { "wall_seconds": 7.602691125008278, "cpu_seconds": 2.975575 }
+    ]
+  }
+}
+```
+
+## Raw per-run data — Rust
+
+```json
+{
+  "counter": {
+    "wall_seconds_median": 0.16595620795851573,
+    "cpu_seconds_median": 0.165535,
+    "runs": [
+      { "wall_seconds": 0.158267209015321, "cpu_seconds": 0.15305899999999995 },
+      { "wall_seconds": 0.16595620795851573, "cpu_seconds": 0.165535 },
+      { "wall_seconds": 0.1975272920099087, "cpu_seconds": 0.19591900000000007 }
+    ]
+  },
+  "variantcalling": {
+    "wall_seconds_median": 15.464665875013452,
+    "cpu_seconds_median": 10.480587999999997,
+    "runs": [
+      { "wall_seconds": 19.79193554102676, "cpu_seconds": 12.292219 },
+      { "wall_seconds": 14.777322875044774, "cpu_seconds": 10.378901 },
+      { "wall_seconds": 15.464665875013452, "cpu_seconds": 10.480587999999997 }
     ]
   }
 }
@@ -80,13 +91,14 @@ With the Rust extension already built (`maturin develop -m rust/Cargo.toml`):
 
 ```bash
 # Counter
-python benchmarks/bench_counter.py --runs 3
-python benchmarks/bench_counter.py --use-rust --runs 3
+python benchmarks/bench_counter.py --mode python --runs 3
+python benchmarks/bench_counter.py --mode rust --runs 3
 
 # Variant calling
-python benchmarks/bench_variantcalling.py --runs 3
-python benchmarks/bench_variantcalling.py --use-rust --runs 3
+python benchmarks/bench_variantcalling.py --mode python --runs 3
+python benchmarks/bench_variantcalling.py --mode rust --runs 3
 ```
 
 The scripts write their results to
-`.omo/evidence/meteor-rust-acceleration/benchmarks/baseline.json`.
+`.omo/evidence/meteor-rust-acceleration/benchmarks/python.json` and
+`rust.json`.
