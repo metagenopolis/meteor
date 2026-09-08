@@ -645,6 +645,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Path to the directory where temporary files are stored",
     )
     strain_parser.add_argument(
+        "--use-rust-variant",
+        dest="use_rust_variant",
+        action="store_true",
+        help="Use the Rust-accelerated variant calling helpers (default: False). "
+        "Can also be enabled with METEOR_USE_RUST_VARIANT=1.",
+    )
+    strain_parser.add_argument(
         "-t",
         dest="threads",
         default=Strain.DEFAULT_NUM_THREADS,
@@ -790,6 +797,9 @@ def main() -> None:  # pragma: no cover
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
         meteor.strain_dir = args.strain_dir
+        meteor.use_rust_variant = (
+            args.use_rust_variant or os.environ.get("METEOR_USE_RUST_VARIANT", "") == "1"
+        )
         strain_id = Strain(
             meteor,
             args.max_depth,

@@ -30,6 +30,7 @@ from tempfile import NamedTemporaryFile
 from packaging.version import parse
 from pysam import AlignmentFile, FastaFile, VariantFile, faidx, tabix_index, bcftools
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import meteor_core  # type: ignore[import-not-found]
 from collections import defaultdict
 from typing import ClassVar
 from tqdm import tqdm
@@ -369,27 +370,38 @@ class VariantCalling(Session):
             ["gene_id", "gene_length"]
         ]
         dfs = []
-        # all_genes_dict = {}
-        with AlignmentFile(
-            str(cram_file.resolve()),
-            "rc",
-            reference_filename=str(reference_file.resolve()),
-            threads=self.meteor.threads,
-        ) as cram:
-            with FastaFile(filename=str(reference_file.resolve())) as Fasta:
-                # For genes with a count
-                for _, row in gene_tofilter.iterrows():
-                    reads_dict = self.count_reads_in_gene(
-                        cram, str(row["gene_id"]), row["gene_length"], Fasta
-                    )
-                    df = self.group_consecutive_positions(
-                        reads_dict, str(row["gene_id"]), row["gene_length"]
-                    )
-                    # genes_dict = self.group_consecutive_positions(reads_dict, str(row["gene_id"]), row["gene_length"])
-                    # if len(genes_dict[str(row["gene_id"])]) > 0:
-                    #     all_genes_dict.update(genes_dict)
-                    if len(df) > 0:
-                        dfs.append(df)
+        use_rust_variant = getattr(self.meteor, "use_rust_variant", False)
+        if use_rust_variant:
+            for _, row in gene_tofilter.iterrows():
+                reads_dict = meteor_core.count_reads_in_gene(
+                    str(cram_file.resolve()),
+                    str(reference_file.resolve()),
+                    str(row["gene_id"]),
+                    int(row["gene_length"]),
+                    int(self.max_depth),
+                )
+                df = self.group_consecutive_positions(
+                    reads_dict, str(row["gene_id"]), row["gene_length"]
+                )
+                if len(df) > 0:
+                    dfs.append(df)
+        else:
+            with AlignmentFile(
+                str(cram_file.resolve()),
+                "rc",
+                reference_filename=str(reference_file.resolve()),
+                threads=self.meteor.threads,
+            ) as cram:
+                with FastaFile(filename=str(reference_file.resolve())) as Fasta:
+                    for _, row in gene_tofilter.iterrows():
+                        reads_dict = self.count_reads_in_gene(
+                            cram, str(row["gene_id"]), row["gene_length"], Fasta
+                        )
+                        df = self.group_consecutive_positions(
+                            reads_dict, str(row["gene_id"]), row["gene_length"]
+                        )
+                        if len(df) > 0:
+                            dfs.append(df)
         # All these genes are going to be replaced by gaps
         # Their count is below the threshold level
         gene_ignore = gene_interest[
@@ -414,7 +426,6 @@ class VariantCalling(Session):
         bed_file,
     ):
         """Generate a consensus sequence by applying VCF variants to the provided reference genome."""
-        # Read the CSV file using pandas
         bed_set = sorted(
             set(
                 pd.read_csv(bed_file, usecols=[0], sep="\t", header=None)
@@ -422,11 +433,44 @@ class VariantCalling(Session):
                 .astype(int)
             )
         )
-        # low_cov_sites_dict = low_cov_sites.groupby(low_cov_sites.index).apply(lambda x: x.to_dict(orient='records')).to_dict()
+        use_rust_variant = getattr(self.meteor, "use_rust_variant", False)
+        if use_rust_variant:
+            low_cov_list = (
+                [
+                    (int(g), int(s), int(e))
+                    for g, s, e in low_cov_sites.reset_index()[
+                        ["gene_id", "startpos", "endpos"]
+                    ].itertuples(index=False, name=None)
+                ]
+                if not low_cov_sites.empty
+                else []
+            )
+            ignore_list = (
+                [
+                    (int(g), int(l))
+                    for g, l in gene_ignore.reset_index()[
+                        ["gene_id", "gene_length"]
+                    ].itertuples(index=False, name=None)
+                ]
+                if not gene_ignore.empty
+                else []
+            )
+            records = meteor_core.create_consensus(
+                str(reference_file.resolve()),
+                str(vcf_file.resolve()),
+                str(bed_file),
+                low_cov_list,
+                ignore_list,
+                float(self.min_frequency),
+                str(self.meteor.DEFAULT_GAP_CHAR),
+            )
+            with lzma.open(consensus_file, "wt", preset=0) as consensus_f:
+                for gene_id, sequence in records:
+                    consensus_f.write(f">{gene_id}\n{sequence}\n")
+            return
         with VariantFile(str(vcf_file.resolve()), threads=self.meteor.threads) as vcf:
             with FastaFile(filename=str(reference_file.resolve())) as Fasta:
                 with lzma.open(consensus_file, "wt", preset=0) as consensus_f:
-                    # Iterate over all reference sequences in the fasta file
                     for gene_id in tqdm(
                         bed_set, desc="Creating consensus", unit="gene"
                     ):
@@ -435,24 +479,9 @@ class VariantCalling(Session):
                             consensus = [
                                 self.meteor.DEFAULT_GAP_CHAR
                             ] * gene_ignore.loc[gene_id]["gene_length"]
-                            # Consensus with indel
-                            # consensus_f.write(f">{gene_id}\n")
-                            # consensus_f.write("".join(consensus) + "\n")
                         else:
                             consensus = np.array(list(Fasta.fetch(ref)), dtype="<U1")
-                            # Consensus with indel
-                            # consensus = list(Fasta.fetch(ref))
-                            # Apply variants from VCF
-                            # startvcf = perf_counter()
                             for record in vcf.fetch(ref):
-                                # print(record.info.keys())
-                                # print(record.info["AF"])
-                                # print(record.alleles)
-                                # print(record.alts)
-                                ##INFO=<ID=RO,Number=1,Type=Integer,Description="Count of full observations of the reference haplotype.">
-                                ##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">
-                                # Consensus with indel
-                                # if record.info["TYPE"][0] == "snp":
                                 reference_frequency = record.info["RO"] / (
                                     record.info["RO"] + np.sum(record.info["AO"])
                                 )
@@ -461,7 +490,6 @@ class VariantCalling(Session):
                                 else:
                                     keep_alts = tuple(sorted(list(record.alts)))
                                 max_len = max(map(len, keep_alts))
-                                # MNV vase
                                 if max_len > 1:
                                     for i in range(max_len):
                                         mnv = tuple(
@@ -475,49 +503,17 @@ class VariantCalling(Session):
                                         consensus[record.start + i] = self.IUPAC[mnv]
                                 else:
                                     consensus[record.start] = self.IUPAC[keep_alts]
-                                # Consensus with indel
-                                # else:
-                                #     # we had a nested sequence
-                                #     consensus[record.start] = [
-                                #         record.alts[0],
-                                #         record.start,
-                                #         record.stop,
-                                #     ]
-                            # Update consensus array for each matching range
                             if ref in low_cov_sites.index:
                                 selection = low_cov_sites.loc[ref]
                                 if isinstance(selection, pd.Series):
-                                    # consensus with indel
-                                    # for i in range(
-                                    #     selection["startpos"], selection["endpos"]
-                                    # ):
-                                    #     consensus[i] = self.meteor.DEFAULT_GAP_CHAR
                                     consensus[
                                         selection["startpos"] : selection["endpos"]
                                     ] = self.meteor.DEFAULT_GAP_CHAR
                                 else:
                                     for _, row in selection.iterrows():
-                                        # Consensus with indel
-                                        # for i in range(row["startpos"], row["endpos"]):
-                                        #     consensus[i] = self.meteor.DEFAULT_GAP_CHAR
-                                        # Mark as uncertain
                                         consensus[row["startpos"] : row["endpos"]] = (
                                             self.meteor.DEFAULT_GAP_CHAR
                                         )
-
-                            ## Consensus with indel
-                            # consensus_res = ""
-                            # l = 0
-                            # while l < len(consensus):
-                            #     if type(consensus[l]) is str:
-                            #         consensus_res += consensus[l]
-                            #         l += 1
-                            #     else:
-                            #         consensus_res += consensus[l][0]
-                            #         l = consensus[l][2]
-                            # consensus_f.write(f">{gene_id}\n")
-                            # # consensus_f.write("".join(consensus) + "\n")
-                            # consensus_f.write(consensus_res + "\n")
                         consensus_f.write(f">{gene_id}\n")
                         consensus_f.write("".join(consensus) + "\n")
                         del consensus
