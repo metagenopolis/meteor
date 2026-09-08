@@ -10,14 +10,20 @@ const ENV_VAR: &str = "METEOR_RUST_THREADS";
 ///   parallelism cannot be determined.
 /// - If the variable is set, it is parsed as an unsigned integer and clamped
 ///   to the inclusive range `[1, available_parallelism()]`. Values that are
-///   zero, non-numeric, or exceed the number of logical CPUs therefore fall
-///   back to a safe thread count instead of failing inside htslib.
+///   zero or exceed the number of logical CPUs fall back to a safe thread
+///   count. A non-numeric value prints a warning to stderr before falling back.
 pub(crate) fn resolve_thread_count() -> usize {
     match env::var(ENV_VAR) {
         Ok(value) => match value.parse::<usize>() {
             Ok(0) => default_thread_count(),
             Ok(n) => n.min(max_thread_count()),
-            Err(_) => default_thread_count(),
+            Err(_) => {
+                let default = default_thread_count();
+                eprintln!(
+                    "METEOR_RUST_THREADS={value:?} is not an integer; using default thread count {default}"
+                );
+                default
+            }
         },
         Err(_) => default_thread_count(),
     }
