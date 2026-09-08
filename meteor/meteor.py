@@ -14,6 +14,7 @@
 """Meteor - A plateform for quantitative metagenomic profiling of complex ecosystems"""
 
 
+import os
 import sys
 import logging
 from argparse import ArgumentParser, ArgumentTypeError, Namespace, RawTextHelpFormatter
@@ -348,6 +349,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="tmp_path",
         type=isdir,
         help="Directory where temporary files (e.g. cram) are stored",
+    )
+    mapping_parser.add_argument(
+        "--use-rust-counter",
+        dest="use_rust_counter",
+        action="store_true",
+        help="Use the Rust-accelerated counter implementation (default: False). "
+        "Can also be enabled with METEOR_USE_RUST_COUNTER=1.",
     )
     mapping_parser.add_argument(
         "-t",
@@ -759,6 +767,9 @@ def main() -> None:  # pragma: no cover
         meteor.ref_dir = args.ref_dir
         meteor.tmp_path = args.tmp_path
         meteor.threads = args.threads
+        meteor.use_rust_counter = (
+            args.use_rust_counter or os.environ.get("METEOR_USE_RUST_COUNTER", "") == "1"
+        )
         # args.pysam_test
         counter = Counter(
             meteor,

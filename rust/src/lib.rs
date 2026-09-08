@@ -138,6 +138,15 @@ struct GeneCount {
     count: f64,
 }
 
+#[pyclass]
+#[derive(Clone)]
+struct MspCountResult {
+    #[pyo3(get)]
+    gene_counts: Vec<GeneCount>,
+    #[pyo3(get)]
+    counted_reads: usize,
+}
+
 /// Sum of CIGAR lengths for operators considered "aligned nucleotides" by meteor:
 /// M (0), I (1), D (2). RefSkip N (3) is intentionally excluded.
 fn aligned_nucleotides(record: &Record) -> u32 {
@@ -157,7 +166,7 @@ fn count_msp(
     ref_path: &str,
     identity_threshold: f64,
     counting_type: &str,
-) -> PyResult<Vec<GeneCount>> {
+) -> PyResult<MspCountResult> {
     if !matches!(counting_type, "smart_shared" | "unique" | "total") {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
             "{counting_type} is not a valid counting type"
@@ -219,6 +228,8 @@ fn count_msp(
         }
     }
 
+    let counted_reads = reads.len();
+
     if counting_type == "total" {
         let mut abundance: BTreeMap<i32, f64> = database.keys().map(|&g| (g, 0.0)).collect();
         for (_, (_, genes)) in reads {
@@ -226,7 +237,7 @@ fn count_msp(
                 *abundance.entry(gene).or_insert(0.0) += 1.0;
             }
         }
-        let result: Vec<GeneCount> = abundance
+        let gene_counts: Vec<GeneCount> = abundance
             .into_iter()
             .map(|(gene_id, count)| GeneCount {
                 gene_id,
@@ -234,7 +245,10 @@ fn count_msp(
                 count,
             })
             .collect();
-        return Ok(result);
+        return Ok(MspCountResult {
+            gene_counts,
+            counted_reads,
+        });
     }
 
     let mut unique_on_gene: BTreeMap<i32, f64> = database.keys().map(|&g| (g, 0.0)).collect();
@@ -249,7 +263,7 @@ fn count_msp(
     }
 
     if counting_type == "unique" {
-        let result: Vec<GeneCount> = unique_on_gene
+        let gene_counts: Vec<GeneCount> = unique_on_gene
             .into_iter()
             .map(|(gene_id, count)| GeneCount {
                 gene_id,
@@ -257,7 +271,10 @@ fn count_msp(
                 count,
             })
             .collect();
-        return Ok(result);
+        return Ok(MspCountResult {
+            gene_counts,
+            counted_reads,
+        });
     }
 
     let mut co_dict: HashMap<(String, i32), f64> = HashMap::new();
@@ -314,7 +331,7 @@ fn count_msp(
         *abundance.entry(gene).or_insert(0.0) += multiple;
     }
 
-    let result: Vec<GeneCount> = abundance
+    let gene_counts: Vec<GeneCount> = abundance
         .into_iter()
         .map(|(gene_id, count)| GeneCount {
             gene_id,
@@ -322,7 +339,10 @@ fn count_msp(
             count,
         })
         .collect();
-    Ok(result)
+    Ok(MspCountResult {
+        gene_counts,
+        counted_reads,
+    })
 }
 
 #[pymodule]
@@ -334,5 +354,6 @@ fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(count_msp, m)?)?;
     m.add_class::<CramRecord>()?;
     m.add_class::<GeneCount>()?;
+    m.add_class::<MspCountResult>()?;
     Ok(())
 }

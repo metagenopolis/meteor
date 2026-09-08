@@ -397,6 +397,36 @@ class Counter(Session):
                     # if int(element.reference_name) in ref_json["reference_file"]:
                     total_reads.write(element)
 
+    def _launch_counting_rust(
+        self,
+        raw_cramfile: Path,
+        count_file: Path,
+        ref_json: dict,
+        stage1_json_data: dict,
+        stage1_json: Path,
+    ) -> None:
+        """Run the counting hot path through the Rust meteor_core extension."""
+        import meteor_core  # type: ignore[import-not-found]
+
+        reference = (
+            self.meteor.ref_dir
+            / ref_json["reference_file"]["fasta_dir"]
+            / ref_json["reference_file"]["fasta_filename"]
+        )
+        result = meteor_core.count_msp(
+            str(raw_cramfile.resolve()),
+            str(reference.resolve()),
+            self.identity_threshold,
+            self.counting_type,
+        )
+        abundance = {gc.gene_id: gc.count for gc in result.gene_counts}
+        database = {gc.gene_id: gc.gene_length for gc in result.gene_counts}
+        self.write_stat(count_file, abundance, database)
+        total_read_count = stage1_json_data["mapping"]["total_read_count"]
+        config = self.set_counter_config(total_read_count, result.counted_reads, count_file)
+        stage1_json_data.update(config)
+        self.save_config(stage1_json_data, stage1_json)
+
     def launch_counting(
         self,
         raw_cramfile: Path,
@@ -421,6 +451,23 @@ class Counter(Session):
             sys.exit(1)
         else:
             logging.info("Launch counting")
+
+        use_rust_counter = getattr(self.meteor, "use_rust_counter", False)
+        if use_rust_counter and not self.keep_filtered_alignments:
+            try:
+                self._launch_counting_rust(
+                    raw_cramfile, count_file, ref_json, stage1_json_data, stage1_json
+                )
+                logging.info("Used Rust counter implementation")
+                return
+            except ImportError:
+                logging.warning(
+                    "Rust counter requested but meteor_core is not available. Falling back to Python."
+                )
+            except Exception as exc:
+                logging.error("Rust counter failed: %s", exc)
+                raise
+
         pysam.set_verbosity(0)
         with AlignmentFile(
             str(raw_cramfile.resolve()), threads=self.meteor.threads

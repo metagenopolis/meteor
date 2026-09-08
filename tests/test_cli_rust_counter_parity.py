@@ -1,4 +1,4 @@
-"""Parity test for the Rust MSP/gene counting hot loop against meteor Counter."""
+"""CLI-level parity test for the METEOR_USE_RUST_COUNTER flag."""
 
 from __future__ import annotations
 
@@ -9,13 +9,11 @@ from pathlib import Path
 
 import pytest
 
-import meteor_core
 from meteor.counter import Counter
 from meteor.session import Component
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "tests" / "data" / "fixtures"
 CRAM = FIXTURE_DIR / "sample.cram"
-REF = FIXTURE_DIR / "reference.fa"
 REF_JSON = FIXTURE_DIR / "reference.json"
 STAGE1_JSON = FIXTURE_DIR / "sample_census_stage_1.json"
 
@@ -31,11 +29,11 @@ def _parse_tsv(path: Path) -> dict[int, float]:
     return counts
 
 
-def _run_python_counter(identity_threshold: float, counting_type: str) -> dict[int, float]:
+def _run_counter(use_rust_counter: bool, identity_threshold: float) -> dict[int, float]:
     ref_json = json.loads(REF_JSON.read_text(encoding="utf-8"))
     stage1_data = json.loads(STAGE1_JSON.read_text(encoding="utf-8"))
 
-    with tempfile.TemporaryDirectory(dir=FIXTURE_DIR, prefix="bench_counter_test_") as tmp_raw:
+    with tempfile.TemporaryDirectory(dir=FIXTURE_DIR, prefix="rust_counter_cli_") as tmp_raw:
         tmp_dir = Path(tmp_raw)
         count_file = tmp_dir / "sample.tsv.xz"
         stage1_out = tmp_dir / "sample_census_stage_1.json"
@@ -48,10 +46,11 @@ def _run_python_counter(identity_threshold: float, counting_type: str) -> dict[i
         meteor.mapping_dir = FIXTURE_DIR
         meteor.fastq_dir = FIXTURE_DIR
         meteor.ref_dir = FIXTURE_DIR
+        meteor.use_rust_counter = use_rust_counter
 
         counter = Counter(
             meteor,
-            counting_type,
+            "smart_shared",
             "end-to-end",
             80,
             identity_threshold,
@@ -71,17 +70,13 @@ def _run_python_counter(identity_threshold: float, counting_type: str) -> dict[i
         return _parse_tsv(count_file)
 
 
-def test_count_msp_smart_shared_parity():
+def test_rust_counter_flag_parity():
     identity_threshold = 0.95
-    expected = _run_python_counter(identity_threshold, "smart_shared")
-    result = meteor_core.count_msp(
-        str(CRAM), str(REF), identity_threshold, "smart_shared"
-    )
+    python_counts = _run_counter(use_rust_counter=False, identity_threshold=identity_threshold)
+    rust_counts = _run_counter(use_rust_counter=True, identity_threshold=identity_threshold)
 
-    expected_by_gene = {gene_id: value for gene_id, value in expected.items()}
-    for record in result.gene_counts:
-        assert record.gene_id in expected_by_gene
-        assert record.count == pytest.approx(
-            expected_by_gene[record.gene_id], rel=1e-9, abs=1e-9
+    assert set(python_counts.keys()) == set(rust_counts.keys())
+    for gene_id in python_counts:
+        assert python_counts[gene_id] == pytest.approx(
+            rust_counts[gene_id], rel=1e-9, abs=1e-9
         )
-    assert len(result.gene_counts) == len(expected_by_gene)
