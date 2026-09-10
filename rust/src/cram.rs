@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use rust_htslib::bam::record::Cigar;
 use rust_htslib::bam::{Read, Reader, Record};
 
-use crate::{bytes_to_string, extract_nm, open_cram};
+use crate::{bytes_to_string, extract_nm, pileup};
 
 #[pyclass]
 #[derive(Clone)]
@@ -56,7 +56,7 @@ fn build_cram_record(record: &Record, target_names: &[String]) -> CramRecord {
 
 #[pyfunction]
 pub fn count_cram_records(cram_path: &str, ref_path: &str) -> PyResult<usize> {
-    let mut reader = open_cram(cram_path, ref_path)?;
+    let mut reader = pileup::open_cram(cram_path, Some(ref_path))?;
     let mut record = Record::new();
     let mut count: usize = 0;
     while let Some(result) = reader.read(&mut record) {
@@ -69,7 +69,7 @@ pub fn count_cram_records(cram_path: &str, ref_path: &str) -> PyResult<usize> {
 
 #[pyfunction]
 pub fn sum_cram_cigar_lengths(cram_path: &str, ref_path: &str) -> PyResult<(u64, u64)> {
-    let mut reader = open_cram(cram_path, ref_path)?;
+    let mut reader = pileup::open_cram(cram_path, Some(ref_path))?;
     let mut record = Record::new();
     let mut total_len: u64 = 0;
     let mut total_ops: u64 = 0;
@@ -86,7 +86,7 @@ pub fn sum_cram_cigar_lengths(cram_path: &str, ref_path: &str) -> PyResult<(u64,
 
 #[pyfunction]
 pub fn cram_records(cram_path: &str, ref_path: &str) -> PyResult<Vec<CramRecord>> {
-    let mut reader = open_cram(cram_path, ref_path)?;
+    let mut reader = pileup::open_cram(cram_path, Some(ref_path))?;
     let header = reader.header().clone();
     let target_names: Vec<String> = header
         .target_names()
@@ -147,7 +147,7 @@ pub fn stream_cram_records(
     cram_path: &str,
     ref_path: &str,
 ) -> PyResult<CramRecordStream> {
-    match open_cram(cram_path, ref_path) {
+    match pileup::open_cram(cram_path, Some(ref_path)) {
         Ok(reader) => {
             let header = reader.header().clone();
             let target_names: Vec<String> = header

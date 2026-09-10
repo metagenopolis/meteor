@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use pyo3::exceptions::{PyIOError, PyValueError};
 use pyo3::prelude::*;
 use rust_htslib::bam::record::{Aux, Cigar};
-use rust_htslib::bam::{IndexedReader, Read, Reader, Record};
+use rust_htslib::bam::{IndexedReader, Read, Record};
 use rust_htslib::faidx;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -11,20 +11,9 @@ use std::io::{BufRead, BufReader};
 mod aggregates;
 mod cram;
 mod freebayes;
+mod pileup;
 mod threads;
 mod vcf;
-
-fn open_cram(cram_path: &str, ref_path: &str) -> PyResult<Reader> {
-    let mut reader = Reader::from_path(cram_path)
-        .map_err(|e| PyIOError::new_err(format!("failed to open CRAM {cram_path}: {e}")))?;
-    reader
-        .set_reference(ref_path)
-        .map_err(|e| PyIOError::new_err(format!("failed to set CRAM reference {ref_path}: {e}")))?;
-    reader
-        .set_threads(threads::resolve_thread_count())
-        .map_err(|e| PyIOError::new_err(format!("failed to set CRAM thread pool: {e}")))?;
-    Ok(reader)
-}
 
 pub(crate) fn extract_nm(record: &Record) -> Option<u32> {
     match record.aux(b"NM").ok()? {
@@ -85,7 +74,7 @@ fn count_msp(
     counting_type: &str,
 ) -> PyResult<MspCountResult> {
     let counting_type = aggregates::CountingType::from_str(counting_type)?;
-    let mut reader = open_cram(cram_path, ref_path)?;
+    let mut reader = pileup::open_cram(cram_path, Some(ref_path))?;
     let core = aggregates::count_msp_core(&mut reader, identity_threshold, counting_type)?;
     let gene_counts: Vec<GeneCount> = core
         .database
@@ -428,6 +417,7 @@ fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(load_fasta, m)?)?;
     m.add_function(wrap_pyfunction!(bed_chunks, m)?)?;
     m.add_function(wrap_pyfunction!(count_reads_in_gene, m)?)?;
+    m.add_function(wrap_pyfunction!(pileup::depth_per_gene, m)?)?;
     m.add_function(wrap_pyfunction!(create_consensus, m)?)?;
     m.add_function(wrap_pyfunction!(freebayes::call_variants_parallel, m)?)?;
     m.add_function(wrap_pyfunction!(vcf::write_vcf_text, m)?)?;
@@ -436,6 +426,7 @@ fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<cram::CramRecord>()?;
     m.add_class::<GeneCount>()?;
     m.add_class::<MspCountResult>()?;
+    m.add_class::<pileup::GeneDepth>()?;
     m.add_class::<aggregates::AggregateRow>()?;
     m.add_class::<freebayes::FreebayesOptions>()?;
     m.add(

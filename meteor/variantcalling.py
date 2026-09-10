@@ -383,25 +383,55 @@ class VariantCalling(Session):
         rust_succeeded = False
         if use_rust_variant_calling:
             try:
-                for _, row in gene_tofilter.iterrows():
-                    reads_dict = meteor_core.count_reads_in_gene(
-                        str(cram_file.resolve()),
-                        str(reference_file.resolve()),
-                        str(row["gene_id"]),
-                        int(row["gene_length"]),
-                        int(self.max_depth),
-                    )
+                gene_intervals = [
+                    (str(row["gene_id"]), 0, int(row["gene_length"]))
+                    for _, row in gene_tofilter.iterrows()
+                ]
+                results = meteor_core.depth_per_gene(
+                    str(cram_file.resolve()),
+                    str(reference_file.resolve()),
+                    gene_intervals,
+                    int(self.max_depth),
+                )
+                for gene_depth in results:
+                    reads_dict = {
+                        pos: depth for pos, depth in enumerate(gene_depth.depths)
+                    }
                     df = self.group_consecutive_positions(
-                        reads_dict, str(row["gene_id"]), row["gene_length"]
+                        reads_dict,
+                        gene_depth.gene,
+                        len(gene_depth.depths),
                     )
                     if len(df) > 0:
                         dfs.append(df)
                 rust_succeeded = True
             except Exception as exc:
                 logging.warning(
-                    "Rust count_reads_in_gene failed (%s); falling back to Python.", exc
+                    "Rust depth_per_gene failed (%s); falling back to per-gene count_reads_in_gene.",
+                    exc,
                 )
                 dfs = []
+                try:
+                    for _, row in gene_tofilter.iterrows():
+                        reads_dict = meteor_core.count_reads_in_gene(
+                            str(cram_file.resolve()),
+                            str(reference_file.resolve()),
+                            str(row["gene_id"]),
+                            int(row["gene_length"]),
+                            int(self.max_depth),
+                        )
+                        df = self.group_consecutive_positions(
+                            reads_dict, str(row["gene_id"]), row["gene_length"]
+                        )
+                        if len(df) > 0:
+                            dfs.append(df)
+                    rust_succeeded = True
+                except Exception as exc2:
+                    logging.warning(
+                        "Rust count_reads_in_gene failed (%s); falling back to Python.",
+                        exc2,
+                    )
+                    dfs = []
 
         if not rust_succeeded:
             with AlignmentFile(
