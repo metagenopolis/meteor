@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Command, Stdio};
@@ -12,6 +13,9 @@ use pyo3::prelude::*;
 use wait_timeout::ChildExt;
 
 pyo3::create_exception!(meteor_core, FreebayesError, pyo3::exceptions::PyException);
+
+const DEFAULT_BATCH_SIZE: usize = 8;
+const BATCH_SIZE_ENV_VAR: &str = "METEOR_FREEBAYES_BATCH_SIZE";
 
 #[pyclass]
 #[derive(Clone)]
@@ -36,14 +40,14 @@ impl FreebayesOptions {
     }
 }
 
-struct ChunkTask {
+struct BatchTask {
     index: usize,
     bed_path: std::path::PathBuf,
     stdout_path: std::path::PathBuf,
     stderr_path: std::path::PathBuf,
 }
 
-enum ChunkOutcome {
+enum BatchOutcome {
     Success {
         index: usize,
         stdout_path: std::path::PathBuf,
@@ -55,18 +59,53 @@ enum ChunkOutcome {
     },
 }
 
-fn run_freebayes_chunk(
+impl BatchOutcome {
+    fn index(&self) -> usize {
+        match self {
+            BatchOutcome::Success { index, .. } => *index,
+            BatchOutcome::Failure { index, .. } => *index,
+        }
+    }
+}
+
+/// Resolve the batch size from `METEOR_FREEBAYES_BATCH_SIZE`.
+///
+/// - If unset, returns `DEFAULT_BATCH_SIZE`.
+/// - If set to a positive integer, returns that value.
+/// - If set to zero, clamps to 1 (the smallest usable batch).
+/// - If set to a non-numeric value, prints a warning to stderr and returns
+///   the default.
+fn resolve_batch_size() -> usize {
+    match env::var(BATCH_SIZE_ENV_VAR) {
+        Ok(value) => match value.parse::<usize>() {
+            Ok(0) => {
+                eprintln!("METEOR_FREEBAYES_BATCH_SIZE={value:?} is zero; using batch size 1");
+                1
+            }
+            Ok(n) => n,
+            Err(_) => {
+                eprintln!(
+                    "METEOR_FREEBAYES_BATCH_SIZE={value:?} is not an integer; using default batch size {DEFAULT_BATCH_SIZE}"
+                );
+                DEFAULT_BATCH_SIZE
+            }
+        },
+        Err(_) => DEFAULT_BATCH_SIZE,
+    }
+}
+
+fn run_freebayes_batch(
     freebayes_path: &str,
     cram_path: &str,
     fasta_path: &str,
     options: &FreebayesOptions,
-    task: &ChunkTask,
+    task: &BatchTask,
     timeout: Duration,
-) -> ChunkOutcome {
+) -> BatchOutcome {
     let stdout_file = match File::create(&task.stdout_path) {
         Ok(f) => f,
         Err(e) => {
-            return ChunkOutcome::Failure {
+            return BatchOutcome::Failure {
                 index: task.index,
                 exit_code: None,
                 stderr: format!("failed to create stdout file: {e}"),
@@ -76,7 +115,7 @@ fn run_freebayes_chunk(
     let stderr_file = match File::create(&task.stderr_path) {
         Ok(f) => f,
         Err(e) => {
-            return ChunkOutcome::Failure {
+            return BatchOutcome::Failure {
                 index: task.index,
                 exit_code: None,
                 stderr: format!("failed to create stderr file: {e}"),
@@ -113,7 +152,7 @@ fn run_freebayes_chunk(
     {
         Ok(c) => c,
         Err(e) => {
-            return ChunkOutcome::Failure {
+            return BatchOutcome::Failure {
                 index: task.index,
                 exit_code: None,
                 stderr: format!("failed to spawn freebayes: {e}"),
@@ -126,14 +165,14 @@ fn run_freebayes_chunk(
         Ok(None) => {
             let _ = child.kill();
             let _ = child.wait();
-            return ChunkOutcome::Failure {
+            return BatchOutcome::Failure {
                 index: task.index,
                 exit_code: None,
                 stderr: format!("freebayes timed out after {timeout:?}"),
             };
         }
         Err(e) => {
-            return ChunkOutcome::Failure {
+            return BatchOutcome::Failure {
                 index: task.index,
                 exit_code: None,
                 stderr: format!("error waiting for freebayes: {e}"),
@@ -147,12 +186,12 @@ fn run_freebayes_chunk(
     }
 
     if status.success() {
-        ChunkOutcome::Success {
+        BatchOutcome::Success {
             index: task.index,
             stdout_path: task.stdout_path.clone(),
         }
     } else {
-        ChunkOutcome::Failure {
+        BatchOutcome::Failure {
             index: task.index,
             exit_code: status.code(),
             stderr,
@@ -181,11 +220,11 @@ fn merge_vcf_chunks(stdout_paths: &[std::path::PathBuf]) -> PyResult<String> {
     let mut header_emitted = false;
     for path in stdout_paths {
         let file = File::open(path)
-            .map_err(|e| PyIOError::new_err(format!("failed to open chunk VCF {path:?}: {e}")))?;
+            .map_err(|e| PyIOError::new_err(format!("failed to open batch VCF {path:?}: {e}")))?;
         let reader = BufReader::new(file);
         for line in reader.lines() {
             let line = line
-                .map_err(|e| PyIOError::new_err(format!("failed to read chunk VCF line: {e}")))?;
+                .map_err(|e| PyIOError::new_err(format!("failed to read batch VCF line: {e}")))?;
             if line.starts_with('#') {
                 if !header_emitted {
                     merged.push_str(&line);
@@ -222,58 +261,72 @@ pub fn call_variants_parallel(
     let base = bed_lines.len() / num_chunks;
     let remainder = bed_lines.len() % num_chunks;
 
+    // Compute the current chunk boundaries so batches can concatenate the
+    // chunk BED files in the same order the unbatched dispatcher uses.
+    let mut chunk_boundaries: Vec<(usize, usize)> = Vec::with_capacity(num_chunks);
+    let mut start = 0;
+    for i in 0..num_chunks {
+        let chunk_size = base + if i < remainder { 1 } else { 0 };
+        let end = start + chunk_size;
+        chunk_boundaries.push((start, end));
+        start = end;
+    }
+
+    let batch_size = resolve_batch_size();
+    let num_batches = num_chunks.div_ceil(batch_size);
+
     let temp_dir = tempfile::Builder::new()
         .prefix("meteor_freebayes_")
         .tempdir()
         .map_err(|e| PyIOError::new_err(format!("failed to create temp dir: {e}")))?;
 
-    let mut chunks: Vec<ChunkTask> = Vec::with_capacity(num_chunks);
-    let mut start = 0;
-    for i in 0..num_chunks {
-        let chunk_size = base + if i < remainder { 1 } else { 0 };
-        let end = start + chunk_size;
-        let bed_chunk_path = temp_dir.path().join(format!("chunk_{i}.bed"));
-        let stdout_path = temp_dir.path().join(format!("chunk_{i}.vcf"));
-        let stderr_path = temp_dir.path().join(format!("chunk_{i}.err"));
+    let mut batches: Vec<BatchTask> = Vec::with_capacity(num_batches);
+    for batch_idx in 0..num_batches {
+        let chunk_start = batch_idx * batch_size;
+        let chunk_end = ((batch_idx + 1) * batch_size).min(num_chunks);
+        let bed_path = temp_dir.path().join(format!("batch_{batch_idx}.bed"));
+        let stdout_path = temp_dir.path().join(format!("batch_{batch_idx}.vcf"));
+        let stderr_path = temp_dir.path().join(format!("batch_{batch_idx}.err"));
 
-        let mut bed_file = File::create(&bed_chunk_path)
-            .map_err(|e| PyIOError::new_err(format!("failed to create chunk BED: {e}")))?;
-        for line in &bed_lines[start..end] {
-            writeln!(bed_file, "{line}")
-                .map_err(|e| PyIOError::new_err(format!("failed to write chunk BED: {e}")))?;
+        let mut bed_file = File::create(&bed_path)
+            .map_err(|e| PyIOError::new_err(format!("failed to create batch BED: {e}")))?;
+        for (line_start, line_end) in chunk_boundaries.iter().take(chunk_end).skip(chunk_start) {
+            for line in &bed_lines[*line_start..*line_end] {
+                writeln!(bed_file, "{line}")
+                    .map_err(|e| PyIOError::new_err(format!("failed to write batch BED: {e}")))?;
+            }
         }
 
-        chunks.push(ChunkTask {
-            index: i,
-            bed_path: bed_chunk_path,
+        batches.push(BatchTask {
+            index: batch_idx,
+            bed_path,
             stdout_path,
             stderr_path,
         });
-        start = end;
     }
 
     let timeout = Duration::from_secs(3600);
     let next_index = Arc::new(Mutex::new(0usize));
-    let (sender, receiver) = channel::<ChunkOutcome>();
-    let chunks_ref = &chunks;
+    let (sender, receiver) = channel::<BatchOutcome>();
+    let batches_ref = &batches;
 
     thread::scope(|scope| {
-        let num_workers = n_threads.min(chunks_ref.len());
+        let num_workers = n_threads.min(batches_ref.len());
         for _ in 0..num_workers {
-            let sender: Sender<ChunkOutcome> = sender.clone();
+            let sender: Sender<BatchOutcome> = sender.clone();
             let next_index = Arc::clone(&next_index);
             scope.spawn(move || loop {
                 let idx = {
                     let mut guard = next_index.lock().unwrap();
                     let idx = *guard;
-                    if idx >= chunks_ref.len() {
+                    if idx >= batches_ref.len() {
                         break;
                     }
                     *guard += 1;
                     idx
                 };
-                let task = &chunks_ref[idx];
-                let outcome = run_freebayes_chunk(
+                let task = &batches_ref[idx];
+                let outcome = run_freebayes_batch(
                     freebayes_path,
                     cram_path,
                     fasta_path,
@@ -288,25 +341,28 @@ pub fn call_variants_parallel(
         }
     });
 
-    let mut outcomes: HashMap<usize, ChunkOutcome> = HashMap::with_capacity(num_chunks);
-    for _ in 0..num_chunks {
+    let mut outcomes: HashMap<usize, BatchOutcome> = HashMap::with_capacity(num_batches);
+    for _ in 0..num_batches {
         let outcome = receiver
             .recv()
             .map_err(|e| FreebayesError::new_err(format!("worker channel error: {e}")))?;
         outcomes.insert(outcome.index(), outcome);
     }
 
-    let mut stdout_paths: Vec<std::path::PathBuf> = Vec::with_capacity(num_chunks);
-    for i in 0..num_chunks {
-        match outcomes.remove(&i).expect("missing chunk outcome") {
-            ChunkOutcome::Success { stdout_path, .. } => stdout_paths.push(stdout_path),
-            ChunkOutcome::Failure {
+    let mut stdout_paths: Vec<std::path::PathBuf> = Vec::with_capacity(num_batches);
+    for i in 0..num_batches {
+        let outcome = outcomes.remove(&i).ok_or_else(|| {
+            FreebayesError::new_err(format!("missing batch outcome for batch {i}"))
+        })?;
+        match outcome {
+            BatchOutcome::Success { stdout_path, .. } => stdout_paths.push(stdout_path),
+            BatchOutcome::Failure {
                 index,
                 exit_code,
                 stderr,
             } => {
                 return Err(FreebayesError::new_err(format!(
-                    "freebayes failed for chunk {index} (exit code {exit_code:?}): {stderr}"
+                    "freebayes failed for batch {index} (exit code {exit_code:?}): {stderr}"
                 )));
             }
         }
@@ -322,13 +378,4 @@ pub fn call_variants_parallel(
     }
 
     Ok(merged)
-}
-
-impl ChunkOutcome {
-    fn index(&self) -> usize {
-        match self {
-            ChunkOutcome::Success { index, .. } => *index,
-            ChunkOutcome::Failure { index, .. } => *index,
-        }
-    }
 }

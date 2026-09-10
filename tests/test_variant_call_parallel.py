@@ -123,14 +123,24 @@ def _vcf_records(path: Path):
             )
 
 
+def _vcf_body(path: Path) -> list[str]:
+    """Return all non-header VCF lines from *path*, split by newline."""
+    with path.open("r") as fh:
+        return [line.rstrip("\n") for line in fh if not line.startswith("#")]
+
+
+@pytest.mark.parametrize("batch_size", ["1", "4", "8"])
 @pytest.mark.skipif(
     not shutil.which(FREEBAYES) or not shutil.which(BCFTOOLS),
     reason="freebayes/bcftools not available",
 )
-def test_call_variants_parallel_matches_serial(tmp_path: Path) -> None:
+def test_call_variants_parallel_matches_serial(
+    tmp_path: Path,
+    batch_size: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Rust parallel dispatcher output matches a single freebayes invocation after norm+sort."""
-    import shutil
-
+    monkeypatch.setenv("METEOR_FREEBAYES_BATCH_SIZE", batch_size)
     _index_reference(REF)
 
     serial_vcf = tmp_path / "serial.vcf"
@@ -163,9 +173,72 @@ def test_call_variants_parallel_matches_serial(tmp_path: Path) -> None:
     assert len(serial_records) == len(rust_records)
     assert serial_records == rust_records
 
+    # With batch size 1 each batch is exactly one old chunk, so the merged VCF
+    # records should be byte-identical to the serial invocation apart from
+    # freebayes header metadata (fileDate, source command line).
+    if batch_size == "1":
+        assert _vcf_body(serial_vcf) == _vcf_body(rust_vcf)
+
+
+@pytest.mark.skipif(
+    not shutil.which(FREEBAYES) or not shutil.which(BCFTOOLS),
+    reason="freebayes/bcftools not available",
+)
+def test_call_variants_parallel_invalid_batch_size_env_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    """A non-integer METEOR_FREEBAYES_BATCH_SIZE falls back to the default with a warning."""
+    _index_reference(REF)
+
+    default_vcf = tmp_path / "default.vcf"
+    invalid_vcf = tmp_path / "invalid.vcf"
+
+    options = meteor_core.FreebayesOptions(
+        min_snp_depth=1,
+        min_frequency=0.1,
+        ploidy=1,
+    )
+
+    # The default batch size is 8; use an explicit value to avoid inheriting
+    # an unrelated environment setting.
+    monkeypatch.setenv("METEOR_FREEBAYES_BATCH_SIZE", "8")
+    meteor_core.call_variants_parallel(
+        str(CRAM),
+        str(REF),
+        str(BED),
+        FREEBAYES,
+        options,
+        n_threads=2,
+        output_path=str(default_vcf),
+    )
+
+    monkeypatch.setenv("METEOR_FREEBAYES_BATCH_SIZE", "abc")
+    meteor_core.call_variants_parallel(
+        str(CRAM),
+        str(REF),
+        str(BED),
+        FREEBAYES,
+        options,
+        n_threads=2,
+        output_path=str(invalid_vcf),
+    )
+
+    default_norm = tmp_path / "default.norm.vcf.gz"
+    invalid_norm = tmp_path / "invalid.norm.vcf.gz"
+    _normalize_vcf(default_vcf, REF, default_norm)
+    _normalize_vcf(invalid_vcf, REF, invalid_norm)
+
+    assert list(_vcf_records(default_norm)) == list(_vcf_records(invalid_norm))
+
+    captured = capfd.readouterr()
+    assert 'METEOR_FREEBAYES_BATCH_SIZE="abc"' in captured.err
+    assert "is not an integer" in captured.err
+
 
 def test_call_variants_parallel_reports_failure() -> None:
-    """A failing freebayes chunk is reported as a typed error without hanging."""
+    """A failing freebayes batch is reported as a typed error without hanging."""
     options = meteor_core.FreebayesOptions(
         min_snp_depth=1,
         min_frequency=0.1,
