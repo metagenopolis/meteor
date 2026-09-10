@@ -113,8 +113,8 @@ def test_depth_per_gene_missing_cram() -> None:
 
 
 @pytest.mark.skipif(
-    os.getenv("METEOR_REAL_BENCH_DATA") is None,
-    reason="METEOR_REAL_BENCH_DATA not set",
+    os.environ.get("METEOR_REAL_BENCH_DATA") != "1",
+    reason="METEOR_REAL_BENCH_DATA != 1",
 )
 def test_depth_per_gene_real_data_parity() -> None:
     """Compare single-pass depths to per-gene depths on real benchmark data.
@@ -124,11 +124,11 @@ def test_depth_per_gene_real_data_parity() -> None:
     """
     import csv
 
-    bench_dir = Path(os.environ["METEOR_REAL_BENCH_DATA"])
-    cram = bench_dir / os.environ.get("METEOR_BENCH_CRAM", "")
-    catalogue = bench_dir / os.environ.get("METEOR_BENCH_CATALOGUE", "")
-    if not cram.exists() or not catalogue.exists():
-        pytest.skip("METEOR_BENCH_CRAM or METEOR_BENCH_CATALOGUE not found")
+    cram = Path(os.environ["METEOR_BENCH_CRAM"])
+    ref = Path(os.environ["METEOR_BENCH_REF"])
+    catalogue = Path(os.environ["METEOR_BENCH_CATALOGUE"])
+    if not cram.exists() or not ref.exists() or not catalogue.exists():
+        pytest.skip("METEOR_BENCH_CRAM, METEOR_BENCH_REF, or METEOR_BENCH_CATALOGUE not found")
 
     # Read gene intervals from the catalogue BED (gene_id, start, end).
     intervals: list[tuple[str, int, int]] = []
@@ -138,7 +138,7 @@ def test_depth_per_gene_real_data_parity() -> None:
                 continue
             intervals.append((row[0], int(row[1]), int(row[2])))
 
-    results = meteor_core.depth_per_gene(str(cram), str(REF), intervals, MAX_DEPTH)
+    results = meteor_core.depth_per_gene(str(cram), str(ref), intervals, MAX_DEPTH)
 
     diff_dir = (
         Path(__file__).resolve().parent.parent
@@ -154,7 +154,7 @@ def test_depth_per_gene_real_data_parity() -> None:
         gene_name = gene_depth.gene
         start, end = next((s, e) for g, s, e in intervals if g == gene_name)
         expected = meteor_core.count_reads_in_gene(
-            str(cram), str(REF), gene_name, end - start, MAX_DEPTH
+            str(cram), str(ref), gene_name, end - start, MAX_DEPTH
         )
         expected_array = [expected.get(pos, 0) for pos in range(start, end)]
         observed_array = list(gene_depth.depths)
