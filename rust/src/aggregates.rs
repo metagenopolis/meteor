@@ -1,11 +1,12 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use pyo3::exceptions::{PyIOError, PyValueError};
 use pyo3::prelude::*;
 use rust_htslib::bam::{Read, Reader, Record};
+use xz2::write::XzEncoder;
 
 use crate::{aligned_nucleotides, bytes_to_string, extract_nm};
 
@@ -344,4 +345,51 @@ pub fn count_msp_aggregates(
         });
     }
     Ok(rows)
+}
+
+/// Count reads per MSP/gene and write the complete count TSV directly from Rust.
+///
+/// This avoids serialising per-gene read-name strings across the Rust/Python
+/// boundary: only the output file path crosses, and the whole TSV is produced
+/// inside Rust. The compressed output is byte-identical to
+/// ``Counter.write_stat`` (xz preset 0, same header and sorted rows).
+#[pyfunction]
+pub fn count_msp_write_tsv(
+    cram_path: &str,
+    msp_map_path: &str,
+    out_tsv_path: &str,
+    identity_threshold: f64,
+    counting_type: &str,
+) -> PyResult<(usize, usize)> {
+    let counting_type = CountingType::from_str(counting_type)?;
+    let mut reader = open_cram_with_msp_map(cram_path, msp_map_path)?;
+    let core = count_msp_core(&mut reader, identity_threshold, counting_type)?;
+
+    let file = File::create(out_tsv_path).map_err(|e| {
+        PyIOError::new_err(format!("failed to create output TSV {out_tsv_path}: {e}"))
+    })?;
+    let writer = BufWriter::new(file);
+    let mut encoder = XzEncoder::new(writer, 0);
+
+    encoder
+        .write_all(b"gene_id\tgene_length\tvalue\n")
+        .map_err(|e| PyIOError::new_err(format!("failed to write TSV header: {e}")))?;
+
+    for (&gene_id, &gene_length) in &core.database {
+        let count = core.abundance.get(&gene_id).copied().unwrap_or(0.0);
+        let value = if count.fract() == 0.0 {
+            (count as i64).to_string()
+        } else {
+            count.to_string()
+        };
+        writeln!(encoder, "{gene_id}\t{gene_length}\t{value}").map_err(|e| {
+            PyIOError::new_err(format!("failed to write TSV row for gene {gene_id}: {e}"))
+        })?;
+    }
+
+    encoder
+        .finish()
+        .map_err(|e| PyIOError::new_err(format!("failed to finish TSV compression: {e}")))?;
+
+    Ok((core.database.len(), core.counted_reads))
 }

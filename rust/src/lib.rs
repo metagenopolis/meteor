@@ -424,6 +424,7 @@ fn meteor_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(cram::stream_cram_records, m)?)?;
     m.add_function(wrap_pyfunction!(count_msp, m)?)?;
     m.add_function(wrap_pyfunction!(aggregates::count_msp_aggregates, m)?)?;
+    m.add_function(wrap_pyfunction!(aggregates::count_msp_write_tsv, m)?)?;
     m.add_function(wrap_pyfunction!(load_fasta, m)?)?;
     m.add_function(wrap_pyfunction!(bed_chunks, m)?)?;
     m.add_function(wrap_pyfunction!(count_reads_in_gene, m)?)?;

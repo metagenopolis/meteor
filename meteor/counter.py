@@ -94,7 +94,9 @@ class Counter(Session):
         assert element.cigartuples is not None
         yield from (item[1] for item in element.cigartuples if item[0] < 3)
 
-    def set_counter_config(self, total_read_count: int, counted_reads: float, count_file: Path) -> dict:
+    def set_counter_config(
+        self, total_read_count: int, counted_reads: float, count_file: Path
+    ) -> dict:
         """Save in the json essential info
         :param total_read_count: (int) Number of reads mapped on the catalogue
         :param counted_read: (float) Number of reads counted after filtering
@@ -191,9 +193,7 @@ class Counter(Session):
             genes [DICT] = the dictionary without unique reads
             unique [DICT] = nb of unique read of each reference genes
         """
-        unique_reads: defaultdict[
-            str, list[AlignedSegment]
-        ] = defaultdict(list)
+        unique_reads: defaultdict[str, list[AlignedSegment]] = defaultdict(list)
         unique_reads_list = []
         unique_on_gene: dict[int, int] = dict.fromkeys(database, 0)
         for read_id in genes:
@@ -231,9 +231,7 @@ class Counter(Session):
         for read_id, genes in genes_mult.items():
             # for a multiple read, gets nb of unique reads from each gene
             # total number of unique reads
-            som = sum(
-                unique_on_gene[gene] for gene in genes
-            )  # Sum the values directly
+            som = sum(unique_on_gene[gene] for gene in genes)  # Sum the values directly
             # som = reduce(lambda x, y: x + y, s)
             # No unique counts on these genes
             # If no unique counts:
@@ -247,11 +245,7 @@ class Counter(Session):
                 continue
             # We get the unique set of duplicated genes
             # These genes are mapped several time
-            duplicated_genes = {
-                gene
-                for gene in genes
-                if genes.count(gene) > 1
-            }
+            duplicated_genes = {gene for gene in genes if genes.count(gene) > 1}
             # otherwise
             for gene in genes:
                 # get the nb of unique reads
@@ -437,7 +431,9 @@ class Counter(Session):
         database = {gc.gene_id: gc.gene_length for gc in result.gene_counts}
         self.write_stat(count_file, abundance, database)
         total_read_count = stage1_json_data["mapping"]["total_read_count"]
-        config = self.set_counter_config(total_read_count, result.counted_reads, count_file)
+        config = self.set_counter_config(
+            total_read_count, result.counted_reads, count_file
+        )
         stage1_json_data.update(config)
         self.save_config(stage1_json_data, stage1_json)
 
@@ -471,13 +467,41 @@ class Counter(Session):
             reference_filename=str(reference.resolve()),
         ) as cramdesc:
             database = {
-                int(ref): length for ref, length in zip(cramdesc.references, cramdesc.lengths)
+                int(ref): length
+                for ref, length in zip(cramdesc.references, cramdesc.lengths)
             }
         self.write_stat(count_file, abundance, database)
         total_read_count = stage1_json_data["mapping"]["total_read_count"]
         config = self.set_counter_config(total_read_count, counted_reads, count_file)
         stage1_json_data.update(config)
         self.save_config(stage1_json_data, stage1_json)
+
+    def _launch_counting_rust_write_tsv(
+        self,
+        raw_cramfile: Path,
+        count_file: Path,
+        reference: Path,
+        msp_map: Path,
+        stage1_json_data: dict,
+        stage1_json: Path,
+    ) -> None:
+        """Run the counting hot path through the Rust TSV writer."""
+        row_count, counted_reads = meteor_core.count_msp_write_tsv(
+            str(raw_cramfile.resolve()),
+            str(msp_map.resolve()),
+            str(count_file.resolve()),
+            self.identity_threshold,
+            self.counting_type,
+        )
+        total_read_count = stage1_json_data["mapping"]["total_read_count"]
+        config = self.set_counter_config(total_read_count, counted_reads, count_file)
+        stage1_json_data.update(config)
+        self.save_config(stage1_json_data, stage1_json)
+        logging.info(
+            "Rust TSV counter wrote %d gene rows (counted_reads=%d).",
+            row_count,
+            counted_reads,
+        )
 
     def _launch_counting_rust(
         self,
@@ -498,6 +522,22 @@ class Counter(Session):
             / ref_json["reference_file"]["database_dir"]
             / ref_json["annotation"]["msp"]["filename"]
         )
+        if hasattr(meteor_core, "count_msp_write_tsv"):
+            try:
+                self._launch_counting_rust_write_tsv(
+                    raw_cramfile,
+                    count_file,
+                    reference,
+                    msp_map,
+                    stage1_json_data,
+                    stage1_json,
+                )
+                return
+            except Exception as exc:  # noqa: BLE001
+                logging.warning(
+                    "Rust TSV counter failed (%s); falling back to aggregates path.",
+                    exc,
+                )
         if hasattr(meteor_core, "count_msp_aggregates"):
             try:
                 self._launch_counting_rust_aggregates(
@@ -511,13 +551,20 @@ class Counter(Session):
                 return
             except Exception as exc:  # noqa: BLE001
                 logging.warning(
-                    "Rust aggregates counter failed (%s); falling back to count_msp.", exc
+                    "Rust aggregates counter failed (%s); falling back to count_msp.",
+                    exc,
                 )
         if hasattr(meteor_core, "count_msp"):
-            self._launch_counting_rust_legacy(
-                raw_cramfile, count_file, reference, stage1_json_data, stage1_json
-            )
-            return
+            try:
+                self._launch_counting_rust_legacy(
+                    raw_cramfile, count_file, reference, stage1_json_data, stage1_json
+                )
+                return
+            except Exception as exc:  # noqa: BLE001
+                logging.warning(
+                    "Rust legacy counter failed (%s); no Rust counter available.",
+                    exc,
+                )
         raise RuntimeError("meteor_core does not provide a counting function")
 
     def launch_counting(
@@ -554,7 +601,11 @@ class Counter(Session):
             else:
                 try:
                     self._launch_counting_rust(
-                        raw_cramfile, count_file, ref_json, stage1_json_data, stage1_json
+                        raw_cramfile,
+                        count_file,
+                        ref_json,
+                        stage1_json_data,
+                        stage1_json,
                     )
                     logging.info("Used Rust counter implementation")
                     return
@@ -589,10 +640,10 @@ class Counter(Session):
                 multiple = self.compute_abm(read_dict, coef_read, database)
                 # Calculate reference abundance & write count table
                 abundance = self.compute_abs(database, unique_on_gene, multiple)
-            else: # self.counting_type == "unique"
+            else:  # self.counting_type == "unique"
                 reads = unique_reads
                 abundance = unique_on_gene
-        else: # self.counting_type == "total"
+        else:  # self.counting_type == "total"
             abundance = self.compute_abs_total(database, genes)
         self.write_stat(count_file, abundance, database)
         counted_reads = len(reads)
@@ -638,11 +689,9 @@ class Counter(Session):
         elif ref_json["reference_info"]["database_type"] == "complete":
             self.identity_threshold = self.DEFAULT_IDENTITY_THRESHOLD_COMPLETE
         else:
-             self.identity_threshold = self.DEFAULT_IDENTITY_THRESHOLD_TAXO
+            self.identity_threshold = self.DEFAULT_IDENTITY_THRESHOLD_TAXO
 
-        census_json_files = list(
-            self.meteor.fastq_dir.glob("*_census_stage_0.json")
-        )
+        census_json_files = list(self.meteor.fastq_dir.glob("*_census_stage_0.json"))
         if len(census_json_files) == 0:
             logging.error(
                 "No *_census_stage_0.json file found in %s",
@@ -681,17 +730,9 @@ class Counter(Session):
             self.launch_mapping()
         # running counter
         stage1_json_data = self.read_json(stage1_json)
-        raw_cram_file = (stage1_dir /
-            stage1_json_data["mapping"]["mapping_file"]
-        )
-        cram_file = (
-            stage1_dir
-            / f"{sample_name}.cram"
-        )
-        count_file = (
-            stage1_dir
-            / f"{sample_name}.tsv.xz"
-        )
+        raw_cram_file = stage1_dir / stage1_json_data["mapping"]["mapping_file"]
+        cram_file = stage1_dir / f"{sample_name}.cram"
+        count_file = stage1_dir / f"{sample_name}.tsv.xz"
         start = perf_counter()
         self.launch_counting(
             raw_cram_file,
