@@ -10,6 +10,33 @@ use xz2::write::XzEncoder;
 
 use crate::{aligned_nucleotides, bytes_to_string, extract_nm};
 
+/// Format an `f64` the way CPython formats `str(float)`.
+///
+/// This matters because the Rust test suite compares Python- and Rust-generated
+/// TSV files byte-for-byte. Python always emits a fractional part for integral
+/// floats (`5.0`) and uses a signed two-digit exponent in scientific notation.
+fn format_python_float(value: f64) -> String {
+    if value.is_nan() {
+        return "nan".to_string();
+    }
+    if value.is_infinite() {
+        return if value.is_sign_negative() {
+            "-inf".to_string()
+        } else {
+            "inf".to_string()
+        };
+    }
+    let mut buffer = ryu::Buffer::new();
+    let s = buffer.format(value);
+    if let Some(pos) = s.find('e') {
+        let mantissa = &s[..pos];
+        let exponent: i32 = s[pos + 1..].parse().unwrap();
+        format!("{}e{:+03}", mantissa, exponent)
+    } else {
+        s.to_string()
+    }
+}
+
 /// One per-gene aggregate returned by ``count_msp_aggregates``.
 ///
 /// ``reads`` is a pre-joined newline-delimited string of the read ids that
@@ -52,6 +79,10 @@ impl CountingType {
 pub struct CountCoreResult {
     pub database: BTreeMap<i32, i32>,
     pub abundance: BTreeMap<i32, f64>,
+    /// The portion of ``abundance`` that came from multiple-read weighting.
+    /// Empty for ``unique``/``total``. Used by the TSV writer to reproduce
+    /// CPython's int-vs-float formatting for whole-number abundances.
+    pub multiple_abundance: BTreeMap<i32, f64>,
     pub gene_reads: BTreeMap<i32, Vec<String>>,
     pub counted_reads: usize,
 }
@@ -131,34 +162,51 @@ pub fn count_msp_core(
     reader: &mut Reader,
     identity_threshold: f64,
     counting_type: CountingType,
+    collect_read_names: bool,
 ) -> PyResult<CountCoreResult> {
-    let header = reader.header().clone();
+    // Build the gene-id -> length map while the immutable header borrow is active,
+    // then clone the target names into an owned Vec so the read loop can mutate
+    // the reader without repeatedly calling HeaderView::target_names() (that
+    // method allocates a fresh Vec on every call, which would make the loop
+    // quadratic in the number of reference sequences).
+    let target_count: u32;
+    let target_names: Vec<String>;
     let mut database: BTreeMap<i32, i32> = BTreeMap::new();
-    for tid in 0..header.target_count() {
-        let name = bytes_to_string(header.target_names()[tid as usize]);
-        if let Ok(gene_id) = name.parse::<i32>() {
-            let length = header.target_len(tid).unwrap_or(0) as i32;
-            database.insert(gene_id, length);
+    {
+        let header = reader.header();
+        target_count = header.target_count();
+        target_names = header
+            .target_names()
+            .into_iter()
+            .map(bytes_to_string)
+            .collect();
+        for tid in 0..target_count {
+            let name = &target_names[tid as usize];
+            if let Ok(gene_id) = name.parse::<i32>() {
+                let length = header.target_len(tid).unwrap_or(0) as i32;
+                database.insert(gene_id, length);
+            }
         }
     }
 
     let mut record = Record::new();
-    let mut reads: HashMap<String, (f64, Vec<i32>)> = HashMap::new();
+    // Preserve CRAM insertion order so that downstream float operations are
+    // applied in the same order as Python's genes_mult.items() iterator.
+    let mut reads: Vec<(String, f64, Vec<i32>)> = Vec::new();
+    let mut read_index: HashMap<String, usize> = HashMap::new();
     let mut gene_reads: HashMap<i32, Vec<String>> = HashMap::new();
 
     while let Some(result) = reader.read(&mut record) {
         result.map_err(|e| PyIOError::new_err(format!("CRAM read error: {e}")))?;
 
         let query_name = bytes_to_string(record.qname());
-        let reference_name = if record.tid() >= 0 && (record.tid() as u32) < header.target_count() {
-            bytes_to_string(header.target_names()[record.tid() as usize])
+        let gene_id = if record.tid() >= 0 && (record.tid() as u32) < target_count {
+            match target_names[record.tid() as usize].parse::<i32>() {
+                Ok(id) => id,
+                Err(_) => continue,
+            }
         } else {
             continue;
-        };
-
-        let gene_id = match reference_name.parse::<i32>() {
-            Ok(id) => id,
-            Err(_) => continue,
         };
 
         let nm = extract_nm(&record).unwrap_or(0) as f64;
@@ -172,8 +220,9 @@ pub fn count_msp_core(
         }
 
         let score = identity;
-        match reads.get_mut(&query_name) {
-            Some((prev_score, genes)) => {
+        match read_index.get(&query_name) {
+            Some(&idx) => {
+                let (_, prev_score, genes) = &mut reads[idx];
                 if (score - *prev_score).abs() < f64::EPSILON {
                     genes.push(gene_id);
                 } else if score > *prev_score {
@@ -182,36 +231,46 @@ pub fn count_msp_core(
                 }
             }
             None => {
-                reads.insert(query_name.clone(), (score, vec![gene_id]));
+                read_index.insert(query_name.clone(), reads.len());
+                reads.push((query_name.clone(), score, vec![gene_id]));
             }
         }
-        gene_reads.entry(gene_id).or_default().push(query_name);
+        if collect_read_names {
+            gene_reads.entry(gene_id).or_default().push(query_name);
+        }
     }
 
     let counted_reads = reads.len();
 
-    let mut gene_reads: BTreeMap<i32, Vec<String>> = gene_reads
-        .into_iter()
-        .map(|(gene, mut names)| {
-            names.sort_unstable();
-            names.dedup();
-            (gene, names)
-        })
-        .collect();
+    let mut gene_reads: BTreeMap<i32, Vec<String>> = if collect_read_names {
+        gene_reads
+            .into_iter()
+            .map(|(gene, mut names)| {
+                names.sort_unstable();
+                names.dedup();
+                (gene, names)
+            })
+            .collect()
+    } else {
+        BTreeMap::new()
+    };
 
     if counting_type == CountingType::Total {
         let mut abundance: BTreeMap<i32, f64> = database.keys().map(|&g| (g, 0.0)).collect();
-        for genes in reads.values() {
-            for gene in &genes.1 {
+        for (_, _, genes) in &reads {
+            for gene in genes {
                 *abundance.entry(*gene).or_insert(0.0) += 1.0;
             }
         }
-        for &gene in database.keys() {
-            gene_reads.entry(gene).or_default();
+        if collect_read_names {
+            for &gene in database.keys() {
+                gene_reads.entry(gene).or_default();
+            }
         }
         return Ok(CountCoreResult {
             database,
             abundance,
+            multiple_abundance: BTreeMap::new(),
             gene_reads,
             counted_reads,
         });
@@ -220,7 +279,7 @@ pub fn count_msp_core(
     let mut unique_on_gene: BTreeMap<i32, f64> = database.keys().map(|&g| (g, 0.0)).collect();
     let mut multiple_reads: Vec<(String, Vec<i32>)> = Vec::new();
 
-    for (read_id, (_, genes)) in reads {
+    for (read_id, _, genes) in reads {
         if genes.len() == 1 {
             *unique_on_gene.entry(genes[0]).or_insert(0.0) += 1.0;
         } else {
@@ -229,12 +288,15 @@ pub fn count_msp_core(
     }
 
     if counting_type == CountingType::Unique {
-        for &gene in database.keys() {
-            gene_reads.entry(gene).or_default();
+        if collect_read_names {
+            for &gene in database.keys() {
+                gene_reads.entry(gene).or_default();
+            }
         }
         return Ok(CountCoreResult {
             database,
             abundance: unique_on_gene,
+            multiple_abundance: BTreeMap::new(),
             gene_reads,
             counted_reads,
         });
@@ -286,6 +348,7 @@ pub fn count_msp_core(
     }
 
     let mut abundance = unique_on_gene.clone();
+    let mut multiple_abundance: BTreeMap<i32, f64> = BTreeMap::new();
     for (gene, read_list) in read_dict {
         let multiple: f64 = read_list
             .iter()
@@ -296,16 +359,22 @@ pub fn count_msp_core(
                     .unwrap_or(0.0)
             })
             .sum();
+        if multiple != 0.0 {
+            multiple_abundance.insert(gene, multiple);
+        }
         *abundance.entry(gene).or_insert(0.0) += multiple;
     }
 
-    for &gene in database.keys() {
-        gene_reads.entry(gene).or_default();
+    if collect_read_names {
+        for &gene in database.keys() {
+            gene_reads.entry(gene).or_default();
+        }
     }
 
     Ok(CountCoreResult {
         database,
         abundance,
+        multiple_abundance,
         gene_reads,
         counted_reads,
     })
@@ -325,7 +394,7 @@ pub fn count_msp_aggregates(
 ) -> PyResult<Vec<AggregateRow>> {
     let counting_type = CountingType::from_str(counting_type)?;
     let mut reader = open_cram_with_msp_map(cram_path, msp_map_path)?;
-    let core = count_msp_core(&mut reader, identity_threshold, counting_type)?;
+    let core = count_msp_core(&mut reader, identity_threshold, counting_type, true)?;
     let msp_map = load_msp_map(msp_map_path)?;
 
     let mut rows: Vec<AggregateRow> = Vec::with_capacity(core.database.len());
@@ -363,7 +432,7 @@ pub fn count_msp_write_tsv(
 ) -> PyResult<(usize, usize)> {
     let counting_type = CountingType::from_str(counting_type)?;
     let mut reader = open_cram_with_msp_map(cram_path, msp_map_path)?;
-    let core = count_msp_core(&mut reader, identity_threshold, counting_type)?;
+    let core = count_msp_core(&mut reader, identity_threshold, counting_type, false)?;
 
     let file = File::create(out_tsv_path).map_err(|e| {
         PyIOError::new_err(format!("failed to create output TSV {out_tsv_path}: {e}"))
@@ -377,7 +446,21 @@ pub fn count_msp_write_tsv(
 
     for (&gene_id, &gene_length) in &core.database {
         let count = core.abundance.get(&gene_id).copied().unwrap_or(0.0);
-        let value = if count.fract() == 0.0 {
+        // Match CPython's formatting quirks:
+        // - ``smart_shared`` abundances are floats when any multiple-read weight
+        //   contributed to this gene, otherwise they are ints.
+        // - ``unique``/``total`` abundances are always ints.
+        let value = if counting_type == CountingType::SmartShared
+            && (core
+                .multiple_abundance
+                .get(&gene_id)
+                .copied()
+                .unwrap_or(0.0)
+                != 0.0
+                || count.fract() != 0.0)
+        {
+            format_python_float(count)
+        } else if count.fract() == 0.0 {
             (count as i64).to_string()
         } else {
             count.to_string()

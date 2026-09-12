@@ -75,7 +75,7 @@ fn count_msp(
 ) -> PyResult<MspCountResult> {
     let counting_type = aggregates::CountingType::from_str(counting_type)?;
     let mut reader = pileup::open_cram(cram_path, Some(ref_path))?;
-    let core = aggregates::count_msp_core(&mut reader, identity_threshold, counting_type)?;
+    let core = aggregates::count_msp_core(&mut reader, identity_threshold, counting_type, false)?;
     let gene_counts: Vec<GeneCount> = core
         .database
         .iter()
