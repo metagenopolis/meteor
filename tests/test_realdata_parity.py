@@ -121,9 +121,7 @@ def _reference_fasta(ref_dir: Path, tmp_path: Path) -> Path:
     with src.open("rb") as fh:
         magic = fh.read(2)
     is_compressed = (
-        src.suffix == ".gz"
-        or str(src).endswith(".fasta.gz")
-        or magic == b"\x1f\x8b"
+        src.suffix == ".gz" or str(src).endswith(".fasta.gz") or magic == b"\x1f\x8b"
     )
     if is_compressed:
         with gzip.open(src, "rb") as reader:
@@ -513,7 +511,9 @@ def test_depth_array_equality(tmp_path: Path) -> None:
     gene_limit = int(os.environ.get("METEOR_PARITY_DEPTH_GENES", "100"))
     intervals = _read_bed_intervals(paths["METEOR_BENCH_CATALOGUE"], limit=gene_limit)
 
-    zero_based_intervals = [(gene_id, 0, end - start) for gene_id, start, end in intervals]
+    zero_based_intervals = [
+        (gene_id, 0, end - start) for gene_id, start, end in intervals
+    ]
     rust_results = meteor_core.depth_per_gene(
         str(cram), str(ref_fa), zero_based_intervals, max_depth
     )

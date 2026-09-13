@@ -171,9 +171,9 @@ The dispatcher `Counter._launch_counting_rust` walks a capability chain, so an
 extension build that predates one of the new functions still works:
 
 1. `count_msp_write_tsv` when present,
-2. `count_msp_aggregates` when present,
-3. `count_msp` (phase-1 API),
-4. otherwise a `RuntimeError`, which the caller turns into the usual warning
+1. `count_msp_aggregates` when present,
+1. `count_msp` (phase-1 API),
+1. otherwise a `RuntimeError`, which the caller turns into the usual warning
    and Python fallback.
 
 Each step checks for the function with `hasattr` and catches any exception:
@@ -208,8 +208,8 @@ order.
 
 1. one `meteor_core.depth_per_gene` call for all genes whose total coverage
    reaches `min_depth`,
-2. per-gene `meteor_core.count_reads_in_gene` (phase-1 API) if that fails,
-3. the Python `pysam` pileup path.
+1. per-gene `meteor_core.count_reads_in_gene` (phase-1 API) if that fails,
+1. the Python `pysam` pileup path.
 
 ### Batched freebayes execution
 

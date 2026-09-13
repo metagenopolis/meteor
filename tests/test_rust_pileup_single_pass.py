@@ -128,7 +128,9 @@ def test_depth_per_gene_real_data_parity() -> None:
     ref = Path(os.environ["METEOR_BENCH_REF"])
     catalogue = Path(os.environ["METEOR_BENCH_CATALOGUE"])
     if not cram.exists() or not ref.exists() or not catalogue.exists():
-        pytest.skip("METEOR_BENCH_CRAM, METEOR_BENCH_REF, or METEOR_BENCH_CATALOGUE not found")
+        pytest.skip(
+            "METEOR_BENCH_CRAM, METEOR_BENCH_REF, or METEOR_BENCH_CATALOGUE not found"
+        )
 
     # Read gene intervals from the catalogue BED (gene_id, start, end).
     intervals: list[tuple[str, int, int]] = []
