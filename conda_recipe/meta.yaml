@@ -29,7 +29,7 @@ requirements:
     run:
         - python 3.12.*
         - bowtie2 >=2.3.5
-        - pysam
+        - pysam >=0.24.1
         - pyarrow
         - pandas
         - ete4
