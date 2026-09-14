@@ -1,14 +1,4 @@
 #!/usr/bin/env nextflow
-workflow.onComplete = {
-    // any workflow property can be used here
-    println "Pipeline complete"
-    println "Command line: $workflow.commandLine"
-}
-
-
-workflow.onError = {
-    println "Oops .. something went wrong"
-}
 
 params.help=false
 params.in = ""
@@ -31,26 +21,6 @@ def usage() {
     println("--fast Enable fast mode for meteor (no functional analysis) (default: ${params.fast}).")
     println("--check_catalogue Check md5sum of the catalogue is compatible with the input reads (default: ${params.check_catalogue}).")
 }
-
-// Convert string to list for validation
-def allowed_catalogues = params.allowed_catalogues.split(',')
-
-if(params.help){
-    usage()
-    exit(1)
-}
-
-// Validate catalogue_name parameter
-if (params.catalogue_name && !allowed_catalogues.contains(params.catalogue_name)) {
-    println "ERROR: Invalid catalogue name '${params.catalogue_name}'"
-    println "Allowed catalogues are:"
-    allowed_catalogues.each { println "  - ${it}" }
-    exit 1
-}
-
-
-myDir = file(params.out)
-myDir.mkdirs()
 
 process meteor_download {
     tag { params.catalogue_name }
@@ -77,6 +47,7 @@ process meteor_fastq {
     output:
     tuple val(reads_id), path("fastq/*"), val(count)
 
+    script:
     """
     meteor fastq -i ./ -p -o fastq
     """
@@ -106,6 +77,7 @@ process meteor_mapping {
     output:
     tuple val(reads_id), path("mapping/*"), emit: mapping
 
+    script:
     """
     meteor mapping -i ${fastq} -r ${catalogue} -t ${params.cpus} -o mapping --kf
     """
@@ -123,6 +95,7 @@ process meteor_profile {
     output:
     tuple val(reads_id), path("profile/*"), emit: profile
 
+    script:
     """
     meteor profile -i ${mapping} -r ${catalogue} -o profile
     """
@@ -136,7 +109,7 @@ process meteor_merge {
         return "${memoryGB}G"
     }
     conda "meteor=2.0.22"
-    publishDir "$myDir", mode: 'copy'
+    publishDir params.out, mode: 'copy'
 
     input:
     path(profile)
@@ -145,6 +118,7 @@ process meteor_merge {
     output:
     path("merged")
 
+    script:
     """
     meteor merge -i ./ -r ${catalogue} -o merged -s
     """
@@ -166,6 +140,7 @@ process meteor_strain {
     output:
     path("strain/*"), emit: strains, optional: true
 
+    script:
     """
     meteor strain -i ${mapping} -r ${catalogue} -o strain
     """
@@ -174,7 +149,7 @@ process meteor_strain {
 process meteor_tree {
     cpus params.cpus
     conda "meteor=2.0.22"
-    publishDir "$myDir", mode: 'copy'
+    publishDir params.out, mode: 'copy'
 
     input:
     path(strain)
@@ -182,35 +157,64 @@ process meteor_tree {
     output:
     path("tree")
 
+    script:
     """
     meteor tree -i  ./ -r  -o tree -t ${params.cpus}
     """
 }
 
+
 workflow {
-    if (params.catalogue_name) {
-        catalogue_ch = meteor_download().catalogue
-    } else if (params.catalogue != "") {
-        catalogue_ch = Channel.value(file(params.catalogue))
-    } else {
-        exit 1, "ERROR: Either --catalogue_name or --catalogue must be provided"
+
+    // Parameter validation and setup
+    def allowed_catalogues = params.allowed_catalogues.split(',')
+
+    if(params.help){
+        usage()
+        exit(1)
     }
 
-    readChannel = Channel.fromFilePairs("${params.in}/*_R{1,2}*.{fastq,fastq.gz,fq,fq.gz}", flat: true)
-                    .ifEmpty { exit 1, "Cannot find any reads matching: ${params.in}"}
-                    .map { sample_id, file1, file2 ->
-                        def count = file1.countFastq() / 500000
-                        [sample_id, file1, file2, count.round(2)]
-                    }
-    meteor_fastq(readChannel)
-    meteor_mapping(meteor_fastq.out, catalogue_ch)
-    meteor_profile(meteor_mapping.out.mapping, catalogue_ch)
-    profiles = meteor_profile.out.profile.map { id, profpath -> profpath}
-    collected_prof = profiles.collect()
-    meteor_merge(collected_prof, catalogue_ch)
-    meteor_strain(meteor_mapping.out.mapping, catalogue_ch)
-    strains = meteor_strain.out.strains.collect(flat: false)
-    meteor_tree(strains)
-}
+    // Validate catalogue_name parameter
+    if (params.catalogue_name && !allowed_catalogues.contains(params.catalogue_name)) {
+        println "ERROR: Invalid catalogue name '${params.catalogue_name}'"
+        println "Allowed catalogues are:"
+        allowed_catalogues.each { catalogue -> println "  - ${catalogue}" }
+        exit 1
+    }
 
+    file(params.out).mkdirs()
+
+        if (params.catalogue_name) {
+            catalogue_ch = meteor_download().catalogue
+        } else if (params.catalogue != "") {
+            catalogue_ch = channel.value(file(params.catalogue))
+        } else {
+            exit 1, "ERROR: Either --catalogue_name or --catalogue must be provided"
+        }
     
+        readChannel = channel.fromFilePairs("${params.in}/*_R{1,2}*.{fastq,fastq.gz,fq,fq.gz}", flat: true)
+                        .ifEmpty { exit 1, "Cannot find any reads matching: ${params.in}"}
+                        .map { sample_id, file1, file2 ->
+                            def count = file1.countFastq() / 500000
+                            [sample_id, file1, file2, count.round(2)]
+                        }
+        meteor_fastq(readChannel)
+        meteor_mapping(meteor_fastq.out, catalogue_ch)
+        meteor_profile(meteor_mapping.out.mapping, catalogue_ch)
+        profiles = meteor_profile.out.profile.map { _id, profpath -> profpath }
+        collected_prof = profiles.collect()
+        meteor_merge(collected_prof, catalogue_ch)
+        meteor_strain(meteor_mapping.out.mapping, catalogue_ch)
+        strains = meteor_strain.out.strains.collect(flat: false)
+        meteor_tree(strains)
+
+    workflow.onComplete = {
+        // any workflow property can be used here
+        println "Pipeline complete"
+        println "Command line: $workflow.commandLine"
+    }
+
+    workflow.onError = {
+        println "Oops .. something went wrong"
+    }
+}
