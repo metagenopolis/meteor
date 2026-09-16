@@ -18,8 +18,15 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import NoReturn
+
+
+def _sample_name_from_cram(cram: Path) -> str:
+    """Derive the sample name from the CRAM filename."""
+    return cram.stem
 
 import pysam
 import typer
@@ -186,11 +193,13 @@ def _run_real_data_mode(
     catalogue: Path | None,
     runs: int,
 ) -> None:
-    """Validate real-data env vars and leave an evidence marker.
+    """Validate real-data env vars and run the fast counter benchmark.
 
-    The actual end-to-end real-data benchmark run is implemented in later todos
-    (Todo 9). Todo 1 only wires the CLI mode selectors, env-var contract and
-    validation so that missing configuration exits non-zero with a clear message.
+    The heavy lifting for real-data benchmarking lives in
+    benchmarks/bench_phase2.py, which is designed to be driven from Slurm jobs
+    for variant-calling and consensus+depth. This entry point runs the fast
+    interleaved counter benchmark locally and points the user at the Slurm
+    scripts for the slower components.
     """
     values = _validate_real_data_env(cram, ref, msp_map, catalogue)
     REAL_DATA_EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
@@ -199,10 +208,34 @@ def _run_real_data_mode(
         f"Real-data mode selected with: {values}\nRuns requested: {runs}\n",
         encoding="utf-8",
     )
-    _fatal(
-        "Real-data benchmark mode is selected and env vars are valid, but the "
-        "actual real-data benchmark execution is not implemented yet (Todo 9). "
-        f"Validation marker written to {marker}"
+
+    sample_name = _sample_name_from_cram(Path(values["cram"]))
+    mapping_dir = Path(values["cram"]).parent
+    out_dir = REAL_DATA_EVIDENCE_DIR / "per_run"
+
+    typer.echo("Running interleaved real-data counter benchmark ...")
+    subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "benchmarks" / "bench_phase2.py"),
+            "interleaved",
+            str(mapping_dir),
+            str(values["ref"]),
+            sample_name,
+            "--out-dir",
+            str(out_dir),
+            "--component",
+            "counter",
+            "--runs",
+            str(runs),
+        ],
+        check=True,
+    )
+
+    typer.echo(
+        "Counter benchmark complete. For variant-calling and consensus+depth "
+        "benchmarks, submit the Slurm scripts generated in "
+        f"{REAL_DATA_EVIDENCE_DIR / 'slurm'}."
     )
 
 
