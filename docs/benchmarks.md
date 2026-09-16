@@ -156,6 +156,11 @@ improvement on the smaller sample, and 16 % wall-time and 45 % CPU-time
 improvement on the larger sample. MaxRSS is similar because both implementations
 ran inside the same interleaved Slurm job.
 
+These rows are for `counting_type=total` only. The `smart_shared` counter mode
+was verified byte-identical on real data (parity job 12623474) but was not
+included in the >=5 interleaved benchmark runs, so no speed verdict exists for
+it.
+
 ### Variant calling (full catalogue)
 
 | Sample | Implementation | Median wall (s) | Median CPU (s) | Max RSS | Runs | Verdict |
