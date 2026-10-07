@@ -32,15 +32,23 @@ from shutil import rmtree
 class StreamingCounter:
     """Identity filtering + counting fed one alignment at a time.
 
-    Same result as Counter.filter_alignments / uniq_from_mult / compute_co /
-    compute_abm / compute_abs / compute_abs_total, without keeping the
-    AlignedSegment of every read: per read name only the best identity, the
-    reference ids reaching it and (for the filtered CRAM) the best alignments on
-    marker genes are kept. Alignments sharing a name are merged whatever their
-    position in the stream, e.g. R1 and R2 of a pair mapped as single-end reads
-    (same name), as in filter_alignments. Multi-mapped reads are then
-    aggregated by gene list, so smart_shared coefficients are computed once per
-    distinct list.
+    Same counting rules as Counter.filter_alignments / uniq_from_mult /
+    compute_co / compute_abm / compute_abs / compute_abs_total, without keeping
+    the AlignedSegment of every read.
+
+    Every read is counted on its own (single-end counting). bowtie2 writes the
+    alignments of a read contiguously and the first one is primary (the -k
+    extra ones are flagged secondary), so a read starts at each primary
+    alignment or at each change of name. The read name is never used as a key:
+    R1 and R2 of a pair mapped as single-end reads share their name (bowtie2
+    drops the Illumina comment "1:N:0:..." / "2:N:0:...") but are two reads.
+    A read is counted as soon as its last alignment is seen; multi-mapped reads
+    are aggregated by gene list, so smart_shared coefficients are computed once
+    per distinct list.
+
+    A coordinate-sorted input (raw CRAM sorted by an older pipeline) no longer
+    keeps the alignments of a read together: alignments are then grouped by
+    name, as in older meteor versions, and reads sharing a name are merged.
     """
 
     def __init__(
@@ -60,6 +68,7 @@ class StreamingCounter:
         # bytearray indexed by reference id: 1 when the gene is a marker gene
         self.strain_tid = bytearray(len(references))
         self.strain_out: AlignmentFile | None = None
+        self.strain_new_tid: list[int] = []
         if strain_path is not None and strain_gene_ids is not None:
             # The filtered alignments get a header restricted to marker genes:
             # with the bowtie2 header (one @SQ per catalogue gene) every later
@@ -87,33 +96,46 @@ class StreamingCounter:
                 str(strain_path.resolve()), "wb0", header=strain_header
             )
         self.unique_on_gene: dict[int, int] = dict.fromkeys(self.database, 0)
+        self.total_on_gene: dict[int, int] = (
+            dict.fromkeys(self.database, 0) if counting_type == "total" else {}
+        )
         self.multi: TupleCounter = TupleCounter()
         self.counted_reads = 0
-        # read name -> [best identity, reference ids, marker alignments | None]
-        # (insertion order = first appearance, as the dicts of filter_alignments)
-        self.states: dict[str, list] = {}
-        # current run of consecutive alignments sharing a name
+        # current read: name, best identity, reference ids reaching it and
+        # alignments on marker genes reaching it
         self._read: str | None = None
         self._best = -1.0
         self._tids: list[int] = []
         self._alns: list[AlignedSegment] = []
+        # coordinate-sorted input: read name -> [best identity, reference ids,
+        # marker alignments]
+        self.by_name = header.to_dict().get("HD", {}).get("SO") == "coordinate"
+        self.states: dict[str, list] = {}
+        if self.by_name:
+            logging.warning(
+                "Coordinate-sorted alignments: alignments sharing a read name "
+                "are merged (R1 and R2 with the same name count as one read). "
+                "Map the sample again to count every read."
+            )
+            self.feed = self._feed_by_name  # type: ignore[method-assign]
 
     def feed(self, element: AlignedSegment) -> None:
+        read_id = element.query_name
+        if not element.is_secondary or read_id != self._read:
+            # a new read starts (even when its name was already seen)
+            if self._tids:
+                self._count()
+            self._read = read_id
+            self._best = -1.0
+            self._tids = []
+            self._alns = []
         stats = element.get_cigar_stats()[0]
         ali = stats[0] + stats[1] + stats[2]
         identity = (ali - element.get_tag("NM")) / ali
         if identity < self.identity_threshold:
             return
-        read_id = element.query_name
         tid = element.reference_id
-        if read_id != self._read:
-            if self._read is not None:
-                self._flush()
-            self._read = read_id
-            self._best = identity
-            self._tids = [tid]
-            self._alns = [element] if self.strain_tid[tid] else []
-        elif identity == self._best:
+        if identity == self._best:
             self._tids.append(tid)
             if self.strain_tid[tid]:
                 self._alns.append(element)
@@ -122,65 +144,69 @@ class StreamingCounter:
             self._tids = [tid]
             self._alns = [element] if self.strain_tid[tid] else []
 
-    def _flush(self) -> None:
-        """Merge the current run into the state of its read name"""
-        state = self.states.get(self._read)
+    def _feed_by_name(self, element: AlignedSegment) -> None:
+        stats = element.get_cigar_stats()[0]
+        ali = stats[0] + stats[1] + stats[2]
+        identity = (ali - element.get_tag("NM")) / ali
+        if identity < self.identity_threshold:
+            return
+        tid = element.reference_id
+        marker = [element] if self.strain_tid[tid] else []
+        state = self.states.get(element.query_name)
         if state is None:
-            self.states[self._read] = [self._best, self._tids, self._alns or None]
-        elif self._best == state[0]:
-            state[1].extend(self._tids)
-            if self._alns:
-                if state[2] is None:
-                    state[2] = self._alns
-                else:
-                    state[2].extend(self._alns)
-        elif self._best > state[0]:
-            state[0] = self._best
-            state[1] = self._tids
-            state[2] = self._alns or None
+            self.states[element.query_name] = [identity, [tid], marker]
+        elif identity == state[0]:
+            state[1].append(tid)
+            state[2].extend(marker)
+        elif identity > state[0]:
+            state[0] = identity
+            state[1] = [tid]
+            state[2] = marker
+
+    def _count(self) -> None:
+        """Count the current read and write its marker alignments"""
+        self._count_read(self._tids, self._alns)
+
+    def _count_read(self, tids: list[int], alns: list[AlignedSegment]) -> None:
+        """Count one read and write its marker alignments"""
+        gene_of_tid = self.gene_of_tid
+        if len(tids) == 1:
+            self.unique_on_gene[gene_of_tid[tids[0]]] += 1
+        else:
+            if self.counting_type == "unique":
+                return
+            if self.counting_type == "smart_shared":
+                self.multi[tuple(gene_of_tid[t] for t in tids)] += 1
+        if self.counting_type == "total":
+            total_on_gene = self.total_on_gene
+            for t in tids:
+                total_on_gene[gene_of_tid[t]] += 1
+        self.counted_reads += 1
+        if self.strain_out is not None and alns:
+            new_tid = self.strain_new_tid
+            write = self.strain_out.write
+            for aln in alns:
+                aln.reference_id = new_tid[aln.reference_id]
+                if aln.next_reference_id >= 0:
+                    aln.next_reference_id = new_tid[aln.next_reference_id]
+                write(aln)
 
     def finish(self) -> dict[int, int | float]:
-        """Count every read, write the filtered alignments and return the
-        abundance of every gene."""
-        if self._read is not None:
-            self._flush()
-            self._read = None
-            self._alns = []
-        gene_of_tid = self.gene_of_tid
-        unique_on_gene = self.unique_on_gene
-        total = self.counting_type == "total"
-        smart = self.counting_type == "smart_shared"
-        unique_only = self.counting_type == "unique"
-        total_on_gene: dict[int, int] = dict.fromkeys(self.database, 0) if total else {}
-        write = self.strain_out.write if self.strain_out is not None else None
-        new_tid = getattr(self, "strain_new_tid", None)
-        counted = 0
+        """Count the last read and return the abundance of every gene."""
+        if self._tids:
+            self._count()
         states = self.states
         self.states = {}
         for _, tids, alns in states.values():
-            if len(tids) == 1:
-                unique_on_gene[gene_of_tid[tids[0]]] += 1
-            else:
-                if smart:
-                    self.multi[tuple(gene_of_tid[t] for t in tids)] += 1
-                if unique_only:
-                    continue
-            if total:
-                for t in tids:
-                    total_on_gene[gene_of_tid[t]] += 1
-            counted += 1
-            if write is not None and alns is not None:
-                for aln in alns:
-                    aln.reference_id = new_tid[aln.reference_id]
-                    if aln.next_reference_id >= 0:
-                        aln.next_reference_id = new_tid[aln.next_reference_id]
-                    write(aln)
+            self._count_read(tids, alns)
         del states
-        self.counted_reads = counted
-        if total:
-            return total_on_gene
-        if unique_only:
-            return dict(unique_on_gene)
+        self._read = None
+        self._tids = []
+        self._alns = []
+        if self.counting_type == "total":
+            return self.total_on_gene
+        if self.counting_type == "unique":
+            return dict(self.unique_on_gene)
         return self._smart_shared()
 
     def _smart_shared(self) -> dict[int, int | float]:
@@ -197,9 +223,11 @@ class StreamingCounter:
             som = sum(unique_on_gene[gene] for gene in genes)
             per_gene: dict[int, float] = {}
             if som == 0:
+                # 1 / nb of alignments for each alignment (a gene reached
+                # twice by the read gets 2 / nb)
                 coef = 1.0 / len(genes)
                 for gene in genes:
-                    per_gene[gene] = coef
+                    per_gene[gene] = per_gene.get(gene, 0.0) + coef
             else:
                 seen: set[int] = set()
                 duplicated = {gene for gene in genes if gene in seen or seen.add(gene)}
@@ -451,8 +479,28 @@ class Counter(Session):
         genes: dict[str, list[int]] = {}
         # contains a list of alignment of each read
         reads: dict[str, list[AlignedSegment]] = {}
+        # Reads are keyed by name, then "<name>\t<occurrence>" for the next
+        # reads sharing that name: a new read starts at each
+        # primary alignment, so two reads sharing a name (R1 and R2 of a pair
+        # mapped as single-end reads) are counted separately.
+        # A coordinate-sorted input does not keep the alignments of a read
+        # together: reads are then keyed by name only (older meteor behaviour).
+        split = cramdesc.header.to_dict().get("HD", {}).get("SO") != "coordinate"
+        occurrence: dict[str, int] = {}
+        prev_name = None
         for element in cramdesc:
             assert element.query_name is not None and element.reference_name is not None
+            if not split:
+                prev_name = element.query_name
+                occurrence[prev_name] = 0
+            elif not element.is_secondary or element.query_name != prev_name:
+                prev_name = element.query_name
+                occurrence[prev_name] = occurrence.get(prev_name, -1) + 1
+            read_key = (
+                prev_name
+                if occurrence[prev_name] == 0
+                else f"{prev_name}\t{occurrence[prev_name]}"
+            )
 
             # identity = (element.query_length - element.get_tag("NM")) / element.query_length
             # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
@@ -466,7 +514,7 @@ class Counter(Session):
             # Only if we use score
             # if not element.has_tag("AS"):
             #     raise ValueError("Missing 'AS' field.")
-            read_id: str = element.query_name
+            read_id: str = read_key
             # print(read_id, element.query_alignment_length)
             # get alignment score
             # Meteor do not take in account the alignement score
@@ -561,9 +609,10 @@ class Counter(Session):
             # If no unique counts:
             if som == 0:
                 # Specific count of Meteor
-                # 1 / nb genes aligned by the read
+                # 1 / nb genes aligned by the read (a gene reached twice by
+                # the read gets 2 / nb, so that the read still counts 1)
                 for gene in genes:
-                    co_dict[(read_id, gene)] = 1.0 / len(genes)
+                    co_dict[(read_id, gene)] += 1.0 / len(genes)
                     read_dict[gene].append(read_id)
                 # Normally we continue here
                 continue

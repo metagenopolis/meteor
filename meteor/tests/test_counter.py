@@ -187,7 +187,7 @@ def test_compute_co(counter_smart_shared: Counter, datadir: Path) -> None:
     read_dict.update({k: v.sort() for k, v in read_dict.items()})
     assert compute_dict_md5(read_dict) == "0e6bd9cb3694fb22fa31721513d55fca"
     co = {str(k): v for k, v in co.items()}
-    assert compute_dict_md5(co) == "ccc7fb1c452f80af32738559d7441690"
+    assert compute_dict_md5(co) == "8be9253e6316c77e426ae2ea84940c1c"
 
 
 def test_get_co_coefficient(counter_smart_shared: Counter, datadir: Path) -> None:
@@ -229,7 +229,7 @@ def test_compute_abm(counter_smart_shared: Counter, datadir: Path) -> None:
         multiple_dict = counter_smart_shared.compute_abm(read_dict, coef_read, database)
     # Round as float representation changes between Python <= 3.11 and >= 3.12
     multiple_dict.update({k: round(v,2) for k, v in multiple_dict.items()})
-    assert compute_dict_md5(multiple_dict) == "f7158221e2384261ffa35c54478625af"
+    assert compute_dict_md5(multiple_dict) == "acd524cbfe76351949c071119464a028"
 
 
 def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
@@ -252,7 +252,7 @@ def test_compute_abs(counter_smart_shared: Counter, datadir: Path) -> None:
         abundance = counter_smart_shared.compute_abs(database, unique_on_gene, multiple_dict)
     # Round as float representation changes between Python <= 3.11 and >= 3.12
     abundance.update({k: round(v,2) for k, v in abundance.items()})
-    assert compute_dict_md5(abundance) == "049107fba2db5fd89fc1e534f83524bc"
+    assert compute_dict_md5(abundance) == "5abede426b36ba12ec85ca24a52a74cc"
 
 def test_compute_abs_total(counter_total: Counter, datadir: Path) -> None:
     cramfile = datadir / "total_raw.cram"
@@ -373,3 +373,74 @@ def test_execute(counter_smart_shared: Counter, tmp_path: Path):
     assert part1.exists()
     with part1.open("rb") as out:
         assert md5(out.read()).hexdigest() == "5db950a4404793f73ba034e99cb676fa"
+
+
+def _toy_alignments(tmp_path: Path) -> Path:
+    """Reads of a pair mapped as single-end reads share their name"""
+    from pysam import AlignedSegment, AlignmentHeader
+
+    header = AlignmentHeader.from_dict(
+        {"HD": {"VN": "1.6"}, "SQ": [{"SN": str(g), "LN": 1000} for g in (1, 2, 3, 4)]}
+    )
+    # (name, gene, secondary, mismatches)
+    records = [
+        ("a", 1, False, 0),  # R1 of pair a: unique on gene 1
+        ("a", 1, False, 0),  # R2 of pair a (contiguous): unique on gene 1
+        ("b", 2, False, 0),  # R1 of pair b: multi on genes 2 and 3
+        ("b", 3, True, 0),
+        ("c", 4, False, 0),  # read c: twice on gene 4
+        ("c", 4, True, 0),
+        ("b", 2, False, 2),  # R2 of pair b (later in the stream): unique on gene 2
+        ("b", 3, True, 3),  # lower identity: ignored
+    ]
+    path = tmp_path / "toy.bam"
+    with AlignmentFile(str(path), "wb", header=header) as out:
+        for name, gene, secondary, nm in records:
+            aln = AlignedSegment(header)
+            aln.query_name = name
+            aln.reference_name = str(gene)
+            aln.reference_start = 10
+            aln.flag = 256 if secondary else 0
+            aln.cigarstring = "100M"
+            aln.query_sequence = "A" * 100
+            aln.set_tag("NM", nm)
+            out.write(aln)
+    return path
+
+
+def test_mates_sharing_a_name_are_counted_separately(tmp_path: Path) -> None:
+    from ..counter import StreamingCounter
+
+    toy = _toy_alignments(tmp_path)
+    expected = {
+        "unique": ({1: 2, 2: 1, 3: 0, 4: 0}, 3),
+        "total": ({1: 2, 2: 2, 3: 1, 4: 2}, 5),
+        # b(R1) is split 1/1 on genes 2/3 by unique counts (2: 1, 3: 0);
+        # c has no unique evidence: 1/2 per alignment, both on gene 4
+        "smart_shared": ({1: 2, 2: 2.0, 3: 0, 4: 1.0}, 5),
+    }
+    for counting_type, (abundance, counted) in expected.items():
+        with AlignmentFile(str(toy)) as cram:
+            streamer = StreamingCounter(cram.header, counting_type, 0.95)
+            for element in cram:
+                streamer.feed(element)
+        assert streamer.finish() == abundance, counting_type
+        assert streamer.counted_reads == counted, counting_type
+
+
+def test_filter_alignments_mates_sharing_a_name(
+    counter_smart_shared: Counter, tmp_path: Path
+) -> None:
+    toy = _toy_alignments(tmp_path)
+    with AlignmentFile(str(toy)) as cram:
+        _, genes = counter_smart_shared.filter_alignments(cram)
+    assert sorted(genes.values()) == [[1], [1], [2], [2, 3], [4, 4]]
+    database = {1: 1000, 2: 1000, 3: 1000, 4: 1000}
+    _, genes_mult, unique_on_gene = counter_smart_shared.uniq_from_mult(
+        {k: [] for k in genes}, genes, database
+    )
+    read_dict, co = counter_smart_shared.compute_co(genes_mult, unique_on_gene)
+    multiple = counter_smart_shared.compute_abm(read_dict, co, database)
+    assert counter_smart_shared.compute_abs(database, unique_on_gene, multiple) == {
+        1: 2, 2: 2.0, 3: 0, 4: 1.0
+    }
