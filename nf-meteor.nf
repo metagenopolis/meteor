@@ -9,6 +9,9 @@ params.check_catalogue = false
 params.catalogue_name = ""
 params.catalogue = ""
 params.allowed_catalogues = "fc_1_3_gut,gg_13_6_caecal,clf_1_0_gut,hs_10_4_gut,hs_8_4_oral,hs_2_9_skin,mm_5_0_gut,oc_5_7_gut,rn_5_9_gut,ssc_9_3_gut"
+// Mapping memory added per GB of compressed FASTQ (R1 + R2), on top of the
+// catalogue-dependent base (see meteor_mapping).
+params.mapping_mem_per_gb = 1.0
 
 def usage() {
     println("nf-meteor.nf --in <fastq_dir> --catalogue_name <catalogue_name> --out <output_dir> --cpus <nb_cpus> -w <temp_work_dir>")
@@ -41,10 +44,10 @@ process meteor_fastq {
     conda "meteor=2.0.22"
 
     input:
-    tuple val(reads_id), path(forward), path(reverse), val(count)
+    tuple val(reads_id), path(forward), path(reverse), val(size_gb)
 
     output:
-    tuple val(reads_id), path("fastq/*"), val(count)
+    tuple val(reads_id), path("fastq/*"), val(size_gb)
 
     script:
     """
@@ -56,22 +59,25 @@ process meteor_mapping {
     tag { reads_id }
     cpus params.cpus
     memory {
-        // Base memory scales with the catalogue size: complete catalogues need 3x
-        // their size in GB, light (taxo) catalogues only 1/3. One extra GB per
-        // million reads is added on top.
-        def base_mem = 3 * cat_size
+        // Measured on hs_10_4_gut (1221 gut samples): the bowtie2 index
+        // (mapped in memory) plus the catalogue header held by the counter give
+        // a base of about 2x the catalogue size; the input size adds little.
+        // size_gb is the cumulated size of the compressed R1 + R2 files.
+        def base_mem = 2 * cat_size
         if (cat_type == 'taxo') base_mem = cat_size / 3
-        def reads_mem = Math.ceil((count as int) / 1_000_000)
-        return (base_mem + reads_mem).GB
+        def mem = Math.ceil(base_mem + params.mapping_mem_per_gb * (size_gb as double))
+        return (mem * task.attempt).GB
     }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
     conda "meteor=2.0.22"
 
     input:
-    tuple val(reads_id), path(fastq), val(count)
+    tuple val(reads_id), path(fastq), val(size_gb)
     tuple path(catalogue), val(cat_size), val(cat_type)
 
     output:
-    tuple val(reads_id), path("mapping/*"), emit: mapping
+    tuple val(reads_id), path("mapping/*"), val(size_gb), emit: mapping
 
     script:
     """
@@ -81,18 +87,21 @@ process meteor_mapping {
 
 process meteor_profile {
     tag { reads_id }
-    cpus params.cpus
+    // meteor profile is single-threaded
+    cpus 1
     memory {
-        // Profiling loads the catalogue: 1x its size for complete catalogues,
-        // 1/3 for light (taxo) catalogues.
-        def base_mem = cat_size
-        if (cat_type == 'taxo') base_mem = cat_size / 3
-        return base_mem.GB
+        // Measured on hs_10_4_gut: about 4 GB whatever the input size
+        // (half the catalogue size for complete catalogues).
+        def base_mem = Math.ceil(0.5 * cat_size + 1)
+        if (cat_type == 'taxo') base_mem = Math.ceil(cat_size / 3)
+        return (base_mem * task.attempt).GB
     }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
     conda "meteor=2.0.22"
 
     input:
-    tuple val(reads_id), path(mapping)
+    tuple val(reads_id), path(mapping), val(size_gb)
     tuple path(catalogue), val(cat_size), val(cat_type)
 
     output:
@@ -108,8 +117,9 @@ process meteor_merge {
     memory {
         // Memory grows with the number of samples profiled: 20MB per sample per
         // catalogue GB (2MB for taxo catalogues), plus a 1/10 catalogue size floor.
-        def sample_count = (profile instanceof List ? profile : [profile])
-                .collect { p -> p.parent.toString() }.unique().size()
+        // profile holds one staged directory per sample (all staged in the task
+        // directory, so their parents are identical: count the entries)
+        def sample_count = (profile instanceof List ? profile : [profile]).size()
         def slope = (cat_type == 'taxo') ? (cat_size / 500) : (cat_size / 50)
         def intercept = cat_size / 10
         return (slope * sample_count + intercept).GB
@@ -134,15 +144,18 @@ process meteor_strain {
     tag { reads_id }
     conda "meteor=2.0.22"
     memory {
-        // Strain profiling is the most demanding step: 4x catalogue size plus a
-        // 5 GB floor for complete catalogues, 0.4x for taxo catalogues.
-        def mem = 5 + 4 * cat_size
-        if (cat_type == 'taxo') mem = 5 + 0.4 * cat_size
-        return mem.GB
+        // Single thread (meteor strain default). Measured on hs_10_4_gut: about
+        // 5 GB whatever the input size (alignments are restricted to the
+        // marker genes).
+        def mem = Math.ceil(0.5 * cat_size + 1)
+        if (cat_type == 'taxo') mem = Math.ceil(5 + 0.4 * cat_size)
+        return (mem * task.attempt).GB
     }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
 
     input:
-    tuple val(reads_id), path(mapping)
+    tuple val(reads_id), path(mapping), val(size_gb)
     tuple path(catalogue), val(cat_size), val(cat_type)
 
     output:
@@ -159,8 +172,7 @@ process meteor_tree {
     conda "meteor=2.0.22"
     memory {
         // Tree inference scales with the number of samples analysed.
-        def sample_count = (strain instanceof List ? strain : [strain])
-                .collect { p -> p.parent.toString() }.unique().size()
+        def sample_count = (strain instanceof List ? strain.flatten() : [strain]).size()
         return (0.2 * sample_count + 20).GB
     }
     publishDir params.out, mode: 'copy'
@@ -240,8 +252,10 @@ workflow {
         readChannel = channel.fromFilePairs("${params.in}/*_R{1,2}*.{fastq,fastq.gz,fq,fq.gz}", flat: true)
                         .ifEmpty { exit 1, "Cannot find any reads matching: ${params.in}"}
                         .map { sample_id, file1, file2 ->
-                            def count = file1.countFastq()
-                            [sample_id, file1, file2, count]
+                            // Cumulated compressed size in GB (no file read,
+                            // unlike countFastq()), used to size the mapping memory
+                            def size_gb = (file1.size() + file2.size()) / 1e9
+                            [sample_id, file1, file2, size_gb]
                         }
         meteor_fastq(readChannel)
         meteor_mapping(meteor_fastq.out, catalogue_ch)
