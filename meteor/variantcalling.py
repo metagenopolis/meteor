@@ -29,7 +29,16 @@ from meteor.session import Session, Component
 from time import perf_counter
 from tempfile import NamedTemporaryFile
 from packaging.version import parse
-from pysam import AlignmentFile, FastaFile, VariantFile, faidx, tabix_index, bcftools
+from pysam import (
+    AlignmentFile,
+    AlignmentHeader,
+    FastaFile,
+    VariantFile,
+    faidx,
+    index,
+    tabix_index,
+    bcftools,
+)
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import defaultdict
 from typing import ClassVar
@@ -256,21 +265,6 @@ class VariantCalling(Session):
             self._gene_counts = dict(zip(counts["gene_id"], counts["value"]))
         return self._gene_counts
 
-    def genes_in_cram(self, cram_file: Path) -> set[int]:
-        """Genes having alignments in a coordinate sorted CRAM (from its .crai)"""
-        crai = Path(f"{cram_file}.crai")
-        if not crai.exists():
-            return set()
-        with AlignmentFile(str(cram_file.resolve()), "rc") as cram:
-            references = cram.references
-        ref_ids = set()
-        with gzip.open(crai, "rt") as index_fh:
-            for line in index_fh:
-                ref_id = int(line.split("\t", 1)[0])
-                if ref_id >= 0:
-                    ref_ids.add(ref_id)
-        return {int(references[ref_id]) for ref_id in ref_ids}
-
     def set_variantcalling_config(
         self,
         cram_file: Path,
@@ -414,6 +408,74 @@ class VariantCalling(Session):
             path = out.name
         faidx(path)
         return path
+
+    def write_marker_alignments(
+        self,
+        cram_file: Path,
+        reference_file: Path,
+        gene_ids: set[int],
+        tmp_dir: Path,
+    ) -> tuple[Path, list[int]]:
+        """Indexed BAM of the filtered alignments whose header only lists `gene_ids`
+        (plus any gene carrying an alignment).
+
+        The filtered CRAM inherits the bowtie2 header (one @SQ per catalogue
+        gene, ~10M for hs_10_4_gut). htslib/freebayes materialise that header
+        in every process: ~16 GB RSS and ~90 s per freebayes call on
+        hs_10_4_gut, against ~0.2 GB and ~1 s with the marker-only header
+        (identical VCF records).
+
+        :return: (BAM path, gene ids of the new header in header order)
+        """
+        with AlignmentFile(
+            str(cram_file.resolve()),
+            "rc",
+            reference_filename=str(reference_file.resolve()),
+            threads=self.meteor.threads,
+        ) as cram:
+            names = cram.references
+            lengths = cram.lengths
+            present = self.reference_ids_in_cram(cram_file)
+            keep = [
+                tid
+                for tid, name in enumerate(names)
+                if tid in present or int(name) in gene_ids
+            ]
+            new_tid = np.full(len(names), -1, dtype=np.int64)
+            new_tid[keep] = np.arange(len(keep))
+            header = AlignmentHeader.from_dict(
+                {
+                    "HD": {"VN": "1.6", "SO": "coordinate"},
+                    "SQ": [{"SN": names[t], "LN": lengths[t]} for t in keep],
+                }
+            )
+            bam_path = Path(
+                NamedTemporaryFile(suffix=".bam", dir=tmp_dir, delete=False).name
+            )
+            with AlignmentFile(
+                str(bam_path), "wb", header=header, threads=self.meteor.threads
+            ) as out:
+                for read in cram:
+                    # coordinate order is kept: tids are renumbered monotonically
+                    read.reference_id = int(new_tid[read.reference_id])
+                    if read.next_reference_id >= 0:
+                        read.next_reference_id = int(new_tid[read.next_reference_id])
+                    out.write(read)
+        index(str(bam_path))
+        return bam_path, [int(names[t]) for t in keep]
+
+    def reference_ids_in_cram(self, cram_file: Path) -> set[int]:
+        """Reference ids having alignments, read from the CRAM index (.crai)"""
+        crai = Path(f"{cram_file}.crai")
+        if not crai.exists():
+            index(str(cram_file.resolve()))
+        ref_ids: set[int] = set()
+        with gzip.open(crai, "rt") as index_fh:
+            for line in index_fh:
+                ref_id = int(line.split("\t", 1)[0])
+                if ref_id >= 0:
+                    ref_ids.add(ref_id)
+        return ref_ids
 
     def group_consecutive_positions(
         self, position_count_dict: dict, gene_name: str, gene_length: int
@@ -755,19 +817,30 @@ class VariantCalling(Session):
         result_df = merged_df[["gene_id", "startpos", "gene_length"]]
         temp_bed_file = NamedTemporaryFile(suffix=".bed", dir=self.meteor.tmp_dir, delete=False)
         result_df.to_csv(temp_bed_file, sep="\t", index=False, header=False)
+        bed_genes = set(merged_df["gene_id"].astype(int))
+        marker_bam: Path | None = None
+        if not (vcf_file.exists() and low_cov_sites_file.exists()):
+            # Alignment file + FASTA restricted to marker genes: the filtered CRAM
+            # header lists the whole catalogue, which every freebayes / pysam
+            # process would otherwise load (no full catalogue decompression either)
+            startmarker = perf_counter()
+            marker_bam, marker_genes = self.write_marker_alignments(
+                cram_file, reference_file, bed_genes, self.meteor.tmp_dir
+            )
+            temp_ref_file_path = self.write_marker_reference(
+                reference_file, marker_genes, self.meteor.tmp_dir
+            )
+            logging.info(
+                "Marker alignments/reference (%d genes) written in %f seconds",
+                len(marker_genes),
+                perf_counter() - startmarker,
+            )
         if vcf_file.exists():
             logging.info("Vcf already exist, skipping freebayes..")
             vcf_chunk_files = []
         else:
             logging.info("Run freebayes")
-            # freebayes only needs the genes of the filtered CRAM (no full
-            # decompression of the catalogue in memory and on disk)
-            marker_genes = sorted(
-                set(merged_df["gene_id"].astype(int)) | self.genes_in_cram(cram_file)
-            )
-            temp_ref_file_path = self.write_marker_reference(
-                reference_file, marker_genes, self.meteor.tmp_dir
-            )
+            assert marker_bam is not None and temp_ref_file_path is not None
             # Create bed_chunk files. Each file stores multiple `msp_name` regions,
             # several chunks per thread, balanced on the reads counted per MSP
             bed_chunks = self.create_balanced_bed_chunks(
@@ -784,13 +857,14 @@ class VariantCalling(Session):
                 for _ in bed_chunks
             ]
             # Use ProcessPoolExecutor to run freebayes in parallel on each BED chunk
+            failed_chunks = []
             with ProcessPoolExecutor(max_workers=self.meteor.threads) as executor:
                 futures = {
                     executor.submit(
                         run_freebayes_chunk,
                         temp_ref_file_path,  # Pass the path to the reference file
                         bed_chunk_file,  # Each BED chunk
-                        cram_file,
+                        marker_bam,
                         Path(vcf_chunk_file),
                         self.min_snp_depth,
                         self.min_frequency,
@@ -812,8 +886,18 @@ class VariantCalling(Session):
                             bed_chunk,
                             vcf_chunk_file,
                         )
+                        if vcf_chunk_file is None:
+                            failed_chunks.append(bed_chunk)
                     except Exception as exc:
                         logging.error("Error processing chunk %s: %s", bed_chunk, exc)
+                        failed_chunks.append(bed_chunk)
+            if failed_chunks:
+                logging.error(
+                    "freebayes failed on %d/%d chunks, variant calling aborted",
+                    len(failed_chunks),
+                    len(bed_chunks),
+                )
+                sys.exit(1)
 
             logging.info("All chunks have been processed")
             # Combine VCF chunk files into the final VCF
@@ -851,10 +935,11 @@ class VariantCalling(Session):
             gene_ignore = data["gene_ignore"]
         else:
             logging.info("Detecting low coverage regions")
+            assert marker_bam is not None and temp_ref_file_path is not None
             low_cov_sites, gene_ignore = self.filter_low_cov_sites(
-                cram_file,
-                reference_file,
-                gene_subset=set(merged_df["gene_id"].astype(int)),
+                marker_bam,
+                Path(temp_ref_file_path),
+                gene_subset=bed_genes,
             )
             # Open a file for writing the pickle data (binary write mode)
             with low_cov_sites_file.open("wb") as file:
@@ -891,6 +976,8 @@ class VariantCalling(Session):
             if temp_ref_file_path is not None
             else vcf_chunk_files
         )
+        if marker_bam is not None:
+            temporary_files += [str(marker_bam), f"{marker_bam}.bai"]
         for temp_file in temporary_files:
             p = Path(temp_file)
             if p.exists():
