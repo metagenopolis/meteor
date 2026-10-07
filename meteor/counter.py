@@ -29,23 +29,18 @@ from time import perf_counter
 from shutil import rmtree
 
 
-def header_is_read_grouped(header: AlignmentHeader) -> bool:
-    """True when all alignments of a read are guaranteed to be consecutive.
-
-    bowtie2 writes ``@HD ... SO:unsorted GO:query``; meteor raw CRAM files keep
-    that header. Coordinate-sorted files (e.g. test fixtures) are not grouped.
-    """
-    hd = header.to_dict().get("HD", {})
-    return hd.get("GO") == "query" or hd.get("SO") == "queryname"
-
-
 class StreamingCounter:
-    """Identity filtering + counting in a single pass over read-grouped alignments.
+    """Identity filtering + counting fed one alignment at a time.
 
-    Equivalent to Counter.filter_alignments / uniq_from_mult / compute_co /
-    compute_abm / compute_abs / compute_abs_total, but only the alignments of the
-    current read are held in memory. Multi-mapped reads are aggregated by their
-    gene list, so smart_shared coefficients are computed once per distinct list.
+    Same result as Counter.filter_alignments / uniq_from_mult / compute_co /
+    compute_abm / compute_abs / compute_abs_total, without keeping the
+    AlignedSegment of every read: per read name only the best identity, the
+    reference ids reaching it and (for the filtered CRAM) the best alignments on
+    marker genes are kept. Alignments sharing a name are merged whatever their
+    position in the stream, e.g. R1 and R2 of a pair mapped as single-end reads
+    (same name), as in filter_alignments. Multi-mapped reads are then
+    aggregated by gene list, so smart_shared coefficients are computed once per
+    distinct list.
     """
 
     def __init__(
@@ -62,17 +57,19 @@ class StreamingCounter:
         self.gene_of_tid = [int(ref) for ref in references]
         self.database: dict[int, int] = dict(zip(self.gene_of_tid, header.lengths))
         self.strain_out = strain_out
-        # bytearray indexed by reference id: 1 when the gene is a core gene
+        # bytearray indexed by reference id: 1 when the gene is a marker gene
         self.strain_tid = bytearray(len(references))
         if strain_out is not None and strain_gene_ids is not None:
             for tid, gene in enumerate(self.gene_of_tid):
                 if gene in strain_gene_ids:
                     self.strain_tid[tid] = 1
         self.unique_on_gene: dict[int, int] = dict.fromkeys(self.database, 0)
-        self.total_on_gene: dict[int, int] = dict.fromkeys(self.database, 0)
         self.multi: TupleCounter = TupleCounter()
         self.counted_reads = 0
-        # current read group
+        # read name -> [best identity, reference ids, marker alignments | None]
+        # (insertion order = first appearance, as the dicts of filter_alignments)
+        self.states: dict[str, list] = {}
+        # current run of consecutive alignments sharing a name
         self._read: str | None = None
         self._best = -1.0
         self._tids: list[int] = []
@@ -85,52 +82,78 @@ class StreamingCounter:
         if identity < self.identity_threshold:
             return
         read_id = element.query_name
+        tid = element.reference_id
         if read_id != self._read:
             if self._read is not None:
                 self._flush()
             self._read = read_id
             self._best = identity
-            self._tids = [element.reference_id]
-            self._alns = [element]
+            self._tids = [tid]
+            self._alns = [element] if self.strain_tid[tid] else []
         elif identity == self._best:
-            self._tids.append(element.reference_id)
-            self._alns.append(element)
+            self._tids.append(tid)
+            if self.strain_tid[tid]:
+                self._alns.append(element)
         elif identity > self._best:
             self._best = identity
-            self._tids = [element.reference_id]
-            self._alns = [element]
+            self._tids = [tid]
+            self._alns = [element] if self.strain_tid[tid] else []
 
     def _flush(self) -> None:
-        tids = self._tids
-        gene_of_tid = self.gene_of_tid
-        is_unique = len(tids) == 1
-        if is_unique:
-            self.unique_on_gene[gene_of_tid[tids[0]]] += 1
-        elif self.counting_type == "smart_shared":
-            self.multi[tuple(gene_of_tid[t] for t in tids)] += 1
-        if self.counting_type == "total":
-            for t in tids:
-                self.total_on_gene[gene_of_tid[t]] += 1
-        keep = is_unique or self.counting_type != "unique"
-        if keep:
-            self.counted_reads += 1
-            if self.strain_out is not None:
-                strain_tid = self.strain_tid
-                write = self.strain_out.write
-                for aln in self._alns:
-                    if strain_tid[aln.reference_id]:
-                        write(aln)
+        """Merge the current run into the state of its read name"""
+        state = self.states.get(self._read)
+        if state is None:
+            self.states[self._read] = [self._best, self._tids, self._alns or None]
+        elif self._best == state[0]:
+            state[1].extend(self._tids)
+            if self._alns:
+                if state[2] is None:
+                    state[2] = self._alns
+                else:
+                    state[2].extend(self._alns)
+        elif self._best > state[0]:
+            state[0] = self._best
+            state[1] = self._tids
+            state[2] = self._alns or None
 
     def finish(self) -> dict[int, int | float]:
-        """Flush the last read and return the abundance of every gene."""
+        """Count every read, write the filtered alignments and return the
+        abundance of every gene."""
         if self._read is not None:
             self._flush()
             self._read = None
             self._alns = []
-        if self.counting_type == "total":
-            return dict(self.total_on_gene)
-        if self.counting_type == "unique":
-            return dict(self.unique_on_gene)
+        gene_of_tid = self.gene_of_tid
+        unique_on_gene = self.unique_on_gene
+        total = self.counting_type == "total"
+        smart = self.counting_type == "smart_shared"
+        unique_only = self.counting_type == "unique"
+        total_on_gene: dict[int, int] = dict.fromkeys(self.database, 0) if total else {}
+        write = self.strain_out.write if self.strain_out is not None else None
+        counted = 0
+        states = self.states
+        self.states = {}
+        for _, tids, alns in states.values():
+            if len(tids) == 1:
+                unique_on_gene[gene_of_tid[tids[0]]] += 1
+            else:
+                if smart:
+                    self.multi[tuple(gene_of_tid[t] for t in tids)] += 1
+                if unique_only:
+                    continue
+            if total:
+                for t in tids:
+                    total_on_gene[gene_of_tid[t]] += 1
+            counted += 1
+            if write is not None and alns is not None:
+                for aln in alns:
+                    write(aln)
+        del states
+        self.counted_reads = counted
+        if total:
+            return total_on_gene
+        if unique_only:
+            return dict(unique_on_gene)
         return self._smart_shared()
 
     def _smart_shared(self) -> dict[int, int | float]:
@@ -328,9 +351,6 @@ class Counter(Session):
         state: dict = {}
 
         def factory(header: AlignmentHeader) -> StreamingCounter:
-            if not header_is_read_grouped(header):
-                # bowtie2 always reports GO:query; never silently mis-count
-                raise RuntimeError("bowtie2 output is not grouped by read")
             streamer, strain_unsorted = self._streaming_counter(header, ref_json)
             state["streamer"] = streamer
             state["strain_unsorted"] = strain_unsorted
@@ -691,29 +711,36 @@ class Counter(Session):
         else:
             logging.info("Launch counting")
         pysam.set_verbosity(0)
-        streamer: StreamingCounter | None = None
-        strain_unsorted: Path | None = None
         with AlignmentFile(
             str(raw_cramfile.resolve()), threads=self.meteor.threads
         ) as cramdesc:
-            if header_is_read_grouped(cramdesc.header):
-                # meteor raw CRAM (bowtie2 order): single pass, bounded memory
-                streamer, strain_unsorted = self._streaming_counter(
-                    cramdesc.header, ref_json
-                )
-                feed = streamer.feed
-                for element in cramdesc:
-                    feed(element)
-        if streamer is not None:
-            self._finish_streaming(
-                streamer,
-                strain_unsorted,
-                cramfile_strain,
-                count_file,
-                stage1_json_data,
-                stage1_json,
+            streamer, strain_unsorted = self._streaming_counter(
+                cramdesc.header, ref_json
             )
-            return
+            feed = streamer.feed
+            for element in cramdesc:
+                feed(element)
+        self._finish_streaming(
+            streamer,
+            strain_unsorted,
+            cramfile_strain,
+            count_file,
+            stage1_json_data,
+            stage1_json,
+        )
+
+    def launch_counting_legacy(
+        self,
+        raw_cramfile: Path,
+        cramfile_strain: Path,
+        count_file: Path,
+        ref_json: dict,
+        stage1_json_data: dict,
+        stage1_json: Path,
+    ):
+        """Original in-memory implementation of launch_counting (reference for
+        parity checks): keeps every filtered AlignedSegment in memory."""
+        pysam.set_verbosity(0)
         with AlignmentFile(
             str(raw_cramfile.resolve()), threads=self.meteor.threads
         ) as cramdesc:
