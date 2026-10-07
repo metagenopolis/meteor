@@ -58,6 +58,9 @@ def depth_array(
     returned as a dense array of length gene_length.
     """
     depth = np.zeros(gene_length, dtype=np.int64)
+    if cram.get_tid(gene_name) < 0:
+        # gene absent from the alignment header: no alignment on it
+        return depth
     for pileupcolumn in cram.pileup(
         contig=gene_name,
         start=0,
@@ -846,8 +849,11 @@ class VariantCalling(Session):
             assert marker_bam is not None and temp_ref_file_path is not None
             # Create bed_chunk files. Each file stores multiple `msp_name` regions,
             # several chunks per thread, balanced on the reads counted per MSP
+            # genes absent from the alignment header carry no read (and are
+            # unknown to freebayes)
+            in_header = set(marker_genes)
             bed_chunks = self.create_balanced_bed_chunks(
-                merged_df,
+                merged_df[merged_df["gene_id"].astype(int).isin(in_header)],
                 self.gene_counts(),
                 self.meteor.threads * self.FREEBAYES_CHUNKS_PER_THREAD,
                 self.meteor.tmp_dir,

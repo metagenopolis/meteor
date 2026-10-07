@@ -48,21 +48,44 @@ class StreamingCounter:
         header: AlignmentHeader,
         counting_type: str,
         identity_threshold: float,
-        strain_out: AlignmentFile | None = None,
+        strain_path: Path | None = None,
         strain_gene_ids: set[int] | None = None,
     ) -> None:
         self.counting_type = counting_type
         self.identity_threshold = identity_threshold
         references = header.references
+        lengths = header.lengths
         self.gene_of_tid = [int(ref) for ref in references]
-        self.database: dict[int, int] = dict(zip(self.gene_of_tid, header.lengths))
-        self.strain_out = strain_out
+        self.database: dict[int, int] = dict(zip(self.gene_of_tid, lengths))
         # bytearray indexed by reference id: 1 when the gene is a marker gene
         self.strain_tid = bytearray(len(references))
-        if strain_out is not None and strain_gene_ids is not None:
-            for tid, gene in enumerate(self.gene_of_tid):
-                if gene in strain_gene_ids:
-                    self.strain_tid[tid] = 1
+        self.strain_out: AlignmentFile | None = None
+        if strain_path is not None and strain_gene_ids is not None:
+            # The filtered alignments get a header restricted to marker genes:
+            # with the bowtie2 header (one @SQ per catalogue gene) every later
+            # reader/writer handles millions of sequences (and writing CRAM
+            # computes the MD5 of every catalogue sequence).
+            marker_tids = [
+                tid
+                for tid, gene in enumerate(self.gene_of_tid)
+                if gene in strain_gene_ids
+            ]
+            self.strain_new_tid = [-1] * len(references)
+            for new, tid in enumerate(marker_tids):
+                self.strain_tid[tid] = 1
+                self.strain_new_tid[tid] = new
+            strain_header = AlignmentHeader.from_dict(
+                {
+                    "HD": {"VN": "1.6", "SO": "unsorted"},
+                    "SQ": [
+                        {"SN": references[tid], "LN": lengths[tid]}
+                        for tid in marker_tids
+                    ],
+                }
+            )
+            self.strain_out = AlignmentFile(
+                str(strain_path.resolve()), "wb0", header=strain_header
+            )
         self.unique_on_gene: dict[int, int] = dict.fromkeys(self.database, 0)
         self.multi: TupleCounter = TupleCounter()
         self.counted_reads = 0
@@ -130,6 +153,7 @@ class StreamingCounter:
         unique_only = self.counting_type == "unique"
         total_on_gene: dict[int, int] = dict.fromkeys(self.database, 0) if total else {}
         write = self.strain_out.write if self.strain_out is not None else None
+        new_tid = getattr(self, "strain_new_tid", None)
         counted = 0
         states = self.states
         self.states = {}
@@ -147,6 +171,9 @@ class StreamingCounter:
             counted += 1
             if write is not None and alns is not None:
                 for aln in alns:
+                    aln.reference_id = new_tid[aln.reference_id]
+                    if aln.next_reference_id >= 0:
+                        aln.next_reference_id = new_tid[aln.next_reference_id]
                     write(aln)
         del states
         self.counted_reads = counted
@@ -274,20 +301,16 @@ class Counter(Session):
         The unsorted filtered alignments are written as uncompressed BAM: an
         unsorted CRAM would fetch reference sequences in random order.
         """
-        strain_out = None
         strain_unsorted = None
         strain_genes = None
         if self.keep_filtered_alignments:
             strain_genes = self.get_strain_gene_ids(ref_json)
             strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir, suffix=".bam")[1])
-            strain_out = AlignmentFile(
-                str(strain_unsorted.resolve()), "wb0", header=header
-            )
         streamer = StreamingCounter(
             header,
             self.counting_type,
             self.identity_threshold,
-            strain_out,
+            strain_unsorted,
             strain_genes,
         )
         return streamer, strain_unsorted
