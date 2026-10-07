@@ -21,12 +21,154 @@ from tempfile import mkdtemp, mkstemp
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
-from typing import Iterator, ClassVar
-from collections import defaultdict
-from itertools import chain
+from typing import Iterator, Iterable, ClassVar
+from collections import defaultdict, Counter as TupleCounter
+from itertools import chain, repeat
 from pysam import index, sort, AlignmentFile, AlignmentHeader, AlignedSegment  # type: ignore[attr-defined]
 from time import perf_counter
 from shutil import rmtree
+
+
+def header_is_read_grouped(header: AlignmentHeader) -> bool:
+    """True when all alignments of a read are guaranteed to be consecutive.
+
+    bowtie2 writes ``@HD ... SO:unsorted GO:query``; meteor raw CRAM files keep
+    that header. Coordinate-sorted files (e.g. test fixtures) are not grouped.
+    """
+    hd = header.to_dict().get("HD", {})
+    return hd.get("GO") == "query" or hd.get("SO") == "queryname"
+
+
+class StreamingCounter:
+    """Identity filtering + counting in a single pass over read-grouped alignments.
+
+    Equivalent to Counter.filter_alignments / uniq_from_mult / compute_co /
+    compute_abm / compute_abs / compute_abs_total, but only the alignments of the
+    current read are held in memory. Multi-mapped reads are aggregated by their
+    gene list, so smart_shared coefficients are computed once per distinct list.
+    """
+
+    def __init__(
+        self,
+        header: AlignmentHeader,
+        counting_type: str,
+        identity_threshold: float,
+        strain_out: AlignmentFile | None = None,
+        strain_gene_ids: set[int] | None = None,
+    ) -> None:
+        self.counting_type = counting_type
+        self.identity_threshold = identity_threshold
+        references = header.references
+        self.gene_of_tid = [int(ref) for ref in references]
+        self.database: dict[int, int] = dict(zip(self.gene_of_tid, header.lengths))
+        self.strain_out = strain_out
+        # bytearray indexed by reference id: 1 when the gene is a core gene
+        self.strain_tid = bytearray(len(references))
+        if strain_out is not None and strain_gene_ids is not None:
+            for tid, gene in enumerate(self.gene_of_tid):
+                if gene in strain_gene_ids:
+                    self.strain_tid[tid] = 1
+        self.unique_on_gene: dict[int, int] = dict.fromkeys(self.database, 0)
+        self.total_on_gene: dict[int, int] = dict.fromkeys(self.database, 0)
+        self.multi: TupleCounter = TupleCounter()
+        self.counted_reads = 0
+        # current read group
+        self._read: str | None = None
+        self._best = -1.0
+        self._tids: list[int] = []
+        self._alns: list[AlignedSegment] = []
+
+    def feed(self, element: AlignedSegment) -> None:
+        stats = element.get_cigar_stats()[0]
+        ali = stats[0] + stats[1] + stats[2]
+        identity = (ali - element.get_tag("NM")) / ali
+        if identity < self.identity_threshold:
+            return
+        read_id = element.query_name
+        if read_id != self._read:
+            if self._read is not None:
+                self._flush()
+            self._read = read_id
+            self._best = identity
+            self._tids = [element.reference_id]
+            self._alns = [element]
+        elif identity == self._best:
+            self._tids.append(element.reference_id)
+            self._alns.append(element)
+        elif identity > self._best:
+            self._best = identity
+            self._tids = [element.reference_id]
+            self._alns = [element]
+
+    def _flush(self) -> None:
+        tids = self._tids
+        gene_of_tid = self.gene_of_tid
+        is_unique = len(tids) == 1
+        if is_unique:
+            self.unique_on_gene[gene_of_tid[tids[0]]] += 1
+        elif self.counting_type == "smart_shared":
+            self.multi[tuple(gene_of_tid[t] for t in tids)] += 1
+        if self.counting_type == "total":
+            for t in tids:
+                self.total_on_gene[gene_of_tid[t]] += 1
+        keep = is_unique or self.counting_type != "unique"
+        if keep:
+            self.counted_reads += 1
+            if self.strain_out is not None:
+                strain_tid = self.strain_tid
+                write = self.strain_out.write
+                for aln in self._alns:
+                    if strain_tid[aln.reference_id]:
+                        write(aln)
+
+    def finish(self) -> dict[int, int | float]:
+        """Flush the last read and return the abundance of every gene."""
+        if self._read is not None:
+            self._flush()
+            self._read = None
+            self._alns = []
+        if self.counting_type == "total":
+            return dict(self.total_on_gene)
+        if self.counting_type == "unique":
+            return dict(self.unique_on_gene)
+        return self._smart_shared()
+
+    def _smart_shared(self) -> dict[int, int | float]:
+        """Same arithmetic as Counter.compute_co/compute_abm/compute_abs.
+
+        Each read contributes its coefficient once per gene and the contributions
+        are added with the built-in sum(), as in Counter.compute_abm (Python >= 3.12
+        sum() is compensated, so the result does not depend on read order).
+        """
+        unique_on_gene = self.unique_on_gene
+        # gene -> {coefficient: number of reads}
+        contrib: dict[int, dict[float, int]] = defaultdict(lambda: defaultdict(int))
+        for genes, n_reads in self.multi.items():
+            som = sum(unique_on_gene[gene] for gene in genes)
+            per_gene: dict[int, float] = {}
+            if som == 0:
+                coef = 1.0 / len(genes)
+                for gene in genes:
+                    per_gene[gene] = coef
+            else:
+                seen: set[int] = set()
+                duplicated = {gene for gene in genes if gene in seen or seen.add(gene)}
+                for gene in genes:
+                    nb_unique = unique_on_gene[gene]
+                    if nb_unique == 0:
+                        continue
+                    if gene in duplicated:
+                        per_gene[gene] = per_gene.get(gene, 0.0) + nb_unique / float(som)
+                    else:
+                        per_gene[gene] = nb_unique / float(som)
+            for gene, coef in per_gene.items():
+                contrib[gene][coef] += n_reads
+        abundance: dict[int, int | float] = dict(unique_on_gene)
+        for gene, coefs in contrib.items():
+            abundance[gene] = unique_on_gene[gene] + sum(
+                chain.from_iterable(repeat(c, n) for c, n in coefs.items())
+            )
+        return abundance
 
 
 @dataclass
@@ -62,6 +204,10 @@ class Counter(Session):
 
     def launch_mapping(self) -> None:
         """Create temporary indexed files and map against"""
+        self._build_mapper().execute()
+
+    def _build_mapper(self, keep_raw: bool = True, consumer_factory=None) -> Mapper:
+        """Mapper for all the libraries (fastq files) of the sample"""
         fastq_paths = []
         # loop on each library
         for dict_data in self.json_data.values():
@@ -71,15 +217,138 @@ class Counter(Session):
             fastq_paths.append(str(self.meteor.fastq_dir / sample_file["fastq_file"]))
 
         # mapping this library on the reference
-        mapping_process = Mapper(
+        return Mapper(
             self.meteor,
             dict_data,
             fastq_paths,
             self.mapping_type,
             self.trim,
             self.alignment_number,
+            keep_raw,
+            consumer_factory,
         )
-        mapping_process.execute()
+
+    def get_strain_gene_ids(self, ref_json: dict) -> set[int]:
+        """Core genes (core_size per MSP) kept in the filtered CRAM"""
+        msp_file = (
+            self.meteor.ref_dir
+            / ref_json["reference_file"]["database_dir"]
+            / ref_json["annotation"]["msp"]["filename"]
+        )
+        msp_content = (
+            self.load_data(msp_file)
+            .query("gene_category == 'core'")
+            .groupby("msp_name", as_index=False)
+            .head(self.core_size)
+        )
+        return set(msp_content["gene_id"])
+
+    def _streaming_counter(
+        self, header: AlignmentHeader, ref_json: dict
+    ) -> tuple[StreamingCounter, Path | None]:
+        """Create a StreamingCounter (and the unsorted strain CRAM it writes to)"""
+        strain_out = None
+        strain_unsorted = None
+        strain_genes = None
+        if self.keep_filtered_alignments:
+            reference = (
+                self.meteor.ref_dir
+                / ref_json["reference_file"]["fasta_dir"]
+                / ref_json["reference_file"]["fasta_filename"]
+            )
+            strain_genes = self.get_strain_gene_ids(ref_json)
+            strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+            strain_out = AlignmentFile(
+                str(strain_unsorted.resolve()),
+                "wc",
+                header=header,
+                reference_filename=str(reference.resolve()),
+                threads=self.meteor.threads,
+            )
+        streamer = StreamingCounter(
+            header,
+            self.counting_type,
+            self.identity_threshold,
+            strain_out,
+            strain_genes,
+        )
+        return streamer, strain_unsorted
+
+    def _finish_streaming(
+        self,
+        streamer: StreamingCounter,
+        strain_unsorted: Path | None,
+        cramfile_strain: Path,
+        count_file: Path,
+        stage1_json_data: dict,
+        stage1_json: Path,
+    ) -> None:
+        """Write the count table, the census and the sorted strain CRAM"""
+        abundance = streamer.finish()
+        if streamer.strain_out is not None:
+            streamer.strain_out.close()
+        self.write_stat(count_file, abundance, streamer.database)
+        total_read_count = stage1_json_data["mapping"]["total_read_count"]
+        config = self.set_counter_config(
+            total_read_count, streamer.counted_reads, count_file
+        )
+        stage1_json_data.update(config)
+        self.save_config(stage1_json_data, stage1_json)
+        if strain_unsorted is not None:
+            self.sort_index_strain(strain_unsorted, cramfile_strain)
+        else:
+            logging.info(
+                "Cram file is not kept (--kf). Strain analysis will require a new mapping."
+            )
+
+    def sort_index_strain(self, unsorted: Path, cramfile_strain: Path) -> None:
+        sort(
+            "-o",
+            str(cramfile_strain.resolve()),
+            "-@",
+            str(self.meteor.threads),
+            "-O",
+            "cram",
+            str(unsorted.resolve()),
+            catch_stdout=False,
+        )
+        index(str(cramfile_strain.resolve()))
+
+    def launch_mapping_and_counting(
+        self,
+        cramfile_strain: Path,
+        count_file: Path,
+        ref_json: dict,
+        stage1_json: Path,
+    ) -> None:
+        """Map with bowtie2 and count in the same pass (no raw CRAM round trip).
+
+        The raw CRAM is only written when --ka is requested.
+        """
+        state: dict = {}
+
+        def factory(header: AlignmentHeader) -> StreamingCounter:
+            if not header_is_read_grouped(header):
+                # bowtie2 always reports GO:query; never silently mis-count
+                raise RuntimeError("bowtie2 output is not grouped by read")
+            streamer, strain_unsorted = self._streaming_counter(header, ref_json)
+            state["streamer"] = streamer
+            state["strain_unsorted"] = strain_unsorted
+            return streamer
+
+        pysam.set_verbosity(0)
+        self._build_mapper(self.keep_all_alignments, factory).execute()
+        stage1_json_data = self.read_json(stage1_json)
+        start = perf_counter()
+        self._finish_streaming(
+            state["streamer"],
+            state["strain_unsorted"],
+            cramfile_strain,
+            count_file,
+            stage1_json_data,
+            stage1_json,
+        )
+        logging.info("Completed count table writing in %f seconds", perf_counter() - start)
 
     def get_aligned_nucleotides(self, element: AlignedSegment) -> Iterator[int]:
         """Select aligned nucleotides
@@ -422,6 +691,29 @@ class Counter(Session):
         else:
             logging.info("Launch counting")
         pysam.set_verbosity(0)
+        streamer: StreamingCounter | None = None
+        strain_unsorted: Path | None = None
+        with AlignmentFile(
+            str(raw_cramfile.resolve()), threads=self.meteor.threads
+        ) as cramdesc:
+            if header_is_read_grouped(cramdesc.header):
+                # meteor raw CRAM (bowtie2 order): single pass, bounded memory
+                streamer, strain_unsorted = self._streaming_counter(
+                    cramdesc.header, ref_json
+                )
+                feed = streamer.feed
+                for element in cramdesc:
+                    feed(element)
+        if streamer is not None:
+            self._finish_streaming(
+                streamer,
+                strain_unsorted,
+                cramfile_strain,
+                count_file,
+                stage1_json_data,
+                stage1_json,
+            )
+            return
         with AlignmentFile(
             str(raw_cramfile.resolve()), threads=self.meteor.threads
         ) as cramdesc:
@@ -528,38 +820,36 @@ class Counter(Session):
             if not stage1_json.exists():
                 mapping_done = False
         # mapping already done and no overwriting
+        cram_file = stage1_dir / f"{sample_name}.cram"
+        count_file = stage1_dir / f"{sample_name}.tsv.xz"
+        start = perf_counter()
         if mapping_done:
             logging.info(
                 "Mapping already done for sample: %s",
                 sample_name,
             )
             logging.info("Skipped !")
+            # running counter from the raw cram
+            stage1_json_data = self.read_json(stage1_json)
+            raw_cram_file = stage1_dir / stage1_json_data["mapping"]["mapping_file"]
+            self.launch_counting(
+                raw_cram_file,
+                cram_file,
+                count_file,
+                ref_json,
+                stage1_json_data,
+                stage1_json,
+            )
+            logging.info("Completed counting in %f seconds", perf_counter() - start)
         else:
-            logging.info("Launch mapping")
-            self.launch_mapping()
-        # running counter
-        stage1_json_data = self.read_json(stage1_json)
-        raw_cram_file = (stage1_dir /
-            stage1_json_data["mapping"]["mapping_file"]
-        )
-        cram_file = (
-            stage1_dir
-            / f"{sample_name}.cram"
-        )
-        count_file = (
-            stage1_dir
-            / f"{sample_name}.tsv.xz"
-        )
-        start = perf_counter()
-        self.launch_counting(
-            raw_cram_file,
-            cram_file,
-            count_file,
-            ref_json,
-            stage1_json_data,
-            stage1_json,
-        )
-        logging.info("Completed counting in %f seconds", perf_counter() - start)
+            logging.info("Launch mapping and counting")
+            self.launch_mapping_and_counting(cram_file, count_file, ref_json, stage1_json)
+            logging.info(
+                "Completed mapping and counting in %f seconds", perf_counter() - start
+            )
+            raw_cram_file = (
+                stage1_dir / self.read_json(stage1_json)["mapping"]["mapping_file"]
+            )
         if not self.keep_all_alignments:
             logging.info(
                 "Raw cram file is not kept (--ka). "

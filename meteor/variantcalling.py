@@ -14,6 +14,7 @@
 
 import logging
 import sys
+import gzip
 import lzma
 import bgzip
 import pickle
@@ -33,6 +34,101 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from collections import defaultdict
 from typing import ClassVar
 from tqdm import tqdm
+
+
+def depth_array(
+    cram: AlignmentFile,
+    gene_name: str,
+    gene_length: int,
+    fasta: FastaFile,
+    max_depth: int,
+) -> np.ndarray:
+    """Per-position read count of a gene, deletions and ref-skips excluded.
+
+    Same pileup and counting rule as VariantCalling.count_reads_in_gene, but
+    returned as a dense array of length gene_length.
+    """
+    depth = np.zeros(gene_length, dtype=np.int64)
+    for pileupcolumn in cram.pileup(
+        contig=gene_name,
+        start=0,
+        end=gene_length,
+        stepper="all",
+        max_depth=max_depth,
+        fastafile=fasta,
+        multiple_iterators=False,
+    ):
+        pos = pileupcolumn.reference_pos
+        if pos < gene_length:
+            depth[pos] = sum(
+                True
+                for pileupread in pileupcolumn.pileups
+                if not pileupread.is_del and not pileupread.is_refskip
+            )
+    return depth
+
+
+def runs_below(
+    depth: np.ndarray, min_depth: int
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Maximal runs of equal depth over [0, len) whose depth is < min_depth.
+
+    Vectorised equivalent of VariantCalling.group_consecutive_positions.
+    """
+    length = len(depth)
+    change = np.flatnonzero(depth[1:] != depth[:-1]) + 1
+    starts = np.concatenate(([0], change))
+    ends = np.concatenate((change, [length]))
+    values = depth[starts]
+    keep = values < min_depth
+    return starts[keep], ends[keep], values[keep]
+
+
+def low_cov_worker(
+    cram_file: str,
+    reference_file: str,
+    genes: list[tuple[str, int]],
+    max_depth: int,
+    min_depth: int,
+) -> list[tuple[str, np.ndarray, np.ndarray, np.ndarray]]:
+    """Low coverage runs for a batch of genes (runs in a worker process)."""
+    result = []
+    with AlignmentFile(cram_file, "rc", reference_filename=reference_file) as cram:
+        with FastaFile(filename=reference_file) as fasta:
+            for gene_name, gene_length in genes:
+                starts, ends, values = runs_below(
+                    depth_array(cram, gene_name, gene_length, fasta, max_depth),
+                    min_depth,
+                )
+                if len(starts) > 0:
+                    result.append((gene_name, starts, ends, values))
+    return result
+
+
+def low_cov_to_dict(low_cov_sites: "pd.DataFrame | dict") -> dict:
+    """{gene index value: int array (n, 2) of [start, end) intervals}.
+
+    Replaces per-gene `.loc` lookups on a non-unique, unsorted index, which
+    scan the whole table each time (O(rows) per gene).
+    """
+    if isinstance(low_cov_sites, dict):
+        return low_cov_sites
+    if len(low_cov_sites) == 0:
+        return {}
+    codes, uniques = pd.factorize(low_cov_sites.index)
+    order = np.argsort(codes, kind="stable")
+    intervals = low_cov_sites[["startpos", "endpos"]].to_numpy()[order]
+    bounds = np.cumsum(np.bincount(codes, minlength=len(uniques)))[:-1]
+    return dict(zip(uniques, np.split(intervals, bounds)))
+
+
+def gene_ignore_to_dict(gene_ignore: "pd.DataFrame | dict") -> dict:
+    """{gene_id: gene_length} of genes fully replaced by gaps."""
+    if isinstance(gene_ignore, dict):
+        return gene_ignore
+    if len(gene_ignore) == 0 or "gene_length" not in gene_ignore.columns:
+        return {}
+    return dict(zip(gene_ignore.index, gene_ignore["gene_length"].astype(int)))
 
 
 def run_freebayes_chunk(
@@ -143,6 +239,38 @@ class VariantCalling(Session):
     ploidy: int
     core_size: int
 
+    # freebayes BED chunks per thread (dynamic load balancing)
+    FREEBAYES_CHUNKS_PER_THREAD: ClassVar[int] = 4
+
+    def gene_counts(self) -> dict[int, float]:
+        """Raw gene counts (count table of the mapping step)"""
+        if getattr(self, "_gene_counts", None) is None:
+            counts = pd.read_csv(
+                self.matrix_file,
+                sep="\t",
+                names=["gene_id", "gene_length", "value"],
+                header=0,
+                compression="xz",
+            )
+            counts = counts[counts["value"] > 0]
+            self._gene_counts = dict(zip(counts["gene_id"], counts["value"]))
+        return self._gene_counts
+
+    def genes_in_cram(self, cram_file: Path) -> set[int]:
+        """Genes having alignments in a coordinate sorted CRAM (from its .crai)"""
+        crai = Path(f"{cram_file}.crai")
+        if not crai.exists():
+            return set()
+        with AlignmentFile(str(cram_file.resolve()), "rc") as cram:
+            references = cram.references
+        ref_ids = set()
+        with gzip.open(crai, "rt") as index_fh:
+            for line in index_fh:
+                ref_id = int(line.split("\t", 1)[0])
+                if ref_id >= 0:
+                    ref_ids.add(ref_id)
+        return {int(references[ref_id]) for ref_id in ref_ids}
+
     def set_variantcalling_config(
         self,
         cram_file: Path,
@@ -230,42 +358,81 @@ class VariantCalling(Session):
 
         return bed_chunks  # Return the list of file paths.
 
+    def create_balanced_bed_chunks(
+        self,
+        merged_df: pd.DataFrame,
+        gene_weight: dict[int, float],
+        num_chunks: int,
+        tmp_dir: Path,
+    ) -> list[Path]:
+        """Split MSPs into `num_chunks` BED files of similar expected cost.
+
+        The cost of an MSP is the number of reads counted on its core genes.
+        MSPs are assigned greedily (longest-processing-time first) and the
+        chunks are returned from the most to the least loaded, so that the
+        process pool starts with the slowest chunks.
+        """
+        weights = (
+            merged_df.assign(
+                weight=merged_df["gene_id"].map(gene_weight).fillna(0.0) + 1.0
+            )
+            .groupby("msp_name", sort=False)["weight"]
+            .sum()
+            .sort_values(ascending=False, kind="stable")
+        )
+        num_chunks = max(1, min(num_chunks, len(weights)))
+        loads = [0.0] * num_chunks
+        members: list[list[str]] = [[] for _ in range(num_chunks)]
+        for msp_name, weight in weights.items():
+            i = min(range(num_chunks), key=loads.__getitem__)
+            loads[i] += weight
+            members[i].append(msp_name)
+        bed_chunks = []
+        for i in sorted(range(num_chunks), key=lambda k: -loads[k]):
+            chunk_df = merged_df[merged_df["msp_name"].isin(set(members[i]))]
+            temp_bed_file = NamedTemporaryFile(suffix=".bed", dir=tmp_dir, delete=False)
+            chunk_df[["gene_id", "startpos", "gene_length"]].to_csv(
+                temp_bed_file.name, sep="\t", index=False, header=False
+            )
+            bed_chunks.append(Path(temp_bed_file.name))
+        return bed_chunks
+
+    def write_marker_reference(
+        self, reference_file: Path, gene_ids: list[int], tmp_dir: Path
+    ) -> str:
+        """Uncompressed FASTA (+ .fai) restricted to the genes given to freebayes.
+
+        The filtered CRAM only holds alignments on these genes, so freebayes
+        never needs the rest of the catalogue.
+        """
+        with NamedTemporaryFile(
+            suffix=".fasta", dir=tmp_dir, delete=False, mode="wt"
+        ) as out:
+            with FastaFile(filename=str(reference_file.resolve())) as fasta:
+                for gene_id in gene_ids:
+                    out.write(f">{gene_id}\n{fasta.fetch(str(gene_id))}\n")
+            path = out.name
+        faidx(path)
+        return path
+
     def group_consecutive_positions(
         self, position_count_dict: dict, gene_name: str, gene_length: int
     ):
-        # Initialize the result list
-        result = []
-        # result = {gene_name: []}
-
-        # Initialize variables for tracking ranges
-        start = 0
-        current_count = position_count_dict.get(0, 0)
-
-        # Create a sorted list of all positions from 0 to gene_length
-        for pos in range(1, gene_length + 1):
-            # Get the count for the current position, defaulting to 0 if not present in the dictionary
-            count = position_count_dict.get(pos, 0)
-            if count != current_count:
-                # Append the current range to the result
-                result.append((start, pos, current_count))
-                # result[gene_name] += [[start, pos, current_count]]
-                # Start a new range
-                start = pos
-                current_count = count
-
-        # Append the last range
-        if start != pos:
-            result.append((start, pos, current_count))
-            # result[gene_name] += [[start, pos, current_count]]
+        """Runs of equal read count below min_depth, as a DataFrame"""
+        depth = np.zeros(gene_length, dtype=np.int64)
+        for pos, count in position_count_dict.items():
+            if 0 <= pos < gene_length:
+                depth[pos] = count
+        starts, ends, values = runs_below(depth, self.min_depth)
         return pd.DataFrame(
-            [
-                (gene_name, start, end, count)
-                for start, end, count in result
-                if count < self.min_depth
-            ],
+            {
+                "gene_id": [gene_name] * len(starts),
+                "startpos": starts,
+                "endpos": ends,
+                "coverage": values,
+            },
             columns=["gene_id", "startpos", "endpos", "coverage"],
         )
-        # return result
 
     def count_reads_in_gene(
         self,
@@ -335,11 +502,17 @@ class VariantCalling(Session):
         self,
         cram_file: Path,
         reference_file: Path,
-    ) -> tuple[pd.DataFrame]:
-        """Create a bed file reporting a list of positions below coverage threshold
+        gene_subset: set[int] | None = None,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Report, per gene, the runs of positions below the depth threshold
 
         :param cram_file:   Path to the input cram file
-        :param temp_low_cov_sites: File handle to write low coverage sites
+        :param reference_file: Path to the catalogue fasta
+        :param gene_subset: Only these genes are analysed (the genes written in
+            the consensus). The filtered CRAM has no alignment elsewhere, so
+            other genes would be piled up for nothing.
+        :return: (low coverage runs indexed by gene_id as str,
+                  genes below min_depth indexed by gene_id)
         """
         # Get list of genes
         gene_interest = pd.read_csv(
@@ -356,51 +529,71 @@ class VariantCalling(Session):
         # Round the coverage column to 0 decimal places
         gene_interest["coverage"] = gene_interest["coverage"].round(0)
 
-        # Optionally, if you want to convert the rounded values to integers
-        # gene_interest["coverage"] = gene_interest["coverage"].astype(int)
         # Convert the 'coverage' column to a sparse column using SparseDtype
         gene_interest["coverage"] = gene_interest["coverage"].astype(
             pd.SparseDtype(int, 0)
         )
+        any_covered_gene = bool((gene_interest["coverage"] >= self.min_depth).any())
+        if gene_subset is not None:
+            gene_interest = gene_interest[gene_interest["gene_id"].isin(gene_subset)]
         # We need to do more work for these genes
         # their total count is above the min_depth
         # but we need to find on which positions they do.
         gene_tofilter = gene_interest[gene_interest["coverage"] >= self.min_depth][
             ["gene_id", "gene_length"]
         ]
-        dfs = []
-        # all_genes_dict = {}
-        with AlignmentFile(
-            str(cram_file.resolve()),
-            "rc",
-            reference_filename=str(reference_file.resolve()),
-            threads=self.meteor.threads,
-        ) as cram:
-            with FastaFile(filename=str(reference_file.resolve())) as Fasta:
-                # For genes with a count
-                for _, row in gene_tofilter.iterrows():
-                    reads_dict = self.count_reads_in_gene(
-                        cram, str(row["gene_id"]), row["gene_length"], Fasta
+        genes = [
+            (str(gene_id), int(gene_length))
+            for gene_id, gene_length in gene_tofilter.itertuples(index=False)
+        ]
+        cram_path = str(cram_file.resolve())
+        ref_path = str(reference_file.resolve())
+        workers = max(1, self.meteor.threads)
+        if workers == 1 or len(genes) < 2 * workers:
+            results = [
+                low_cov_worker(cram_path, ref_path, genes, self.max_depth, self.min_depth)
+            ]
+        else:
+            # small batches keep the pool balanced; order of results is kept
+            batch = max(1, min(2000, len(genes) // (workers * 8)))
+            batches = [genes[i : i + batch] for i in range(0, len(genes), batch)]
+            with ProcessPoolExecutor(max_workers=workers) as executor:
+                results = list(
+                    executor.map(
+                        low_cov_worker,
+                        [cram_path] * len(batches),
+                        [ref_path] * len(batches),
+                        batches,
+                        [self.max_depth] * len(batches),
+                        [self.min_depth] * len(batches),
                     )
-                    df = self.group_consecutive_positions(
-                        reads_dict, str(row["gene_id"]), row["gene_length"]
-                    )
-                    # genes_dict = self.group_consecutive_positions(reads_dict, str(row["gene_id"]), row["gene_length"])
-                    # if len(genes_dict[str(row["gene_id"])]) > 0:
-                    #     all_genes_dict.update(genes_dict)
-                    if len(df) > 0:
-                        dfs.append(df)
+                )
+        runs = [run for result in results for run in result]
         # All these genes are going to be replaced by gaps
         # Their count is below the threshold level
         gene_ignore = gene_interest[
             gene_interest["coverage"] < self.min_depth
         ].set_index("gene_id")
-        
-        if len(dfs) == 0:
+
+        if len(runs) == 0 and (gene_subset is None or not any_covered_gene):
             logging.error("No low coverage regions detected, it might be linked to no coverage at all")
             sys.exit(1)
+        if len(runs) == 0:
+            sum_cov_bed = pd.DataFrame(
+                columns=["gene_id", "startpos", "endpos", "coverage"]
+            ).set_index("gene_id")
         else:
-            sum_cov_bed = pd.concat(dfs, ignore_index=True).set_index("gene_id")
+            sum_cov_bed = pd.DataFrame(
+                {
+                    "gene_id": np.repeat(
+                        np.array([run[0] for run in runs], dtype=object),
+                        [len(run[1]) for run in runs],
+                    ),
+                    "startpos": np.concatenate([run[1] for run in runs]),
+                    "endpos": np.concatenate([run[2] for run in runs]),
+                    "coverage": np.concatenate([run[3] for run in runs]),
+                }
+            ).set_index("gene_id")
         return sum_cov_bed, gene_ignore
 
     # @memory_profiler.profile
@@ -422,7 +615,12 @@ class VariantCalling(Session):
                 .astype(int)
             )
         )
-        # low_cov_sites_dict = low_cov_sites.groupby(low_cov_sites.index).apply(lambda x: x.to_dict(orient='records')).to_dict()
+        # low_cov_sites / gene_ignore may be DataFrames (pickled by older runs,
+        # tests) or dicts: index them once instead of a `.loc` scan per gene
+        low_cov = low_cov_to_dict(low_cov_sites)
+        ignore_length = gene_ignore_to_dict(gene_ignore)
+        gap = self.meteor.DEFAULT_GAP_CHAR
+        gap_byte = gap.encode()
         with VariantFile(str(vcf_file.resolve()), threads=self.meteor.threads) as vcf:
             with FastaFile(filename=str(reference_file.resolve())) as Fasta:
                 with lzma.open(consensus_file, "wt", preset=0) as consensus_f:
@@ -431,95 +629,46 @@ class VariantCalling(Session):
                         bed_set, desc="Creating consensus", unit="gene"
                     ):
                         ref = str(gene_id)
-                        if gene_id in gene_ignore.index:
-                            consensus = [
-                                self.meteor.DEFAULT_GAP_CHAR
-                            ] * gene_ignore.loc[gene_id]["gene_length"]
-                            # Consensus with indel
-                            # consensus_f.write(f">{gene_id}\n")
-                            # consensus_f.write("".join(consensus) + "\n")
-                        else:
-                            consensus = np.array(list(Fasta.fetch(ref)), dtype="<U1")
-                            # Consensus with indel
-                            # consensus = list(Fasta.fetch(ref))
-                            # Apply variants from VCF
-                            # startvcf = perf_counter()
-                            for record in vcf.fetch(ref):
-                                # print(record.info.keys())
-                                # print(record.info["AF"])
-                                # print(record.alleles)
-                                # print(record.alts)
-                                ##INFO=<ID=RO,Number=1,Type=Integer,Description="Count of full observations of the reference haplotype.">
-                                ##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">
-                                # Consensus with indel
-                                # if record.info["TYPE"][0] == "snp":
-                                reference_frequency = record.info["RO"] / (
-                                    record.info["RO"] + np.sum(record.info["AO"])
-                                )
-                                if reference_frequency >= self.min_frequency:
-                                    keep_alts = tuple(sorted(list(record.alleles)))
-                                else:
-                                    keep_alts = tuple(sorted(list(record.alts)))
-                                max_len = max(map(len, keep_alts))
-                                # MNV vase
-                                if max_len > 1:
-                                    for i in range(max_len):
-                                        mnv = tuple(
-                                            sorted(
-                                                set(
-                                                    keep_alts[k][i]
-                                                    for k in range(len(keep_alts))
-                                                )
+                        if gene_id in ignore_length:
+                            consensus_f.write(f">{gene_id}\n")
+                            consensus_f.write(gap * int(ignore_length[gene_id]) + "\n")
+                            continue
+                        consensus = np.frombuffer(
+                            Fasta.fetch(ref).encode("ascii"), dtype="S1"
+                        ).copy()
+                        # Apply variants from VCF
+                        for record in vcf.fetch(ref):
+                            ##INFO=<ID=RO,Number=1,Type=Integer,Description="Count of full observations of the reference haplotype.">
+                            ##INFO=<ID=AO,Number=A,Type=Integer,Description="Count of full observations of this alternate haplotype.">
+                            reference_frequency = record.info["RO"] / (
+                                record.info["RO"] + np.sum(record.info["AO"])
+                            )
+                            if reference_frequency >= self.min_frequency:
+                                keep_alts = tuple(sorted(list(record.alleles)))
+                            else:
+                                keep_alts = tuple(sorted(list(record.alts)))
+                            max_len = max(map(len, keep_alts))
+                            # MNV vase
+                            if max_len > 1:
+                                for i in range(max_len):
+                                    mnv = tuple(
+                                        sorted(
+                                            set(
+                                                keep_alts[k][i]
+                                                for k in range(len(keep_alts))
                                             )
                                         )
-                                        consensus[record.start + i] = self.IUPAC[mnv]
-                                else:
-                                    consensus[record.start] = self.IUPAC[keep_alts]
-                                # Consensus with indel
-                                # else:
-                                #     # we had a nested sequence
-                                #     consensus[record.start] = [
-                                #         record.alts[0],
-                                #         record.start,
-                                #         record.stop,
-                                #     ]
-                            # Update consensus array for each matching range
-                            if ref in low_cov_sites.index:
-                                selection = low_cov_sites.loc[ref]
-                                if isinstance(selection, pd.Series):
-                                    # consensus with indel
-                                    # for i in range(
-                                    #     selection["startpos"], selection["endpos"]
-                                    # ):
-                                    #     consensus[i] = self.meteor.DEFAULT_GAP_CHAR
-                                    consensus[
-                                        selection["startpos"] : selection["endpos"]
-                                    ] = self.meteor.DEFAULT_GAP_CHAR
-                                else:
-                                    for _, row in selection.iterrows():
-                                        # Consensus with indel
-                                        # for i in range(row["startpos"], row["endpos"]):
-                                        #     consensus[i] = self.meteor.DEFAULT_GAP_CHAR
-                                        # Mark as uncertain
-                                        consensus[row["startpos"] : row["endpos"]] = (
-                                            self.meteor.DEFAULT_GAP_CHAR
-                                        )
-
-                            ## Consensus with indel
-                            # consensus_res = ""
-                            # l = 0
-                            # while l < len(consensus):
-                            #     if type(consensus[l]) is str:
-                            #         consensus_res += consensus[l]
-                            #         l += 1
-                            #     else:
-                            #         consensus_res += consensus[l][0]
-                            #         l = consensus[l][2]
-                            # consensus_f.write(f">{gene_id}\n")
-                            # # consensus_f.write("".join(consensus) + "\n")
-                            # consensus_f.write(consensus_res + "\n")
+                                    )
+                                    consensus[record.start + i] = self.IUPAC[mnv]
+                            else:
+                                consensus[record.start] = self.IUPAC[keep_alts]
+                        # Mark low coverage positions as uncertain
+                        intervals = low_cov.get(ref)
+                        if intervals is not None:
+                            for startpos, endpos in intervals:
+                                consensus[startpos:endpos] = gap_byte
                         consensus_f.write(f">{gene_id}\n")
-                        consensus_f.write("".join(consensus) + "\n")
+                        consensus_f.write(consensus.tobytes().decode("ascii") + "\n")
                         del consensus
 
     def execute(self) -> None:
@@ -611,21 +760,21 @@ class VariantCalling(Session):
             vcf_chunk_files = []
         else:
             logging.info("Run freebayes")
-            with reference_file.open("rb") as ref_fh:
-                with bgzip.BGZipReader(
-                    ref_fh, num_threads=self.meteor.threads
-                ) as reader:
-                    decompressed_reference = reader.read()
-            with NamedTemporaryFile(
-                suffix=".fasta", dir=self.meteor.tmp_dir, delete=False
-            ) as temp_ref_file:
-                temp_ref_file.write(decompressed_reference)
-                temp_ref_file_path = temp_ref_file.name
-            # index on the fly
-            faidx(temp_ref_file.name)
-            # Create bed_chunk files. Each file stores multiple `msp_name` regions
-            bed_chunks = self.create_bed_chunks(
-                merged_df, self.meteor.threads, self.meteor.tmp_dir
+            # freebayes only needs the genes of the filtered CRAM (no full
+            # decompression of the catalogue in memory and on disk)
+            marker_genes = sorted(
+                set(merged_df["gene_id"].astype(int)) | self.genes_in_cram(cram_file)
+            )
+            temp_ref_file_path = self.write_marker_reference(
+                reference_file, marker_genes, self.meteor.tmp_dir
+            )
+            # Create bed_chunk files. Each file stores multiple `msp_name` regions,
+            # several chunks per thread, balanced on the reads counted per MSP
+            bed_chunks = self.create_balanced_bed_chunks(
+                merged_df,
+                self.gene_counts(),
+                self.meteor.threads * self.FREEBAYES_CHUNKS_PER_THREAD,
+                self.meteor.tmp_dir,
             )
             # List to store the VCF chunk files
             vcf_chunk_files = [
@@ -703,7 +852,9 @@ class VariantCalling(Session):
         else:
             logging.info("Detecting low coverage regions")
             low_cov_sites, gene_ignore = self.filter_low_cov_sites(
-                cram_file, reference_file
+                cram_file,
+                reference_file,
+                gene_subset=set(merged_df["gene_id"].astype(int)),
             )
             # Open a file for writing the pickle data (binary write mode)
             with low_cov_sites_file.open("wb") as file:
@@ -737,6 +888,8 @@ class VariantCalling(Session):
         # Cleanup temporary files
         temporary_files = (
             [temp_ref_file_path] + vcf_chunk_files + [f"{temp_ref_file_path}.fai"]
+            if temp_ref_file_path is not None
+            else vcf_chunk_files
         )
         for temp_file in temporary_files:
             p = Path(temp_file)

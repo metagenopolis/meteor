@@ -185,17 +185,10 @@ class Strain(Session):
             "%s MSPs have sufficient signal for SNP analysis ",
             len(msp_with_overlapping_genes["msp_name"].values),
         )
+        genes_of_msp = msp_content.groupby("msp_name", sort=False)["gene_id"].agg(list)
         for msp_name in msp_with_overlapping_genes["msp_name"].values:
             msp_file = self.json_data["directory"] / Path(msp_name + ".fasta.xz")
-            msp_seq = ""
-            for gene_id in msp_content[msp_content["msp_name"] == msp_name][
-                "gene_id"
-            ].values:
-                # if gene_id in msp_covered["gene_id"].values:
-                msp_seq += gene_dict[gene_id]
-                # else:
-                #     msp_seq += "?" * len(gene_dict[gene_id])
-
+            msp_seq = "".join(gene_dict[gene_id] for gene_id in genes_of_msp[msp_name])
             if not self.is_only_question_marks(msp_seq):
                 with lzma.open(msp_file, "wt", preset=0) as msp:
                     print(
