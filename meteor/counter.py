@@ -269,24 +269,19 @@ class Counter(Session):
     def _streaming_counter(
         self, header: AlignmentHeader, ref_json: dict
     ) -> tuple[StreamingCounter, Path | None]:
-        """Create a StreamingCounter (and the unsorted strain CRAM it writes to)"""
+        """Create a StreamingCounter (and the unsorted file of filtered alignments)
+
+        The unsorted filtered alignments are written as uncompressed BAM: an
+        unsorted CRAM would fetch reference sequences in random order.
+        """
         strain_out = None
         strain_unsorted = None
         strain_genes = None
         if self.keep_filtered_alignments:
-            reference = (
-                self.meteor.ref_dir
-                / ref_json["reference_file"]["fasta_dir"]
-                / ref_json["reference_file"]["fasta_filename"]
-            )
             strain_genes = self.get_strain_gene_ids(ref_json)
-            strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
+            strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir, suffix=".bam")[1])
             strain_out = AlignmentFile(
-                str(strain_unsorted.resolve()),
-                "wc",
-                header=header,
-                reference_filename=str(reference.resolve()),
-                threads=self.meteor.threads,
+                str(strain_unsorted.resolve()), "wb0", header=header
             )
         streamer = StreamingCounter(
             header,
@@ -305,12 +300,17 @@ class Counter(Session):
         count_file: Path,
         stage1_json_data: dict,
         stage1_json: Path,
+        ref_json: dict,
     ) -> None:
         """Write the count table, the census and the sorted strain CRAM"""
+        start = perf_counter()
         abundance = streamer.finish()
         if streamer.strain_out is not None:
             streamer.strain_out.close()
+        logging.info("Counted reads in %f seconds", perf_counter() - start)
+        start = perf_counter()
         self.write_stat(count_file, abundance, streamer.database)
+        logging.info("Count table written in %f seconds", perf_counter() - start)
         total_read_count = stage1_json_data["mapping"]["total_read_count"]
         config = self.set_counter_config(
             total_read_count, streamer.counted_reads, count_file
@@ -318,13 +318,24 @@ class Counter(Session):
         stage1_json_data.update(config)
         self.save_config(stage1_json_data, stage1_json)
         if strain_unsorted is not None:
-            self.sort_index_strain(strain_unsorted, cramfile_strain)
+            start = perf_counter()
+            self.sort_index_strain(strain_unsorted, cramfile_strain, ref_json)
+            logging.info(
+                "Filtered alignments sorted in %f seconds", perf_counter() - start
+            )
         else:
             logging.info(
                 "Cram file is not kept (--kf). Strain analysis will require a new mapping."
             )
 
-    def sort_index_strain(self, unsorted: Path, cramfile_strain: Path) -> None:
+    def sort_index_strain(
+        self, unsorted: Path, cramfile_strain: Path, ref_json: dict
+    ) -> None:
+        reference = (
+            self.meteor.ref_dir
+            / ref_json["reference_file"]["fasta_dir"]
+            / ref_json["reference_file"]["fasta_filename"]
+        )
         sort(
             "-o",
             str(cramfile_strain.resolve()),
@@ -332,10 +343,13 @@ class Counter(Session):
             str(self.meteor.threads),
             "-O",
             "cram",
+            "--reference",
+            str(reference.resolve()),
             str(unsorted.resolve()),
             catch_stdout=False,
         )
         index(str(cramfile_strain.resolve()))
+        unsorted.unlink(missing_ok=True)
 
     def launch_mapping_and_counting(
         self,
@@ -367,6 +381,7 @@ class Counter(Session):
             count_file,
             stage1_json_data,
             stage1_json,
+            ref_json,
         )
         logging.info("Completed count table writing in %f seconds", perf_counter() - start)
 
@@ -727,6 +742,7 @@ class Counter(Session):
             count_file,
             stage1_json_data,
             stage1_json,
+            ref_json,
         )
 
     def launch_counting_legacy(

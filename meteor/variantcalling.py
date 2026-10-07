@@ -247,6 +247,9 @@ class VariantCalling(Session):
     min_frequency: float
     ploidy: int
     core_size: int
+    # keep the marker-only BAM after execute() (Strain reuses it for coverage)
+    keep_marker_alignments: bool = False
+    marker_alignments: Path | None = None
 
     # freebayes BED chunks per thread (dynamic load balancing)
     FREEBAYES_CHUNKS_PER_THREAD: ClassVar[int] = 4
@@ -977,7 +980,10 @@ class VariantCalling(Session):
             else vcf_chunk_files
         )
         if marker_bam is not None:
-            temporary_files += [str(marker_bam), f"{marker_bam}.bai"]
+            if self.keep_marker_alignments:
+                self.marker_alignments = marker_bam
+            else:
+                temporary_files += [str(marker_bam), f"{marker_bam}.bai"]
         for temp_file in temporary_files:
             p = Path(temp_file)
             if p.exists():

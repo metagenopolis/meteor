@@ -262,6 +262,9 @@ class Strain(Session):
                 self.ploidy,
                 self.core_size,
             )
+            # the marker-only BAM written by the variant calling is reused for
+            # the gene coverage (the filtered CRAM header lists every gene)
+            variant_calling_process.keep_marker_alignments = True
             if self.json_data["Stage3FileName"].exists():
                 logging.info(
                     "Variant calling already done for sample: %s",
@@ -303,10 +306,17 @@ class Strain(Session):
                 / self.json_data["reference"]["reference_file"]["fasta_dir"]
                 / self.json_data["reference"]["reference_file"]["fasta_filename"]
             )
+            coverage_alignments = (
+                variant_calling_process.marker_alignments or cram_file
+            )
             # count_file,
             self.get_msp_variant(
-                consensus_file, msp_file, cram_file, reference_file
+                consensus_file, msp_file, coverage_alignments, reference_file
             )
+            if variant_calling_process.marker_alignments is not None:
+                marker_bam = variant_calling_process.marker_alignments
+                marker_bam.unlink(missing_ok=True)
+                Path(f"{marker_bam}.bai").unlink(missing_ok=True)
             logging.info(
                 "Completed strain analysis in %f seconds", perf_counter() - start
             )
