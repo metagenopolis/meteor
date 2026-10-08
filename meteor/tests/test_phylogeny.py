@@ -255,3 +255,35 @@ def test_clean_sites_matches_per_site_loops(phylogeny_builder: Phylogeny, datadi
     )
     assert result_fast == result_loops
     assert fast.getvalue() == loops.getvalue()
+
+
+def test_tn93_distance_matrix_matches_cogent3(phylogeny_builder: Phylogeny):
+    """Bit-count TN93 == cogent3 distance_matrix(calc="tn93"), degenerate cases included"""
+    import random
+    import numpy as np
+    from cogent3 import make_aligned_seqs
+    rng = random.Random(3)
+    base = [rng.choice("ACGT") for _ in range(4000)]
+    seqs = {
+        f"s{k}": "".join(c if rng.random() > 0.03 else rng.choice("ACGTACGTNRYKM-") for c in base)
+        for k in range(40)
+    }
+    seqs["copy"] = seqs["s0"]
+    cases = [seqs, {"a": "AAAAAAAAAA", "b": "CCCCCCCCCC", "c": "AAAAAAAAAC"},
+             {"a": "ACGTACGTAA", "b": "ACGTACGTAA", "c": "NNNNNNNNNN"}]
+    for case in cases:
+        aln = make_aligned_seqs(case, moltype="dna")
+        results = []
+        for compute in (lambda: aln.distance_matrix(calc="tn93"),
+                        lambda: phylogeny_builder.tn93_distance_matrix(aln)):
+            try:
+                dists = compute()
+                results.append((list(dists.names), np.asarray(dists.array)))
+            except ArithmeticError as error:
+                results.append(str(error))
+        if isinstance(results[0], str):
+            assert results[0] == results[1]
+        else:
+            assert results[0][0] == results[1][0]
+            assert results[0][1].dtype == results[1][1].dtype
+            assert np.array_equal(results[0][1], results[1][1], equal_nan=True)
