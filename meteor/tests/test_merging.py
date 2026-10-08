@@ -318,3 +318,35 @@ def test_execute2(merging_fast: Merging, datadir: Path) -> None:
                 sorted(expected_output_df.columns), axis=1
             )
             assert real_output_df.round(10).equals(expected_output_df.round(10))
+
+
+@pytest.mark.parametrize("remove_samples", [False, True])
+def test_merge_filter_write_matches_dataframe_path(
+    merging_profiles: Merging, tmp_path: Path, remove_samples: bool
+) -> None:
+    """_merge_filter_write writes the same table as merge_df + filters + to_csv"""
+    import numpy as np
+    merging_profiles.remove_sample_with_no_msp = remove_samples
+    merging_profiles.min_msp_occurrence = 1
+    samples = {
+        name: merging_profiles.meteor.profile_dir / name for name in ("sample1", "sample2", "sample3")
+    }
+    for pattern, keys in [("genes", ["gene_id"]), ("modules", ["mod_id"]),
+                          ("modules_completeness", ["msp_name", "mod_id"]),
+                          ("kegg_as_genes_sum", ["annotation"])]:
+        files = merging_profiles.find_files_to_merge(samples, f"{pattern}.tsv.xz")
+        merged_df = merging_profiles.merge_df(files, keys)
+        numeric = merged_df.drop(columns=keys).to_numpy()
+        row_sums = np.nansum(numeric, axis=1)
+        occurrence = np.nansum((numeric != 0) & ~np.isnan(numeric), axis=1)
+        expected = merged_df.loc[(row_sums >= merging_profiles.min_msp_abundance)
+                                 & (occurrence >= merging_profiles.min_msp_occurrence), :]
+        if remove_samples:
+            expected = expected.loc[:, (expected.sum(axis=0) != 0)]
+        expected.to_csv(tmp_path / f"{pattern}_expected.tsv", sep="\t", index=False)
+        kept = merging_profiles._merge_filter_write(files, keys, tmp_path / f"{pattern}_fast.tsv")
+        assert kept is not None
+        assert (tmp_path / f"{pattern}_fast.tsv").read_text() == (
+            tmp_path / f"{pattern}_expected.tsv"
+        ).read_text(), pattern
+        assert kept.equals(expected[keys].reset_index(drop=True)), pattern

@@ -210,6 +210,157 @@ class Merging(Session):
         merged_df = pd.concat(list_df, join="outer", axis=1).reset_index()
         return merged_df
 
+    def _write_annotations(
+        self, my_pattern: str, filtered_df: pd.DataFrame, output_name: Path
+    ) -> None:
+        """Annotation tables of the kept modules / mustard / kegg rows
+
+        :param my_pattern: merged profile pattern
+        :param filtered_df: kept rows (key columns are enough)
+        :param output_name: output prefix
+        """
+        if my_pattern == "modules":
+            module_path = Path(
+                str(
+                    importlib.resources.files("meteor")
+                    / "data/modules_definition.feather"
+                )
+            )
+            annotation = self.load_data(module_path)
+            annotation = annotation[annotation["id"].isin(filtered_df["mod_id"])]
+            annotation[
+                [
+                    "id",
+                    "type",
+                    "name",
+                ]
+            ].to_csv(
+                Path(f"{output_name}_definition.tsv"),
+                sep="\t",
+                index=False,
+            )
+        elif my_pattern == "mustard_as_genes_sum":
+            mustard_annotation_path = Path(
+                str(
+                    importlib.resources.files("meteor")
+                    / "data/category_pcm.feather"
+                )
+            )
+            mustard_annotation = self.load_data(mustard_annotation_path)
+            mustard_annotation = mustard_annotation[
+                mustard_annotation["ARD"].isin(filtered_df["annotation"])
+            ]
+            mustard_annotation[
+                [
+                    "ARD",
+                    "Antimicrobial"]
+            ].to_csv(
+                Path(f"{output_name}_antimicrobial.tsv"),
+                sep="\t",
+                index=False,
+            )
+        elif my_pattern == "kegg_as_genes_sum":
+            kegg_annotation_path = Path(
+                str(
+                    importlib.resources.files("meteor")
+                    / "data/ko_list_v116.feather"
+                )
+            )
+            kegg_annotation = self.load_data(kegg_annotation_path)
+            kegg_annotation = kegg_annotation[
+                kegg_annotation["knum"].isin(filtered_df["annotation"])
+            ]
+            kegg_annotation[
+                [
+                    "knum",
+                    "definition"]
+            ].to_csv(
+                Path(f"{output_name}_description.tsv"),
+                sep="\t",
+                index=False,
+            )
+
+    # rows formatted and written per block by _merge_filter_write
+    WRITE_BLOCK_ROWS: ClassVar[int] = 4096
+
+    def _merge_filter_write(
+        self, dict_path: dict[str, Path], key_merging: list[str], output_file: Path
+    ) -> pd.DataFrame | None:
+        """merge_df + abundance/occurrence filters + sample filter + to_csv without
+        a (sparse) DataFrame holding every sample.
+
+        Writes the same table as the DataFrame path of execute and returns the key
+        columns of the kept rows, or None when the table must be built with the
+        DataFrame path (duplicated keys, no row kept, field needing quotes).
+
+        :param dict_path: {sample name: profile file}, in output column order
+        :param key_merging: key columns
+        :param output_file: output tsv file
+        """
+        indexes = []
+        values = []
+        for my_path in dict_path.values():
+            df = pd.read_table(my_path, compression="xz")
+            index = pd.MultiIndex.from_frame(df[key_merging]) if len(key_merging) > 1 \
+                else pd.Index(df[key_merging[0]], name=key_merging[0])
+            if not index.is_unique:
+                return None
+            indexes.append(index)
+            values.append(df["value"].to_numpy(dtype=float))
+        # Same row order as pd.concat(..., join="outer", axis=1)
+        union = pd.concat(
+            [pd.DataFrame(index=index) for index in indexes], axis=1, join="outer"
+        ).index
+        # Column-major matrix, as DataFrame.to_numpy() of the merged sparse columns
+        matrix = np.full((len(union), len(indexes)), np.nan, order="F")
+        for j, (index, vals) in enumerate(zip(indexes, values)):
+            matrix[union.get_indexer(index), j] = vals
+        del indexes, values
+        row_sums = np.nansum(matrix, axis=1)
+        occurrence = np.nansum((matrix != 0) & ~np.isnan(matrix), axis=1)
+        kept_rows = np.flatnonzero(
+            (row_sums >= self.min_msp_abundance) & (occurrence >= self.min_msp_occurrence)
+        )
+        if len(kept_rows) == 0:
+            return None
+        samples = list(dict_path)
+        kept_cols = np.arange(len(samples))
+        if self.remove_sample_with_no_msp:
+            # key columns are kept (non-empty), samples with a non-zero sum are kept
+            col_sums = np.array(
+                [np.nansum(matrix[kept_rows, j]) for j in range(len(samples))]
+            )
+            kept_cols = np.flatnonzero(col_sums != 0)
+        keys = union.to_frame(index=False) if isinstance(union, pd.MultiIndex) \
+            else pd.DataFrame({key_merging[0]: union})
+        keys = keys.iloc[kept_rows].reset_index(drop=True)
+        if keys.isna().to_numpy().any():
+            return None
+        header = key_merging + [samples[j] for j in kept_cols]
+        key_str = keys.astype(str).to_numpy()
+        special = ("\t", '"', "\n", "\r")
+        if any(c in str(field) for field in header for c in special) or any(
+            np.char.find(key_str.astype(str), c).max() >= 0 for c in special
+        ):
+            return None
+        with open(output_file, "w", encoding="utf-8") as out:
+            out.write("\t".join(map(str, header)) + "\n")
+            for start in range(0, len(kept_rows), self.WRITE_BLOCK_ROWS):
+                rows = kept_rows[start : start + self.WRITE_BLOCK_ROWS]
+                block = matrix[np.ix_(rows, kept_cols)]
+                # values written as DataFrame.to_csv does: str() of the float,
+                # missing values as empty fields
+                uniques, inverse = np.unique(block, return_inverse=True)
+                text = uniques.astype(str).astype(object)
+                text[np.isnan(uniques)] = ""
+                cells = text[inverse.reshape(block.shape)]
+                lines = [
+                    "\t".join(k) + "\t" + "\t".join(c) if len(c) else "\t".join(k)
+                    for k, c in zip(key_str[start : start + len(rows)].tolist(), cells.tolist())
+                ]
+                out.write("\n".join(lines) + "\n")
+        return keys
+
     def execute(self) -> None:
         "Merge all files generated by either profiler."
         # Load reference data
@@ -331,10 +482,21 @@ class Merging(Session):
                 "There was %s files that correspond to the pattern.",
                 len(files_to_merge),
             )
+            output_name = self.meteor.merging_dir / f"{self.prefix}_{my_pattern}"
+            if my_pattern != "msp":
+                # Large tables: merged, filtered and written without the sparse
+                # DataFrame (same output file)
+                logging.info("Merge and save the data.")
+                kept_keys = self._merge_filter_write(
+                    files_to_merge, value, output_name.with_suffix(".tsv")
+                )
+                if kept_keys is not None:
+                    self._write_annotations(my_pattern, kept_keys, output_name)
+                    logging.info("Data saved as %s", output_name)
+                    continue
             logging.info("Merge the data.")
             merged_df = self.merge_df(files_to_merge, value)
             logging.info("Save the data.")
-            output_name = self.meteor.merging_dir / f"{self.prefix}_{my_pattern}"
             # Calculate the occurrence of non-zero values across the specified columns only
             # occurrence = (merged_df[list_pattern_to_merge[my_pattern]] != 0).sum(axis=1)
             # Calculate the sum of each row in the DataFrame
@@ -411,65 +573,7 @@ class Merging(Session):
                         f.write(biom_json)
                     # with h5py.File(output_name.with_suffix(".biom"), "w") as f:
                     #     table.to_hdf5(f, generated_by="Meteor", compress=True)
-            elif my_pattern == "modules":
-                module_path = Path(
-                    str(
-                        importlib.resources.files("meteor")
-                        / "data/modules_definition.feather"
-                    )
-                )
-                annotation = self.load_data(module_path)
-                annotation = annotation[annotation["id"].isin(filtered_df["mod_id"])]
-                annotation[
-                    [
-                        "id",
-                        "type",
-                        "name",
-                    ]
-                ].to_csv(
-                    Path(f"{output_name}_definition.tsv"),
-                    sep="\t",
-                    index=False,
-                )
-            elif my_pattern == "mustard_as_genes_sum":
-                mustard_annotation_path = Path(
-                    str(
-                        importlib.resources.files("meteor")
-                        / "data/category_pcm.feather"
-                    )
-                )
-                mustard_annotation = self.load_data(mustard_annotation_path)
-                mustard_annotation = mustard_annotation[
-                    mustard_annotation["ARD"].isin(filtered_df["annotation"])
-                ]
-                mustard_annotation[
-                    [
-                        "ARD",
-                        "Antimicrobial"]
-                ].to_csv(
-                    Path(f"{output_name}_antimicrobial.tsv"),
-                    sep="\t",
-                    index=False,
-                )
-            elif my_pattern == "kegg_as_genes_sum":
-                kegg_annotation_path = Path(
-                    str(
-                        importlib.resources.files("meteor")
-                        / "data/ko_list_v116.feather"
-                    )
-                )
-                kegg_annotation = self.load_data(kegg_annotation_path)
-                kegg_annotation = kegg_annotation[
-                    kegg_annotation["knum"].isin(filtered_df["annotation"])
-                ]
-                kegg_annotation[
-                    [
-                        "knum",
-                        "definition"]
-                ].to_csv(
-                    Path(f"{output_name}_description.tsv"),
-                    sep="\t",
-                    index=False,
-                )
+            else:
+                self._write_annotations(my_pattern, filtered_df, output_name)
             filtered_df.to_csv(output_name.with_suffix(".tsv"), sep="\t", index=False)
             logging.info("Data saved as %s", output_name)
