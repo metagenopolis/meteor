@@ -101,3 +101,28 @@ def test_execute(strain_builder, tmp_path: Path) -> None:
     assert BS.exists()
     with BS.open("rb") as out:
         assert md5(out.read()).hexdigest() == "895e02fd5a74c8930673061228aa23db"
+
+
+def test_strain_with_fake_freebayes(strain_builder, tmp_path: Path, fake_freebayes) -> None:
+    """Strain analysis end to end with a freebayes stand-in reporting no variant
+    (the consensus is the reference outside low coverage regions)."""
+    strain_builder.execute()
+    sample_dir = tmp_path / "strain" / "test"
+    assert (sample_dir / "test_census_stage_3.json").exists()
+    strains = sorted(sample_dir.glob("*.fasta.xz"))
+    assert [p.name for p in strains if not p.name.endswith("_consensus.fasta.xz")]
+    # the marker-only alignments reused for the coverage are removed
+    assert not list(sample_dir.glob("*.bam")) and not list(tmp_path.glob("**/*.bam.bai"))
+    digests = {p.name: md5(p.read_bytes()).hexdigest() for p in strains}
+    # same files as meteor 2.0.22 with the same freebayes stand-in
+    assert digests == {
+        "BS.fasta.xz": "9522e957ff04ba8844e1e4b7f1a2665a",
+        "EC.fasta.xz": "d6d8561220bfc5026a554fe60d086a09",
+        "EF.fasta.xz": "7c8a62a310711593c4461eeba5073684",
+        "LF.fasta.xz": "2c1c6f462bd9f0766b90eb378434126d",
+        "LM.fasta.xz": "10ca19a337be0b93bf8b12f3b596dd0f",
+        "PA.fasta.xz": "59ce6e9ccec3279529fff86dccd8f46a",
+        "SA.fasta.xz": "9ca8976b13650b24d6996bf78a3c0430",
+        "SE.fasta.xz": "4628927ddda5aec24eb2cc876da17c10",
+        "test_consensus.fasta.xz": "17eed4afb1d77f366b19350cd71e0d39",
+    }

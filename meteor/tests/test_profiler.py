@@ -591,3 +591,38 @@ def test_write_numeric_table_matches_to_csv() -> None:
     Profiler.write_numeric_table(df, fast)
     df.to_csv(reference, sep="\t", index=False)
     assert fast.getvalue() == reference.getvalue()
+
+
+def test_write_numeric_table_other_columns() -> None:
+    """Text columns: written by to_csv"""
+    import io
+    df = pd.DataFrame({"annotation": ["K1", "K2"], "value": [0.5, 1.0]})
+    fast, reference = io.StringIO(), io.StringIO()
+    Profiler.write_numeric_table(df, fast)
+    df.to_csv(reference, sep="\t", index=False)
+    assert fast.getvalue() == reference.getvalue()
+
+
+def test_compute_completeness_all_edge_cases(profiler_standard: Profiler) -> None:
+    msp_set = profiler_standard.get_msp_core(profiler_standard.msp_filename, core_size=4)
+    profiler_standard.compute_msp(msp_dict=msp_set, filter_pc=0.5)
+    annotated_msp = profiler_standard.merge_catalogue_info(
+        profiler_standard.msp_filename, profiler_standard.db_filenames
+    )
+    all_mod = {"M1": [{"K8", "K9"}], "M2": [set(), {"K9"}]}
+    # an empty alternative: per-module implementation (same values)
+    import pytest as _pytest
+    try:
+        expected = {
+            mod: profiler_standard.compute_completeness(alt, annotated_msp)
+            for mod, alt in all_mod.items()
+        }
+    except ZeroDivisionError:
+        with _pytest.raises(ZeroDivisionError):
+            profiler_standard.compute_completeness_all(all_mod, annotated_msp)
+    else:
+        assert profiler_standard.compute_completeness_all(all_mod, annotated_msp) == expected
+    # no annotated MSP: empty completeness for every module
+    assert profiler_standard.compute_completeness_all(
+        {"M1": [{"K8"}]}, annotated_msp.iloc[0:0]
+    ) == {"M1": {}}

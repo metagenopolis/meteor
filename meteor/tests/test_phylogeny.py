@@ -290,3 +290,79 @@ def test_tn93_distance_matrix_matches_cogent3(phylogeny_builder: Phylogeny):
             assert results[0][0] == results[1][0]
             assert results[0][1].dtype == results[1][1].dtype
             assert np.array_equal(results[0][1], results[1][1], equal_nan=True)
+
+
+def test_clean_sites_different_lengths(phylogeny_builder: Phylogeny, tmp_path: Path):
+    """Sequences of different lengths: per-site implementation (zip stops at the shortest)"""
+    import io
+    fasta = tmp_path / "uneven.fasta"
+    fasta.write_text(">a\nAC?GT\n>b\nA??G\n")
+    phylogeny_builder.max_gap = 0.5
+    output = io.StringIO()
+    result, info_sites = phylogeny_builder.clean_sites(fasta, output)
+    assert info_sites == 3
+    assert result == {"a": "ACG", "b": "A?G"}
+
+
+def test_overlap_counts_without_bitwise_count(phylogeny_builder: Phylogeny, monkeypatch):
+    """numpy < 2: float32 matrix products give the same counts as popcounts"""
+    import numpy as np
+    rng = np.random.default_rng(2)
+    mask = rng.random((7, 1000)) < 0.7
+    other = rng.random((7, 1000)) < 0.4
+    popcount = phylogeny_builder._overlap_counts(mask), phylogeny_builder._overlap_counts(mask, other)
+    expected = mask.astype(int) @ mask.T.astype(int), mask.astype(int) @ other.T.astype(int)
+    monkeypatch.delattr(np, "bitwise_count")
+    phylogeny_builder.OVERLAP_BLOCK = 300
+    blas = phylogeny_builder._overlap_counts(mask), phylogeny_builder._overlap_counts(mask, other)
+    for got in (popcount, blas):
+        assert np.array_equal(got[0], expected[0]) and np.array_equal(got[1], expected[1])
+
+
+def test_tn93_fallbacks(phylogeny_builder: Phylogeny, monkeypatch):
+    """cogent3 internals not as expected, or failing fast path: cogent3 computes
+    the distances"""
+    import numpy as np
+    from cogent3 import make_aligned_seqs
+    from .. import phylogeny
+    aln = make_aligned_seqs({"a": "ACGTACGTAC", "b": "ACGTACGTTC", "c": "ACGAACGTAC"}, moltype="dna")
+    expected = np.asarray(aln.distance_matrix(calc="tn93").array)
+
+    class NoArray:
+        moltype = aln.moltype
+        names = aln.names
+
+        @property
+        def array_seqs(self):
+            raise AttributeError("array_seqs")
+
+        def distance_matrix(self, **kwargs):
+            return aln.distance_matrix(**kwargs)
+
+    assert np.array_equal(np.asarray(phylogeny_builder.tn93_distance_matrix(NoArray()).array), expected)
+
+    def failing(calc):
+        def fill(*args):
+            raise ZeroDivisionError("division by zero")
+        return fill
+
+    monkeypatch.setattr(phylogeny, "_tn93_fill", failing)
+    assert np.array_equal(np.asarray(phylogeny_builder.tn93_distance_matrix(aln).array), expected)
+
+
+def test_comparison_table_distance_sources(phylogeny_builder: Phylogeny, tmp_path: Path):
+    """Distances by position, missing distances and empty sequences: same table as the loops"""
+    sequences = {"s1": "ACGTN", "s2": "ACRTN", "s3": "NNGTA"}
+
+    class ByPosition:
+        def __getitem__(self, pair):
+            return 0.001 * (pair[0] + 1) * (pair[1] + 2)
+
+    class NoDistance:
+        pass
+
+    for dists, seqs in ((ByPosition(), sequences), (NoDistance(), sequences),
+                        (ByPosition(), {"s1": "", "s2": ""})):
+        phylogeny_builder._generate_pairwise_comparison_table(seqs, dists, tmp_path / "fast.tsv")
+        phylogeny_builder._generate_pairwise_comparison_table_python(seqs, dists, tmp_path / "loops.tsv")
+        assert (tmp_path / "fast.tsv").read_text() == (tmp_path / "loops.tsv").read_text()

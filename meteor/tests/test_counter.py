@@ -21,6 +21,7 @@ from pysam import AlignmentFile
 from itertools import chain
 import pytest
 import pandas as pd
+import numpy as np
 import json
 
 # No more best count
@@ -444,3 +445,79 @@ def test_filter_alignments_mates_sharing_a_name(
     assert counter_smart_shared.compute_abs(database, unique_on_gene, multiple) == {
         1: 2, 2: 2.0, 3: 0, 4: 1.0
     }
+
+
+@pytest.mark.parametrize("counting_type", ["unique", "total", "smart_shared"])
+def test_launch_counting_matches_legacy(
+    counter_unique: Counter, datadir: Path, tmp_path: Path, counting_type: str
+) -> None:
+    """Streaming counting == the previous in-memory implementation"""
+    import lzma
+    counter = counter_unique
+    counter.counting_type = counting_type
+    ref_json = counter.read_json(counter.meteor.ref_dir / "mock_reference.json")
+    census_file = counter.meteor.fastq_dir / "part1_census_stage_1.json"
+    results = {}
+    for name, launch in (("streaming", counter.launch_counting), ("legacy", counter.launch_counting_legacy)):
+        count_file = tmp_path / f"{name}.tsv.xz"
+        launch(datadir / "total_raw.cram", tmp_path / f"{name}.cram", count_file, ref_json,
+               counter.read_json(census_file), census_file)
+        with lzma.open(count_file, "rt") as table:
+            results[name] = (pd.read_csv(table, sep="\t"),
+                             counter.read_json(census_file)["counting"]["counted_reads"])
+        assert (tmp_path / f"{name}.cram").exists()
+    streaming, legacy = results["streaming"], results["legacy"]
+    assert streaming[1] == legacy[1]
+    assert streaming[0][["gene_id", "gene_length"]].equals(legacy[0][["gene_id", "gene_length"]])
+    # sums of the same coefficients, possibly in another order (Python < 3.12)
+    assert np.allclose(streaming[0]["value"], legacy[0]["value"], rtol=1e-12, atol=0)
+
+
+def test_launch_counting_without_filtered_alignments(
+    counter_smart_shared: Counter, datadir: Path, tmp_path: Path
+) -> None:
+    counter_smart_shared.keep_filtered_alignments = False
+    ref_json = counter_smart_shared.read_json(counter_smart_shared.meteor.ref_dir / "mock_reference.json")
+    census_file = counter_smart_shared.meteor.fastq_dir / "part1_census_stage_1.json"
+    counter_smart_shared.launch_counting(
+        datadir / "total_raw.cram", tmp_path / "strain.cram", tmp_path / "count.tsv.xz",
+        ref_json, counter_smart_shared.read_json(census_file), census_file,
+    )
+    assert (tmp_path / "count.tsv.xz").exists()
+    assert not (tmp_path / "strain.cram").exists()
+
+
+def test_execute_keep_all_then_recount(counter_smart_shared: Counter, tmp_path: Path) -> None:
+    """--ka keeps the raw alignments while counting; a second execute counts
+    again from them (no mapping) and gives the same table."""
+    counter_smart_shared.keep_all_alignments = True
+    counter_smart_shared.execute()
+    count_file = tmp_path / "part1" / "part1.tsv.xz"
+    raw_cram = tmp_path / "part1" / "part1_raw.cram"
+    assert raw_cram.exists()
+    first = count_file.read_bytes()
+    count_file.unlink()
+    # new run on the same mapping directory (a new meteor mapping command)
+    import dataclasses
+    dataclasses.replace(counter_smart_shared, json_data={}).execute()
+    assert count_file.read_bytes() == first
+    with count_file.open("rb") as out:
+        assert md5(out.read()).hexdigest() == "5db950a4404793f73ba034e99cb676fa"
+
+
+def test_mapping_without_kept_alignments(counter_total: Counter) -> None:
+    """Mapping only (no raw alignments kept, no counting)"""
+    ref_json = counter_total.read_json(counter_total.meteor.ref_dir / "mock_reference.json")
+    census_json_file = counter_total.meteor.fastq_dir / "part1_census_stage_0.json"
+    census_json = counter_total.read_json(census_json_file)
+    stage1_dir = counter_total.meteor.mapping_dir / census_json["sample_info"]["sample_name"]
+    stage1_dir.mkdir(exist_ok=True, parents=True)
+    counter_total.json_data[census_json_file] = {
+        "census": census_json,
+        "directory": stage1_dir,
+        "Stage1FileName": stage1_dir / census_json_file.name.replace("stage_0", "stage_1"),
+        "reference": ref_json,
+    }
+    counter_total._build_mapper(keep_raw=False).execute()
+    assert counter_total.json_data[census_json_file]["Stage1FileName"].exists()
+    assert not (stage1_dir / "part1_raw.cram").exists()
