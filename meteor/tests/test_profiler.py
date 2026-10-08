@@ -560,3 +560,34 @@ def test_execute(profiler_standard: Profiler, datadir: Path) -> None:
         / f"{profiler_standard.output_base_filename}_census_stage_2.json"
     )
     assert census_stage_2_file.exists()
+
+
+def test_compute_completeness_all_matches_per_module(profiler_standard: Profiler) -> None:
+    msp_set = profiler_standard.get_msp_core(profiler_standard.msp_filename, core_size=4)
+    profiler_standard.compute_msp(msp_dict=msp_set, filter_pc=0.5)
+    annotated_msp = profiler_standard.merge_catalogue_info(
+        profiler_standard.msp_filename, profiler_standard.db_filenames
+    )
+    all_mod = {
+        "M1": [{"K8", "K9"}, {"TIGRFAM01", "K9"}, {"K8", "ARD1", "ARD2"}],
+        "M2": [{"ARD1"}, {"K02", "KO1", "ARD1", "K03"}],
+        "M3": [{"unknown"}],
+    }
+    expected = {
+        mod: profiler_standard.compute_completeness(alt, annotated_msp)
+        for mod, alt in all_mod.items()
+    }
+    result = profiler_standard.compute_completeness_all(all_mod, annotated_msp)
+    assert result == expected
+    assert [list(v) for v in result.values()] == [list(v) for v in expected.values()]
+
+
+def test_write_numeric_table_matches_to_csv() -> None:
+    import io
+    import numpy as np
+    values = np.array([0.0, 1e16, 1e-5, 0.0001, 1 / 3, np.nan, 123456.789, -0.0, 2.5e-300])
+    df = pd.DataFrame({"gene_id": np.arange(9), "gene_length": np.arange(9) * 100, "value": values})
+    fast, reference = io.StringIO(), io.StringIO()
+    Profiler.write_numeric_table(df, fast)
+    df.to_csv(reference, sep="\t", index=False)
+    assert fast.getvalue() == reference.getvalue()
