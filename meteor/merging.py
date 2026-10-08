@@ -25,6 +25,7 @@ from pathlib import Path
 from biom.table import Table  # type: ignore
 from typing import ClassVar
 from functools import partial
+from concurrent.futures import ThreadPoolExecutor
 
 
 @dataclass
@@ -297,27 +298,59 @@ class Merging(Session):
         :param key_merging: key columns
         :param output_file: output tsv file
         """
-        indexes = []
-        values = []
-        for my_path in dict_path.values():
+        def read(my_path: Path) -> tuple[pd.Index, np.ndarray]:
             df = pd.read_table(my_path, compression="xz")
-            index = pd.MultiIndex.from_frame(df[key_merging]) if len(key_merging) > 1 \
-                else pd.Index(df[key_merging[0]], name=key_merging[0])
-            if not index.is_unique:
-                return None
-            indexes.append(index)
-            values.append(df["value"].to_numpy(dtype=float))
+            if len(key_merging) > 1:
+                index = pd.MultiIndex.from_frame(df[key_merging])
+            else:
+                index = pd.Index(df[key_merging[0]], name=key_merging[0])
+            return index, df["value"].to_numpy(dtype=float)
+
+        # Files are independent: read them in parallel (decompression and
+        # parsing release the GIL); results are kept in sample order
+        try:
+            n_cpus = len(os.sched_getaffinity(0))
+        except AttributeError:
+            n_cpus = os.cpu_count() or 1
+        with ThreadPoolExecutor(max_workers=max(1, min(8, n_cpus))) as executor:
+            loaded = list(executor.map(read, dict_path.values()))
+        indexes = [index for index, _ in loaded]
+        values = [vals for _, vals in loaded]
+        del loaded
         # Same row order as pd.concat(..., join="outer", axis=1)
-        union = pd.concat(
-            [pd.DataFrame(index=index) for index in indexes], axis=1, join="outer"
-        ).index
+        try:
+            # what pd.concat uses to combine the row indexes
+            from pandas.core.indexes.api import _get_combined_index
+
+            union = _get_combined_index(indexes, intersect=False, sort=False)
+        except Exception:  # pylint: disable=broad-except
+            try:
+                union = pd.concat(
+                    [pd.DataFrame(index=index) for index in indexes], axis=1, join="outer"
+                ).index
+            except Exception:  # pylint: disable=broad-except
+                return None
+        if not union.is_unique:
+            return None
         # Column-major matrix, as DataFrame.to_numpy() of the merged sparse columns
         matrix = np.full((len(union), len(indexes)), np.nan, order="F")
         for j, (index, vals) in enumerate(zip(indexes, values)):
-            matrix[union.get_indexer(index), j] = vals
+            positions = union.get_indexer(index)
+            if np.bincount(positions, minlength=len(union)).max(initial=0) > 1:
+                # duplicated keys in a sample: the DataFrame path raises as pandas does
+                return None
+            matrix[positions, j] = vals
         del indexes, values
-        row_sums = np.nansum(matrix, axis=1)
-        occurrence = np.nansum((matrix != 0) & ~np.isnan(matrix), axis=1)
+        # Row filters, computed on blocks of rows to avoid full-size temporaries
+        # (each row is reduced the same way as on the whole matrix)
+        row_sums = np.empty(len(union))
+        occurrence = np.empty(len(union), dtype=np.int64)
+        for start in range(0, len(union), 65536):
+            block = matrix[start : start + 65536]
+            row_sums[start : start + 65536] = np.nansum(block, axis=1)
+            occurrence[start : start + 65536] = np.nansum(
+                (block != 0) & ~np.isnan(block), axis=1
+            )
         kept_rows = np.flatnonzero(
             (row_sums >= self.min_msp_abundance) & (occurrence >= self.min_msp_occurrence)
         )
