@@ -68,3 +68,7 @@ max-line-length = 120
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+# dump the tracebacks of every thread when a test runs longer than this (s)
+faulthandler_timeout = 240
