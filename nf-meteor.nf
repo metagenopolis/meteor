@@ -89,7 +89,8 @@ process meteor_profile {
     cpus 1
     memory {
         // Measured on hs_10_4_gut (1221 samples): 4.3 GB at most whatever the
-        // input size (peak = 3.68 + 0.012 * GB, R2 = 0.006).
+        // input size (peak = 3.68 + 0.012 * GB, R2 = 0.006); 4.5 GB with the
+        // faster profiler of 2.0.23 (catalogue tables kept in memory).
         def base_mem = Math.ceil(0.5 * cat_size + 1)
         if (cat_type == 'taxo') base_mem = Math.ceil(cat_size / 3)
         return (base_mem * task.attempt).GB
@@ -112,16 +113,18 @@ process meteor_profile {
 }
 
 process meteor_merge {
+    // profiles are read in parallel threads
+    cpus 4
     memory {
         // Memory grows with the number of samples merged. Measured on
-        // hs_10_4_gut with 50 to 1221 gut profiles:
-        // peak = 0.30 + 0.0543 * samples GB (R2 = 0.999), i.e. 5.2 MB per sample
-        // per catalogue GB. Allocated: cat_size / 150 GB per sample (+28%) + 2 GB.
+        // hs_10_4_gut with 50 to 1221 gut profiles (meteor 2.0.23, 4 cpus):
+        // peak = 0.4 + 0.020 * samples GB, i.e. 1.9 MB per sample per catalogue
+        // GB. Allocated: cat_size / 400 GB per sample (+30%) + 2 GB.
         // Taxo catalogues were not measured (previous slope kept).
         // profile holds one staged directory per sample (all staged in the task
         // directory, so their parents are identical: count the entries)
         def sample_count = (profile instanceof List ? profile : [profile]).size()
-        def slope = (cat_type == 'taxo') ? (cat_size / 500) : (cat_size / 150)
+        def slope = (cat_type == 'taxo') ? (cat_size / 500) : (cat_size / 400)
         return (Math.ceil(slope * sample_count + 2) * task.attempt).GB
     }
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
@@ -173,12 +176,13 @@ process meteor_tree {
     cpus params.cpus
     conda "meteor=2.0.23"
     memory {
-        // Tree inference scales with the number of samples analysed. Measured on
-        // hs_10_4_gut with 32 threads and 50 to 1221 gut samples:
-        // peak = 5.38 + 0.0304 * samples GB (R2 = 0.998). Allocated with ~30%
-        // margin: 8 GB + 0.04 GB per sample.
+        // Tree inference: one worker per cpu, each holding the alignment of one
+        // species. Measured on hs_10_4_gut (meteor 2.0.23) with 50 to 1216
+        // samples: 1.0-9.4 GB with 4 threads, 5.8-38.8 GB with 32 threads.
+        // Allocated: 1 + 0.15 GB per thread + samples * (0.006 + 0.001 * threads) GB.
         def sample_count = (strain instanceof List ? strain.flatten() : [strain]).size()
-        return (Math.ceil(0.04 * sample_count + 8) * task.attempt).GB
+        def threads = task.cpus as int
+        return (Math.ceil(1 + 0.15 * threads + sample_count * (0.006 + 0.001 * threads)) * task.attempt).GB
     }
     errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
     maxRetries 2
