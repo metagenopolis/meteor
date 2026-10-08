@@ -279,8 +279,11 @@ def test_tn93_distance_matrix_matches_cogent3(phylogeny_builder: Phylogeny):
             try:
                 dists = compute()
                 results.append((list(dists.names), np.asarray(dists.array)))
-            except ArithmeticError as error:
-                results.append(str(error))
+            except Exception as error:  # pylint: disable=broad-except
+                # degenerate alignments: cogent3 returns values or raises,
+                # depending on the numba version (ZeroDivisionError, sometimes
+                # re-raised as SystemError); the fast path then defers to cogent3
+                results.append(type(error).__name__)
         if isinstance(results[0], str):
             assert results[0] == results[1]
         else:
