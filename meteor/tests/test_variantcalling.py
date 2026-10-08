@@ -294,12 +294,17 @@ def test_create_consensus_ignored_gene(vc_builder: VariantCalling, datadir: Path
         assert consensus.read() == ">1\n" + "?" * 7408 + "\n"
 
 
-def test_variant_calling_with_fake_freebayes(vc_builder: VariantCalling, datadir: Path, fake_freebayes) -> None:
+@pytest.mark.parametrize("threads", [1, 2])
+def test_variant_calling_with_fake_freebayes(
+    vc_builder: VariantCalling, datadir: Path, fake_freebayes, threads: int
+) -> None:
     """execute() end to end, freebayes replaced by a script printing the
-    reference VCF of the test data; a second run reuses the VCF and the
-    low coverage regions."""
+    reference VCF of the test data (in this process with one thread, in worker
+    processes otherwise); a second run reuses the VCF and the low coverage
+    regions."""
     fake_freebayes.setenv("FAKE_FREEBAYES_VCF", str(datadir / "eva71_bench" / "eva71_bench.vcf.gz"))
     vc_builder.meteor.DEFAULT_GAP_CHAR = "?"
+    fake_freebayes.setattr(vc_builder.meteor, "threads", threads)
     vc_builder.execute()
     sample = vc_builder.census["census"]["sample_info"]["sample_name"]
     directory = vc_builder.census["directory"]

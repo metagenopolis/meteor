@@ -40,6 +40,7 @@ from pysam import (
     bcftools,
 )
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from multiprocessing import get_context
 from collections import defaultdict
 from typing import ClassVar
 from tqdm import tqdm
@@ -625,7 +626,9 @@ class VariantCalling(Session):
             # small batches keep the pool balanced; order of results is kept
             batch = max(1, min(2000, len(genes) // (workers * 8)))
             batches = [genes[i : i + batch] for i in range(0, len(genes), batch)]
-            with ProcessPoolExecutor(max_workers=workers) as executor:
+            with ProcessPoolExecutor(
+                max_workers=workers, mp_context=get_context("spawn")
+            ) as executor:
                 results = list(
                     executor.map(
                         low_cov_worker,
@@ -865,41 +868,53 @@ class VariantCalling(Session):
                 ).name
                 for _ in bed_chunks
             ]
-            # Use ProcessPoolExecutor to run freebayes in parallel on each BED chunk
             failed_chunks = []
-            with ProcessPoolExecutor(max_workers=self.meteor.threads) as executor:
-                futures = {
-                    executor.submit(
-                        run_freebayes_chunk,
-                        temp_ref_file_path,  # Pass the path to the reference file
-                        bed_chunk_file,  # Each BED chunk
-                        marker_bam,
-                        Path(vcf_chunk_file),
-                        self.min_snp_depth,
-                        self.min_frequency,
-                        self.ploidy,
-                        self.meteor.tmp_dir,
-                    ): bed_chunk_file
-                    for bed_chunk_file, vcf_chunk_file in zip(
-                        bed_chunks, vcf_chunk_files
-                    )
-                }
+            chunk_args = [
+                (
+                    temp_ref_file_path,  # Pass the path to the reference file
+                    bed_chunk_file,  # Each BED chunk
+                    marker_bam,
+                    Path(vcf_chunk_file),
+                    self.min_snp_depth,
+                    self.min_frequency,
+                    self.ploidy,
+                    self.meteor.tmp_dir,
+                )
+                for bed_chunk_file, vcf_chunk_file in zip(bed_chunks, vcf_chunk_files)
+            ]
 
-                # Iterate through completed futures
-                for future in as_completed(futures):
-                    bed_chunk = futures[future]
-                    try:
-                        vcf_chunk_file = future.result()
-                        logging.info(
-                            "Processed BED chunk %s -> VCF chunk %s",
-                            bed_chunk,
-                            vcf_chunk_file,
-                        )
-                        if vcf_chunk_file is None:
-                            failed_chunks.append(bed_chunk)
-                    except Exception as exc:
-                        logging.error("Error processing chunk %s: %s", bed_chunk, exc)
+            def chunk_done(bed_chunk, compute) -> None:
+                try:
+                    vcf_chunk_file = compute()
+                    logging.info(
+                        "Processed BED chunk %s -> VCF chunk %s",
+                        bed_chunk,
+                        vcf_chunk_file,
+                    )
+                    if vcf_chunk_file is None:
                         failed_chunks.append(bed_chunk)
+                except Exception as exc:  # pylint: disable=broad-except
+                    logging.error("Error processing chunk %s: %s", bed_chunk, exc)
+                    failed_chunks.append(bed_chunk)
+
+            if self.meteor.threads <= 1:
+                # one thread: chunks run one after the other, no worker process
+                for args in chunk_args:
+                    chunk_done(args[1], lambda args=args: run_freebayes_chunk(*args))
+            else:
+                # freebayes chunks in worker processes; "spawn" workers do not
+                # inherit the threads (and their locks) of this process
+                with ProcessPoolExecutor(
+                    max_workers=self.meteor.threads,
+                    mp_context=get_context("spawn"),
+                ) as executor:
+                    futures = {
+                        executor.submit(run_freebayes_chunk, *args): args[1]
+                        for args in chunk_args
+                    }
+                    # Iterate through completed futures
+                    for future in as_completed(futures):
+                        chunk_done(futures[future], future.result)
             if failed_chunks:
                 logging.error(
                     "freebayes failed on %d/%d chunks, variant calling aborted",
