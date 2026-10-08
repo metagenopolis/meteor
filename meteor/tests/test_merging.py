@@ -318,3 +318,90 @@ def test_execute2(merging_fast: Merging, datadir: Path) -> None:
                 sorted(expected_output_df.columns), axis=1
             )
             assert real_output_df.round(10).equals(expected_output_df.round(10))
+
+
+@pytest.mark.parametrize("remove_samples", [False, True])
+def test_merge_filter_write_matches_dataframe_path(
+    merging_profiles: Merging, tmp_path: Path, remove_samples: bool
+) -> None:
+    """_merge_filter_write writes the same table as merge_df + filters + to_csv"""
+    import numpy as np
+    merging_profiles.remove_sample_with_no_msp = remove_samples
+    merging_profiles.min_msp_occurrence = 1
+    samples = {
+        name: merging_profiles.meteor.profile_dir / name for name in ("sample1", "sample2", "sample3")
+    }
+    for pattern, keys in [("genes", ["gene_id"]), ("modules", ["mod_id"]),
+                          ("modules_completeness", ["msp_name", "mod_id"]),
+                          ("kegg_as_genes_sum", ["annotation"])]:
+        files = merging_profiles.find_files_to_merge(samples, f"{pattern}.tsv.xz")
+        merged_df = merging_profiles.merge_df(files, keys)
+        numeric = merged_df.drop(columns=keys).to_numpy()
+        row_sums = np.nansum(numeric, axis=1)
+        occurrence = np.nansum((numeric != 0) & ~np.isnan(numeric), axis=1)
+        expected = merged_df.loc[(row_sums >= merging_profiles.min_msp_abundance)
+                                 & (occurrence >= merging_profiles.min_msp_occurrence), :]
+        if remove_samples:
+            expected = expected.loc[:, (expected.sum(axis=0) != 0)]
+        expected.to_csv(tmp_path / f"{pattern}_expected.tsv", sep="\t", index=False)
+        kept = merging_profiles._merge_filter_write(files, keys, tmp_path / f"{pattern}_fast.tsv")
+        assert kept is not None
+        assert (tmp_path / f"{pattern}_fast.tsv").read_text() == (
+            tmp_path / f"{pattern}_expected.tsv"
+        ).read_text(), pattern
+        assert kept.equals(expected[keys].reset_index(drop=True)), pattern
+
+
+def _write_profile(path: Path, rows: list[tuple]) -> Path:
+    import lzma
+    with lzma.open(path, "wt") as out:
+        out.write("annotation\tvalue\n")
+        for key, value in rows:
+            out.write(f"{key}\t{value}\n")
+    return path
+
+
+def test_merge_filter_write_edge_cases(merging_profiles: Merging, tmp_path: Path, monkeypatch) -> None:
+    """Cases handed back to the DataFrame path (None) and the pd.concat fallback"""
+    merging_profiles.min_msp_occurrence = 1
+    a = _write_profile(tmp_path / "a.tsv.xz", [("K1", 1.0), ("K2", 0.0)])
+    b = _write_profile(tmp_path / "b.tsv.xz", [("K3", 2.5), ("K1", 0.5)])
+    out = tmp_path / "out.tsv"
+    keys = merging_profiles._merge_filter_write({"s1": a, "s2": b}, ["annotation"], out)
+    assert list(keys["annotation"]) == ["K1", "K3"]
+    expected = out.read_text()
+    assert expected == "annotation\ts1\ts2\nK1\t1.0\t0.5\nK3\t\t2.5\n"
+    # pandas helper failing (e.g. another signature): indexes combined with
+    # pd.concat, same table. Only the first call (meteor's) fails.
+    import pandas.core.indexes.api as pandas_api
+    original = pandas_api._get_combined_index
+    calls = []
+
+    def first_call_fails(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise TypeError("unexpected signature")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(pandas_api, "_get_combined_index", first_call_fails)
+    assert merging_profiles._merge_filter_write({"s1": a, "s2": b}, ["annotation"], out) is not None
+    assert len(calls) > 1
+    assert out.read_text() == expected
+    monkeypatch.undo()
+    # duplicated key in a sample, missing key, quote in a sample name, nothing kept
+    dup = _write_profile(tmp_path / "dup.tsv.xz", [("K1", 1.0), ("K1", 2.0)])
+    assert merging_profiles._merge_filter_write({"s1": a, "s2": dup}, ["annotation"], out) is None
+    missing = _write_profile(tmp_path / "nan.tsv.xz", [("", 1.0)])
+    assert merging_profiles._merge_filter_write({"s1": missing}, ["annotation"], out) is None
+    assert merging_profiles._merge_filter_write({'s"1': a}, ["annotation"], out) is None
+    merging_profiles.min_msp_abundance = 1e9
+    assert merging_profiles._merge_filter_write({"s1": a, "s2": b}, ["annotation"], out) is None
+
+
+def test_execute_nothing_kept(merging_fast: Merging, tmp_path: Path) -> None:
+    """No row passes the filters: tables written by the DataFrame path"""
+    merging_fast.min_msp_abundance = 1e18
+    merging_fast.execute()
+    table = pd.read_table(tmp_path / "my_test_kegg_as_genes_sum.tsv")
+    assert table.empty
+    assert (tmp_path / "my_test_modules_completeness.tsv").exists()

@@ -185,17 +185,10 @@ class Strain(Session):
             "%s MSPs have sufficient signal for SNP analysis ",
             len(msp_with_overlapping_genes["msp_name"].values),
         )
+        genes_of_msp = msp_content.groupby("msp_name", sort=False)["gene_id"].agg(list)
         for msp_name in msp_with_overlapping_genes["msp_name"].values:
             msp_file = self.json_data["directory"] / Path(msp_name + ".fasta.xz")
-            msp_seq = ""
-            for gene_id in msp_content[msp_content["msp_name"] == msp_name][
-                "gene_id"
-            ].values:
-                # if gene_id in msp_covered["gene_id"].values:
-                msp_seq += gene_dict[gene_id]
-                # else:
-                #     msp_seq += "?" * len(gene_dict[gene_id])
-
+            msp_seq = "".join(gene_dict[gene_id] for gene_id in genes_of_msp[msp_name])
             if not self.is_only_question_marks(msp_seq):
                 with lzma.open(msp_file, "wt", preset=0) as msp:
                     print(
@@ -269,6 +262,9 @@ class Strain(Session):
                 self.ploidy,
                 self.core_size,
             )
+            # the marker-only BAM written by the variant calling is reused for
+            # the gene coverage (the filtered CRAM header lists every gene)
+            variant_calling_process.keep_marker_alignments = True
             if self.json_data["Stage3FileName"].exists():
                 logging.info(
                     "Variant calling already done for sample: %s",
@@ -310,10 +306,17 @@ class Strain(Session):
                 / self.json_data["reference"]["reference_file"]["fasta_dir"]
                 / self.json_data["reference"]["reference_file"]["fasta_filename"]
             )
+            coverage_alignments = (
+                variant_calling_process.marker_alignments or cram_file
+            )
             # count_file,
             self.get_msp_variant(
-                consensus_file, msp_file, cram_file, reference_file
+                consensus_file, msp_file, coverage_alignments, reference_file
             )
+            if variant_calling_process.marker_alignments is not None:
+                marker_bam = variant_calling_process.marker_alignments
+                marker_bam.unlink(missing_ok=True)
+                Path(f"{marker_bam}.bai").unlink(missing_ok=True)
             logging.info(
                 "Completed strain analysis in %f seconds", perf_counter() - start
             )
