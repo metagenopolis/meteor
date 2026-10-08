@@ -220,3 +220,38 @@ def test_execute(phylogeny_builder: Phylogeny):
     # assert result.exists()
     matrix = phylogeny_builder.meteor.tree_dir / "msp_0864.tsv"
     assert matrix.exists()
+
+
+def test_comparison_table_matches_per_pair_loops(phylogeny_builder: Phylogeny, tmp_path: Path):
+    """Matrix-product table == per-pair Python loops (dict input, mock distances)"""
+    import random
+    rng = random.Random(7)
+    alphabet = "ACGT" * 10 + "RYSWKMBDHVN?acgtn"
+    base = [rng.choice("ACGT") for _ in range(3000)]
+    sequences = {
+        f"s{k}": "".join(c if rng.random() > 0.1 else rng.choice(alphabet) for c in base)
+        for k in range(25)
+    }
+
+    class Distances:
+        def get_distance(self, name1, name2):
+            return (int(name1[1:]) * 7 + int(name2[1:]) * 3) % 50 / 2000
+
+    phylogeny_builder.OVERLAP_BLOCK = 512  # several blocks
+    phylogeny_builder._generate_pairwise_comparison_table(sequences, Distances(), tmp_path / "fast.tsv")
+    phylogeny_builder._generate_pairwise_comparison_table_python(sequences, Distances(), tmp_path / "loops.tsv")
+    assert (tmp_path / "fast.tsv").read_text() == (tmp_path / "loops.tsv").read_text()
+
+
+def test_clean_sites_matches_per_site_loops(phylogeny_builder: Phylogeny, datadir: Path):
+    """numpy clean_sites == per-site Python implementation"""
+    from collections import OrderedDict
+    import io
+    msp_file = datadir / "msp_0864.fasta"
+    fast, loops = io.StringIO(), io.StringIO()
+    result_fast = phylogeny_builder.clean_sites(msp_file, fast)
+    result_loops = phylogeny_builder._clean_sites_python(
+        OrderedDict(phylogeny_builder.get_sequences(msp_file)), loops
+    )
+    assert result_fast == result_loops
+    assert fast.getvalue() == loops.getvalue()

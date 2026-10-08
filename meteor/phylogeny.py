@@ -13,6 +13,7 @@
 """Effective phylogeny"""
 import re
 import logging
+import numpy as np
 import pandas as pd
 import sys
 # from subprocess import run, Popen, PIPE
@@ -74,6 +75,37 @@ class Phylogeny(Session):
         gene_dict = OrderedDict(
             (gene_id, seq) for gene_id, seq in self.get_sequences(msp_file)
         )
+        lengths = {len(seq) for seq in gene_dict.values()}
+        if len(lengths) != 1 or not all(seq.isascii() for seq in gene_dict.values()):
+            return self._clean_sites_python(gene_dict, output)
+        # One row per sequence, one column per site
+        matrix = np.frombuffer(
+            "".join(gene_dict.values()).encode("ascii"), dtype=np.uint8
+        ).reshape(len(gene_dict), lengths.pop())
+        # Ratio of gaps at each site (same arithmetic as compute_site_info)
+        gap = ord(self.meteor.DEFAULT_GAP_CHAR)
+        info_ratio = (matrix == gap).sum(axis=0) / matrix.shape[0]
+        keep = info_ratio <= self.max_gap
+        info_sites = int(keep.sum())
+        logging.info(
+            "%d/%d sites with less than %.1f%% gaps",
+            info_sites,
+            len(info_ratio),
+            self.max_gap * 100,
+        )
+        kept = matrix if keep.all() else matrix[:, keep]
+        resultdict = {}
+        for gene_id, row in zip(gene_dict, kept):
+            output_seq = row.tobytes().decode("ascii")
+            print(f">{gene_id}\n{output_seq}\n", file=output)
+            resultdict[gene_id] = output_seq
+        print(flush=True, file=output)
+        return resultdict, info_sites
+
+    def _clean_sites_python(
+        self, gene_dict: OrderedDict, output: tempfile._TemporaryFileWrapper
+    ) -> Tuple[dict[Union[int, str, None], str], int]:
+        """clean_sites for sequences of different lengths (zip stops at the shortest)"""
         # Compute site information
         info_ratio = self.compute_site_info(gene_dict.values())
         # Count sites with more than the specified maximum gap ratio
@@ -86,7 +118,6 @@ class Phylogeny(Session):
         )
         resultdict = {}
         for gene_id, seq in gene_dict.items():
-            # assert len(info_ratio) == len(seq)
             output_seq = "".join(
                 seq[i] for i, perc in enumerate(info_ratio) if perc <= self.max_gap
             )
@@ -119,7 +150,113 @@ class Phylogeny(Session):
         # Replace matched patterns with ":" (effectively removing the edge label)
         return re.sub(pattern, ":", newick)
     
+    # Overlaps are computed with float32 matrix products on blocks of sites:
+    # float32 sums of 0/1 values are exact up to 2**24
+    OVERLAP_BLOCK: int = 16384
+    COMPARISON_COLUMNS = [
+        "sample1", "sample2", "total_length", "overlap_noN_info_count",
+        "overlap_noIUPAC_info_count", "overlap_noN_info_pc", "overlap_noIUPAC_info_pc",
+        "noN_info_pc_sample1", "noN_info_pc_sample2", "noIUPAC_info_pc_sample1",
+        "noIUPAC_info_pc_sample2", "distance", "distance_category",
+    ]
+
+    def _overlap_counts(self, mask: np.ndarray) -> np.ndarray:
+        """Number of sites where both sequences of each pair are True"""
+        n_seqs, n_sites = mask.shape
+        counts = np.zeros((n_seqs, n_seqs), dtype=np.int64)
+        for start in range(0, n_sites, self.OVERLAP_BLOCK):
+            block = mask[:, start : start + self.OVERLAP_BLOCK].astype(np.float32)
+            counts += np.rint(block @ block.T).astype(np.int64)
+        return counts
+
     def _generate_pairwise_comparison_table(self, sequences: dict, dists, output_file: Path) -> None:
+        """Generate a pairwise comparison table for each tree with detailed statistics.
+
+        Same table as _generate_pairwise_comparison_table_python, with the per-site
+        counts of every pair computed by matrix products instead of Python loops.
+
+        :param sequences: Dictionary of sequence IDs and their sequences or cogent3 Alignment object
+        :param dists: Distance matrix from cogent3
+        :param output_file: Output TSV file path
+        """
+        if hasattr(sequences, "keys"):
+            seq_names = list(sequences.keys())
+            seq_strs = [str(sequences[name]).upper() for name in seq_names]
+        else:
+            seq_names = list(sequences.names)
+            seq_strs = [str(sequences.get_seq(name)).upper() for name in seq_names]
+        lengths = {len(seq) for seq in seq_strs}
+        if len(seq_names) < 2 or len(lengths) != 1 or not all(seq.isascii() for seq in seq_strs):
+            # empty table or sequences of different lengths: per-pair implementation
+            self._generate_pairwise_comparison_table_python(sequences, dists, output_file)
+            return
+        n_seqs, total_length = len(seq_names), lengths.pop()
+        matrix = np.frombuffer("".join(seq_strs).encode("ascii"), dtype=np.uint8).reshape(
+            n_seqs, total_length
+        )
+        # Minimal information: A, C, G, T or IUPAC codes (not N, gaps, ?)
+        # Maximal information: strictly A, C, G or T
+        minimal_lut = np.zeros(256, dtype=bool)
+        minimal_lut[list(b"ACGTRYSWKMBDHV")] = True
+        maximal_lut = np.zeros(256, dtype=bool)
+        maximal_lut[list(b"ACGT")] = True
+        minimal = minimal_lut[matrix]
+        maximal = maximal_lut[matrix]
+        minimal_count = minimal.sum(axis=1)
+        maximal_count = maximal.sum(axis=1)
+        overlap_minimal = self._overlap_counts(minimal)
+        del minimal
+        overlap_maximal = self._overlap_counts(maximal)
+        del maximal
+        # Upper triangle, row by row (same order as the per-pair loops)
+        first, second = np.triu_indices(n_seqs, k=1)
+        # Distances
+        if hasattr(dists, "get_distance"):
+            distance = np.array(
+                [dists.get_distance(seq_names[i], seq_names[j]) for i, j in zip(first, second)],
+                dtype=float,
+            )
+        elif hasattr(dists, "array") and list(getattr(dists, "names", [])) == seq_names:
+            distance = np.asarray(dists.array, dtype=float)[first, second]
+        elif hasattr(dists, "__getitem__"):
+            distance = np.array([dists[i, j] for i, j in zip(first, second)], dtype=float)
+        else:
+            distance = np.zeros(len(first))
+        if total_length > 0:
+            def percent(count):
+                return count / total_length * 100
+        else:
+            def percent(count):
+                return np.zeros(len(count))
+        ov_min = overlap_minimal[first, second]
+        ov_max = overlap_maximal[first, second]
+        names = np.array(seq_names, dtype=object)
+        table = pd.DataFrame(
+            {
+                "sample1": names[first],
+                "sample2": names[second],
+                "total_length": np.full(len(first), total_length),
+                "overlap_noN_info_count": ov_min,
+                "overlap_noIUPAC_info_count": ov_max,
+                "overlap_noN_info_pc": percent(ov_min),
+                "overlap_noIUPAC_info_pc": percent(ov_max),
+                "noN_info_pc_sample1": percent(minimal_count)[first],
+                "noN_info_pc_sample2": percent(minimal_count)[second],
+                "noIUPAC_info_pc_sample1": percent(maximal_count)[first],
+                "noIUPAC_info_pc_sample2": percent(maximal_count)[second],
+                "distance": distance,
+                "distance_category": np.where(
+                    distance <= 0.0001,
+                    "same_strain",
+                    np.where(distance <= 0.015, "same_subspecies", "divergent"),
+                ),
+            },
+            columns=self.COMPARISON_COLUMNS,
+        )
+        table.to_csv(output_file, sep="\t", index=False)
+        logging.info(f"Pairwise comparison table saved to {output_file}")
+
+    def _generate_pairwise_comparison_table_python(self, sequences: dict, dists, output_file: Path) -> None:
         """Generate a pairwise comparison table for each tree with detailed statistics.
         
         Distance categories (based on similarity thresholds):
