@@ -57,9 +57,9 @@ process meteor_mapping {
     cpus params.cpus
     memory {
         // meteor >= 2.0.23 counts while bowtie2 runs: memory no longer depends on
-        // the sample. Measured on hs_10_4_gut, 1056 gut samples from 0 to
+        // the sample. Measured on hs_10_4_gut, 1221 gut samples from 0 to
         // 19.4 GB of FASTQ (up to 257M reads): 11.3 GB at most outside the page
-        // cache (peak = 11.08 - 0.0045 * GB, R2 = 0.009). The bowtie2 index
+        // cache (samples >= 0.1 GB: peak = 11.08 - 0.004 * GB, R2 = 0.006). The bowtie2 index
         // (15.9 GB, memory-mapped) lives in the page cache: 2x the catalogue
         // size leaves room for most of it.
         def mem = Math.ceil(2 * cat_size)
@@ -88,8 +88,8 @@ process meteor_profile {
     // meteor profile is single-threaded
     cpus 1
     memory {
-        // Measured on hs_10_4_gut: 3.2-4.2 GB whatever the input size
-        // (no dependency on the FASTQ size up to 19.4 GB).
+        // Measured on hs_10_4_gut (1221 samples): 4.3 GB at most whatever the
+        // input size (peak = 3.68 + 0.012 * GB, R2 = 0.006).
         def base_mem = Math.ceil(0.5 * cat_size + 1)
         if (cat_type == 'taxo') base_mem = Math.ceil(cat_size / 3)
         return (base_mem * task.attempt).GB
@@ -113,15 +113,19 @@ process meteor_profile {
 
 process meteor_merge {
     memory {
-        // Memory grows with the number of samples profiled: 20MB per sample per
-        // catalogue GB (2MB for taxo catalogues), plus a 1/10 catalogue size floor.
+        // Memory grows with the number of samples merged. Measured on
+        // hs_10_4_gut with 50 to 1221 gut profiles:
+        // peak = 0.30 + 0.0543 * samples GB (R2 = 0.999), i.e. 5.2 MB per sample
+        // per catalogue GB. Allocated: cat_size / 150 GB per sample (+28%) + 2 GB.
+        // Taxo catalogues were not measured (previous slope kept).
         // profile holds one staged directory per sample (all staged in the task
         // directory, so their parents are identical: count the entries)
         def sample_count = (profile instanceof List ? profile : [profile]).size()
-        def slope = (cat_type == 'taxo') ? (cat_size / 500) : (cat_size / 50)
-        def intercept = cat_size / 10
-        return (slope * sample_count + intercept).GB
+        def slope = (cat_type == 'taxo') ? (cat_size / 500) : (cat_size / 150)
+        return (Math.ceil(slope * sample_count + 2) * task.attempt).GB
     }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
     conda "meteor=2.0.23"
     publishDir params.out, mode: 'copy'
 
@@ -142,9 +146,9 @@ process meteor_strain {
     tag { reads_id }
     conda "meteor=2.0.23"
     memory {
-        // Single thread (meteor strain default). Measured on hs_10_4_gut:
-        // 4.7-5.1 GB whatever the input size (alignments are restricted to the
-        // marker genes).
+        // Single thread (meteor strain default). Measured on hs_10_4_gut (1216
+        // samples): 5.2 GB at most whatever the input size (peak = 4.84 +
+        // 0.009 * GB, R2 = 0.024); alignments are restricted to marker genes.
         def mem = Math.ceil(0.5 * cat_size + 1)
         if (cat_type == 'taxo') mem = Math.ceil(5 + 0.4 * cat_size)
         return (mem * task.attempt).GB
@@ -169,10 +173,15 @@ process meteor_tree {
     cpus params.cpus
     conda "meteor=2.0.23"
     memory {
-        // Tree inference scales with the number of samples analysed.
+        // Tree inference scales with the number of samples analysed. Measured on
+        // hs_10_4_gut with 32 threads and 50 to 1221 gut samples:
+        // peak = 5.38 + 0.0304 * samples GB (R2 = 0.998). Allocated with ~30%
+        // margin: 8 GB + 0.04 GB per sample.
         def sample_count = (strain instanceof List ? strain.flatten() : [strain]).size()
-        return (0.2 * sample_count + 20).GB
+        return (Math.ceil(0.04 * sample_count + 8) * task.attempt).GB
     }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
     publishDir params.out, mode: 'copy'
 
     input:
