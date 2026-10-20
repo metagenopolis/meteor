@@ -320,3 +320,46 @@ def test_mapping_without_kept_alignments(counter_total: Counter) -> None:
     assert counter_total.json_data[census_json_file]["Stage1FileName"].exists()
     assert not (stage1_dir / "part1_raw.cram").exists()
 
+
+@pytest.mark.parametrize("link", [False, True], ids=["same_name", "symlink"])
+def test_duplicated_fastq_is_rejected(
+    counter_smart_shared: Counter, datadir: Path, tmp_path: Path, link: bool
+) -> None:
+    """Two census files pointing to the same fastq file stop the mapping"""
+    import shutil
+    fastq_dir = tmp_path / "fastq"
+    shutil.copytree(datadir / "part1", fastq_dir)
+    census = json.loads((fastq_dir / "part1_census_stage_0.json").read_text())
+    if link:
+        (fastq_dir / "part1_bis.fastq.gz").symlink_to(fastq_dir / "part1.fastq.gz")
+        census["sample_file"]["fastq_file"] = "part1_bis.fastq.gz"
+    (fastq_dir / "part1_bis_census_stage_0.json").write_text(json.dumps(census))
+    counter_smart_shared.meteor.fastq_dir = fastq_dir
+    counter_smart_shared.meteor.mapping_dir = tmp_path / "mapping"
+    with pytest.raises(SystemExit) as error:
+        counter_smart_shared.execute()
+    assert error.value.code == 1
+    assert not (tmp_path / "mapping" / "part1" / "part1_census_stage_1.json").exists()
+    assert not (tmp_path / "mapping" / "part1" / "part1.tsv.xz").exists()
+
+
+def test_distinct_fastq_are_mapped_together(
+    counter_total: Counter, datadir: Path, tmp_path: Path
+) -> None:
+    """Several census files with their own fastq file are mapped together"""
+    import shutil
+    fastq_dir = tmp_path / "fastq"
+    shutil.copytree(datadir / "part1", fastq_dir)
+    shutil.copy(fastq_dir / "part1.fastq.gz", fastq_dir / "part2.fastq.gz")
+    census = json.loads((fastq_dir / "part1_census_stage_0.json").read_text())
+    census["sample_file"]["fastq_file"] = "part2.fastq.gz"
+    (fastq_dir / "part2_census_stage_0.json").write_text(json.dumps(census))
+    counter_total.meteor.fastq_dir = fastq_dir
+    counter_total.meteor.mapping_dir = tmp_path / "mapping"
+    counter_total.execute()
+    stage1 = counter_total.read_json(
+        tmp_path / "mapping" / "part1" / "part1_census_stage_1.json"
+    )
+    assert sorted(Path(f).name for f in stage1["mapping"]["fastq_files"]) == [
+        "part1.fastq.gz", "part2.fastq.gz"
+    ]

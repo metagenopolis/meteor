@@ -288,14 +288,40 @@ class Counter(Session):
         self._build_mapper().execute()
 
     def _build_mapper(self, keep_raw: bool = True, consumer_factory=None) -> Mapper:
-        """Mapper for all the libraries (fastq files) of the sample"""
+        """Mapper for all the libraries (fastq files) of the sample.
+
+        Every census file must point to its own fastq file: a fastq file
+        listed twice would be mapped and counted twice.
+        """
         fastq_paths = []
+        # fastq file -> census files pointing to it
+        census_of_fastq: dict[Path, list[str]] = defaultdict(list)
         # loop on each library
-        for dict_data in self.json_data.values():
+        for library, dict_data in self.json_data.items():
             census = dict_data["census"]
             sample_file = census["sample_file"]
-            # reindexing this library reads and fill FLibraryIndexerReport
-            fastq_paths.append(str(self.meteor.fastq_dir / sample_file["fastq_file"]))
+            fastq_path = self.meteor.fastq_dir / sample_file["fastq_file"]
+            # resolve() catches the same file reached through a symbolic link
+            # or another relative path
+            census_of_fastq[fastq_path.resolve()].append(Path(library).name)
+            fastq_paths.append(str(fastq_path))
+        duplicates = {
+            fastq: libraries
+            for fastq, libraries in census_of_fastq.items()
+            if len(libraries) > 1
+        }
+        if duplicates:
+            for fastq, libraries in duplicates.items():
+                logging.error(
+                    "Fastq file %s is referenced by several census files: %s",
+                    fastq,
+                    ", ".join(sorted(libraries)),
+                )
+            logging.error(
+                "Each fastq file must be referenced by a single census file in %s",
+                self.meteor.fastq_dir,
+            )
+            sys.exit(1)
 
         # mapping this library on the reference
         return Mapper(
