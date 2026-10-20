@@ -149,3 +149,12 @@ def test_execute(parser_standard: Parser) -> None:
     assert len(expected_output) == len(parser_standard.module_dict_alt)
     assert all(x in expected_output for x in parser_standard.module_dict_alt)
     assert all(x in parser_standard.module_dict_alt for x in expected_output)
+
+
+def test_find_all_alt_shared_cache(parser_standard: Parser) -> None:
+    """A step cache shared by several modules gives the same alternatives"""
+    mod_dict = {"M1": "K1 (K2,K3)", "M2": "M1 K4", "M3": "(K5,(K6+K7,K8)) -K9"}
+    cache: dict = {}
+    for mod_def in mod_dict.values():
+        expected = sorted(map(sorted, parser_standard.find_all_alt(mod_def, mod_dict)))
+        assert sorted(map(sorted, parser_standard.find_all_alt(mod_def, mod_dict, cache))) == expected

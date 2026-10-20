@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from tempfile import mkdtemp
 from ete4 import Tree
 from shutil import rmtree
+from concurrent.futures import ThreadPoolExecutor
 from typing import ClassVar
 
 
@@ -81,7 +82,7 @@ class TreeBuilder(Session):
         :return: (list) A list of all concatenated fasta
         """
         msp_list = []
-        
+        to_concatenate = []
         for filename, paths in msp_file_dict.items():
             if len(paths) > 1:
                 res = self.meteor.tree_dir / f"{filename}".replace(".fasta.xz", ".fasta")
@@ -92,15 +93,22 @@ class TreeBuilder(Session):
                     logging.debug("File %s exists, checking if concatenation is needed...", res)
                     msp_list.append(res)
                     continue
-                    
-                # Concatenate if file doesn't exist or is empty
-                logging.debug("Creating concatenated file %s", res)
-                with res.open("wt", encoding="UTF-8") as outfile:
-                    for path in paths:
-                        with lzma.open(path, "rt") as infile:
-                            outfile.write(infile.read())
+                to_concatenate.append((res, paths))
                 msp_list.append(res)
-        
+
+        def concatenate_one(res: Path, paths: list[Path]) -> None:
+            # Concatenate if file doesn't exist or is empty
+            logging.debug("Creating concatenated file %s", res)
+            with res.open("wt", encoding="UTF-8") as outfile:
+                for path in paths:
+                    with lzma.open(path, "rt") as infile:
+                        outfile.write(infile.read())
+
+        # Files are independent: decompress them in parallel (lzma releases the GIL)
+        with ThreadPoolExecutor(max_workers=max(1, self.meteor.threads)) as executor:
+            for future in [executor.submit(concatenate_one, res, paths) for res, paths in to_concatenate]:
+                future.result()
+
         logging.info("%d MSPs are available for tree analysis.", len(msp_list))
         return msp_list
 

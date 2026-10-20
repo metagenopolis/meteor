@@ -23,7 +23,7 @@ import logging
 import sys
 import lzma
 from datetime import datetime
-from typing import ClassVar, Any
+from typing import ClassVar, Any, Iterable
 
 
 @dataclass
@@ -279,6 +279,57 @@ class Profiler(Session):
         # Remove the counts for the gene "-1" (unmapped_reads)
         self.gene_count = self.gene_count[self.gene_count["gene_id"] != -1]
 
+    def _load(self, file_path: Path) -> pd.DataFrame:
+        """load_data for catalogue files (msp definition, annotations), loaded
+        once per Profiler. The returned data frame must not be modified in place."""
+        cache = self.__dict__.setdefault("_catalogue_cache", {})
+        key = ("load", Path(file_path))
+        if key not in cache:
+            cache[key] = self.load_data(Path(file_path))
+        return cache[key]
+
+    def _msp_annotation(self, annot_file: Path, msp_def_filename: Path) -> pd.DataFrame:
+        """pd.merge(msp definition, annotation), computed once per Profiler"""
+        cache = self.__dict__.setdefault("_catalogue_cache", {})
+        key = ("merge", Path(msp_def_filename), Path(annot_file))
+        if key not in cache:
+            cache[key] = pd.merge(self._load(msp_def_filename), self._load(annot_file))
+        return cache[key]
+
+    def _sum_msp_values(self, msp_sets: Iterable[set[str]]) -> list:
+        """For each set of MSP names, msp_table.loc[msp_table["msp_name"].isin(msp_set),
+        "value"].sum() (values added in msp_table order, as pandas does)."""
+        values = self.msp_table["value"].to_numpy()
+        position = {name: i for i, name in enumerate(self.msp_table["msp_name"])}
+        return [
+            values[sorted(position[msp] for msp in msp_set if msp in position)].sum()
+            for msp_set in msp_sets
+        ]
+
+    @staticmethod
+    def write_numeric_table(df: pd.DataFrame, out) -> None:
+        """df.to_csv(out, sep="\\t", index=False) for a table of integer and float
+        columns, formatted column by column with numpy (same text: str() of each
+        value, missing values as empty fields). Other tables use to_csv."""
+        kinds = [df[col].dtype.kind for col in df.columns]
+        if not all(kind in "iuf" for kind in kinds) or any(
+            not isinstance(col, str) or any(c in col for c in '\t"\n\r') for col in df.columns
+        ):
+            df.to_csv(out, sep="\t", index=False)
+            return
+        out.write("\t".join(df.columns) + "\n")
+        block = 1_000_000
+        for start in range(0, len(df), block):
+            columns = []
+            for col, kind in zip(df.columns, kinds):
+                values = df[col].to_numpy()[start : start + block]
+                text = values.astype(str)
+                if kind == "f":
+                    text = text.astype(object)
+                    text[np.isnan(values)] = ""
+                columns.append(text.tolist())
+            out.write("".join("\t".join(row) + "\n" for row in zip(*columns)))
+
     def compute_msp(self, msp_dict: dict[str, set[str]], filter_pc: float) -> None:
         """Compute msp abundance table.
 
@@ -292,28 +343,26 @@ class Profiler(Session):
         gene_count_core = self.gene_count.loc[
             self.gene_count["gene_id"].isin(all_core_genes)
         ]
+        # Values of the genes of each msp, in gene_count_core order (as
+        # gene_count_core.loc[gene_count_core["gene_id"].isin(set_genes), "value"])
+        core_values = gene_count_core["value"].to_numpy()
+        position = {gene: i for i, gene in enumerate(gene_count_core["gene_id"])}
+        msp_values = {
+            msp: core_values[sorted(position[g] for g in set_genes if g in position)]
+            for (msp, set_genes) in msp_dict.items()
+        }
         msp_filter = {
-            msp: (
-                gene_count_core.loc[
-                    gene_count_core["gene_id"].isin(set_genes),
-                    "value",
-                ]
-                > 0
-            ).sum()
-            / len(set_genes)
+            msp: (msp_values[msp] > 0).sum() / len(set_genes)
             for (msp, set_genes) in msp_dict.items()
         }
         # Compute mean abundance if gene count is above filter threshold, otherwise 0
         msp_table_dict = {
             msp: (
-                gene_count_core.loc[
-                    gene_count_core["gene_id"].isin(set_genes),
-                    "value",
-                ].mean()
+                (msp_values[msp].mean() if len(msp_values[msp]) else np.nan)
                 if msp_filter[msp] >= filter_pc
                 else 0
             )
-            for (msp, set_genes) in msp_dict.items()
+            for msp in msp_dict
         }
         self.msp_table = (
             pd.DataFrame.from_dict(msp_table_dict, orient="index", columns=["value"])
@@ -328,7 +377,7 @@ class Profiler(Session):
         :param core_size: maximum number of core genes to consider.
         """
         # Load msp file
-        msp_df = self.load_data(msp_def_filename)
+        msp_df = self._load(msp_def_filename)
         # Restrict to core
         msp_df_selection = msp_df.loc[msp_df["gene_category"] == "core"]
         # Return the df as a dict of set
@@ -345,7 +394,7 @@ class Profiler(Session):
         :param msp_def_filename: A path object pointing to an MSP definition file.
         """
         # Load msp file
-        msp_df = self.load_data(msp_def_filename)
+        msp_df = self._load(msp_def_filename)
         # Get the ensemble of genes used in MSP
         all_msp_genes = msp_df["gene_id"].unique()
         # Get the percentage of reads that map on an MSP
@@ -364,7 +413,7 @@ class Profiler(Session):
         :param annot_file: a path object pointing to the annotation gene_name -> enzyme file.
         """
         # Load annotation file
-        annot_df = self.load_data(annot_file)
+        annot_df = self._load(annot_file)
         # Merge count table and gene annotation
         merged_df = pd.merge(
             annot_df,
@@ -385,13 +434,11 @@ class Profiler(Session):
         :param msp_def_filename: A path object pointing to an MSP definition file.
         """
         # Load annotation file
-        annot_df = self.load_data(annot_file)
+        annot_df = self._load(annot_file)
         # Get KO list
         all_ko = annot_df["annotation"].unique()
-        # Load MSP file
-        msp_df = self.load_data(msp_def_filename)
-        # Merge both data frames
-        msp_df_annotated = pd.merge(msp_df, annot_df)
+        # Merge msp file and annotation
+        msp_df_annotated = self._msp_annotation(annot_file, msp_def_filename)
         # Restrict to detected genes
         detected_genes = self.gene_count.loc[self.gene_count["value"] > 0, "gene_id"]
         msp_df_annotated = msp_df_annotated.loc[
@@ -399,20 +446,11 @@ class Profiler(Session):
         ]
         # Create a dict ko: {msp1, msp2}
         ko_dict = (
-            msp_df_annotated.groupby("annotation")["msp_name"].apply(set).to_dict()
+            msp_df_annotated.groupby("annotation")["msp_name"].agg(set).to_dict()
         )
         # Loop on all_ko since some ko have no msp or ne detected genes
-        ko_dict_ab = {
-            ko: (
-                self.msp_table.loc[
-                    self.msp_table["msp_name"].isin(ko_dict[ko]),
-                    "value",
-                ].sum()
-                if ko in ko_dict
-                else 0
-            )
-            for ko in all_ko
-        }
+        ko_sums = dict(zip(ko_dict, self._sum_msp_values(ko_dict.values())))
+        ko_dict_ab = {ko: (ko_sums[ko] if ko in ko_dict else 0) for ko in all_ko}
         self.functions = (
             pd.DataFrame.from_dict(ko_dict_ab, orient="index", columns=["value"])
             .reset_index()
@@ -430,12 +468,10 @@ class Profiler(Session):
         :param msp_def_filename: A path object pointing to an MSP definition file.
         """
         # Load annotation file
-        annot_df = self.load_data(annot_file)
+        annot_df = self._load(annot_file)
         if by_msp:
-            # Load MSP file
-            msp_df = self.load_data(msp_def_filename)
-            # Merge both data frames
-            annot_df = pd.merge(msp_df, annot_df)
+            # Merge msp file and annotation
+            annot_df = self._msp_annotation(annot_file, msp_def_filename)
         # Get the genes in MSP AND annotated
         annotated_genes = annot_df["gene_id"].unique()
         # Filter for genes with annotation
@@ -463,7 +499,7 @@ class Profiler(Session):
         :param annot_file: path to the gene functional annotation file
         """
         # Load files
-        msp_df = self.load_data(msp_file)
+        msp_df = self._load(msp_file)
         # Restrict df to detected genes
         detected_genes = self.gene_count.loc[self.gene_count["value"] > 0, "gene_id"]
         msp_df = msp_df.loc[msp_df["gene_id"].isin(detected_genes)]
@@ -476,7 +512,7 @@ class Profiler(Session):
         # Merge each provided db
         annot_df = pd.concat(
             [
-                self.load_data(db)[["gene_id", "annotation"]]
+                self._load(db)[["gene_id", "annotation"]]
                 for db in annot_file.values()
             ],
             ignore_index=True,
@@ -519,10 +555,42 @@ class Profiler(Session):
         :param annotated_msp: a dataframe with functionnaly annotated genes content of
         all MSP.
         """
-        return {
-            mod: self.compute_completeness(alt, annotated_msp)
-            for (mod, alt) in all_mod.items()
-        }
+        # Same values as compute_completeness for every module: the KO set of
+        # each MSP is built once and the intersections of all alternatives are
+        # counted with numpy.
+        mods = list(all_mod)
+        ko_sets = annotated_msp.groupby("msp_name")["annotation"].agg(set)
+        result: dict[str, dict[str, float]] = {mod: {} for mod in mods}
+        if ko_sets.empty or not mods:
+            return result
+        ko_index: dict[str, int] = {}
+        entries: list[int] = []
+        sizes: list[int] = []
+        mod_starts: list[int] = []
+        for mod in mods:
+            mod_starts.append(len(sizes))
+            for alt in all_mod[mod]:
+                sizes.append(len(alt))
+                entries.extend(ko_index.setdefault(ko, len(ko_index)) for ko in alt)
+        if not all(sizes) or not all(len(all_mod[mod]) for mod in mods):
+            # empty alternative or module: per module implementation
+            return {
+                mod: self.compute_completeness(alt, annotated_msp)
+                for (mod, alt) in all_mod.items()
+            }
+        alt_entries = np.array(entries, dtype=np.int64)
+        alt_sizes = np.array(sizes, dtype=np.int64)
+        alt_starts = np.concatenate(([0], np.cumsum(alt_sizes)[:-1]))
+        mod_index = np.array(mod_starts, dtype=np.int64)
+        for msp, kos in ko_sets.items():
+            present = np.zeros(len(ko_index), dtype=np.int64)
+            present[[ko_index[ko] for ko in kos if ko in ko_index]] = 1
+            # len(alt & kos) / len(alt) for every alternative, max per module
+            ratio = np.add.reduceat(present[alt_entries], alt_starts) / alt_sizes
+            best = np.maximum.reduceat(ratio, mod_index)
+            for mod, value in zip(mods, best.tolist()):
+                result[mod][msp] = value
+        return result
 
     def compute_module_abundance(
         self,
@@ -564,12 +632,9 @@ class Profiler(Session):
             for (mod, msp_dict) in cpltd_dict.items()
         }
         # Compute module abundance
-        module_abundance = {
-            mod: self.msp_table.loc[
-                self.msp_table["msp_name"].isin(msp_set), "value"
-            ].sum()
-            for (mod, msp_set) in mod_dict.items()
-        }
+        module_abundance = dict(
+            zip(mod_dict, self._sum_msp_values(mod_dict.values()))
+        )
         self.mod_table = (
             pd.DataFrame.from_dict(module_abundance, orient="index", columns=["value"])
             .reset_index()
@@ -617,7 +682,7 @@ class Profiler(Session):
         logging.info("Save gene table.")
         gene_table_file = self.stage2_dir / f"{self.output_base_filename}_genes.tsv.xz"
         with lzma.open(gene_table_file, "wt", preset=0) as out:
-            self.gene_count.to_csv(out, sep="\t", index=False)
+            self.write_numeric_table(self.gene_count, out)
         # Update config dictionnary
         config_param.update(
             {

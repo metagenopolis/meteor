@@ -20,9 +20,9 @@ from packaging.version import parse
 from re import findall
 from meteor.session import Session, Component
 from time import perf_counter
-from typing import ClassVar
+from typing import ClassVar, Callable, Any
+from tempfile import TemporaryFile
 
-# from tempfile import mkstemp
 import pysam
 import logging
 import sys
@@ -45,6 +45,11 @@ class Mapper(Session):
     mapping_type: str
     trim: int
     alignment_number: int
+    # Write bowtie2 output to <sample>_raw.cram (needed for --ka / re-counting).
+    keep_raw: bool = True
+    # Optional factory called with the bowtie2 SAM header; the returned object
+    # receives every alignment through .feed(), while bowtie2 is still running.
+    consumer_factory: Callable[[pysam.AlignmentHeader], Any] | None = None
 
     def __post_init__(self) -> None:
         if self.mapping_type not in Mapper.MAPPING_TYPES:
@@ -140,7 +145,9 @@ class Mapper(Session):
             sys.exit(1)
         # Start mapping
         start = perf_counter()
-        with Popen(
+        # bowtie2 stderr goes to a file: a PIPE that is only read after stdout
+        # is exhausted deadlocks as soon as bowtie2 writes > 64 KiB of warnings.
+        with TemporaryFile() as bowtie_stderr, Popen(
             [
                 "bowtie2",
                 parameters,
@@ -152,27 +159,53 @@ class Mapper(Session):
                 ",".join(self.fastq_list),
             ],
             stdout=PIPE,
-            stderr=PIPE,
+            stderr=bowtie_stderr,
         ) as mapping_exec:
-            assert mapping_exec.stdout is not None and mapping_exec.stderr is not None
+            assert mapping_exec.stdout is not None
             with pysam.AlignmentFile(
                 mapping_exec.stdout, "r", threads=self.meteor.threads
             ) as samdesc:
-                with pysam.AlignmentFile(
-                    str(cram_file.resolve()),
-                    # cramfile_unsorted,
-                    "wc",
-                    template=samdesc,
-                    reference_filename=str(reference.resolve()),
-                    threads=self.meteor.threads,
-                ) as cram:
-                    for element in samdesc:
-                        cram.write(element)
-            # Read standard error from the process (non-blocking read)
-            mapping_result = mapping_exec.stderr.read().decode("utf-8")
-            mapping_exec.stderr.close()
+                consumer = (
+                    self.consumer_factory(samdesc.header)
+                    if self.consumer_factory is not None
+                    else None
+                )
+                cram = (
+                    pysam.AlignmentFile(
+                        str(cram_file.resolve()),
+                        "wc",
+                        template=samdesc,
+                        reference_filename=str(reference.resolve()),
+                        threads=self.meteor.threads,
+                    )
+                    if self.keep_raw
+                    else None
+                )
+                try:
+                    if cram is not None and consumer is not None:
+                        feed = consumer.feed
+                        write = cram.write
+                        for element in samdesc:
+                            write(element)
+                            feed(element)
+                    elif consumer is not None:
+                        feed = consumer.feed
+                        for element in samdesc:
+                            feed(element)
+                    elif cram is not None:
+                        write = cram.write
+                        for element in samdesc:
+                            write(element)
+                    else:
+                        for _ in samdesc:
+                            pass
+                finally:
+                    if cram is not None:
+                        cram.close()
             # Wait for the process to finish and get the exit code
             exit_code = mapping_exec.wait()
+            bowtie_stderr.seek(0)
+            mapping_result = bowtie_stderr.read().decode("utf-8")
             # Check for errors and print the error output if necessary
             if exit_code != 0:
                 logging.error("bowtie2 failed:\n%s", mapping_result)

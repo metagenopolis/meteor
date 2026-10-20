@@ -23,7 +23,7 @@ def usage() {
 
 process meteor_download {
     tag { params.catalogue_name }
-    conda "meteor=2.0.22"
+    conda "meteor=2.0.23"
     
     output:
     path("${params.catalogue_name}${params.fast ? '_taxo' : ''}"), emit: catalogue
@@ -38,13 +38,13 @@ process meteor_download {
 
 process meteor_fastq {
     tag { reads_id }
-    conda "meteor=2.0.22"
+    conda "meteor=2.0.23"
 
     input:
-    tuple val(reads_id), path(forward), path(reverse), val(count)
+    tuple val(reads_id), path(forward), path(reverse)
 
     output:
-    tuple val(reads_id), path("fastq/*"), val(count)
+    tuple val(reads_id), path("fastq/*")
 
     script:
     """
@@ -56,18 +56,22 @@ process meteor_mapping {
     tag { reads_id }
     cpus params.cpus
     memory {
-        // Base memory scales with the catalogue size: complete catalogues need 3x
-        // their size in GB, light (taxo) catalogues only 1/3. One extra GB per
-        // million reads is added on top.
-        def base_mem = 3 * cat_size
-        if (cat_type == 'taxo') base_mem = cat_size / 3
-        def reads_mem = Math.ceil((count as int) / 1_000_000)
-        return (base_mem + reads_mem).GB
+        // meteor >= 2.0.23 counts while bowtie2 runs: memory no longer depends on
+        // the sample. Measured on hs_10_4_gut, 1221 gut samples from 0 to
+        // 19.4 GB of FASTQ (up to 257M reads): 11.3 GB at most outside the page
+        // cache (samples >= 0.1 GB: peak = 11.08 - 0.004 * GB, R2 = 0.006). The bowtie2 index
+        // (15.9 GB, memory-mapped) lives in the page cache: 2x the catalogue
+        // size leaves room for most of it.
+        def mem = Math.ceil(2 * cat_size)
+        if (cat_type == 'taxo') mem = Math.ceil(cat_size / 3)
+        return (mem * task.attempt).GB
     }
-    conda "meteor=2.0.22"
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
+    conda "meteor=2.0.23"
 
     input:
-    tuple val(reads_id), path(fastq), val(count)
+    tuple val(reads_id), path(fastq)
     tuple path(catalogue), val(cat_size), val(cat_type)
 
     output:
@@ -81,15 +85,19 @@ process meteor_mapping {
 
 process meteor_profile {
     tag { reads_id }
-    cpus params.cpus
+    // meteor profile is single-threaded
+    cpus 1
     memory {
-        // Profiling loads the catalogue: 1x its size for complete catalogues,
-        // 1/3 for light (taxo) catalogues.
-        def base_mem = cat_size
-        if (cat_type == 'taxo') base_mem = cat_size / 3
-        return base_mem.GB
+        // Measured on hs_10_4_gut (1221 samples): 4.3 GB at most whatever the
+        // input size (peak = 3.68 + 0.012 * GB, R2 = 0.006); 4.5 GB with the
+        // faster profiler of 2.0.23 (catalogue tables kept in memory).
+        def base_mem = Math.ceil(0.5 * cat_size + 1)
+        if (cat_type == 'taxo') base_mem = Math.ceil(cat_size / 3)
+        return (base_mem * task.attempt).GB
     }
-    conda "meteor=2.0.22"
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
+    conda "meteor=2.0.23"
 
     input:
     tuple val(reads_id), path(mapping)
@@ -105,16 +113,23 @@ process meteor_profile {
 }
 
 process meteor_merge {
+    // profiles are read in parallel threads
+    cpus 4
     memory {
-        // Memory grows with the number of samples profiled: 20MB per sample per
-        // catalogue GB (2MB for taxo catalogues), plus a 1/10 catalogue size floor.
-        def sample_count = (profile instanceof List ? profile : [profile])
-                .collect { p -> p.parent.toString() }.unique().size()
-        def slope = (cat_type == 'taxo') ? (cat_size / 500) : (cat_size / 50)
-        def intercept = cat_size / 10
-        return (slope * sample_count + intercept).GB
+        // Memory grows with the number of samples merged. Measured on
+        // hs_10_4_gut with 50 to 1221 gut profiles (meteor 2.0.23, 4 cpus):
+        // peak = 0.4 + 0.020 * samples GB, i.e. 1.9 MB per sample per catalogue
+        // GB. Allocated: cat_size / 400 GB per sample (+30%) + 2 GB.
+        // Taxo catalogues were not measured (previous slope kept).
+        // profile holds one staged directory per sample (all staged in the task
+        // directory, so their parents are identical: count the entries)
+        def sample_count = (profile instanceof List ? profile : [profile]).size()
+        def slope = (cat_type == 'taxo') ? (cat_size / 500) : (cat_size / 400)
+        return (Math.ceil(slope * sample_count + 2) * task.attempt).GB
     }
-    conda "meteor=2.0.22"
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
+    conda "meteor=2.0.23"
     publishDir params.out, mode: 'copy'
 
     input:
@@ -132,14 +147,17 @@ process meteor_merge {
 
 process meteor_strain {
     tag { reads_id }
-    conda "meteor=2.0.22"
+    conda "meteor=2.0.23"
     memory {
-        // Strain profiling is the most demanding step: 4x catalogue size plus a
-        // 5 GB floor for complete catalogues, 0.4x for taxo catalogues.
-        def mem = 5 + 4 * cat_size
-        if (cat_type == 'taxo') mem = 5 + 0.4 * cat_size
-        return mem.GB
+        // Single thread (meteor strain default). Measured on hs_10_4_gut (1216
+        // samples): 5.2 GB at most whatever the input size (peak = 4.84 +
+        // 0.009 * GB, R2 = 0.024); alignments are restricted to marker genes.
+        def mem = Math.ceil(0.5 * cat_size + 1)
+        if (cat_type == 'taxo') mem = Math.ceil(5 + 0.4 * cat_size)
+        return (mem * task.attempt).GB
     }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
 
     input:
     tuple val(reads_id), path(mapping)
@@ -156,13 +174,18 @@ process meteor_strain {
 
 process meteor_tree {
     cpus params.cpus
-    conda "meteor=2.0.22"
+    conda "meteor=2.0.23"
     memory {
-        // Tree inference scales with the number of samples analysed.
-        def sample_count = (strain instanceof List ? strain : [strain])
-                .collect { p -> p.parent.toString() }.unique().size()
-        return (0.2 * sample_count + 20).GB
+        // Tree inference: one worker per cpu, each holding the alignment of one
+        // species. Measured on hs_10_4_gut (meteor 2.0.23) with 50 to 1216
+        // samples: 1.0-9.4 GB with 4 threads, 5.8-38.8 GB with 32 threads.
+        // Allocated: 1 + 0.15 GB per thread + samples * (0.006 + 0.001 * threads) GB.
+        def sample_count = (strain instanceof List ? strain.flatten() : [strain]).size()
+        def threads = task.cpus as int
+        return (Math.ceil(1 + 0.15 * threads + sample_count * (0.006 + 0.001 * threads)) * task.attempt).GB
     }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
     publishDir params.out, mode: 'copy'
 
     input:
@@ -237,12 +260,10 @@ workflow {
     // Attach catalogue size and database type so process memory directives can use them
     catalogue_ch = catalogue_ch.map { c -> tuple(c, catalogue_size, database_type) }
     
+        // No read counting: with meteor >= 2.0.23 the memory of every step
+        // does not depend on the sample size.
         readChannel = channel.fromFilePairs("${params.in}/*_R{1,2}*.{fastq,fastq.gz,fq,fq.gz}", flat: true)
                         .ifEmpty { exit 1, "Cannot find any reads matching: ${params.in}"}
-                        .map { sample_id, file1, file2 ->
-                            def count = file1.countFastq()
-                            [sample_id, file1, file2, count]
-                        }
         meteor_fastq(readChannel)
         meteor_mapping(meteor_fastq.out, catalogue_ch)
         meteor_profile(meteor_mapping.out.mapping, catalogue_ch)

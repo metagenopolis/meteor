@@ -78,50 +78,71 @@ class Parser(Session):
         )
         return mod_def
 
-    def find_all_alt(self, mod_def: str, mod_dict: dict[str, str]) -> list[set[str]]:
+    # Alternatives to solve: a simple parenthesis containing a ',' (e.g. "(K01,K02)")
+    ALTERNATIVE = re.compile(r"(.*)(\(([\w+]+,{1})+[\w+]+\))(.*)")
+
+    def _solve_step(self, my_def: str, mod_dict: dict[str, str]) -> tuple[bool, tuple[str, ...]]:
+        """One resolution step of find_all_alt for one definition.
+
+        :return: (alternatives were found, definitions for the next step)
+        """
+        my_def = self.clean_module(mod_def=my_def)
+        my_def = self.replace_submod(mod_def=my_def, mod_dict=mod_dict)
+        # Look for simple parenthesis (simple parenthesis = alternatives that should be solved)
+        res = self.ALTERNATIVE.match(my_def)
+        if res:
+            # list of alternatives after resolving simple parenthesis
+            return True, tuple(
+                res.group(1) + k + res.group(4)
+                for k in res.group(2).strip("()").split(",")
+            )
+        # The def has already been simplified at maximum
+        return False, (my_def,)
+
+    def find_all_alt(
+        self,
+        mod_def: str,
+        mod_dict: dict[str, str],
+        cache: dict[str, tuple[bool, tuple[str, ...]]] | None = None,
+    ) -> list[set[str]]:
         """Return the list of all alternatives for a module definition.
         Based on the following rules : '+' = complex, ',' = alternative.
 
+        Every definition is solved one step at a time until no step finds an
+        alternative. A step only depends on the definition (and mod_dict), so
+        identical definitions are solved once (set of definitions per step and
+        cache of the steps, which can be shared by the modules of one mod_dict).
+
         :param mod_def: a single module definition (e.g., "K01,K02+K03")
         :param mod_dict: a module dictionary for submodule solving
+        :param cache: optional {definition: step result} for this mod_dict
         """
-        # Define an alternative
-        alternative = re.compile(r"(.*)(\(([\w+]+,{1})+[\w+]+\))(.*)")
-        list_alt = [mod_def]
+        if cache is None:
+            cache = {}
+        list_alt = {mod_def}
         # Flag to know if some alternatives remain to be solved
         flag = True
         while flag:  # While alternatives remain
-            flag = False  # At the beginning of each loop we suppose there are no more alternative
-            new_list_alt = (
-                []
-            )  # Initialize a new list to keep alternatives that will be solved in the next loop
+            flag = False
+            new_list_alt: set[str] = set()
             for my_def in list_alt:
-                my_def = self.clean_module(mod_def=my_def)
-                my_def = self.replace_submod(mod_def=my_def, mod_dict=mod_dict)
-                # Look for simple parenthesis (simple parenthesis = alternatives that should be solved)
-                res = alternative.match(my_def)
-                if res:
-                    flag = (
-                        True  # Alternatives were found so we suppose other may remain
-                    )
-                    # list of alternatives after resolving simple parenthesis
-                    new_def = [
-                        res.group(1) + k + res.group(4)
-                        for k in res.group(2).strip("()").split(",")
-                    ]
-                    new_list_alt += new_def
-                else:  # If the def has already been simplified at maximum
-                    new_list_alt.append(my_def)
+                step = cache.get(my_def)
+                if step is None:
+                    step = self._solve_step(my_def, mod_dict)
+                    cache[my_def] = step
+                flag = flag or step[0]
+                new_list_alt.update(step[1])
             list_alt = new_list_alt
         # Transform each alternative into set of KOs : module_dict_alt['M000x'] = [set(KO1, KO2), set(KO1, KO3), etc]
-        return [set(k.split("+")) for k in set(list_alt)]
+        return [set(k.split("+")) for k in list_alt]
 
     def execute(self) -> None:
         "Parse a module definition file to get all the possible alternatives"
         # Load file
         module_dict = self.load_modules(self.module_file)
         # Get the list of alternatives for all modules
+        cache: dict[str, tuple[bool, tuple[str, ...]]] = {}
         self.module_dict_alt = {
-            mod: self.find_all_alt(mod_def=my_def, mod_dict=module_dict)
+            mod: self.find_all_alt(mod_def=my_def, mod_dict=module_dict, cache=cache)
             for (mod, my_def) in module_dict.items()
         }
