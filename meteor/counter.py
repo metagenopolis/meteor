@@ -21,7 +21,7 @@ from tempfile import mkdtemp, mkstemp
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
-from typing import Iterator, Iterable, ClassVar
+from typing import ClassVar
 from collections import defaultdict, Counter as TupleCounter
 from itertools import chain, repeat
 from pysam import index, sort, AlignmentFile, AlignmentHeader, AlignedSegment  # type: ignore[attr-defined]
@@ -32,9 +32,12 @@ from shutil import rmtree
 class StreamingCounter:
     """Identity filtering + counting fed one alignment at a time.
 
-    Same counting rules as Counter.filter_alignments / uniq_from_mult /
-    compute_co / compute_abm / compute_abs / compute_abs_total, without keeping
-    the AlignedSegment of every read.
+    Only the alignments of a read with the best identity (above the identity
+    threshold) are kept. "unique" counts the reads reaching one gene, "total"
+    counts every kept alignment, "smart_shared" adds to the unique counts each
+    multi-mapped read split between its genes in proportion to their unique
+    counts (1 / number of alignments when none of them has unique reads).
+    Only the AlignedSegment of the current read is kept in memory.
 
     Every read is counted on its own (single-end counting). bowtie2 writes the
     alignments of a read contiguously and the first one is primary (the -k
@@ -210,11 +213,11 @@ class StreamingCounter:
         return self._smart_shared()
 
     def _smart_shared(self) -> dict[int, int | float]:
-        """Same arithmetic as Counter.compute_co/compute_abm/compute_abs.
+        """Abundance of every gene in smart_shared mode.
 
         Each read contributes its coefficient once per gene and the contributions
-        are added with the built-in sum(), as in Counter.compute_abm (Python >= 3.12
-        sum() is compensated, so the result does not depend on read order).
+        are added with the built-in sum() (Python >= 3.12 sum() is compensated,
+        so the result does not depend on read order).
         """
         unique_on_gene = self.unique_on_gene
         # gene -> {coefficient: number of reads}
@@ -285,14 +288,40 @@ class Counter(Session):
         self._build_mapper().execute()
 
     def _build_mapper(self, keep_raw: bool = True, consumer_factory=None) -> Mapper:
-        """Mapper for all the libraries (fastq files) of the sample"""
+        """Mapper for all the libraries (fastq files) of the sample.
+
+        Every census file must point to its own fastq file: a fastq file
+        listed twice would be mapped and counted twice.
+        """
         fastq_paths = []
+        # fastq file -> census files pointing to it
+        census_of_fastq: dict[Path, list[str]] = defaultdict(list)
         # loop on each library
-        for dict_data in self.json_data.values():
+        for library, dict_data in self.json_data.items():
             census = dict_data["census"]
             sample_file = census["sample_file"]
-            # reindexing this library reads and fill FLibraryIndexerReport
-            fastq_paths.append(str(self.meteor.fastq_dir / sample_file["fastq_file"]))
+            fastq_path = self.meteor.fastq_dir / sample_file["fastq_file"]
+            # resolve() catches the same file reached through a symbolic link
+            # or another relative path
+            census_of_fastq[fastq_path.resolve()].append(Path(library).name)
+            fastq_paths.append(str(fastq_path))
+        duplicates = {
+            fastq: libraries
+            for fastq, libraries in census_of_fastq.items()
+            if len(libraries) > 1
+        }
+        if duplicates:
+            for fastq, libraries in duplicates.items():
+                logging.error(
+                    "Fastq file %s is referenced by several census files: %s",
+                    fastq,
+                    ", ".join(sorted(libraries)),
+                )
+            logging.error(
+                "Each fastq file must be referenced by a single census file in %s",
+                self.meteor.fastq_dir,
+            )
+            sys.exit(1)
 
         # mapping this library on the reference
         return Mapper(
@@ -436,14 +465,6 @@ class Counter(Session):
         )
         logging.info("Completed count table writing in %f seconds", perf_counter() - start)
 
-    def get_aligned_nucleotides(self, element: AlignedSegment) -> Iterator[int]:
-        """Select aligned nucleotides
-        :param element: Alignment object
-        :return: Aligned item
-        """
-        assert element.cigartuples is not None
-        yield from (item[1] for item in element.cigartuples if item[0] < 3)
-
     def set_counter_config(self, total_read_count: int, counted_reads: float, count_file: Path) -> dict:
         """Save in the json essential info
         :param total_read_count: (int) Number of reads mapped on the catalogue
@@ -460,261 +481,6 @@ class Counter(Session):
             }
         }
 
-    def filter_alignments(
-        self, cramdesc: AlignmentFile
-    ) -> tuple[dict[str, list[AlignedSegment]], dict[str, list[int]]]:
-        """Filter read according to their identity with reference and reads with multiple
-        alignments with different score. We keep the best scoring reads when total count is
-        applied.
-        Shared count keeps multiple alignments when score are equal
-
-        :param cramdesc [STR] = CRAM file to count
-        :return: A tuple with database [DICT] = contains length of reference genes.
-                                        key :
-                                        value : reference gene
-                And  genes [DICT] = contains the set of reference genes.
-                                    key : read_id
-        """
-        tmp_score: dict[str, float] = {}
-        genes: dict[str, list[int]] = {}
-        # contains a list of alignment of each read
-        reads: dict[str, list[AlignedSegment]] = {}
-        # Reads are keyed by name, then "<name>\t<occurrence>" for the next
-        # reads sharing that name: a new read starts at each
-        # primary alignment, so two reads sharing a name (R1 and R2 of a pair
-        # mapped as single-end reads) are counted separately.
-        # A coordinate-sorted input does not keep the alignments of a read
-        # together: reads are then keyed by name only (older meteor behaviour).
-        split = cramdesc.header.to_dict().get("HD", {}).get("SO") != "coordinate"
-        occurrence: dict[str, int] = {}
-        prev_name = None
-        for element in cramdesc:
-            assert element.query_name is not None and element.reference_name is not None
-            if not split:
-                prev_name = element.query_name
-                occurrence[prev_name] = 0
-            elif not element.is_secondary or element.query_name != prev_name:
-                prev_name = element.query_name
-                occurrence[prev_name] = occurrence.get(prev_name, -1) + 1
-            read_key = (
-                prev_name
-                if occurrence[prev_name] == 0
-                else f"{prev_name}\t{occurrence[prev_name]}"
-            )
-
-            # identity = (element.query_length - element.get_tag("NM")) / element.query_length
-            # identity = 1.0 - (element.get_tag("NM") / element.query_alignment_length)
-            ali = sum(self.get_aligned_nucleotides(element))
-            # identity = (element.query_length - element.get_tag("NM")) / element.query_length
-            identity = (ali - int(element.get_tag("NM"))) / ali
-            # if lower than the identity threshold
-            # we ignore the read
-            if identity < self.identity_threshold:
-                continue
-            # Only if we use score
-            # if not element.has_tag("AS"):
-            #     raise ValueError("Missing 'AS' field.")
-            read_id: str = read_key
-            # print(read_id, element.query_alignment_length)
-            # get alignment score
-            # Meteor do not take in account the alignement score
-            # But the identity
-            score = identity
-            # score = element.get_tag("AS")
-            # get previous score for the read
-            prev_score = tmp_score.get(read_id, 0)
-            # higher = more similar
-            # https://bowtie-bio.sourceforge.net/bowtie2/manual.shtml#scores-higher-more-similar
-            # With 1.0 identity, score is 0
-            # With 0.975 identity, score is -16...
-            # if same score
-            if prev_score == score:
-                # add the genes to the list if it doesn't exist
-                reads[read_id].append(element)
-                genes[read_id].append(int(element.reference_name))
-            # case new score is higher
-            elif prev_score < score:
-                # set the new score
-                tmp_score[read_id] = score
-                # We keep the new score and forget the previous one
-                reads[read_id] = [element]
-                genes[read_id] = [int(element.reference_name)]
-        return reads, genes
-
-    def uniq_from_mult(
-        self, reads: dict, genes: dict[str, list[int]], database: dict[int, int]
-    ) -> tuple[
-        defaultdict[str, list[AlignedSegment]],
-        dict[str, list[int]],
-        dict[int, int],
-    ]:
-        """
-        Function that filter unique reads from all reads. Multiple reads are
-        reads that map to more than one genes. And Unique reads are reads that map
-        only on one genes.
-
-        :params reads: [DICT] = dictionary containing reads as key and pysam alignment as value
-        :params genes: [DICT] = dictionary containing reads as key and a list of
-                                genes where read mapped as value
-        :param database: [DICT] = contains length of each reference gene
-        :return: A tuple with:
-            genes [DICT] = the dictionary without unique reads
-            unique [DICT] = nb of unique read of each reference genes
-        """
-        unique_reads: defaultdict[
-            str, list[AlignedSegment]
-        ] = defaultdict(list)
-        unique_reads_list = []
-        unique_on_gene: dict[int, int] = dict.fromkeys(database, 0)
-        for read_id in genes:
-            # if read map to several gene
-            if len(genes[read_id]) != 1:
-                continue
-            # otherwise read map with best score against only one genes
-            # we keep read
-            unique_reads[read_id] = reads[read_id]
-            # get genes id
-            gene = genes[read_id][0]
-            # add to unique read dictionnary
-            unique_on_gene[gene] += 1
-            unique_reads_list.append(read_id)
-        # delete unique reads
-        for read_id in unique_reads_list:
-            # delete the read_id from TMP dictionnary
-            del genes[read_id]
-        return unique_reads, genes, unique_on_gene
-
-    def compute_co(
-        self, genes_mult: dict[str, list[int]], unique_on_gene: dict[int, int]
-    ) -> tuple[dict[int, list[str]], dict[tuple[str, int], float]]:
-        """Compute genes specific coefficient "Co" for each multiple read.
-
-        :param genes_mult: [DICT] = Contains for each multiple read, all the reference
-                                genes name where it mapped
-        :param unique_on_gene: [DICT] = nb of unique read of each reference genes
-        :return: A tuple with:
-                 Co [DICT] = contains coefficient values for each couple (read, genes)
-                 read_dict [DICT] = list of multiple reads for each reference gene
-        """
-        read_dict: dict[int, list[str]] = defaultdict(list)
-        co_dict: dict[tuple[str, int], float] = defaultdict(float)
-        for read_id, genes in genes_mult.items():
-            # for a multiple read, gets nb of unique reads from each gene
-            # total number of unique reads
-            som = sum(
-                unique_on_gene[gene] for gene in genes
-            )  # Sum the values directly
-            # som = reduce(lambda x, y: x + y, s)
-            # No unique counts on these genes
-            # If no unique counts:
-            if som == 0:
-                # Specific count of Meteor
-                # 1 / nb genes aligned by the read (a gene reached twice by
-                # the read gets 2 / nb, so that the read still counts 1)
-                for gene in genes:
-                    co_dict[(read_id, gene)] += 1.0 / len(genes)
-                    read_dict[gene].append(read_id)
-                # Normally we continue here
-                continue
-            # We get the unique set of duplicated genes
-            # These genes are mapped several time
-            duplicated_genes = {
-                gene
-                for gene in genes
-                if genes.count(gene) > 1
-            }
-            # otherwise
-            for gene in genes:
-                # get the nb of unique reads
-                nb_unique = unique_on_gene[gene]
-                if nb_unique == 0:
-                    # test if meteor do that
-                    # co_dict[(read_id, genes)] = 1.0 / len(genes_mult[read_id])
-                    continue
-                # else:
-                # calculate Co of multiple read for the given genes
-                if gene in duplicated_genes:
-                    co_dict[(read_id, gene)] += nb_unique / float(som)
-                else:
-                    co_dict[(read_id, gene)] = nb_unique / float(som)
-                # append to the dict
-                read_dict[gene].append(read_id)
-        # get all the multiple reads of a genes and uniquify
-        for gene, reads in read_dict.items():
-            read_dict[gene] = list(set(reads))
-        return read_dict, co_dict
-
-    def get_co_coefficient(
-        self,
-        gene: int,
-        read_dict: dict[int, list[str]],
-        co_dict: dict[tuple[str, int], float],
-    ) -> Iterator[float]:
-        """
-        Compute genes specific coefficient "Co" for each multiple read.
-
-        :param gene: [str] = A gene name
-        :param read_dict: [DICT] = list of multiple reads for each reference gene
-        :param co_dict: [DICT] = contains coefficient value for each couple (read, gene)
-        :return: [float] = coefficient obtain for each pair (read, gene)
-        """
-        for read in read_dict[gene]:
-            yield co_dict[(read, gene)]
-
-    def compute_abm(
-        self,
-        read_dict: dict[int, list[str]],
-        co_dict: dict[tuple[str, int], float],
-        database: dict[int, int],
-    ) -> dict[int, float]:
-        """Compute multiple reads abundance for each genes.
-        Multiple reads abundance of a genes is equal to the sum of all Co
-        coefficient
-
-        :param read_dict: [DICT] = list of multiple reads for each reference gene
-        :param co_dict: [DICT] = contains coefficient value for each couple (read, gene)
-        :param database: [DICT] = contains length of each reference gene
-        :return: multiple_dict [DICT] = abundance of multiple reads for each gene
-        """
-        multiple_dict: dict[int, float] = dict.fromkeys(database, 0)
-        for gene in read_dict:
-            # get a list of all the Co coefficient for each reference genes
-            # sum them, (we obtain the abundance)
-            multiple_dict[gene] = sum(self.get_co_coefficient(gene, read_dict, co_dict))
-        return multiple_dict
-
-    def compute_abs(
-        self,
-        database: dict[int, int],
-        unique_dict: dict[int, int],
-        multiple_dict: dict[int, float],
-    ) -> dict[int, float]:
-        """Compute the abundance of a each genes.
-            Abundance = Abundance unique reads + Abundance multiple reads
-
-        :param database: [DICT] = contains length of each reference gene
-        :param unique_dict: [DICT] = nb of unique read of each reference genes
-        :param multiple_dict: [DICT] = abundance of multiple reads for each genes
-        :return: abundance_dict [DICT] = contains abundance of each reference genes
-        """
-        return {gene: unique_dict[gene] + multiple_dict[gene] for gene in database}
-
-    def compute_abs_total(
-        self, database: dict[int, int], genes: dict[str, list[int]]
-    ) -> dict[int, int]:
-        """Compute the abundance of a each gene in total counting mode
-
-        :param database: [DICT] = contains length of each reference gene
-        :params genes: [DICT] = dictionary containing reads as key and a list of
-                                genes where read mapped as value
-        :return: abundance_dict [DICT] = contains abundance of each reference genes
-        """
-        abundance: dict[int, int] = dict.fromkeys(database, 0)
-        for gene in chain.from_iterable(genes.values()):
-            abundance[gene] += 1
-
-        return abundance
-
     def write_stat(
         self, output: Path, abundance: dict[int, int | float], database: dict[int, int]
     ) -> None:
@@ -728,50 +494,6 @@ class Counter(Session):
             out.write("gene_id\tgene_length\tvalue\n")
             for gene in sorted(abundance.keys()):
                 out.write(f"{gene}\t{database[gene]}\t{abundance[gene]}\n")
-
-    def save_cram_strain(
-        self,
-        outcramfile: Path,
-        cram_header: AlignmentHeader,
-        read_chain: chain[AlignedSegment],
-        ref_json: dict,
-    ):
-        """Writing the filtered CRAM file for strain analysis.
-
-        :param outsamfile: [Path] Temporary cram file
-        :param cram_header: Pysam cram header
-        :param read_chain: [chain] Chain of pysam reads objects
-        """
-        reference = (
-            self.meteor.ref_dir
-            / ref_json["reference_file"]["fasta_dir"]
-            / ref_json["reference_file"]["fasta_filename"]
-        )
-        msp_file = (
-            self.meteor.ref_dir
-            / ref_json["reference_file"]["database_dir"]
-            / ref_json["annotation"]["msp"]["filename"]
-        )
-        msp_content = (
-            self.load_data(msp_file)
-            .query("gene_category == 'core'")
-            .groupby("msp_name", as_index=False)
-            .head(self.core_size)
-        )
-        # Sort the 'gene_id' values and convert directly to a list
-        gene_id_set = set(msp_content["gene_id"])
-        with AlignmentFile(
-            str(outcramfile.resolve()),
-            "wc",
-            header=cram_header,
-            reference_filename=str(reference.resolve()),
-            threads=self.meteor.threads,
-        ) as total_reads:
-            for element in read_chain:
-                assert element.reference_name is not None
-                if int(element.reference_name) in gene_id_set:
-                    # if int(element.reference_name) in ref_json["reference_file"]:
-                    total_reads.write(element)
 
     def launch_counting(
         self,
@@ -816,81 +538,6 @@ class Counter(Session):
             stage1_json,
             ref_json,
         )
-
-    def launch_counting_legacy(
-        self,
-        raw_cramfile: Path,
-        cramfile_strain: Path,
-        count_file: Path,
-        ref_json: dict,
-        stage1_json_data: dict,
-        stage1_json: Path,
-    ):
-        """Original in-memory implementation of launch_counting (reference for
-        parity checks): keeps every filtered AlignedSegment in memory."""
-        pysam.set_verbosity(0)
-        with AlignmentFile(
-            str(raw_cramfile.resolve()), threads=self.meteor.threads
-        ) as cramdesc:
-            cram_header = cramdesc.header
-            # create a dictionary containing the length of reference genes
-            # get name of reference sequence
-            references = [int(ref) for ref in cramdesc.references]
-            # get reference length
-            lengths = cramdesc.lengths
-            # All references with their length
-            database = dict(zip(references, lengths))
-            # Filter reads according to quality and score
-            reads, genes = self.filter_alignments(cramdesc)
-        if self.counting_type in ("smart_shared", "unique"):
-            # Filter unique and multiple reads
-            unique_reads, genes_mult, unique_on_gene = self.uniq_from_mult(
-                reads, genes, database
-            )
-            if self.counting_type == "smart_shared":
-                # For multiple reads compute Co
-                read_dict, coef_read = self.compute_co(genes_mult, unique_on_gene)
-                # calculate abundance
-                multiple = self.compute_abm(read_dict, coef_read, database)
-                # Calculate reference abundance & write count table
-                abundance = self.compute_abs(database, unique_on_gene, multiple)
-            else: # self.counting_type == "unique"
-                reads = unique_reads
-                abundance = unique_on_gene
-        else: # self.counting_type == "total"
-            abundance = self.compute_abs_total(database, genes)
-        self.write_stat(count_file, abundance, database)
-        counted_reads = len(reads)
-        total_read_count = stage1_json_data["mapping"]["total_read_count"]
-        config = self.set_counter_config(total_read_count, counted_reads, count_file)
-        stage1_json_data.update(config)
-        self.save_config(stage1_json_data, stage1_json)
-        if self.keep_filtered_alignments:
-            cramfile_strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir)[1])
-            self.save_cram_strain(
-                cramfile_strain_unsorted,
-                cram_header,
-                chain.from_iterable(reads.values()),
-                ref_json,
-            )
-            del reads
-            if self.counting_type in ("smart_shared", "unique"):
-                del unique_reads
-            sort(
-                "-o",
-                str(cramfile_strain.resolve()),
-                "-@",
-                str(self.meteor.threads),
-                "-O",
-                "cram",
-                str(cramfile_strain_unsorted.resolve()),
-                catch_stdout=False,
-            )
-            index(str(cramfile_strain.resolve()))
-        else:
-            logging.info(
-                "Cram file is not kept (--kf). Strain analysis will require a new mapping."
-            )
 
     def execute(self) -> None:
         """Compute the mapping"""
