@@ -674,6 +674,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Compute tn93 model (faster) (default: GTR).",
     )
     tree_parser.add_argument(
+        "--treeshrink",
+        dest="tshrink",
+        action="store_true",
+        help="Run the TreeShrink long-branch (rogue taxon) QC on each strain tree: "
+             "writes <msp>_qcflags.tsv and <msp>_shrink.tsv. Requires TreeShrink "
+             ">= 1.4.0 (conda install -c bioconda treeshrink).",
+    )
+    tree_parser.add_argument(
         "-f",
         dest="format",
         default=TreeBuilder.DEFAULT_OUTPUT_FORMAT,
@@ -806,6 +814,7 @@ def main() -> None:  # pragma: no cover
             args.width,
             args.height,
             args.format,
+            args.tshrink,
         )
         trees.execute()
     # Run download catalogues

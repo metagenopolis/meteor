@@ -196,6 +196,12 @@ Samples are automatically classified based on their genetic distance:
 - **Maximal Information**: Unambiguous nucleotides (A, C, G, T only)
 - **Minimal Information**: Includes IUPAC ambiguity codes (R, Y, S, W, K, M, B, D, H, V) but excludes N, gaps (-), and unknown (?)
 
+Samples sitting on abnormally long branches of a strain tree (rogue taxa) inflate their distances to every other sample. `meteor tree --treeshrink` runs the per-gene test of [TreeShrink](https://github.com/uym2/TreeShrink) (Mai & Mirarab, BMC Genomics 2018) on each MSP tree and writes, next to the tree:
+- `<msp>_qcflags.tsv`: for each sample, its TreeShrink feature (largest tree diameter reduction ratio obtained by removing it), the threshold of the MSP (log-lognormal, alpha = 0.05) and whether it is flagged;
+- `<msp>_shrink.tsv`: the distance matrix without the flagged samples (only when samples are flagged).
+
+The tree and the distance matrix are not modified. This option requires TreeShrink >= 1.4.0 (`conda install -c bioconda treeshrink`). Existing trees are not rebuilt, so `meteor tree --treeshrink` on an existing tree directory only adds the QC files.
+
 ## Citing Meteor2
 
 Please cite the following publication if you use Meteor2:  
