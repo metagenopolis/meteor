@@ -272,7 +272,9 @@ def loglnorm_threshold(ratios: list[float], alpha: float = ALPHA_DEFAULT) -> flo
     loglog = [math.log(math.log(r)) for r in ratios if 1 < r < math.inf]
     if len(loglog) < 2:
         return None
-    quantile = NormalDist(fmean(loglog), stdev(loglog)).inv_cdf(1 - alpha)
+    mean, sd = fmean(loglog), stdev(loglog)
+    # NormalDist needs sd > 0 on Python < 3.12
+    quantile = NormalDist(mean, sd).inv_cdf(1 - alpha) if sd > 0 else mean
     try:
         return round(math.exp(math.exp(quantile)), 6)
     except OverflowError:  # widely spread ratios: nothing can be above
