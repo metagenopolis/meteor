@@ -45,7 +45,7 @@ biom-format = "^2.1.15"
 cogent3 = "^2025.9.8a8"
 ete4 = "^4.4.0"
 bgzip = "^0.5.0"
-# TreeShrink is not on PyPI (bioconda only): tests of meteor tree --treeshrink
+# TreeShrink is not on PyPI: reference of the meteor tree --treeshrink tests
 treeshrink = { git = "https://github.com/uym2/TreeShrink.git", tag = "v1.4.0" }
 
 

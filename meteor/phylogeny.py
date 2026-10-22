@@ -22,7 +22,7 @@ import sys
 # import sys
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
-from meteor.treeshrink_qc import apply as treeshrink_apply, check_available
+from meteor.treeshrink_qc import apply as treeshrink_apply
 
 # from subprocess import check_call, run, DEVNULL
 
@@ -679,8 +679,6 @@ class Phylogeny(Session):
     def execute(self) -> None:
         logging.info("Launch phylogeny analysis")
         start = perf_counter()
-        if self.tshrink:
-            check_available()
         msp_count = len(self.msp_file_list)
         ## In case of INDEL
         # Check the mafft version

@@ -677,9 +677,9 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--treeshrink",
         dest="tshrink",
         action="store_true",
-        help="Run the TreeShrink long-branch (rogue taxon) QC on each strain tree: "
-             "writes <msp>_qcflags.tsv and <msp>_shrink.tsv. Requires TreeShrink "
-             ">= 1.4.0 (conda install -c bioconda treeshrink).",
+        help="Flag the samples on abnormally long branches of each strain tree "
+             "(per-gene test of TreeShrink): writes <msp>_qcflags.tsv and "
+             "<msp>_shrink.tsv.",
     )
     tree_parser.add_argument(
         "-f",

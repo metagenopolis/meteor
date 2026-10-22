@@ -21,7 +21,6 @@ from pathlib import Path
 from collections import defaultdict
 from meteor.session import Session, Component
 from meteor.phylogeny import Phylogeny
-from meteor.treeshrink_qc import check_available
 from dataclasses import dataclass
 from tempfile import mkdtemp
 from ete4 import Tree
@@ -54,8 +53,6 @@ class TreeBuilder(Session):
     def __post_init__(self) -> None:
         if self.format not in TreeBuilder.OUTPUT_FORMATS:
             raise ValueError(f"{self.format} is not a valid output format")
-        if self.tshrink:
-            check_available()
 
         self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
         self.meteor.tree_dir.mkdir(exist_ok=True, parents=True)
