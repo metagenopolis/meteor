@@ -351,18 +351,85 @@ def test_tn93_fallbacks(phylogeny_builder: Phylogeny, monkeypatch):
 
 
 def test_comparison_table_distance_sources(phylogeny_builder: Phylogeny, tmp_path: Path):
-    """Distances by position, missing distances and empty sequences: same table as the loops"""
+    """Distances indexed by name, missing distances and empty sequences: same table as the loops"""
     sequences = {"s1": "ACGTN", "s2": "ACRTN", "s3": "NNGTA"}
 
-    class ByPosition:
+    class ByName:
         def __getitem__(self, pair):
-            return 0.001 * (pair[0] + 1) * (pair[1] + 2)
+            return 0.001 * int(pair[0][1:]) * (int(pair[1][1:]) + 1)
 
     class NoDistance:
         pass
 
-    for dists, seqs in ((ByPosition(), sequences), (NoDistance(), sequences),
-                        (ByPosition(), {"s1": "", "s2": ""})):
+    for dists, seqs in ((ByName(), sequences), (NoDistance(), sequences),
+                        (ByName(), {"s1": "", "s2": ""})):
         phylogeny_builder._generate_pairwise_comparison_table(seqs, dists, tmp_path / "fast.tsv")
         phylogeny_builder._generate_pairwise_comparison_table_python(seqs, dists, tmp_path / "loops.tsv")
         assert (tmp_path / "fast.tsv").read_text() == (tmp_path / "loops.tsv").read_text()
+
+
+@pytest.mark.parametrize("gtr", [True, False], ids=["GTR", "TN93"])
+def test_comparison_table_distances_by_name(phylogeny_builder: Phylogeny, tmp_path: Path, gtr: bool):
+    """Samples not in alphabetical order: each pair gets its own distance
+
+    cogent3 sorts the names of the GTR distances: a distance read by position
+    in the alignment failed (KeyError: np.int64(0)) or belonged to another pair.
+    """
+    import random
+    from cogent3 import make_aligned_seqs
+    from cogent3.evolve.distance import EstimateDistances
+    from cogent3.evolve.models import GTR
+
+    rng = random.Random(0)
+    base = [rng.choice("ACGT") for _ in range(600)]
+    sequences = {}
+    for name, rate in (("s3", 0.12), ("s1", 0.02), ("s4", 0.05), ("s2", 0.08)):
+        sequences[name] = "".join(c if rng.random() > rate else rng.choice("ACGT") for c in base)
+    aligned = make_aligned_seqs(sequences, moltype="dna")
+    if gtr:
+        estimate = EstimateDistances(aligned, submodel=GTR())
+        estimate.run(show_progress=False)
+        dists = estimate.get_pairwise_distances()
+        assert list(dists.names) != list(aligned.names)  # the case of the issue
+    else:
+        dists = phylogeny_builder.tn93_distance_matrix(aligned)
+    for name, generate in (("fast", phylogeny_builder._generate_pairwise_comparison_table),
+                           ("loops", phylogeny_builder._generate_pairwise_comparison_table_python)):
+        generate(aligned, dists, tmp_path / f"{name}.tsv")
+        table = pd.read_csv(tmp_path / f"{name}.tsv", sep="\t")
+        assert list(zip(table["sample1"], table["sample2"])) == [
+            ("s3", "s1"), ("s3", "s4"), ("s3", "s2"), ("s1", "s4"), ("s1", "s2"), ("s4", "s2")
+        ]
+        expected = [dists[a, b] for a, b in zip(table["sample1"], table["sample2"])]
+        assert table["distance"].tolist() == pytest.approx(expected, rel=1e-5), name
+    assert (tmp_path / "fast.tsv").read_text() == (tmp_path / "loops.tsv").read_text()
+
+
+def test_execute_gtr_samples_not_in_alphabetical_order(datadir: Path, tmp_path: Path):
+    """meteor tree in GTR mode writes the tree and the comparison table"""
+    meteor = Component
+    meteor.tmp_dir = tmp_path
+    meteor.tree_dir = tmp_path / "tree"
+    meteor.tree_dir.mkdir()
+    meteor.threads = 1
+    meteor.DEFAULT_GAP_CHAR = "N"  # as in meteor strain outputs
+    records = (datadir / "msp_0864.fasta").read_text().replace("?", "N").split(">")[1:]
+    reordered = tmp_path / "msp_0864.fasta"
+    reordered.write_text("".join(">" + record.rstrip("\n") + "\n" for record in reversed(records)))
+    Phylogeny(meteor, [reordered], 0.5, 4, True).execute()
+    assert (meteor.tree_dir / "msp_0864.tree").exists()
+    table = pd.read_csv(meteor.tree_dir / "msp_0864_comparison.tsv", sep="\t")
+    assert len(table) == len(records) * (len(records) - 1) // 2
+
+
+def test_execute_logs_the_traceback_of_a_failed_msp(tmp_path: Path, caplog):
+    meteor = Component
+    meteor.tmp_dir = tmp_path
+    meteor.tree_dir = tmp_path / "tree"
+    meteor.tree_dir.mkdir()
+    meteor.threads = 1
+    with pytest.raises(SystemExit):
+        Phylogeny(meteor, [tmp_path / "msp_missing.fasta"], 0.5, 4, True).execute()
+    record = caplog.records[-1]
+    assert record.getMessage().startswith("MSP msp_missing.fasta generated an exception")
+    assert record.exc_info is not None

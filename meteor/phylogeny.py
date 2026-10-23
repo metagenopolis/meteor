@@ -300,6 +300,32 @@ class Phylogeny(Session):
             return aligned_seqs.distance_matrix(calc="tn93")
         return c3.DistanceMatrix.from_array_names(dists, aligned_seqs.names)
 
+    @staticmethod
+    def _pair_distance(dists, name1: str, name2: str) -> float:
+        """Distance between two samples, looked up by name
+
+        The order of the samples in a distance matrix is not the order of the
+        alignment (cogent3 sorts the names of the GTR distances), so a position
+        in the alignment is never used as a position in the matrix.
+        """
+        if hasattr(dists, "get_distance"):
+            return float(dists.get_distance(name1, name2))
+        if hasattr(dists, "__getitem__"):
+            return float(dists[name1, name2])
+        return 0.0
+
+    @classmethod
+    def _pair_distances(cls, dists, names: list[str], first: np.ndarray, second: np.ndarray) -> np.ndarray:
+        """Distances of the pairs (names[first[k]], names[second[k]]), looked up by name"""
+        if not hasattr(dists, "get_distance") and hasattr(dists, "array") and hasattr(dists, "names"):
+            position = {name: k for k, name in enumerate(dists.names)}
+            order = np.array([position[name] for name in names], dtype=np.intp)
+            return np.asarray(dists.array, dtype=float)[order[first], order[second]]
+        return np.array(
+            [cls._pair_distance(dists, names[i], names[j]) for i, j in zip(first, second)],
+            dtype=float,
+        )
+
     def _generate_pairwise_comparison_table(self, sequences: dict, dists, output_file: Path) -> None:
         """Generate a pairwise comparison table for each tree with detailed statistics.
 
@@ -341,18 +367,7 @@ class Phylogeny(Session):
         del maximal
         # Upper triangle, row by row (same order as the per-pair loops)
         first, second = np.triu_indices(n_seqs, k=1)
-        # Distances
-        if hasattr(dists, "get_distance"):
-            distance = np.array(
-                [dists.get_distance(seq_names[i], seq_names[j]) for i, j in zip(first, second)],
-                dtype=float,
-            )
-        elif hasattr(dists, "array") and list(getattr(dists, "names", [])) == seq_names:
-            distance = np.asarray(dists.array, dtype=float)[first, second]
-        elif hasattr(dists, "__getitem__"):
-            distance = np.array([dists[i, j] for i, j in zip(first, second)], dtype=float)
-        else:
-            distance = np.zeros(len(first))
+        distance = self._pair_distances(dists, seq_names, first, second)
         if total_length > 0:
             def percent(count):
                 return count / total_length * 100
@@ -482,10 +497,7 @@ class Phylogeny(Session):
                 maximal_info_pc_sample2 = (stats2['maximal_info_count'] / total_length * 100) if total_length > 0 else 0.0
                 
                 # Get distance from distance matrix
-                if hasattr(dists, 'get_distance'):
-                    distance = dists.get_distance(name1, name2)
-                else:
-                    distance = dists[i, j] if hasattr(dists, '__getitem__') else 0.0
+                distance = self._pair_distance(dists, name1, name2)
                 
                 # Categorize distance based on similarity thresholds
                 if distance <= 0.0001:
@@ -727,7 +739,8 @@ class Phylogeny(Session):
                             msp_file.name.replace(".fasta", ""),
                         )
                 except Exception as exc:
-                    logging.error(
+                    # with the traceback of the worker process
+                    logging.exception(
                         "MSP %s generated an exception: %s", msp_file.name, exc
                     )
                     sys.exit(1)
