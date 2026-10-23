@@ -22,6 +22,7 @@ import sys
 # import sys
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
+from meteor.treeshrink_qc import apply as treeshrink_apply
 
 # from subprocess import check_call, run, DEVNULL
 
@@ -92,6 +93,7 @@ class Phylogeny(Session):
     min_info_sites: int
     gtr: bool
     tree_files: list[Path] = field(default_factory=list)
+    tshrink: bool = False
 
     def compute_site_info(self, sequences: Iterable[str]) -> list[float]:
         """Calculate the percentage of "_" at each position
@@ -570,6 +572,8 @@ class Phylogeny(Session):
                     msp_count,
                     msp_file.name.replace(".fasta", ""),
                 )
+                if self.tshrink:
+                    self.treeshrink_qc(tree_file)
                 return tree_file, True
             else:
                 logging.warning(
@@ -653,7 +657,24 @@ class Phylogeny(Session):
                     self.remove_edge_labels(mycluster.get_newick(with_distances=True))
                 )
 
+            # Optional TreeShrink long-branch (rogue taxon) QC (additive)
+            if self.tshrink:
+                self.treeshrink_qc(tree_file, df)
+
         return tree_file, tree_file.exists()
+
+    def treeshrink_qc(self, tree_file: Path, df: pd.DataFrame | None = None) -> None:
+        """TreeShrink QC of one tree; a failure is logged, never fatal.
+
+        :param tree_file: (Path) Newick tree of the MSP
+        :param df: tip-to-tip distance matrix (read from <msp>.tsv when None)
+        """
+        try:
+            if df is None:
+                df = pd.read_csv(tree_file.with_suffix(".tsv"), sep="\t", index_col=0)
+            treeshrink_apply(tree_file, df)
+        except Exception as error:  # pylint: disable=broad-except
+            logging.warning("TreeShrink QC failed for %s: %s", tree_file.stem, error)
 
     def execute(self) -> None:
         logging.info("Launch phylogeny analysis")

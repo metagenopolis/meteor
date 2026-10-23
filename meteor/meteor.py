@@ -674,6 +674,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Compute tn93 model (faster) (default: GTR).",
     )
     tree_parser.add_argument(
+        "--treeshrink",
+        dest="tshrink",
+        action="store_true",
+        help="Flag the samples on abnormally long branches of each strain tree "
+             "(per-gene test of TreeShrink): writes <msp>_qcflags.tsv and "
+             "<msp>_shrink.tsv.",
+    )
+    tree_parser.add_argument(
         "-f",
         dest="format",
         default=TreeBuilder.DEFAULT_OUTPUT_FORMAT,
@@ -806,6 +814,7 @@ def main() -> None:  # pragma: no cover
             args.width,
             args.height,
             args.format,
+            args.tshrink,
         )
         trees.execute()
     # Run download catalogues
