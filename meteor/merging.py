@@ -323,6 +323,11 @@ class Merging(Session):
             from pandas.core.indexes.api import _get_combined_index
 
             union = _get_combined_index(indexes, intersect=False, sort=False)
+            # pandas >= 3.1 returns (index, whether all indexes are equal)
+            if isinstance(union, tuple):
+                union = union[0]
+            if not isinstance(union, pd.Index):
+                raise TypeError(f"unexpected combined index: {type(union)}")
         except Exception:  # pylint: disable=broad-except
             try:
                 union = pd.concat(

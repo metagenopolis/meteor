@@ -388,6 +388,20 @@ def test_merge_filter_write_edge_cases(merging_profiles: Merging, tmp_path: Path
     assert len(calls) > 1
     assert out.read_text() == expected
     monkeypatch.undo()
+    # pandas >= 3.1 returns (index, all equal); another type falls back to
+    # pd.concat. Only meteor's call (the first) is changed.
+    for returned in (lambda index: (index, False), lambda index: list(index)):
+        calls.clear()
+
+        def first_call_changed(*args, convert=returned, **kwargs):
+            calls.append(1)
+            combined = original(*args, **kwargs)
+            return convert(combined) if len(calls) == 1 else combined
+
+        monkeypatch.setattr(pandas_api, "_get_combined_index", first_call_changed)
+        assert merging_profiles._merge_filter_write({"s1": a, "s2": b}, ["annotation"], out) is not None
+        assert out.read_text() == expected
+        monkeypatch.undo()
     # duplicated key in a sample, missing key, quote in a sample name, nothing kept
     dup = _write_profile(tmp_path / "dup.tsv.xz", [("K1", 1.0), ("K1", 2.0)])
     assert merging_profiles._merge_filter_write({"s1": a, "s2": dup}, ["annotation"], out) is None
