@@ -535,6 +535,21 @@ def get_arguments() -> Namespace:  # pragma: no cover
         action="store_true",
         help="Merge gene abundance tables.",
     )
+    merging_parser.add_argument(
+        "-t",
+        dest="tables",
+        nargs="+",
+        choices=list(Merging.TABLES),
+        metavar="TABLE",
+        help="Merge only these tables (default: all but genes, merged with -g):\n"
+        "  msp                  : species (MSP) abundances\n"
+        "  genes                : gene abundances (same as -g)\n"
+        "  modules_completeness : module completeness per species\n"
+        "  modules              : module abundances\n"
+        "  mustard, resfinder, resfinderfg, dbcan, kegg :\n"
+        "                         annotation abundances (as_genes_sum and as_msp_sum)\n"
+        "Functional tables need a complete catalogue. Example: -t msp kegg",
+    )
     strain_parser = subparsers.add_parser(
         "strain", help="Identifies strains from metagenomic samples"
     )
@@ -855,6 +870,7 @@ def main() -> None:  # pragma: no cover
             args.mpa_taxonomic_level,
             args.output_biom,
             args.output_gene_matrix,
+            args.tables,
         )
         merging.execute()
     # Testing

@@ -147,6 +147,14 @@ To merge output from different samples into a single table, use the following co
 meteor merge -i <profiledir> -r <refdir> -o <mergingdir>
 ```
 
+All tables are merged by default, except the gene tables (`-g`). `-t` merges only the tables given, e.g. the species table alone to look for cross-sample contamination with CroCoDeEL:
+
+```
+meteor merge -i <profiledir> -r <refdir> -o <mergingdir> -t msp
+```
+
+Tables: `msp` (species), `genes` (gene counts, same as `-g`), `modules_completeness`, `modules`, and the annotation tables `mustard`, `resfinder`, `resfinderfg`, `dbcan`, `kegg` (each `_as_genes_sum` and `_as_msp_sum`). Functional tables need a complete catalogue.
+
 With `-m`, the species abundance table is also saved in the style of a merged MetaPhlAn table (`<prefix>_msp_mpa.tsv`), for the tools that read MetaPhlAn profiles. Each row is a clade from superkingdom (`k__`) to MSP (`t__`), named by its lineage (`k__Bacteria|p__Pseudomonadota|...|s__Escherichia_coli|t__msp_0005`). Values are relative abundances in percent of the sample: the MSPs written in `<prefix>_msp.tsv` (after the `-a`, `-n` and `-s` filters) sum to 100, and a clade is the sum of its MSPs, so each rank sums to 100. Ranks missing from the catalogue taxonomy are named `unclassified`. `--tax_lev` keeps a single rank (`k`, `p`, `c`, `o`, `f`, `g`, `s` or `t`). The first line names the meteor version, the catalogue and the GTDB release of its taxonomy.
 
 ### 5. Strain profiling
