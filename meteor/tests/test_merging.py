@@ -415,7 +415,122 @@ def test_merge_filter_write_edge_cases(merging_profiles: Merging, tmp_path: Path
 def test_execute_nothing_kept(merging_fast: Merging, tmp_path: Path) -> None:
     """No row passes the filters: tables written by the DataFrame path"""
     merging_fast.min_msp_abundance = 1e18
+    merging_fast.output_mpa = True
     merging_fast.execute()
     table = pd.read_table(tmp_path / "my_test_kegg_as_genes_sum.tsv")
     assert table.empty
+    mpa = pd.read_table(tmp_path / "my_test_msp_mpa.tsv", skiprows=1, index_col=0)
+    assert mpa.empty
     assert (tmp_path / "my_test_modules_completeness.tsv").exists()
+
+
+@pytest.fixture
+def mpa_input() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """MSP table and taxonomy with the cases of the real catalogues"""
+    msp_df = pd.DataFrame(
+        {
+            "msp_name": ["msp_1", "msp_2", "msp_3", "msp_4", "msp_5", "msp_6"],
+            "s1": [1.0, 3.0, 4.0, 2.0, 0.0, 0.0],
+            "s2": [0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            "s3": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        }
+    )
+    lineages = {
+        # two MSPs of the same species, name with a space
+        "msp_1": ["Bacteria", "Bacillota", "Clostridia", "Lachnospirales", "Lachnospiraceae", "Blautia", "Blautia sp."],
+        "msp_2": ["Bacteria", "Bacillota", "Clostridia", "Lachnospirales", "Lachnospiraceae", "Blautia", "Blautia sp."],
+        # unknown genus named after the family, trailing spaces of the catalogues
+        "msp_3": ["Bacteria", "Bacteroidota", "Bacteroidia", "Bacteroidales", "Muribaculaceae", "unclassified Muribaculaceae", "unclassified "],
+        # unclassified MSP
+        "msp_4": ["unclassified", "unclassified", "unclassified ", "unclassified ", "unclassified ", "unclassified ", "unclassified"],
+        # absent from every sample
+        "msp_5": ["Archaea", "Methanobacteriota", "Methanobacteria", "Methanobacteriales", "Methanobacteriaceae", "Methanobrevibacter", "Methanobrevibacter smithii"],
+        # missing rank
+        "msp_6": ["Bacteria", "Bacillota", "Bacilli", None, None, None, None],
+    }
+    taxonomy = pd.DataFrame(
+        [[msp] + ranks for msp, ranks in lineages.items()],
+        columns=["msp_name", "superkingdom", "phylum", "class", "order", "family", "genus", "species"],
+    )
+    return msp_df, taxonomy
+
+
+def test_mpa_table(merging_fast: Merging, mpa_input) -> None:
+    msp_df, taxonomy = mpa_input
+    table = merging_fast.mpa_table(msp_df, taxonomy)
+    assert list(table.columns) == ["s1", "s2", "s3"]
+    assert table.index.name == "clade_name"
+    blautia = "k__Bacteria|p__Bacillota|c__Clostridia|o__Lachnospirales|f__Lachnospiraceae|g__Blautia"
+    muribaculaceae = "k__Bacteria|p__Bacteroidota|c__Bacteroidia|o__Bacteroidales|f__Muribaculaceae"
+    unclassified = "k__unclassified|p__unclassified|c__unclassified|o__unclassified|f__unclassified|g__unclassified"
+    bacilli = "k__Bacteria|p__Bacillota|c__Bacilli|o__unclassified|f__unclassified|g__unclassified|s__unclassified"
+    # percent of the sample, MSPs of a clade summed
+    assert table.loc["k__Bacteria", "s1"] == pytest.approx(80.0)
+    assert table.loc["k__Bacteria|p__Bacillota", "s1"] == pytest.approx(40.0)
+    assert table.loc[f"{blautia}|s__Blautia_sp.", "s1"] == pytest.approx(40.0)
+    assert table.loc[f"{blautia}|s__Blautia_sp.|t__msp_1", "s1"] == pytest.approx(10.0)
+    assert table.loc[f"{muribaculaceae}|g__unclassified_Muribaculaceae|s__unclassified|t__msp_3", "s1"] == pytest.approx(40.0)
+    assert table.loc[f"{unclassified}|s__unclassified|t__msp_4", "s1"] == pytest.approx(20.0)
+    assert table.loc[f"{bacilli}|t__msp_6", "s2"] == pytest.approx(50.0)
+    # absent clades not written, empty sample at 0
+    assert not table.index.str.contains("Archaea|msp_5").any()
+    assert (table["s3"] == 0).all()
+    # each rank sums to 100, a clade is the sum of its children
+    depth = table.index.str.count(r"\|")
+    assert list(depth) == sorted(depth)
+    assert set(depth) == set(range(8))
+    sums = table[["s1", "s2"]].groupby(depth).sum()
+    assert sums.to_numpy() == pytest.approx(100.0)
+    for clade in table.index[depth < 7]:
+        children = table.index[table.index.str.startswith(clade + "|") & (depth == clade.count("|") + 1)]
+        assert table.loc[children].sum().to_numpy() == pytest.approx(table.loc[clade].to_numpy())
+    assert not table.index.str.contains(" ").any()
+
+
+@pytest.mark.parametrize("level, expected", [("k", 0), ("s", 6), ("t", 7)])
+def test_mpa_table_level(merging_fast: Merging, mpa_input, level: str, expected: int) -> None:
+    merging_fast.mpa_taxonomic_level = level
+    table = merging_fast.mpa_table(*mpa_input)
+    assert set(table.index.str.count(r"\|")) == {expected}
+    assert table[["s1", "s2"]].sum().to_numpy() == pytest.approx(100.0)
+
+
+def test_mpa_table_msp_not_in_taxonomy(merging_fast: Merging, mpa_input, caplog) -> None:
+    msp_df, taxonomy = mpa_input
+    table = merging_fast.mpa_table(msp_df, taxonomy[taxonomy["msp_name"] != "msp_2"])
+    assert "1 MSPs are not in the taxonomy" in caplog.text
+    assert table.loc[
+        "k__unclassified|p__unclassified|c__unclassified|o__unclassified|f__unclassified"
+        "|g__unclassified|s__unclassified|t__msp_2", "s1"
+    ] == pytest.approx(30.0)
+
+
+def test_execute_mpa(merging_fast: Merging, datadir: Path) -> None:
+    merging_fast.output_mpa = True
+    merging_fast.execute()
+    mpa_file = merging_fast.meteor.merging_dir / "my_test_msp_mpa.tsv"
+    assert mpa_file.read_text().splitlines()[0] == f"#meteor_v{merging_fast.meteor.version}_gtdb_r207"
+    mpa = pd.read_table(mpa_file, skiprows=1, index_col=0)
+    msp = pd.read_table(datadir / "expected_output" / "test_project_msp.tsv", index_col=0)
+    assert sorted(mpa.columns) == sorted(msp.columns)
+    msp_rows = mpa.loc[mpa.index.str.count(r"\|") == 7]
+    present = msp.loc[msp.sum(axis=1) > 0]
+    assert sorted(msp_rows.index.str.split("|t__", regex=False).str[1]) == sorted(present.index)
+    assert "k__Bacteria|p__Proteobacteria|c__Gammaproteobacteria|o__Enterobacterales|f__Enterobacteriaceae|g__Escherichia|s__Escherichia_coli|t__msp_0005" in mpa.index
+    expected = 100 * present / present.sum()
+    for clade, row in msp_rows.iterrows():
+        assert row.to_numpy() == pytest.approx(expected.loc[clade.split("|t__")[1], row.index].to_numpy())
+
+
+def test_write_mpa_header(merging_fast: Merging, mpa_input, tmp_path: Path) -> None:
+    table = merging_fast.mpa_table(*mpa_input)
+    ref_json = {
+        "reference_info": {"reference_name": "hs_10_4_gut"},
+        "annotation": {"taxonomy": {"filename": "taxonomy.tsv", "version": "226"}},
+    }
+    merging_fast.write_mpa(table, ref_json, tmp_path / "mpa.tsv")
+    lines = (tmp_path / "mpa.tsv").read_text().splitlines()
+    assert lines[0] == f"#meteor_v{merging_fast.meteor.version}_hs_10_4_gut_gtdb_r226"
+    assert lines[1] == "clade_name\ts1\ts2\ts3"
+    assert lines[2].startswith("k__Bacteria\t")
+

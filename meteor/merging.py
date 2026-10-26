@@ -284,6 +284,91 @@ class Merging(Session):
     # rows formatted and written per block by _merge_filter_write
     WRITE_BLOCK_ROWS: ClassVar[int] = 4096
 
+    def mpa_table(
+        self, msp_df: pd.DataFrame, taxonomy: pd.DataFrame
+    ) -> pd.DataFrame:
+        """Species abundance table in the style of MetaPhlAn (merged profiles).
+
+        One row per clade, from k__ (superkingdom) to t__ (MSP), named by its
+        lineage (k__Bacteria|p__Bacillota|...|s__Escherichia_coli|t__msp_0005);
+        the abundance of a clade is the sum of its MSPs, in percent of the
+        sample (each rank sums to 100). Clades absent from every sample are not
+        written. Ranks missing from the taxonomy are named "unclassified".
+
+        :param msp_df: merged MSP table (msp_name, then one column per sample)
+        :param taxonomy: catalogue taxonomy (msp_name and the ranks of self.ranks)
+        :return: table indexed by clade_name, one column per sample
+        """
+        samples = msp_df.columns.drop("msp_name")
+        abundance = np.nan_to_num(msp_df[samples].to_numpy(dtype=float))
+        totals = abundance.sum(axis=0)
+        percent = pd.DataFrame(
+            100 * abundance / np.where(totals > 0, totals, 1.0),
+            index=msp_df["msp_name"].to_numpy(),
+            columns=samples,
+        )
+        taxonomic_ranks = [rank for rank in self.ranks if rank != "msp_name"]
+        lineage = (
+            taxonomy.drop_duplicates("msp_name")
+            .set_index("msp_name")[taxonomic_ranks]
+            .reindex(percent.index)
+        )
+        not_annotated = lineage.isna().all(axis=1)
+        if not_annotated.any():
+            logging.warning(
+                "%d MSPs are not in the taxonomy of the catalogue, they are "
+                "reported as unclassified in the mpa table.",
+                not_annotated.sum(),
+            )
+        lineage = lineage.fillna("").astype(str)
+        # MetaPhlAn clade names: no space, no "|"
+        lineage = lineage.apply(
+            lambda names: names.str.strip()
+            .str.replace(r"[\s|]+", "_", regex=True)
+            .replace("", "unclassified")
+        )
+        lineage["msp_name"] = lineage.index
+        levels = (
+            self.MPA_TAXONOMIC_LEVELS[1:]
+            if self.mpa_taxonomic_level in (None, "a")
+            else [self.mpa_taxonomic_level]
+        )
+        clades = []
+        clade_name = pd.Series("", index=lineage.index)
+        for rank, prefix in self.ranks.items():
+            clade_name = clade_name + ("|" if rank != "superkingdom" else "") + prefix
+            clade_name = clade_name + lineage[rank]
+            if prefix[0] in levels:
+                clades.append(percent.groupby(clade_name.to_numpy(), sort=False).sum())
+        table = pd.concat(clades)
+        table = table.loc[table.sum(axis=1) > 0]
+        # MetaPhlAn order: by rank, then by name
+        table = table.loc[sorted(table.index, key=lambda name: (name.count("|"), name))]
+        table.index.name = "clade_name"
+        return table
+
+    def write_mpa(
+        self, table: pd.DataFrame, ref_json: dict, output_file: Path
+    ) -> None:
+        """Write the mpa table with a first line naming meteor, catalogue and
+        taxonomy versions, as merge_metaphlan_tables.py writes the MetaPhlAn
+        database version.
+
+        :param table: mpa_table output
+        :param ref_json: catalogue reference json
+        :param output_file: output tsv file
+        """
+        header = f"#meteor_v{self.meteor.version}"
+        reference_name = ref_json.get("reference_info", {}).get("reference_name")
+        if reference_name:
+            header += f"_{reference_name}"
+        taxonomy_version = ref_json["annotation"]["taxonomy"].get("version")
+        if taxonomy_version:
+            header += f"_gtdb_r{taxonomy_version}"
+        with open(output_file, "w", encoding="utf-8") as out:
+            out.write(header + "\n")
+            table.to_csv(out, sep="\t")
+
     def _merge_filter_write(
         self, dict_path: dict[str, Path], key_merging: list[str], output_file: Path
     ) -> pd.DataFrame | None:
@@ -582,6 +667,12 @@ class Merging(Session):
                     sep="\t",
                     index=False,
                 )
+                if self.output_mpa:
+                    mpa_output = Path(f"{output_name}_mpa.tsv")
+                    self.write_mpa(
+                        self.mpa_table(filtered_df, annotation), ref_json, mpa_output
+                    )
+                    logging.info("MetaPhlAn-style table saved as %s", mpa_output)
                 if self.output_biom:
                     sample_ids = filtered_df.columns.drop("msp_name").tolist()
                     observ_ids = filtered_df["msp_name"].tolist()

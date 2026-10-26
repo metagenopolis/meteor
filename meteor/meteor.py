@@ -485,13 +485,14 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Remove samples with no detected species (MSPs) "
         "(default: %(default)s).",
     )
-    # merging_parser.add_argument(
-    #    "-m",
-    #    dest="output_mpa",
-    #    action="store_true",
-    #    help="Save the merged species abundance table in the style of MetaPhlan "
-    #    "(default: %(default)s).",
-    # )
+    merging_parser.add_argument(
+        "-m",
+        dest="output_mpa",
+        action="store_true",
+        help="Save the merged species abundance table in the style of MetaPhlAn:\n"
+        "relative abundances (%%) of the clades from superkingdom (k__) to MSP (t__)\n"
+        "(default: %(default)s).",
+    )
     merging_parser.add_argument(
         "-b",
         dest="output_biom",
@@ -499,22 +500,22 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Save the merged species abundance table in biom format "
         "(default: %(default)s).",
     )
-    # merging_parser.add_argument(
-    #    "--tax_lev",
-    #    dest="taxonomic_level",
-    #    default=Merging.DEFAULT_MPA_TAXONOMIC_LEVEL,
-    #    choices=Merging.MPA_TAXONOMIC_LEVELS,
-    #    help="""The taxonomic level for mpa output (default: %(default)s):
-    #                    'a' : all taxonomic levels
-    #                    'k' : kingdoms
-    #                    'p' : phyla only
-    #                    'c' : classes only
-    #                    'o' : orders only
-    #                    'f' : families only
-    #                    'g' : genera only
-    #                    's' : species only
-    #                    't' : MSPs only""",
-    # )
+    merging_parser.add_argument(
+        "--tax_lev",
+        dest="mpa_taxonomic_level",
+        default=Merging.DEFAULT_MPA_TAXONOMIC_LEVEL,
+        choices=Merging.MPA_TAXONOMIC_LEVELS,
+        help="""Taxonomic level of the MetaPhlAn-style table (-m) (default: %(default)s):
+                        'a' : all taxonomic levels
+                        'k' : kingdoms only
+                        'p' : phyla only
+                        'c' : classes only
+                        'o' : orders only
+                        'f' : families only
+                        'g' : genera only
+                        's' : species only
+                        't' : MSPs only""",
+    )
     merging_parser.add_argument(
         "-o",
         dest="merging_dir",
@@ -850,10 +851,8 @@ def main() -> None:  # pragma: no cover
             args.min_msp_abundance,
             args.min_msp_occurrence,
             args.remove_sample_with_no_msp,
-            False,
-            None,
-            # args.output_mpa,
-            # args.taxonomic_level,
+            args.output_mpa,
+            args.mpa_taxonomic_level,
             args.output_biom,
             args.output_gene_matrix,
         )
