@@ -18,6 +18,7 @@ from ..merging import Merging
 from pathlib import Path
 import pytest
 import pandas as pd
+import shutil
 import json
 
 
@@ -533,4 +534,97 @@ def test_write_mpa_header(merging_fast: Merging, mpa_input, tmp_path: Path) -> N
     assert lines[0] == f"#meteor_v{merging_fast.meteor.version}_hs_10_4_gut_gtdb_r226"
     assert lines[1] == "clade_name\ts1\ts2\ts3"
     assert lines[2].startswith("k__Bacteria\t")
+
+
+ALL_FILES = [
+    "msp", "genes", "raw", "modules_completeness", "modules",
+    *[f"{annotation}_as_{level}_sum"
+      for annotation in ["mustard", "resfinder", "resfinderfg", "dbcan", "kegg"]
+      for level in ["genes", "msp"]],
+]
+
+
+@pytest.mark.parametrize(
+    "tables, gene_matrix, expected",
+    [
+        (None, False, [f for f in ALL_FILES if f not in ("genes", "raw")]),
+        (None, True, ALL_FILES),
+        (["msp"], False, ["msp"]),
+        (["msp"], True, ["msp", "genes", "raw"]),
+        (["genes"], False, ["genes", "raw"]),
+        (["kegg", "modules_completeness"], False,
+         ["modules_completeness", "kegg_as_genes_sum", "kegg_as_msp_sum"]),
+    ],
+)
+def test_execute_tables(
+    merging_fast: Merging, datadir: Path, tables, gene_matrix: bool, expected: list[str]
+) -> None:
+    """Only the tables asked are merged, each as without -t"""
+    merging_fast.tables = tables
+    merging_fast.output_gene_matrix = gene_matrix
+    merging_fast.execute()
+    merging_dir = merging_fast.meteor.merging_dir
+    written = {
+        path.name.removeprefix("my_test_").removesuffix(".tsv")
+        for path in merging_dir.glob("my_test_*.tsv")
+    }
+    # annotation tables of the merged tables, and the report
+    annotations = ("_taxonomy", "_definition", "_description", "_antimicrobial")
+    assert "report" in written
+    assert {name for name in written if not name.endswith(annotations)} - {"report"} == set(expected)
+    for name in expected:
+        expected_file = datadir / "expected_output" / f"test_project_{name}.tsv"
+        if expected_file.exists():
+            real = pd.read_table(merging_dir / f"my_test_{name}.tsv")
+            reference = pd.read_table(expected_file)
+            # same rows and columns, whatever their order
+            keys = [key for key in ("gene_id", "msp_name", "mod_id", "annotation") if key in reference]
+            real, reference = (
+                table.reindex(sorted(table.columns), axis=1).sort_values(keys).reset_index(drop=True)
+                for table in (real, reference)
+            )
+            pd.testing.assert_frame_equal(real, reference, check_dtype=False, check_exact=False, rtol=1e-10)
+
+
+def _taxo_catalogue(datadir: Path, tmp_path: Path) -> Path:
+    ref_dir = tmp_path / "taxo_ref"
+    shutil.copytree(datadir / "ref_dir", ref_dir)
+    ref_json = ref_dir / "hs_8_4_oral_taxo_reference.json"
+    config = json.loads(ref_json.read_text())
+    config["reference_info"]["database_type"] = "taxo"
+    ref_json.write_text(json.dumps(config))
+    return ref_dir
+
+
+def test_execute_tables_taxo_catalogue(merging_fast: Merging, datadir: Path, tmp_path: Path) -> None:
+    """Taxonomic catalogue: species table by default, functional tables refused"""
+    merging_fast.meteor.ref_dir = _taxo_catalogue(datadir, tmp_path)
+    merging_fast.meteor.merging_dir = tmp_path / "default"
+    merging_fast.meteor.merging_dir.mkdir()
+    merging_fast.execute()
+    assert sorted(p.name for p in merging_fast.meteor.merging_dir.glob("*.tsv")) == [
+        "my_test_msp.tsv", "my_test_msp_taxonomy.tsv", "my_test_report.tsv",
+    ]
+    merging_fast.tables = ["msp", "kegg"]
+    with pytest.raises(SystemExit):
+        merging_fast.execute()
+
+
+@pytest.mark.parametrize("output", ["output_biom", "output_mpa"])
+def test_execute_tables_biom_mpa_without_msp(merging_fast: Merging, caplog, output: str) -> None:
+    merging_fast.tables = ["modules"]
+    setattr(merging_fast, output, True)
+    merging_fast.execute()
+    assert "no biom or mpa file" in caplog.text
+    assert not list(merging_fast.meteor.merging_dir.glob("*.biom"))
+    assert not list(merging_fast.meteor.merging_dir.glob("*_mpa.tsv"))
+
+
+def test_execute_tables_msp_mpa(merging_fast: Merging) -> None:
+    merging_fast.tables = ["msp"]
+    merging_fast.output_mpa = True
+    merging_fast.execute()
+    assert sorted(p.name for p in merging_fast.meteor.merging_dir.glob("*.tsv")) == [
+        "my_test_msp.tsv", "my_test_msp_mpa.tsv", "my_test_msp_taxonomy.tsv", "my_test_report.tsv",
+    ]
 

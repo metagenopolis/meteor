@@ -49,6 +49,26 @@ class Merging(Session):
     ]
     DEFAULT_MPA_TAXONOMIC_LEVEL: ClassVar[str] = "a"
     DEFAULT_PREFIX: ClassVar[str] = "output"
+    # Tables that can be merged: {table: {file pattern: key columns}}
+    TABLES: ClassVar[dict[str, dict[str, list[str]]]] = {
+        "msp": {"msp": ["msp_name"]},
+        "genes": {"genes": ["gene_id"], "raw": ["gene_id"]},
+        "modules_completeness": {"modules_completeness": ["msp_name", "mod_id"]},
+        "modules": {"modules": ["mod_id"]},
+        **{
+            annotation: {
+                f"{annotation}_as_genes_sum": ["annotation"],
+                f"{annotation}_as_msp_sum": ["annotation"],
+            }
+            for annotation in ["mustard", "resfinder", "resfinderfg", "dbcan", "kegg"]
+        },
+    }
+    # Tables of complete catalogues only
+    FUNCTIONAL_TABLES: ClassVar[list[str]] = [
+        table for table in TABLES if table not in ("msp", "genes")
+    ]
+    # Merged unless the tables are given (genes with -g)
+    DEFAULT_TABLES: ClassVar[list[str]] = [table for table in TABLES if table != "genes"]
 
     meteor: type[Component]
     prefix: str
@@ -59,6 +79,7 @@ class Merging(Session):
     mpa_taxonomic_level: str | None
     output_biom: bool
     output_gene_matrix: bool
+    tables: list[str] | None = None
     ranks: dict[str, str] = field(
         default_factory=lambda: {
             "superkingdom": "k__",
@@ -85,6 +106,34 @@ class Merging(Session):
     #     motif = re.compile(r"census_stage_(\d+)\.json")
     #     list_match = [motif.search(my_file.name) for my_file in census_list]
     #     return [int(my_match.group(1)) if my_match else None for my_match in list_match]
+
+    def patterns_to_merge(self, database_type: str) -> dict[str, list[str]]:
+        """Files to merge, from the tables asked (all but the genes by default,
+        the genes with -g); functional tables only for complete catalogues.
+
+        :param database_type: type of the catalogue (complete or taxo)
+        :return: {file pattern: key columns}
+        """
+        selected = set(self.DEFAULT_TABLES if self.tables is None else self.tables)
+        if self.output_gene_matrix:
+            selected.add("genes")
+        if database_type != "complete":
+            functional = sorted(selected.intersection(self.FUNCTIONAL_TABLES))
+            if functional and self.tables is not None:
+                logging.error(
+                    "The %s tables can only be merged with a complete catalogue.",
+                    ", ".join(functional),
+                )
+                sys.exit(1)
+            selected.difference_update(self.FUNCTIONAL_TABLES)
+        if (self.output_biom or self.output_mpa) and "msp" not in selected:
+            logging.warning("The species table is not merged: no biom or mpa file.")
+        return {
+            pattern: keys
+            for table, patterns in self.TABLES.items()
+            if table in selected
+            for pattern, keys in patterns.items()
+        }
 
     def find_files_to_merge(
         self, input_dir: dict[str, Path], pattern: str
@@ -574,26 +623,7 @@ class Merging(Session):
         logging.info("Json information saved as %s", output_name)
 
         # Merge the mapping output
-        list_pattern_to_merge = {"msp": ["msp_name"]}
-        if self.output_gene_matrix:
-            list_pattern_to_merge.update({"genes": ["gene_id"], "raw": ["gene_id"]})
-        if database_type == "complete":
-            list_pattern_to_merge.update(
-                {
-                    "modules_completeness": ["msp_name", "mod_id"],
-                    "modules": ["mod_id"],
-                    "mustard_as_genes_sum": ["annotation"],
-                    "resfinder_as_genes_sum": ["annotation"],
-                    "resfinderfg_as_genes_sum": ["annotation"],
-                    "mustard_as_msp_sum": ["annotation"],
-                    "resfinder_as_msp_sum": ["annotation"],
-                    "resfinderfg_as_msp_sum": ["annotation"],
-                    "dbcan_as_genes_sum": ["annotation"],
-                    "dbcan_as_msp_sum": ["annotation"],
-                    "kegg_as_genes_sum": ["annotation"],
-                    "kegg_as_msp_sum": ["annotation"],
-                }
-            )
+        list_pattern_to_merge = self.patterns_to_merge(database_type)
         for my_pattern, value in list_pattern_to_merge.items():
             logging.info(
                 "Fetching output files with pattern %s", my_pattern + ".tsv.xz"
