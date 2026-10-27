@@ -40,6 +40,7 @@ from cogent3.evolve.distance import EstimateDistances
 from cogent3.evolve.models import GTR
 from cogent3.cluster.UPGMA import upgma
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from multiprocessing import get_context
 from typing import Union
 
 
@@ -710,7 +711,10 @@ class Phylogeny(Session):
         #     )
         #     sys.exit(1)
         # Using ProcessPoolExecutor to parallelize the MSP file processing
-        with ProcessPoolExecutor(max_workers=self.meteor.threads) as executor:
+        # spawn: a forked worker dies when the process already used OpenMP
+        with ProcessPoolExecutor(
+            max_workers=self.meteor.threads, mp_context=get_context("spawn")
+        ) as executor:
             futures = {
                 executor.submit(
                     self.process_msp_file,

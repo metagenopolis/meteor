@@ -17,6 +17,8 @@ from ..treebuilder import TreeBuilder
 import pytest
 from pathlib import Path
 from hashlib import md5
+import logging
+import shutil
 
 
 @pytest.fixture
@@ -61,3 +63,52 @@ def test_concatenate(treebuilder_builder: TreeBuilder, datadir: Path):
 #     matrix = treebuilder_builder.meteor.tree_dir / "msp_0864.tsv"
 #     treebuilder_builder.execute()
 #     assert matrix.exists()
+
+
+def _treebuilder(strain_dir: Path, tree_dir: Path, tmp_path: Path, sample_file: Path | None) -> TreeBuilder:
+    meteor = Component
+    meteor.tmp_path = tmp_path
+    meteor.tree_dir = tree_dir
+    meteor.threads = 1
+    meteor.strain_dir = strain_dir
+    return TreeBuilder(meteor, 0.5, 4, False, 500, 500, None, sample_file=sample_file)
+
+
+def _samples(fasta: Path) -> list[str]:
+    return sorted(line[1:].strip() for line in fasta.read_text().splitlines() if line.startswith(">"))
+
+
+def test_execute_sample_list(datadir: Path, tmp_path: Path, caplog):
+    """Trees of the samples of the list; a previous tree of other samples is recomputed"""
+    caplog.set_level(logging.INFO)
+    strain_dir = tmp_path / "strain"
+    shutil.copytree(datadir / "strain", strain_dir)
+    tree_dir = tmp_path / "tree"
+    sample_file = tmp_path / "samples.txt"
+    sample_file.write_text("D15B1\nD15B3\n")
+    _treebuilder(strain_dir, tree_dir, tmp_path, sample_file).execute()
+    assert _samples(tree_dir / "msp_0864.fasta") == ["D15B1", "D15B3"]
+    assert "D15B2" not in (tree_dir / "msp_0864.tree").read_text()
+    assert "D15B1" in (tree_dir / "msp_0864.tree").read_text()
+    # every sample: the concatenated fasta and the tree outputs are recomputed
+    (tree_dir / "msp_0864_qcflags.tsv").write_text("stale\n")
+    _treebuilder(strain_dir, tree_dir, tmp_path, None).execute()
+    assert "msp_0864: samples changed, the tree is recomputed." in caplog.text
+    assert _samples(tree_dir / "msp_0864.fasta") == ["D15B1", "D15B2", "D15B3"]
+    assert "D15B2" in (tree_dir / "msp_0864.tree").read_text()
+    assert not (tree_dir / "msp_0864_qcflags.tsv").exists()
+    # same samples: the fasta and the tree are reused
+    caplog.clear()
+    outputs = [tree_dir / name for name in ("msp_0864.fasta", "msp_0864.tree", "msp_0864.tsv")]
+    written = [path.stat().st_mtime_ns for path in outputs]
+    _treebuilder(strain_dir, tree_dir, tmp_path, None).execute()
+    assert "samples changed" not in caplog.text
+    assert [path.stat().st_mtime_ns for path in outputs] == written
+
+
+def test_execute_sample_list_no_sample(datadir: Path, tmp_path: Path):
+    sample_file = tmp_path / "samples.txt"
+    sample_file.write_text("unknown\n")
+    with pytest.raises(SystemExit):
+        _treebuilder(datadir / "strain", tmp_path / "tree", tmp_path, sample_file).execute()
+

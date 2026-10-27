@@ -14,7 +14,7 @@
 
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Protocol, Iterator, ClassVar, Union, Any
+from typing import Protocol, Iterator, ClassVar, Union, Any, TypeVar
 import logging
 import sys
 import json
@@ -114,8 +114,46 @@ class Component:
             # sys.exit(1)
 
 
+SampleT = TypeVar("SampleT")
+
+
 class Session(Protocol):
     """Class inheritating from Protocol that present shared function."""
+
+    def select_samples(
+        self, samples: dict[str, SampleT], sample_file: Path | None
+    ) -> dict[str, SampleT]:
+        """Keep the samples named in a sample list, in the order of the list.
+
+        The list has one sample name per line (first tab-separated column);
+        empty lines and lines starting with # are ignored. Samples of the list
+        that are not found are reported; no sample found stops meteor.
+
+        :param samples: {sample name: value} of every sample found
+        :param sample_file: sample list, or None to keep every sample
+        :return: {sample name: value} of the selected samples
+        """
+        if sample_file is None:
+            return samples
+        with sample_file.open(encoding="utf-8") as sample_list:
+            names = [line.split("\t")[0].strip() for line in sample_list]
+        wanted = list(dict.fromkeys(name for name in names if name and not name.startswith("#")))
+        missing = [name for name in wanted if name not in samples]
+        if missing:
+            logging.warning(
+                "%d samples of %s were not found: %s",
+                len(missing),
+                sample_file,
+                ", ".join(missing),
+            )
+        selected = {name: samples[name] for name in wanted if name in samples}
+        if not selected:
+            logging.error("No sample of %s was found.", sample_file)
+            sys.exit(1)
+        logging.info(
+            "%d/%d samples selected from %s.", len(selected), len(samples), sample_file
+        )
+        return selected
 
     # def check_file(self, filename: Path, expected_colnames: set[str]) -> bool:
     #     """Check that the expected colnames are in the file.

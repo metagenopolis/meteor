@@ -550,6 +550,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "                         annotation abundances (as_genes_sum and as_msp_sum)\n"
         "Functional tables need a complete catalogue. Example: -t msp kegg",
     )
+    merging_parser.add_argument(
+        "-l",
+        dest="sample_file",
+        type=isfile,
+        help="Merge only the samples of this file, in its order: one sample name per line\n"
+        "(first column if tab-separated; empty lines and lines starting with # ignored).",
+    )
     strain_parser = subparsers.add_parser(
         "strain", help="Identifies strains from metagenomic samples"
     )
@@ -698,6 +705,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
              "<msp>_shrink.tsv.",
     )
     tree_parser.add_argument(
+        "-l",
+        dest="sample_file",
+        type=isfile,
+        help="Build the trees with only the samples of this file: one sample name per line\n"
+        "(first column if tab-separated; empty lines and lines starting with # ignored).",
+    )
+    tree_parser.add_argument(
         "-f",
         dest="format",
         default=TreeBuilder.DEFAULT_OUTPUT_FORMAT,
@@ -831,6 +845,7 @@ def main() -> None:  # pragma: no cover
             args.height,
             args.format,
             args.tshrink,
+            args.sample_file,
         )
         trees.execute()
     # Run download catalogues
@@ -871,6 +886,7 @@ def main() -> None:  # pragma: no cover
             args.output_biom,
             args.output_gene_matrix,
             args.tables,
+            args.sample_file,
         )
         merging.execute()
     # Testing

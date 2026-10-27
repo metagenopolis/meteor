@@ -155,6 +155,8 @@ meteor merge -i <profiledir> -r <refdir> -o <mergingdir> -t msp
 
 Tables: `msp` (species), `genes` (gene counts, same as `-g`), `modules_completeness`, `modules`, and the annotation tables `mustard`, `resfinder`, `resfinderfg`, `dbcan`, `kegg` (each `_as_genes_sum` and `_as_msp_sum`). Functional tables need a complete catalogue.
 
+`-l <samples.txt>` merges only the samples named in a text file, one sample name per line (first column if the file is tab-separated; empty lines and lines starting with `#` are ignored), in the order of the file. Samples of the list that are not found are reported in the log.
+
 With `-m`, the species abundance table is also saved in the style of a merged MetaPhlAn table (`<prefix>_msp_mpa.tsv`), for the tools that read MetaPhlAn profiles. Each row is a clade from superkingdom (`k__`) to MSP (`t__`), named by its lineage (`k__Bacteria|p__Pseudomonadota|...|s__Escherichia_coli|t__msp_0005`). Values are relative abundances in percent of the sample: the MSPs written in `<prefix>_msp.tsv` (after the `-a`, `-n` and `-s` filters) sum to 100, and a clade is the sum of its MSPs, so each rank sums to 100. Ranks missing from the catalogue taxonomy are named `unclassified`. `--tax_lev` keeps a single rank (`k`, `p`, `c`, `o`, `f`, `g`, `s` or `t`). The first line names the meteor version, the catalogue and the GTDB release of its taxonomy.
 
 ### 5. Strain profiling
@@ -171,6 +173,8 @@ Meteor computes mutation rates and trees between strains from samples using a GT
 ```
 meteor tree -i <straindir> -o <treedir>
 ```
+
+`-l <samples.txt>` builds the trees with only the samples of the list (same format as for `meteor merge`). When the output directory already holds the tree of an MSP computed from other samples, it is recomputed.
 
 This profiling step will generate:
 - a mutation rate matrix;
