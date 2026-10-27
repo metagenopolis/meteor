@@ -80,6 +80,7 @@ class Merging(Session):
     output_biom: bool
     output_gene_matrix: bool
     tables: list[str] | None = None
+    sample_file: Path | None = None
     ranks: dict[str, str] = field(
         default_factory=lambda: {
             "superkingdom": "k__",
@@ -578,6 +579,11 @@ class Merging(Session):
         except AssertionError:
             logging.error("Several census files refer to the same sample.")
             sys.exit(1)
+        # Samples of the sample list (-l), in its order
+        all_samples_dict = self.select_samples(all_samples_dict, self.sample_file)
+        all_census_dict = {
+            my_path: all_census_dict[my_path] for my_path in all_samples_dict.values()
+        }
         # Check that the json match for mapping parameters
         logging.info("Checking that census parameters match...")
         param_to_check = {

@@ -628,3 +628,35 @@ def test_execute_tables_msp_mpa(merging_fast: Merging) -> None:
         "my_test_msp.tsv", "my_test_msp_mpa.tsv", "my_test_msp_taxonomy.tsv", "my_test_report.tsv",
     ]
 
+
+def test_select_samples(merging_fast: Merging, tmp_path: Path, caplog) -> None:
+    samples = {"s1": 1, "s2": 2, "s3": 3}
+    assert merging_fast.select_samples(samples, None) == samples
+    sample_file = tmp_path / "samples.txt"
+    # list order, first tab-separated column, comments, blank lines, duplicates, CRLF
+    sample_file.write_text("# selected\ns3\r\n\n  s1\tcase\nunknown\ns3\n")
+    assert list(merging_fast.select_samples(samples, sample_file).items()) == [("s3", 3), ("s1", 1)]
+    assert "1 samples of" in caplog.text and "not found: unknown" in caplog.text
+    sample_file.write_text("unknown\n")
+    with pytest.raises(SystemExit):
+        merging_fast.select_samples(samples, sample_file)
+
+
+def test_execute_sample_list(merging_fast: Merging, datadir: Path, tmp_path: Path) -> None:
+    """Only the samples of the list are merged, in its order"""
+    sample_file = tmp_path / "samples.txt"
+    sample_file.write_text("sample3\nsample1\n")
+    merging_fast.sample_file = sample_file
+    merging_fast.tables = ["msp", "modules"]
+    merging_fast.meteor.merging_dir = tmp_path / "merging"
+    merging_fast.meteor.merging_dir.mkdir()
+    merging_fast.execute()
+    merging_dir = merging_fast.meteor.merging_dir
+    assert pd.read_table(merging_dir / "my_test_report.tsv")["sample"].tolist() == ["sample3", "sample1"]
+    for name, key in (("msp", "msp_name"), ("modules", "mod_id")):
+        real = pd.read_table(merging_dir / f"my_test_{name}.tsv", index_col=0)
+        assert real.columns.tolist() == ["sample3", "sample1"]
+        expected = pd.read_table(datadir / "expected_output" / f"test_project_{name}.tsv", index_col=0)
+        expected = expected.loc[real.index, ["sample3", "sample1"]]
+        pd.testing.assert_frame_equal(real, expected, check_dtype=False, check_exact=False, rtol=1e-10)
+
