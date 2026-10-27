@@ -214,6 +214,24 @@ Samples sitting on abnormally long branches of a strain tree (rogue taxa) inflat
 - `<msp>_qcflags.tsv`: for each sample of the best removal sets, its diameter ratio (largest reduction of the tree diameter obtained by removing it), the threshold of the MSP (log-lognormal, alpha = 0.05) and whether it is flagged;
 - `<msp>_shrink.tsv`: the distance matrix without the flagged samples (only when samples are flagged).
 
+#### Strain sharing
+
+At the end of `meteor tree`, the comparison tables of all MSPs are gathered into three tables:
+
+- `strain_sharing_events.tsv`: one row per strain-sharing event, i.e. a sample pair sharing the strain of an MSP (`msp_name`, `sample1`, `sample2`, `relation`, `distance`, `overlap_noN_info_pc`, `threshold`);
+- `strain_sharing_samples.tsv`: one row per sample pair, with the number of MSPs compared (`msp_compared`), shared (`msp_shared`) and the strain-sharing rate (`sharing_rate` = shared / compared);
+- `strain_sharing_msp.tsv`: one row per MSP, with its threshold and, over all pairs, the related pairs and the unrelated pairs, the number of pairs compared and shared and their rate (`sharing_rate`, `transmissibility`, `unrelated_sharing_rate`).
+
+Two samples are compared on an MSP when the sites informative in both cover at least `--min_overlap` % of the alignment (default 10). They share its strain when their distance is at most the threshold of the MSP.
+
+With `--groups <groups.tsv>`, a tab-separated file giving the group of each sample (household, mother-infant pair, subject followed over time...), samples of the same group are related and samples of different groups unrelated:
+- the threshold of each MSP is the 3rd percentile of the distances between unrelated samples (at least 50 of them), as the strain identity thresholds of StrainPhlAn (Valles-Colomer et al., Nature 2023); otherwise it is 0.0001 (`threshold_source` = `fixed`);
+- `transmissibility` is the sharing rate of the related pairs, to compare with `unrelated_sharing_rate`, the background of the MSP.
+
+Without `--groups`, every threshold is 0.0001 and no transmissibility is computed. Rates of an MSP are given from `--min_pairs` compared pairs (default 10).
+
+A tree directory computed in GTR by meteor 2.0.22 or earlier has wrong distances in its comparison tables (issue #133): `meteor tree` recomputes them when it runs again in that directory.
+
 The tree and the distance matrix are not modified. The test is implemented in meteor (no TreeShrink installation needed) and flags the same samples as `run_treeshrink.py -m per-gene` (TreeShrink 1.4.0). Existing trees are not rebuilt, so `meteor tree --treeshrink` on an existing tree directory only adds the QC files.
 
 ## Citing Meteor2

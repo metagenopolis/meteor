@@ -28,6 +28,7 @@ from meteor.profiler import Profiler
 from meteor.merging import Merging
 from meteor.strain import Strain
 from meteor.treebuilder import TreeBuilder
+from meteor.strainsharing import StrainSharing
 from tempfile import TemporaryDirectory
 from importlib.metadata import version
 
@@ -712,6 +713,31 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "(first column if tab-separated; empty lines and lines starting with # ignored).",
     )
     tree_parser.add_argument(
+        "--groups",
+        dest="groups_file",
+        type=isfile,
+        help="Tab-separated file of the group of each sample (sample, group), e.g. "
+        "household, mother-infant pair or subject. Samples of the same group are related: "
+        "strain identity thresholds are set from the unrelated pairs and the "
+        "transmissibility of each MSP from the related pairs.",
+    )
+    tree_parser.add_argument(
+        "--min_overlap",
+        dest="min_overlap",
+        type=float,
+        default=StrainSharing.DEFAULT_MIN_OVERLAP,
+        help="Compare two samples on an MSP when the sites informative in both cover "
+        "at least this %% of its alignment (default: %(default).0f).",
+    )
+    tree_parser.add_argument(
+        "--min_pairs",
+        dest="min_pairs",
+        type=int,
+        default=StrainSharing.DEFAULT_MIN_PAIRS,
+        help="Minimum number of compared sample pairs to report the sharing rate "
+        "and transmissibility of an MSP (default: %(default)d).",
+    )
+    tree_parser.add_argument(
         "-f",
         dest="format",
         default=TreeBuilder.DEFAULT_OUTPUT_FORMAT,
@@ -846,6 +872,9 @@ def main() -> None:  # pragma: no cover
             args.format,
             args.tshrink,
             args.sample_file,
+            args.groups_file,
+            args.min_overlap,
+            args.min_pairs,
         )
         trees.execute()
     # Run download catalogues

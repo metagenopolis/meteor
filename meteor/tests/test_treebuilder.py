@@ -17,6 +17,7 @@ from ..treebuilder import TreeBuilder
 import pytest
 from pathlib import Path
 from hashlib import md5
+import json
 import logging
 import shutil
 
@@ -111,4 +112,49 @@ def test_execute_sample_list_no_sample(datadir: Path, tmp_path: Path):
     sample_file.write_text("unknown\n")
     with pytest.raises(SystemExit):
         _treebuilder(datadir / "strain", tmp_path / "tree", tmp_path, sample_file).execute()
+
+
+def test_execute_strain_sharing_and_stale_comparisons(datadir: Path, tmp_path: Path, caplog):
+    """meteor tree writes the strain sharing tables; a GTR tree directory of
+    meteor <= 2.0.22 gets its comparison tables recomputed (issue #133)"""
+    caplog.set_level(logging.INFO)
+    tree_dir = tmp_path / "tree"
+    groups = tmp_path / "groups.tsv"
+    groups.write_text("D15B1\tfam1\nD15B2\tfam1\nD15B3\tfam2\n")
+    builder = _treebuilder(datadir / "strain", tree_dir, tmp_path, None)
+    builder.groups_file = groups
+    builder.execute()
+    for name in ("strain_sharing_events.tsv", "strain_sharing_samples.tsv", "strain_sharing_msp.tsv"):
+        assert (tree_dir / name).exists()
+    assert (tree_dir / "strain_sharing_msp.tsv").read_text().splitlines()[1].startswith("msp_0864\t")
+    comparison = tree_dir / "msp_0864_comparison.tsv"
+    written = comparison.stat().st_mtime_ns
+    # same meteor: tables reused
+    _treebuilder(datadir / "strain", tree_dir, tmp_path, None).execute()
+    assert comparison.stat().st_mtime_ns == written
+    # GTR tables of meteor 2.0.22: removed, the MSP is recomputed
+    census = tree_dir / "census_stage_4.json"
+    config = json.loads(census.read_text())
+    config["phylogeny"].update(tree_mode="GTR", phylogeny_meteor_version="2.0.22")
+    census.write_text(json.dumps(config))
+    _treebuilder(datadir / "strain", tree_dir, tmp_path, None).execute()
+    assert "computed in GTR by meteor 2.0.22" in caplog.text
+    assert comparison.exists() and comparison.stat().st_mtime_ns != written
+
+
+@pytest.mark.parametrize(
+    "phylogeny",
+    [
+        {"tree_mode": "TN93", "phylogeny_meteor_version": "2.0.22"},
+        {"tree_mode": "GTR", "phylogeny_meteor_version": "2.0.23"},
+        {"tree_mode": "GTR"},
+        {"tree_mode": "GTR", "phylogeny_meteor_version": "not a version"},
+    ],
+)
+def test_remove_stale_comparisons_kept(treebuilder_builder: TreeBuilder, phylogeny: dict):
+    tree_dir = treebuilder_builder.meteor.tree_dir
+    (tree_dir / "census_stage_4.json").write_text(json.dumps({"phylogeny": phylogeny}))
+    (tree_dir / "msp_1_comparison.tsv").write_text("x\n")
+    treebuilder_builder.remove_stale_comparisons()
+    assert (tree_dir / "msp_1_comparison.tsv").exists()
 
