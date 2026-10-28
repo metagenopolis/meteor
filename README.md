@@ -234,6 +234,118 @@ A tree directory computed in GTR by meteor 2.0.22 or earlier has wrong distances
 
 The tree and the distance matrix are not modified. The test is implemented in meteor (no TreeShrink installation needed) and flags the same samples as `run_treeshrink.py -m per-gene` (TreeShrink 1.4.0). Existing trees are not rebuilt, so `meteor tree --treeshrink` on an existing tree directory only adds the QC files.
 
+## Options of each command
+
+The options of every command are also listed by `meteor <command> -h`.
+
+### meteor download
+
+| Option | Description | Default |
+|---|---|---|
+| `-i USER_CHOICE` | Select the catalogue to download. Choices: `fc_1_3_gut`, `gg_13_6_caecal`, `clf_1_0_gut`, `hs_10_4_gut`, `hs_8_4_oral`, `hs_2_9_skin`, `mm_5_0_gut`, `oc_5_7_gut`, `rn_5_9_gut`, `ssc_9_3_gut`. | required |
+| `--fast` | Select the short catalogue version (only for taxonomic profiling). | off |
+| `-o REF_DIR` | Directory where the downloaded catalogue is saved. | required |
+| `-c` | Check the md5sum of the catalogue after download. | off |
+
+### meteor fastq
+
+| Option | Description | Default |
+|---|---|---|
+| `-i INPUT_FASTQ_DIR` | Directory containing all input fastq files with .fastq or .fq. extensions (gzip, bzip2 and xz compression accepted). Paired-end files must be named : file_R1.[fastq/fq] & file_R2.[fastq/fq] or file_1.[fastq/fq] & file_2.[fastq/fq] | required |
+| `-p` | Fastq files are paired. | off |
+| `-m MASK_SAMPLE_NAME` | Regular expression (between quotes) for extracting sample name. | none |
+| `-o FASTQ_DIR` | Directory where the fastq repository is created. | required |
+
+### meteor mapping
+
+| Option | Description | Default |
+|---|---|---|
+| `-i FASTQ_DIR` | Directory corresponding to the sample to process. (contains sequencing metadata files ending with _census_stage_0.json) | required |
+| `-r REF_DIR` | Directory corresponding to the gene catalog against which reads are mapped. (contains a file ending with *_reference.json) | required |
+| `-o MAPPING_DIR` | Directory where mapping and raw gene counts of the sample are saved. | required |
+| `-p MAPPING_TYPE` | Strategy to map reads against the catalogue. Choices: `end-to-end`, `local`. | `end-to-end` |
+| `--trim TRIM` | Trim reads exceeding TRIM bases before mapping. If 0, no trim. | `80` |
+| `--align ALIGNMENT_NUMBER` | Maximum number alignments to report for each read. | `100` |
+| `-c COUNTING_TYPE` | Strategy to calculate raw gene counts. Choices: `total`, `smart_shared`, `unique`. | `smart_shared` |
+| `--core_size CORE_SIZE` | Number of signature genes per species (MSP) used to estimate their respective abundance. | `100` |
+| `--id IDENTITY_THRESHOLD` | Keep only the read alignments with a nucleotide identity >= IDENTITY_THRESHOLD. If 0.0, no filtering. | auto: `0.95` (complete catalogue), `0.98` (taxonomic catalogue) |
+| `--ka` | Keep raw bowtie2 output in cram format. Required for calculating gene counts with another strategy. | off |
+| `--kf` | Keep filtered alignments on marker genes. Required for strain analysis. | off |
+| `--tmp TMP_PATH` | Directory where temporary files (e.g. cram) are stored | none |
+| `-t THREADS` | Number of alignment threads to launch. | `1` |
+
+### meteor profile
+
+| Option | Description | Default |
+|---|---|---|
+| `-i MAPPED_SAMPLE_DIR` | Directory with raw gene counts of the sample to process. (contains a metadata file ending with _census_stage_1.json) | required |
+| `-r REF_DIR` | Directory corresponding to the catalog used to generate raw gene counts. (contains a file ending with *_reference.json) | required |
+| `-o PROFILED_SAMPLE_DIR` | Directory where species and functional abundance tables of the sample are saved. | required |
+| `-l RAREFACTION_LEVEL` | Rarefaction level. If <= 0, no rarefation is performed. | `0` |
+| `--seed SEED` | Seed of the random number generator used for rarefaction. | `1234` |
+| `-n NORMALIZATION` | Normalization applied to raw gene counts. Choices: `coverage`, `fpkm`, `raw`. | `coverage` |
+| `-c COVERAGE_FACTOR` | Multiplication factor for coverage normalization. | `100.0` |
+| `--core_size CORE_SIZE` | Number of signature genes per species (MSP) used to estimate their respective abundance. | `100` |
+| `--msp_filter MSP_FILTER` | Minimal proportion of core genes detected in a sample to consider a species (MSP) as present. | auto: `0.1` (complete catalogue), `0.2` (taxonomic catalogue) |
+| `--completeness COMPLETENESS` | Cutoff above which a module is considered as present in a species. Value between 0.0 and 1.0. | `0.9` |
+
+### meteor merge
+
+| Option | Description | Default |
+|---|---|---|
+| `-i PROFILE_DIR` | Directory containing subdirectories (one per sample) with abundance tables to be merged. (each subdirectory contains a metadata file ending with _census_stage_2.json) | required |
+| `-r REF_DIR` | Directory corresponding to the gene catalog used to generate the abundance tables. (contains a file ending with *_reference.json) | required |
+| `-a MIN_MSP_ABUNDANCE` | Minimum msp abundance. | `0.0` |
+| `-n MIN_MSP_OCCURRENCE` | Report only species (MSPs) occuring in at least n samples. | `1` |
+| `-s` | Remove samples with no detected species (MSPs). | off |
+| `-m` | Save the merged species abundance table in the style of MetaPhlAn: relative abundances (%) of the clades from superkingdom (k__) to MSP (t__). | off |
+| `-b` | Save the merged species abundance table in biom format. | off |
+| `--tax_lev MPA_TAXONOMIC_LEVEL` | Taxonomic level of the MetaPhlAn-style table (`-m`): `a` all levels, `k` kingdoms, `p` phyla, `c` classes, `o` orders, `f` families, `g` genera, `s` species, `t` MSPs only. | `a` |
+| `-o MERGING_DIR` | Directory where the merged abundance tables are saved. | required |
+| `-p PREFIX` | Prefix added to output filenames. | `output` |
+| `-g` | Merge gene abundance tables. | off |
+| `-t TABLE [TABLE ...]` | Merge only these tables: `msp` (species), `genes` (gene counts, same as `-g`), `modules_completeness`, `modules`, and the annotation tables `mustard`, `resfinder`, `resfinderfg`, `dbcan`, `kegg` (each `_as_genes_sum` and `_as_msp_sum`). Functional tables need a complete catalogue. | all but `genes` |
+| `-l SAMPLE_FILE` | Merge only the samples of this file, in its order: one sample name per line (first column if tab-separated; empty lines and lines starting with # ignored). | none |
+
+### meteor strain
+
+| Option | Description | Default |
+|---|---|---|
+| `-i MAPPED_SAMPLE_DIR` | Path to the mapped sample directory. | required |
+| `-r REF_DIR` | Path to reference directory (Path containing *_reference.json) | required |
+| `-d MAX_DEPTH` | Maximum read depth taken in account at each position. | `100` |
+| `-p MIN_DEPTH` | Minimum read depth of a site: sites covered by fewer reads are masked in the consensus. Values should be comprised between 1 and the maximum depth (`-d`). | `3` |
+| `-s MIN_SNP_DEPTH` | Minimum read depth of a site to call a variant. Values should be comprised between 1 and the maximum depth (`-d`), and be >= the minimum depth (`-p`). | `3` |
+| `-f MIN_FREQUENCY` | Minimum allele frequency to call a variant. | `0.1` |
+| `-l PLOIDY` | Ploidy given to the variant caller. | `1` |
+| `-m MIN_MSP_COVERAGE` | Minimum percentage (1 to 100) of the signature genes of an MSP passing `-c` to build its strain. | `80` |
+| `-c MIN_GENE_COVERAGE` | Minimum fraction of a signature gene covered by reads, from 0 to 1. | `0.5` |
+| `--core_size CORE_SIZE` | Number of signature genes per species (MSP) used to estimate their respective abundance. | `100` |
+| `-o STRAIN_DIR` | Path to output directory. | required |
+| `--kc` | Keep the consensus of the marker genes, needed to run meteor strain again on the sample. | off |
+| `--tmp TMP_PATH` | Path to the directory where temporary files are stored | none |
+| `-t THREADS` | Number of threads to perform variant calling. | `1` |
+
+### meteor tree
+
+| Option | Description | Default |
+|---|---|---|
+| `-i STRAIN_DIR` | Path to the strain directory. | required |
+| `-g MAX_GAP` | Removes sites constitued of >= cutoff gap character. | `1.0` |
+| `-s MIN_INFO_SITES` | Minimum number of informative sites in the alignment. | `10` |
+| `-r` | Compute distances with the TN93 model (faster) instead of GTR. | GTR |
+| `--treeshrink` | Flag the samples on abnormally long branches of each strain tree (per-gene test of TreeShrink): writes <msp>_qcflags.tsv and <msp>_shrink.tsv. | off |
+| `-l SAMPLE_FILE` | Build the trees with only the samples of this file: one sample name per line (first column if tab-separated; empty lines and lines starting with # ignored). | none |
+| `--groups GROUPS_FILE` | Tab-separated file of the group of each sample (sample, group), e.g. household, mother-infant pair or subject. Samples of the same group are related: strain identity thresholds are set from the unrelated pairs and the transmissibility of each MSP from the related pairs. | none |
+| `--min_overlap MIN_OVERLAP` | Compare two samples on an MSP when the sites informative in both cover at least this % of its alignment. | `10.0` |
+| `--min_pairs MIN_PAIRS` | Minimum number of compared sample pairs to report the sharing rate and transmissibility of an MSP. | `10` |
+| `-f FORMAT` | Output image format of the trees. Choices: `png`, `svg`, `pdf`, `txt`. | no image |
+| `-w WIDTH` | Output image width. | `500` |
+| `-H HEIGHT` | Output image height. | `500` |
+| `-o TREE_DIR` | Path to output directory. | required |
+| `--tmp TMP_PATH` | Path to the directory where temporary files are stored | none |
+| `-t THREADS` | Number of threads when infering each tree. | `1` |
+
 ## Citing Meteor2
 
 Please cite the following publication if you use Meteor2:  

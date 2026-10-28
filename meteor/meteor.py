@@ -580,16 +580,16 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="max_depth",
         default=Strain.DEFAULT_MAX_DEPTH,
         type=int,
-        help="Maximum number of reads taken in account (default: %(default)d).",
+        help="Maximum read depth taken in account at each position (default: %(default)d).",
     )
     strain_parser.add_argument(
         "-p",
         dest="min_depth",
         default=Strain.DEFAULT_MIN_DEPTH,
         type=int,
-        help=f"""Minimum depth (default: >= %(default)d).
-        Values should be comprised between {Strain.MIN_DEPTH} and the maximum depth
-        ({Strain.MAX_MIN_SNP_DEPTH} reads are taken in account).""",
+        help=f"""Minimum read depth of a site (default: >= %(default)d): sites covered by
+        fewer reads are masked in the consensus. Values should be comprised between
+        {Strain.MIN_DEPTH} and the maximum depth (-d).""",
     )
     strain_parser.add_argument(
         "-s",
@@ -598,23 +598,23 @@ def get_arguments() -> Namespace:  # pragma: no cover
         choices=range(Strain.MIN_MIN_SNP_DEPTH, Strain.MAX_MIN_SNP_DEPTH + 1),
         metavar="MIN_SNP_DEPTH",
         type=int,
-        help=f"""Minimum snp depth (default: >= %(default)d).
-        Values should be comprised between {Strain.MIN_MIN_SNP_DEPTH} and the maximum depth
-        ({Strain.MAX_MIN_SNP_DEPTH} reads are taken in account), take in account that s >= p.""",
+        help=f"""Minimum read depth of a site to call a variant (default: >= %(default)d).
+        Values should be comprised between {Strain.MIN_MIN_SNP_DEPTH} and the maximum depth (-d),
+        and be >= the minimum depth (-p).""",
     )
     strain_parser.add_argument(
         "-f",
         dest="min_frequency",
         default=Strain.DEFAULT_MIN_FREQUENCY,
         type=isbounded01,
-        help="Minimum frequency for alleles (default: >= %(default).2f).",
+        help="Minimum allele frequency to call a variant (default: >= %(default).2f).",
     )
     strain_parser.add_argument(
         "-l",
         dest="ploidy",
         default=Strain.DEFAULT_PLOIDY,
         type=int,
-        help="Ploidy (default: %(default)d).",
+        help="Ploidy given to the variant caller (default: %(default)d).",
     )
     strain_parser.add_argument(
         "-m",
@@ -623,7 +623,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         choices=range(Strain.MIN_MIN_MSP_COVERAGE, Strain.MAX_MIN_MSP_COVERAGE + 1),
         metavar="MIN_MSP_COVERAGE",
         type=int,
-        help=f"""Minimum percentage of signature genes from the MSP that are covered (default: >= %(default)d%%).
+        help=f"""Minimum percentage of the signature genes of an MSP passing -c to build its strain (default: >= %(default)d%%).
         Values should be comprised between {Strain.MIN_MIN_MSP_COVERAGE}%% and {Strain.MAX_MIN_MSP_COVERAGE}%%""",
     )
     strain_parser.add_argument(
@@ -631,7 +631,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="min_gene_coverage",
         default=Strain.DEFAULT_MIN_GENE_COVERAGE,
         type=isbounded01,
-        help="Minimum gene coverage from 0 to 1 (default: >= %(default).1f).",
+        help="Minimum fraction of a signature gene covered by reads, from 0 to 1 (default: >= %(default).1f).",
     )
     strain_parser.add_argument(
         "--core_size",
@@ -652,7 +652,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--kc",
         dest="keep_consensus",
         action="store_true",
-        help="Keep consensus marker genes (default: False, set to True to recompute strain)",
+        help="Keep the consensus of the marker genes, needed to run meteor strain again on the sample "
+        "(default: False).",
     )
     strain_parser.add_argument(
         "--tmp",

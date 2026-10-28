@@ -95,7 +95,8 @@ class Profiler(Session):
         self.reference_name = self.ref_config["reference_info"]["reference_name"]
         self.reference_date = self.ref_config["reference_info"]["reference_date"]
 
-        if not self.msp_filter_user:
+        # a filter of 0.0 is a value, not "auto"
+        if self.msp_filter_user is None:
             if self.database_type == "complete":
                 self.msp_filter = Profiler.DEFAULT_MSP_FILTER_COMPLETE
             else:
