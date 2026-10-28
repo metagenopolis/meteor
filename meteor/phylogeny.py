@@ -575,10 +575,14 @@ class Phylogeny(Session):
         )
         dist_file = tree_dir / f"{msp_file.stem}.tsv"
         tree_file = tree_dir / f"{msp_file.stem}.tree"
+        comparison_file = tree_dir / f"{msp_file.stem}_comparison.tsv"
         # Check if tree file already exists and is not empty
         if tree_file.exists() and tree_file.stat().st_size > 0:
-            # Also check if distance file exists (optional but recommended)
-            if dist_file.exists() and dist_file.stat().st_size > 0:
+            # Also check the distance and comparison files
+            if (
+                dist_file.exists() and dist_file.stat().st_size > 0
+                and comparison_file.exists() and comparison_file.stat().st_size > 0
+            ):
                 logging.info(
                     "%d/%d %s: Tree file already exists, skipping computation",
                     idx,
@@ -590,7 +594,7 @@ class Phylogeny(Session):
                 return tree_file, True
             else:
                 logging.warning(
-                    "%d/%d %s: Tree file exists but distance file is missing, reprocessing",
+                    "%d/%d %s: Tree file exists but distance or comparison file is missing, reprocessing",
                     idx,
                     msp_count,
                     msp_file.name.replace(".fasta", ""),

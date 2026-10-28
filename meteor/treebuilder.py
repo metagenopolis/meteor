@@ -21,6 +21,9 @@ from pathlib import Path
 from collections import defaultdict
 from meteor.session import Session, Component
 from meteor.phylogeny import Phylogeny
+from meteor.strainsharing import StrainSharing
+from packaging.version import InvalidVersion, Version
+import json
 from dataclasses import dataclass
 from tempfile import mkdtemp
 from ete4 import Tree
@@ -50,6 +53,9 @@ class TreeBuilder(Session):
     format: str | None
     tshrink: bool = False
     sample_file: Path | None = None
+    groups_file: Path | None = None
+    min_overlap: float = StrainSharing.DEFAULT_MIN_OVERLAP
+    min_pairs: int = StrainSharing.DEFAULT_MIN_PAIRS
     # Outputs of an MSP tree, removed when its samples change
     TREE_OUTPUTS: ClassVar[list[str]] = [
         ".tree", ".tsv", "_comparison.tsv", "_qcflags.tsv", "_shrink.tsv",
@@ -142,6 +148,34 @@ class TreeBuilder(Session):
     #             distance_matrix.loc[j.name, i.name] = distance
     #     return distance_matrix
 
+    def remove_stale_comparisons(self) -> None:
+        """Remove the comparison tables of a previous GTR run of meteor <= 2.0.22.
+
+        Their distance columns were read at wrong positions (issue #133); the
+        MSPs without comparison table are recomputed.
+        """
+        census = self.meteor.tree_dir / "census_stage_4.json"
+        if not census.exists():
+            return
+        try:
+            phylogeny = json.loads(census.read_text(encoding="UTF-8"))["phylogeny"]
+            stale = phylogeny["tree_mode"] == "GTR" and Version(
+                phylogeny["phylogeny_meteor_version"]
+            ) < Version("2.0.23")
+        except (KeyError, ValueError, InvalidVersion):
+            return
+        if stale:
+            comparisons = list(self.meteor.tree_dir.glob("*_comparison.tsv"))
+            logging.warning(
+                "The %d comparison tables of %s were computed in GTR by meteor %s, "
+                "with wrong distances (issue #133): their MSPs are recomputed.",
+                len(comparisons),
+                self.meteor.tree_dir,
+                phylogeny["phylogeny_meteor_version"],
+            )
+            for comparison in comparisons:
+                comparison.unlink()
+
     @staticmethod
     def fasta_samples(fasta_file: Path) -> set[str]:
         """Sample names (sequence names) of a concatenated MSP fasta"""
@@ -183,6 +217,8 @@ class TreeBuilder(Session):
                 if not filename.endswith("_consensus.fasta.xz"):
                     msp_file_dict[filename].append(Path(root) / filename)
 
+        # Reuse no wrong comparison table of an older meteor
+        self.remove_stale_comparisons()
         # Concatenate msp files
         msp_file_list = self.concatenate(
             msp_file_dict, {path: name for name, path in sample_dirs.items()}
@@ -197,6 +233,17 @@ class TreeBuilder(Session):
             tshrink=self.tshrink,
         )
         phylogeny_process.execute()
+        # Strain sharing between samples, by sample pair and by MSP
+        comparison_files = {
+            tree_file.name.split(".")[0]: self.meteor.tree_dir
+            / f"{tree_file.name.split('.')[0]}_comparison.tsv"
+            for tree_file in phylogeny_process.tree_files
+        }
+        StrainSharing(
+            self.meteor.tree_dir, self.groups_file, self.min_overlap, self.min_pairs
+        ).execute(
+            {msp: path for msp, path in comparison_files.items() if path.exists()}
+        )
         # Analyze tree data
         for tree_file in phylogeny_process.tree_files:
             output = tree_file
