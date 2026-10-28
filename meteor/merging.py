@@ -20,6 +20,7 @@ import sys
 import os
 import fnmatch
 from meteor.session import Session, Component
+from meteor.qcreport import QCReport
 from dataclasses import dataclass, field
 from pathlib import Path
 from biom.table import Table  # type: ignore
@@ -630,6 +631,7 @@ class Merging(Session):
 
         # Merge the mapping output
         list_pattern_to_merge = self.patterns_to_merge(database_type)
+        msp_merged, taxonomy = None, None
         for my_pattern, value in list_pattern_to_merge.items():
             logging.info(
                 "Fetching output files with pattern %s", my_pattern + ".tsv.xz"
@@ -683,7 +685,8 @@ class Merging(Session):
                     / ref_json["reference_file"]["database_dir"]
                     / ref_json["annotation"]["taxonomy"]["filename"]
                 )
-
+                # species table before filters, for the report
+                msp_merged, taxonomy = merged_df, annotation
                 annotation = annotation[
                     annotation["msp_name"].isin(filtered_df["msp_name"])
                 ]
@@ -742,3 +745,9 @@ class Merging(Session):
                 self._write_annotations(my_pattern, filtered_df, output_name)
             filtered_df.to_csv(output_name.with_suffix(".tsv"), sep="\t", index=False)
             logging.info("Data saved as %s", output_name)
+        # Mapped reads, MSP richness and composition per sample, with MultiQC files
+        QCReport(self.meteor.merging_dir, self.prefix).execute(
+            {name: all_census_dict[path] for name, path in all_samples_dict.items()},
+            msp_merged,
+            taxonomy,
+        )
