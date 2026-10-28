@@ -160,7 +160,19 @@ Tables: `msp` (species), `genes` (gene counts, same as `-g`), `modules_completen
 `meteor merge` also writes a report of the merged samples:
 - `<prefix>_qc.tsv`: one row per sample with its reads (`total_read_count`), the reads mapped and counted on the catalogue genes (`mapped_reads`, `mapped_read_rate` in %), the number of MSPs detected (`msp_richness`) and the % of the gene signal carried by the MSPs (`msp_signal_rate`);
 - `<prefix>_phylum.tsv`: relative abundance (%) of each phylum in each sample, from the species table before the `-a`/`-n` filters (when the species table is merged);
-- `<prefix>_*_mqc.json`: the same data as [MultiQC](https://seqera.io/multiqc/) custom content (general statistics, mapped reads, MSP richness against the number of reads, phylum composition). MultiQC is not a dependency of meteor: install it separately and run `multiqc <mergingdir>` to get an HTML report, possibly with the reports of other tools (fastp, ...).
+- `<prefix>_*_mqc.json`: the same data as [MultiQC](https://seqera.io/multiqc/) custom content (general statistics, mapped reads, MSP richness against the number of reads, phylum composition).
+
+MultiQC is not a dependency of meteor: install it separately (`pip install multiqc` or `conda install -c bioconda multiqc`), then build the HTML report from the merging directory:
+
+```
+multiqc <mergingdir> -o <reportdir>
+```
+
+MultiQC finds the `*_mqc.json` files and writes `<reportdir>/multiqc_report.html` with a "Meteor" section (mapped reads, MSP richness, phylum composition) and the meteor columns of the "General Statistics" table. `-n <name>.html` names the report and `-f` overwrites an existing one. To read only the meteor files (faster when the merging directory holds large tables such as the gene table), give them directly: `multiqc <mergingdir>/*_mqc.json -o <reportdir>`. Other directories given to MultiQC (fastp, bowtie2 logs, ...) are added to the same report:
+
+```
+multiqc <mergingdir> <fastpdir> -o <reportdir>
+```
 
 With `-m`, the species abundance table is also saved in the style of a merged MetaPhlAn table (`<prefix>_msp_mpa.tsv`), for the tools that read MetaPhlAn profiles. Each row is a clade from superkingdom (`k__`) to MSP (`t__`), named by its lineage (`k__Bacteria|p__Pseudomonadota|...|s__Escherichia_coli|t__msp_0005`). Values are relative abundances in percent of the sample: the MSPs written in `<prefix>_msp.tsv` (after the `-a`, `-n` and `-s` filters) sum to 100, and a clade is the sum of its MSPs, so each rank sums to 100. Ranks missing from the catalogue taxonomy are named `unclassified`. `--tax_lev` keeps a single rank (`k`, `p`, `c`, `o`, `f`, `g`, `s` or `t`). The first line names the meteor version, the catalogue and the GTDB release of its taxonomy.
 
