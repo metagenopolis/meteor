@@ -218,6 +218,19 @@ def test_execute(counter_smart_shared: Counter, tmp_path: Path):
         assert md5(out.read()).hexdigest() == "5db950a4404793f73ba034e99cb676fa"
 
 
+@pytest.mark.parametrize("user", [None, 0.0, 0.97])
+def test_identity_user(counter_smart_shared: Counter, user) -> None:
+    """--id 0.0 (no filtering) is kept, only an absent value takes the catalogue default"""
+    counter_smart_shared.identity_user = user
+    counter_smart_shared.execute()
+    if user is None:
+        assert counter_smart_shared.identity_threshold in (
+            Counter.DEFAULT_IDENTITY_THRESHOLD_COMPLETE, Counter.DEFAULT_IDENTITY_THRESHOLD_TAXO
+        )
+    else:
+        assert counter_smart_shared.identity_threshold == user
+
+
 def test_execute_closes_temporary_files(counter_smart_shared: Counter, monkeypatch) -> None:
     """No descriptor of a temporary file is left open: on NFS the deleted file
     would stay as .nfs* and removing the temporary directory would fail"""

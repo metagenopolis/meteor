@@ -626,3 +626,22 @@ def test_compute_completeness_all_edge_cases(profiler_standard: Profiler) -> Non
     assert profiler_standard.compute_completeness_all(
         {"M1": [{"K8"}]}, annotated_msp.iloc[0:0]
     ) == {"M1": {}}
+
+
+@pytest.mark.parametrize("user, expected", [(None, Profiler.DEFAULT_MSP_FILTER_TAXO), (0.0, 0.0), (0.5, 0.5)])
+def test_msp_filter_user(datadir: Path, tmp_path: Path, user, expected) -> None:
+    """--msp_filter 0.0 is kept, only an absent value takes the catalogue default"""
+    meteor = Component
+    meteor.mapping_dir = datadir / "mapping"
+    meteor.profile_dir = tmp_path
+    meteor.ref_dir = datadir / "catalogue"
+    profiler = Profiler(
+        meteor=meteor, rarefaction_level=-1, seed=12345, coverage_factor=100.0,
+        normalization="raw", core_size=4, msp_filter_user=user, completeness=0.6,
+    )
+    default = (
+        Profiler.DEFAULT_MSP_FILTER_COMPLETE
+        if profiler.database_type == "complete" else Profiler.DEFAULT_MSP_FILTER_TAXO
+    )
+    assert profiler.msp_filter == (default if user is None else expected)
+

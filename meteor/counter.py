@@ -550,7 +550,8 @@ class Counter(Session):
         ref_json = self.get_reference_info(self.meteor.ref_dir)
         Component.check_catalogue(ref_json)
         self.meteor.ref_name = ref_json["reference_info"]["reference_name"]
-        if self.identity_user:
+        # an identity of 0.0 (no filtering) is a value, not "auto"
+        if self.identity_user is not None:
             self.identity_threshold = self.identity_user
         elif ref_json["reference_info"]["database_type"] == "complete":
             self.identity_threshold = self.DEFAULT_IDENTITY_THRESHOLD_COMPLETE
