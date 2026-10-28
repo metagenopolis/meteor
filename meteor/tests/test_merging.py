@@ -570,8 +570,9 @@ def test_execute_tables(
     }
     # annotation tables of the merged tables, and the report
     annotations = ("_taxonomy", "_definition", "_description", "_antimicrobial")
-    assert "report" in written
-    assert {name for name in written if not name.endswith(annotations)} - {"report"} == set(expected)
+    report = {"report", "qc", "phylum"} if "msp" in expected else {"report", "qc"}
+    assert report <= written
+    assert {name for name in written if not name.endswith(annotations)} - report == set(expected)
     for name in expected:
         expected_file = datadir / "expected_output" / f"test_project_{name}.tsv"
         if expected_file.exists():
@@ -603,7 +604,7 @@ def test_execute_tables_taxo_catalogue(merging_fast: Merging, datadir: Path, tmp
     merging_fast.meteor.merging_dir.mkdir()
     merging_fast.execute()
     assert sorted(p.name for p in merging_fast.meteor.merging_dir.glob("*.tsv")) == [
-        "my_test_msp.tsv", "my_test_msp_taxonomy.tsv", "my_test_report.tsv",
+        "my_test_msp.tsv", "my_test_msp_taxonomy.tsv", "my_test_phylum.tsv", "my_test_qc.tsv", "my_test_report.tsv",
     ]
     merging_fast.tables = ["msp", "kegg"]
     with pytest.raises(SystemExit):
@@ -625,7 +626,7 @@ def test_execute_tables_msp_mpa(merging_fast: Merging) -> None:
     merging_fast.output_mpa = True
     merging_fast.execute()
     assert sorted(p.name for p in merging_fast.meteor.merging_dir.glob("*.tsv")) == [
-        "my_test_msp.tsv", "my_test_msp_mpa.tsv", "my_test_msp_taxonomy.tsv", "my_test_report.tsv",
+        "my_test_msp.tsv", "my_test_msp_mpa.tsv", "my_test_msp_taxonomy.tsv", "my_test_phylum.tsv", "my_test_qc.tsv", "my_test_report.tsv",
     ]
 
 
