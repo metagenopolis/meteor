@@ -218,6 +218,28 @@ def test_execute(counter_smart_shared: Counter, tmp_path: Path):
         assert md5(out.read()).hexdigest() == "5db950a4404793f73ba034e99cb676fa"
 
 
+def test_execute_closes_temporary_files(counter_smart_shared: Counter, monkeypatch) -> None:
+    """No descriptor of a temporary file is left open: on NFS the deleted file
+    would stay as .nfs* and removing the temporary directory would fail"""
+    import os
+    import meteor.counter as counter_module
+
+    handles = []
+
+    def recorded_mkstemp(*args, **kwargs):
+        handle, name = original(*args, **kwargs)
+        handles.append(handle)
+        return handle, name
+
+    original = counter_module.mkstemp
+    monkeypatch.setattr(counter_module, "mkstemp", recorded_mkstemp)
+    counter_smart_shared.execute()
+    assert handles
+    for handle in handles:
+        with pytest.raises(OSError):
+            os.fstat(handle)
+
+
 def _toy_alignments(tmp_path: Path) -> Path:
     """Reads of a pair mapped as single-end reads share their name"""
     from pysam import AlignedSegment, AlignmentHeader

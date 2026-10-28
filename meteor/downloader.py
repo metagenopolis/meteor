@@ -15,10 +15,13 @@
 import logging
 import tarfile
 import sys
+import time
 from dataclasses import dataclass, field
 from meteor.session import Session, Component
 from pathlib import Path
 from hashlib import md5
+from typing import ClassVar
+from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.request import urlretrieve
 from tqdm import tqdm
 
@@ -26,6 +29,10 @@ from tqdm import tqdm
 @dataclass
 class Downloader(Session):
     """Download and prepare catalogues"""
+
+    # Zenodo answers 502/504 from time to time: retry with growing delays
+    DOWNLOAD_ATTEMPTS: ClassVar[int] = 4
+    RETRY_DELAY: ClassVar[float] = 15.0
 
     meteor: type[Component]
     choice: str
@@ -67,6 +74,39 @@ class Downloader(Session):
             )
         self.progress_bar.update(block_size)
 
+    def retrieve(self, url: str, filename: Path) -> None:
+        """Download a file, again after a server error, a rate limit or a
+        network error (DOWNLOAD_ATTEMPTS attempts, RETRY_DELAY doubled each time).
+
+        :param url: URL of the file
+        :param filename: (Path) where the file is saved
+        """
+        for attempt in range(1, self.DOWNLOAD_ATTEMPTS + 1):
+            try:
+                urlretrieve(url, filename=filename, reporthook=self.show_progress)
+                return
+            except HTTPError as error:
+                if error.code < 500 and error.code != 429:
+                    logging.error("Download of %s failed: %s", url, error)
+                    sys.exit(1)
+                failure: Exception = error
+            except (ContentTooShortError, URLError, TimeoutError, ConnectionError) as error:
+                failure = error
+            finally:
+                if hasattr(self, "progress_bar"):
+                    self.progress_bar.close()
+            if attempt < self.DOWNLOAD_ATTEMPTS:
+                delay = self.RETRY_DELAY * 2 ** (attempt - 1)
+                logging.warning(
+                    "Download of %s failed (%s), new attempt in %.0f s (%d/%d)",
+                    url, failure, delay, attempt + 1, self.DOWNLOAD_ATTEMPTS,
+                )
+                time.sleep(delay)
+        logging.error(
+            "Download of %s failed after %d attempts: %s", url, self.DOWNLOAD_ATTEMPTS, failure
+        )
+        sys.exit(1)
+
     def extract_tar(self, tar_archive: Path) -> None:
         """Extract tar file
 
@@ -90,8 +130,7 @@ class Downloader(Session):
                 self.meteor.ref_dir
                 / self.catalogues_config[self.choice][self.data_type]["filename"]
             )
-            urlretrieve(url, filename=catalogue, reporthook=self.show_progress)
-            self.progress_bar.close()
+            self.retrieve(url, catalogue)
             if self.choice == Component.TEST_CATALOGUE:
                 for sample in self.catalogues_config[self.choice]["samples"]:
                     logging.info("Downloading %s fastq file", sample)
@@ -107,10 +146,7 @@ class Downloader(Session):
                     md5fastq_expect = self.catalogues_config[self.choice]["samples"][
                         sample
                     ]["md5"]
-                    urlretrieve(
-                        url_fastq, filename=fastq_test, reporthook=self.show_progress
-                    )
-                    self.progress_bar.close()
+                    self.retrieve(url_fastq, fastq_test)
                     assert md5fastq_expect == self.getmd5(fastq_test)
             if self.check_md5:
                 assert md5_expect == self.getmd5(catalogue)

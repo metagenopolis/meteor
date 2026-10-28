@@ -15,6 +15,8 @@
 # pylint: disable=redefined-outer-name
 from ..session import Component
 from ..downloader import Downloader
+from .. import downloader as downloader_module
+from urllib.error import HTTPError, URLError
 from pathlib import Path
 import pytest
 
@@ -47,3 +49,47 @@ def test_execute(downer: Downloader) -> None:
     downer.execute()
     assert Path(downer.meteor.ref_dir / "mock").exists()
     assert Path(downer.meteor.ref_dir / "test.fastq.gz").exists()
+
+
+@pytest.mark.parametrize(
+    "failures, attempts",
+    [
+        ([HTTPError("u", 504, "Gateway Time-out", {}, None)], 2),
+        ([URLError("reset"), HTTPError("u", 429, "Too Many Requests", {}, None), TimeoutError()], 4),
+    ],
+)
+def test_retrieve_retries(downer: Downloader, tmp_path: Path, monkeypatch, caplog, failures, attempts) -> None:
+    """Server, rate-limit and network errors are retried"""
+    calls = []
+
+    def flaky(url, filename, reporthook):
+        calls.append(url)
+        reporthook(0, 1, 1)
+        if len(calls) <= len(failures):
+            raise failures[len(calls) - 1]
+        Path(filename).write_text("data")
+
+    monkeypatch.setattr(downloader_module, "urlretrieve", flaky)
+    monkeypatch.setattr(downloader_module.time, "sleep", lambda delay: None)
+    downer.retrieve("https://example.org/file", tmp_path / "file")
+    assert len(calls) == attempts
+    assert (tmp_path / "file").read_text() == "data"
+    assert "new attempt" in caplog.text
+
+
+@pytest.mark.parametrize("error", [HTTPError("u", 404, "Not Found", {}, None), HTTPError("u", 503, "Unavailable", {}, None)])
+def test_retrieve_fails(downer: Downloader, tmp_path: Path, monkeypatch, caplog, error) -> None:
+    """A client error stops at once, a server error after the last attempt"""
+    calls = []
+
+    def failing(url, filename, reporthook):
+        calls.append(url)
+        raise error
+
+    monkeypatch.setattr(downloader_module, "urlretrieve", failing)
+    monkeypatch.setattr(downloader_module.time, "sleep", lambda delay: None)
+    with pytest.raises(SystemExit):
+        downer.retrieve("https://example.org/file", tmp_path / "file")
+    assert len(calls) == (1 if error.code == 404 else Downloader.DOWNLOAD_ATTEMPTS)
+    assert "failed" in caplog.text
+

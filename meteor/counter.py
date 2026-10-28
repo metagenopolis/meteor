@@ -13,6 +13,7 @@
 """Run mapping and performs counting"""
 
 import logging
+import os
 import sys
 import pysam
 import lzma
@@ -362,7 +363,11 @@ class Counter(Session):
         strain_genes = None
         if self.keep_filtered_alignments:
             strain_genes = self.get_strain_gene_ids(ref_json)
-            strain_unsorted = Path(mkstemp(dir=self.meteor.tmp_dir, suffix=".bam")[1])
+            # only the name is used: an open descriptor keeps the deleted file
+            # (.nfs* on NFS) and makes removing the temporary directory fail
+            handle, name = mkstemp(dir=self.meteor.tmp_dir, suffix=".bam")
+            os.close(handle)
+            strain_unsorted = Path(name)
         streamer = StreamingCounter(
             header,
             self.counting_type,
