@@ -643,13 +643,15 @@ class Merging(Session):
                 "There was %s files that correspond to the pattern.",
                 len(files_to_merge),
             )
+            # output_name has no extension: with_suffix() would cut a prefix
+            # containing dots ("a.b_msp" -> "a.tsv"), so extensions are appended
             output_name = self.meteor.merging_dir / f"{self.prefix}_{my_pattern}"
             if my_pattern != "msp":
                 # Large tables: merged, filtered and written without the sparse
                 # DataFrame (same output file)
                 logging.info("Merge and save the data.")
                 kept_keys = self._merge_filter_write(
-                    files_to_merge, value, output_name.with_suffix(".tsv")
+                    files_to_merge, value, Path(f"{output_name}.tsv")
                 )
                 if kept_keys is not None:
                     self._write_annotations(my_pattern, kept_keys, output_name)
@@ -715,14 +717,22 @@ class Merging(Session):
                 if self.output_biom:
                     sample_ids = filtered_df.columns.drop("msp_name").tolist()
                     observ_ids = filtered_df["msp_name"].tolist()
+                    # taxonomy in the row order of the table (an MSP missing
+                    # from the taxonomy gets empty ranks)
+                    biom_annotation = (
+                        annotation.set_index("msp_name")
+                        .reindex(observ_ids)
+                        .fillna("")
+                        .reset_index()
+                    )
                     # Apply the prefixes to each taxonomic rank
                     for rank, prefix in self.ranks.items():
-                        annotation[rank] = annotation[rank].apply(
+                        biom_annotation[rank] = biom_annotation[rank].apply(
                             partial(lambda prefix, x: f"{prefix}{x}", prefix)
                         )
                     observ_metadata = [
                         {"taxonomy": row.iloc[1:].tolist()}
-                        for _, row in annotation.iterrows()
+                        for _, row in biom_annotation.iterrows()
                     ]
                     biom_table = Table(
                         data=filtered_df.drop(columns=["msp_name"]).to_numpy(),
@@ -736,14 +746,14 @@ class Merging(Session):
                     biom_json = biom_table.to_json(generated_by="Meteor")
                     # Write the JSON to a file
                     with open(
-                        output_name.with_suffix(".biom"), "wt", encoding="UTF-8"
+                        Path(f"{output_name}.biom"), "wt", encoding="UTF-8"
                     ) as f:
                         f.write(biom_json)
                     # with h5py.File(output_name.with_suffix(".biom"), "w") as f:
                     #     table.to_hdf5(f, generated_by="Meteor", compress=True)
             else:
                 self._write_annotations(my_pattern, filtered_df, output_name)
-            filtered_df.to_csv(output_name.with_suffix(".tsv"), sep="\t", index=False)
+            filtered_df.to_csv(Path(f"{output_name}.tsv"), sep="\t", index=False)
             logging.info("Data saved as %s", output_name)
         # Mapped reads, MSP richness and composition per sample, with MultiQC files
         QCReport(self.meteor.merging_dir, self.prefix).execute(

@@ -587,6 +587,40 @@ def test_execute_tables(
             pd.testing.assert_frame_equal(real, reference, check_dtype=False, check_exact=False, rtol=1e-10)
 
 
+def test_execute_prefix_with_dots(merging_fast: Merging, datadir: Path, tmp_path: Path) -> None:
+    """A prefix containing dots gives the same files as without dots (#144)"""
+    merging_fast.output_biom = True
+    merging_fast.output_mpa = True
+    names = {}
+    for prefix in ("my_test", "my.test.v1"):
+        merging_fast.meteor.merging_dir = tmp_path / prefix
+        merging_fast.meteor.merging_dir.mkdir()
+        merging_fast.prefix = prefix
+        merging_fast.execute()
+        names[prefix] = sorted(
+            path.name.removeprefix(prefix) for path in merging_fast.meteor.merging_dir.iterdir()
+        )
+    assert names["my.test.v1"] == names["my_test"]
+    assert {"_msp.tsv", "_msp.biom", "_genes.tsv"} - set(names["my_test"]) == {"_genes.tsv"}
+    pd.testing.assert_frame_equal(
+        pd.read_table(tmp_path / "my.test.v1" / "my.test.v1_msp.tsv"),
+        pd.read_table(tmp_path / "my_test" / "my_test_msp.tsv"),
+    )
+
+
+def test_execute_biom_taxonomy_by_name(merging_fast: Merging, tmp_path: Path) -> None:
+    """Each BIOM observation gets the taxonomy of its MSP, empty ranks when the
+    MSP is not in the taxonomy"""
+    merging_fast.output_biom = True
+    merging_fast.execute()
+    biom = json.loads((tmp_path / "my_test_msp.biom").read_text())
+    taxonomy = {row["id"]: row["metadata"]["taxonomy"] for row in biom["rows"]}
+    msp = pd.read_table(tmp_path / "my_test_msp.tsv")
+    assert list(taxonomy) == msp["msp_name"].tolist()
+    assert taxonomy["msp_0005"][0] == "k__Bacteria" and taxonomy["msp_0005"][-1].startswith("s__")
+    assert taxonomy["msp_0001"] == ["k__", "p__", "c__", "o__", "f__", "g__", "s__"]
+
+
 def _taxo_catalogue(datadir: Path, tmp_path: Path) -> Path:
     ref_dir = tmp_path / "taxo_ref"
     shutil.copytree(datadir / "ref_dir", ref_dir)
