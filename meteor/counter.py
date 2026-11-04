@@ -22,6 +22,7 @@ from tempfile import mkdtemp, mkstemp
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
+from meteor.resistance import RESISTANCE_ANNOTATIONS, resistance_gene_table
 from typing import ClassVar
 from collections import defaultdict, Counter as TupleCounter
 from itertools import chain, repeat
@@ -258,8 +259,6 @@ class Counter(Session):
     """Counter session map and count"""
 
     COUNTING_TYPES: ClassVar[list[str]] = ["total", "smart_shared", "unique"]
-    # catalogue annotations of antibiotic resistance genes (--kr)
-    RESISTANCE_ANNOTATIONS: ClassVar[tuple[str, ...]] = ("resfinder", "resfinderfg", "mustard")
     DEFAULT_COUNTING_TYPE: ClassVar[str] = "smart_shared"
     NO_IDENTITY_THRESHOLD: ClassVar[float] = 0.0
     DEFAULT_IDENTITY_THRESHOLD_COMPLETE: ClassVar[float] = 0.95
@@ -359,21 +358,16 @@ class Counter(Session):
         return set(msp_content["gene_id"])
 
     def get_resistance_gene_ids(self, ref_json: dict) -> set[int]:
-        """Genes annotated by ResFinder, ResFinderFG or MUSTARD in the catalogue"""
-        database_dir = self.meteor.ref_dir / ref_json["reference_file"]["database_dir"]
-        annotations = ref_json.get("annotation", {})
-        genes: set[int] = set()
-        for name in self.RESISTANCE_ANNOTATIONS:
-            if name in annotations:
-                table = self.load_data(database_dir / annotations[name]["filename"])
-                genes.update(int(gene) for gene in table["gene_id"])
+        """Genes annotated by ResFinder, ResFinderFG or MUSTARD, and genes of the
+        KEGG orthologs of gyrA, gyrB, parC and parE"""
+        genes = set(resistance_gene_table(self, self.meteor.ref_dir, ref_json)["gene_id"])
         if not genes:
             logging.error(
-                "--kr: the catalogue has no resistance annotation (%s)",
-                ", ".join(self.RESISTANCE_ANNOTATIONS),
+                "--kr: the catalogue has no resistance annotation (%s, kegg)",
+                ", ".join(RESISTANCE_ANNOTATIONS),
             )
             sys.exit(1)
-        return genes
+        return {int(gene) for gene in genes}
 
     def _streaming_counter(
         self, header: AlignmentHeader, ref_json: dict

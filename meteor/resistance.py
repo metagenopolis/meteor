@@ -32,6 +32,16 @@ from pysam import AlignmentFile, FastaFile
 from meteor.session import Component, Session
 from meteor.variantcalling import VariantCalling
 
+# catalogue annotations of acquired antibiotic resistance genes
+RESISTANCE_ANNOTATIONS: tuple[str, ...] = ("resfinder", "resfinderfg", "mustard")
+# KEGG orthologs of the targets of quinolones (resistance by point mutations)
+TARGET_KOS: dict[str, str] = {
+    "K02469": "gyrA",
+    "K02470": "gyrB",
+    "K02621": "parC",
+    "K02622": "parE",
+}
+
 # standard genetic code, codons in TCAG order
 _BASES = "TCAG"
 _AMINO_ACIDS = "FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"
@@ -204,6 +214,48 @@ def resistance_worker(
     return rows
 
 
+def resistance_gene_table(session: Session, ref_dir: Path, ref_json: dict) -> pd.DataFrame:
+    """One row per resistance gene of the catalogue: its ResFinder, ResFinderFG
+    and MUSTARD annotations, and `target` for the genes of the KEGG orthologs of
+    gyrA, gyrB, parC and parE (empty table without any of these annotations)"""
+    database_dir = ref_dir / ref_json["reference_file"]["database_dir"]
+    annotations = ref_json.get("annotation", {})
+    columns = []
+    for name in RESISTANCE_ANNOTATIONS:
+        if name not in annotations:
+            continue
+        table = session.load_data(database_dir / annotations[name]["filename"])
+        table = table.assign(gene_id=table["gene_id"].astype(int))
+        columns.append(
+            table.groupby("gene_id")["annotation"]
+            .agg(lambda values: ",".join(sorted(set(map(str, values)))))
+            .rename(name)
+        )
+        if name == "mustard" and "Prediction" in table:
+            columns.append(
+                table.groupby("gene_id")["Prediction"].first().rename("mustard_prediction")
+            )
+    if "kegg" in annotations:
+        kegg = session.load_data(database_dir / annotations["kegg"]["filename"])
+        kegg = kegg[kegg["annotation"].isin(set(TARGET_KOS))]
+        columns.append(
+            kegg.assign(
+                gene_id=kegg["gene_id"].astype(int),
+                target=kegg["annotation"].map(TARGET_KOS),
+            )
+            .groupby("gene_id")["target"]
+            .agg(lambda values: ",".join(sorted(set(values))))
+        )
+    names = [*RESISTANCE_ANNOTATIONS, "mustard_prediction", "target"]
+    if not columns:
+        return pd.DataFrame(columns=["gene_id", *names])
+    genes = pd.concat(columns, axis=1)
+    for name in names:
+        if name not in genes:
+            genes[name] = pd.NA
+    return genes[names].rename_axis("gene_id").reset_index()
+
+
 def _ratio(numerator, denominator):
     """numerator / denominator, NaN when the denominator is 0"""
     numerator = np.asarray(numerator, dtype=float)
@@ -222,7 +274,6 @@ class Resistance(Session):
     DEFAULT_MIN_GENE_COVERAGE: ClassVar[float] = 0.8
     DEFAULT_BASE_QUALITY: ClassVar[int] = 20
     DEFAULT_NUM_THREADS: ClassVar[int] = 1
-    ANNOTATIONS: ClassVar[tuple[str, ...]] = ("resfinder", "resfinderfg", "mustard")
 
     meteor: type[Component]
     min_depth: int
@@ -240,33 +291,14 @@ class Resistance(Session):
 
     def resistance_genes(self, ref_json: dict) -> pd.DataFrame:
         """One row per resistance gene: its annotation in each database"""
-        database_dir = self.meteor.ref_dir / ref_json["reference_file"]["database_dir"]
-        annotations = ref_json.get("annotation", {})
-        tables = []
-        for name in self.ANNOTATIONS:
-            if name not in annotations:
-                continue
-            table = self.load_data(database_dir / annotations[name]["filename"])
-            table = table.assign(gene_id=table["gene_id"].astype(int))
-            per_gene = table.groupby("gene_id")["annotation"].agg(
-                lambda values: ",".join(sorted(set(map(str, values))))
-            )
-            columns = [per_gene.rename(name)]
-            if name == "mustard" and "Prediction" in table:
-                columns.append(
-                    table.groupby("gene_id")["Prediction"].first().rename("mustard_prediction")
-                )
-            tables.append(pd.concat(columns, axis=1))
-        if not tables:
+        genes = resistance_gene_table(self, self.meteor.ref_dir, ref_json)
+        if genes.empty:
             logging.error(
-                "The catalogue has no resistance annotation (%s)", ", ".join(self.ANNOTATIONS)
+                "The catalogue has no resistance annotation (%s, kegg)",
+                ", ".join(RESISTANCE_ANNOTATIONS),
             )
             sys.exit(1)
-        genes = pd.concat(tables, axis=1)
-        for name in self.ANNOTATIONS:
-            if name not in genes:
-                genes[name] = pd.NA
-        return genes.rename_axis("gene_id").reset_index()
+        return genes
 
     def gene_stats(self, bam: Path, reference: str, genes: list[tuple[str, int]]) -> pd.DataFrame:
         """Variants of every gene, in worker processes when threads > 1"""
@@ -346,19 +378,24 @@ class Resistance(Session):
         logging.info("Variants of %d genes (resistance genes and controls)", len(genes))
         stats = self.add_rates(self.gene_stats(bam, fasta, genes))
         # controls: interpretable marker genes of the MSPs carrying the gene
+        # (without the gene itself: gyrA is often a marker gene)
+        sums = ["covered_bp", "major_snv", "minor_snv"]
         marker_stats = controls.merge(stats, on="gene_id")
-        marker_stats = marker_stats[marker_stats["interpretable"]]
-        per_msp = marker_stats.groupby("msp_name")[["covered_bp", "major_snv", "minor_snv"]].sum()
-        per_msp["control_genes"] = marker_stats.groupby("msp_name").size()
+        marker_stats = marker_stats[marker_stats["interpretable"]].assign(control_genes=1)
+        per_msp = marker_stats.groupby("msp_name")[[*sums, "control_genes"]].sum()
+        own = marker_stats.set_index(["msp_name", "gene_id"])[[*sums, "control_genes"]]
         table = resistance.merge(stats, on="gene_id")
         table = table[table["alignments"] > 0].copy()
         table.insert(1, "msp_name", table["gene_id"].map(msp_of_gene))
         control_rows = []
-        for names in table["msp_name"]:
+        for gene, names in zip(table["gene_id"], table["msp_name"]):
+            rows = pd.Series(0.0, index=per_msp.columns)
             if isinstance(names, str):
-                rows = per_msp.reindex(names.split(";")).fillna(0).sum()
-            else:
-                rows = pd.Series(0, index=per_msp.columns)
+                for name in names.split(";"):
+                    if name in per_msp.index:
+                        rows = rows + per_msp.loc[name]
+                    if (name, gene) in own.index:
+                        rows = rows - own.loc[(name, gene)]
             control_rows.append(rows)
         control = pd.DataFrame(
             control_rows,
@@ -380,7 +417,11 @@ class Resistance(Session):
                 "mapping": {"reference_name": ref_json["reference_info"]["reference_name"]},
                 "resistance": {
                     "resistance_date": datetime.now().strftime("%Y-%m-%d"),
-                    "annotations": [n for n in self.ANNOTATIONS if n in ref_json.get("annotation", {})],
+                    "annotations": [
+                        n
+                        for n in (*RESISTANCE_ANNOTATIONS, "kegg")
+                        if n in ref_json.get("annotation", {})
+                    ],
                     "min_depth": self.min_depth,
                     "min_alt_count": self.min_alt_count,
                     "min_frequency": self.min_frequency,

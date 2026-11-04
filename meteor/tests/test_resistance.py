@@ -110,6 +110,10 @@ def _catalogue(root: Path) -> dict[int, str]:
             "Prediction": ["Likely_ref", "Likely_ref"],
         }
     ).to_csv(root / "database" / "mustard.tsv", sep="\t", index=False)
+    # gene 3, marker gene of M1, is gyrA
+    pd.DataFrame(
+        {"gene_id": [3, 3, 2], "gene_name": ["g3", "g3", "g2"], "annotation": ["K02469", "K00001", "K00002"]}
+    ).to_csv(root / "database" / "kegg.tsv", sep="\t", index=False)
     (root / "cat_reference.json").write_text(
         json.dumps(
             {
@@ -127,6 +131,7 @@ def _catalogue(root: Path) -> dict[int, str]:
                     "msp": {"filename": "msp.tsv"},
                     "resfinder": {"filename": "resfinder.tsv"},
                     "mustard": {"filename": "mustard.tsv"},
+                    "kegg": {"filename": "kegg.tsv"},
                 },
             }
         )
@@ -206,13 +211,18 @@ def test_execute(resistance, tmp_path: Path, threads: int) -> None:
     analysis.meteor.mapped_sample_dir = _mapped_sample(tmp_path, genes, variants)
     analysis.execute()
     table = pd.read_table(tmp_path / "resistance" / "S1" / "S1_resistance.tsv")
-    # genes 1 and 4 have reads, gene 5 (marker of M2) is not a resistance gene
-    assert table["gene_id"].tolist() == [1, 4]
+    # genes 1, 3 (gyrA) and 4 have reads, gene 5 (marker of M2) is not a resistance gene
+    assert table["gene_id"].tolist() == [1, 3, 4]
     arg = table.set_index("gene_id")
     assert arg.loc[1, "msp_name"] == "M1" and pd.isna(arg.loc[4, "msp_name"])
     assert arg.loc[1, "resfinder"] == "tet(W)" and arg.loc[1, "mustard"] == "tetM"
     assert arg.loc[1, "mustard_prediction"] == "Likely_ref"
     assert arg.loc[4, "resfinder"] == "blaTEM-1" and pd.isna(arg.loc[4, "mustard"])
+    assert arg.loc[3, "target"] == "gyrA" and pd.isna(arg.loc[3, "resfinder"])
+    assert pd.isna(arg.loc[1, "target"])
+    # gene 3 is a marker of M1: its controls are the other marker, gene 2
+    assert arg.loc[3, "control_genes"] == 1
+    assert arg.loc[3, "control_covered_bp"] == arg.loc[1, "control_covered_bp"] - arg.loc[3, "covered_bp"]
     assert arg.loc[1, "major_snv"] == 1 and arg.loc[1, "minor_snv"] == 1
     assert arg.loc[4, "major_snv"] == 0 and arg.loc[4, "minor_snv"] == 0
     assert arg.loc[1, "major_syn"] + arg.loc[1, "major_nonsyn"] == 1
@@ -230,8 +240,8 @@ def test_execute(resistance, tmp_path: Path, threads: int) -> None:
     census = json.loads(
         (tmp_path / "resistance" / "S1" / "S1_census_stage_resistance.json").read_text()
     )
-    assert census["resistance"]["genes_with_reads"] == 2
-    assert census["resistance"]["annotations"] == ["resfinder", "mustard"]
+    assert census["resistance"]["genes_with_reads"] == 3
+    assert census["resistance"]["annotations"] == ["resfinder", "mustard", "kegg"]
 
 
 def test_execute_without_kr(resistance, tmp_path: Path) -> None:

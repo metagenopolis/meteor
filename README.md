@@ -254,7 +254,7 @@ The tree and the distance matrix are not modified. The test is implemented in me
 ### 6. Variants of the antibiotic resistance genes (experimental)
 -------------------------
 
-`meteor resistance` counts the single nucleotide variants of the antibiotic resistance genes of a sample against the catalogue genes, with the marker genes of the same species as controls. The resistance genes are the catalogue genes annotated by ResFinder, ResFinderFG or MUSTARD. The sample must be mapped with `--kr`, which keeps the filtered alignments on the resistance genes in addition to those on the marker genes (`--kr` implies `--kf`):
+`meteor resistance` counts the single nucleotide variants of the antibiotic resistance genes of a sample against the catalogue genes, with the marker genes of the same species as controls. The resistance genes are the catalogue genes annotated by ResFinder, ResFinderFG or MUSTARD (acquired genes), and the genes of the KEGG orthologs of gyrA (K02469), gyrB (K02470), parC (K02621) and parE (K02622), the targets of quinolones, resistant by point mutations. The sample must be mapped with `--kr`, which keeps the filtered alignments on the resistance genes in addition to those on the marker genes (`--kr` implies `--kf`):
 ```
 meteor mapping -i <fastqdir/sampledir> -o <mappingdir> -r <refdir> --kr
 meteor resistance -i <mappingdir/sampledir> -o <resistancedir> -r <refdir>
@@ -271,14 +271,14 @@ A variant is synonymous or not by comparing the two alleles in the codon of the 
 | Column | Description |
 |--------|-------------|
 | `gene_id`, `msp_name` | Catalogue gene and the MSPs it belongs to (empty for a gene of no MSP) |
-| `resfinder`, `resfinderfg`, `mustard`, `mustard_prediction` | Annotations of the gene |
+| `resfinder`, `resfinderfg`, `mustard`, `mustard_prediction`, `target` | Annotations of the gene (`target`: gyrA, gyrB, parC or parE) |
 | `gene_length`, `alignments`, `multimapped_fraction` | Alignments on the gene and the fraction with a MAPQ <= 1 (reads with equally good hits on other genes) |
 | `mean_depth`, `covered_bp`, `covered_fraction`, `interpretable` | Coverage; a gene is interpretable when `covered_fraction` >= `-c` (default 0.8) |
 | `major_snv`, `major_syn`, `major_nonsyn`, `minor_snv`, `minor_syn`, `minor_nonsyn` | Variants |
 | `syn_sites`, `nonsyn_sites` | Synonymous and non-synonymous sites of the covered codons |
 | `major_per_kb`, `minor_per_kb` | Variants per kb covered |
 | `major_dnds`, `minor_pnps` | (non-synonymous / non-synonymous sites) / (synonymous / synonymous sites), against the catalogue (major) and within the sample (minor) |
-| `control_genes`, `control_covered_bp`, `control_major_per_kb`, `control_minor_per_kb` | The same rates on the interpretable marker genes (`--core_size`) of the MSPs of the gene |
+| `control_genes`, `control_covered_bp`, `control_major_per_kb`, `control_minor_per_kb` | The same rates on the interpretable marker genes (`--core_size`) of the MSPs of the gene, without the gene itself |
 
 The catalogue gene is the representative of a gene cluster, not a susceptible reference: a variant against the catalogue is not a resistance mutation. Close homologues share their reads (`multimapped_fraction`), and reads diverging from a gene by more than the mapping identity threshold are not aligned on it.
 
@@ -319,7 +319,7 @@ The options of every command are also listed by `meteor <command> -h`.
 | `--id IDENTITY_THRESHOLD` | Keep only the read alignments with a nucleotide identity >= IDENTITY_THRESHOLD. If 0.0, no filtering. | auto: `0.95` (complete catalogue), `0.98` (taxonomic catalogue) |
 | `--ka` | Keep raw bowtie2 output in cram format. Required for calculating gene counts with another strategy. | off |
 | `--kf` | Keep filtered alignments on marker genes. Required for strain analysis. | off |
-| `--kr` | Keep filtered alignments on marker genes and on antibiotic resistance genes (ResFinder, ResFinderFG, MUSTARD annotations; implies `--kf`). Required for meteor resistance. | off |
+| `--kr` | Keep filtered alignments on marker genes and on antibiotic resistance genes (ResFinder, ResFinderFG, MUSTARD annotations, and gyrA, gyrB, parC, parE from the KEGG annotation; implies `--kf`). Required for meteor resistance. | off |
 | `--tmp TMP_PATH` | Directory where temporary files (e.g. cram) are stored | none |
 | `-t THREADS` | Number of alignment threads to launch. | `1` |
 
