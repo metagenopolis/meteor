@@ -360,7 +360,8 @@ class Counter(Session):
     def get_resistance_gene_ids(self, ref_json: dict) -> set[int]:
         """Genes annotated by ResFinder, ResFinderFG or MUSTARD, and genes of the
         KEGG orthologs of gyrA, gyrB, parC and parE"""
-        genes = set(resistance_gene_table(self, self.meteor.ref_dir, ref_json)["gene_id"])
+        table = resistance_gene_table(self, self.meteor.ref_dir, ref_json)
+        genes = set(table["gene_id"])
         if not genes:
             logging.error(
                 "--kr: the catalogue has no resistance annotation (%s, kegg)",

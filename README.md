@@ -261,7 +261,7 @@ meteor resistance -i <mappingdir/sampledir> -o <resistancedir> -r <refdir>
 ```
 
 The bases of every alignment kept by the mapping step (best identity, a multi-mapped read on each of its genes) are counted at each position of the gene (base quality >= `-q`, default 20). A site is covered when at least `-p` reads (default 10) cover it. On covered sites:
-- a **major variant** is a site whose most frequent base is not the catalogue base, with at least `-a` reads (default 3): the gene of the sample differs from the catalogue gene;
+- a **major variant** is a site whose most frequent base is not the catalogue base, with at least `-a` reads (default 3): the gene of the sample differs from the catalogue gene; on an evenly split site the catalogue base wins;
 - a **minor variant** is a polymorphic site, whose second most frequent base has at least `-a` reads and a frequency of at least `-f` (default 0.1): several alleles in the sample.
 
 A variant is synonymous or not by comparing the two alleles in the codon of the catalogue gene (genes are CDS in frame); synonymous and non-synonymous sites are counted on the fully covered codons (Nei & Gojobori).
@@ -272,13 +272,13 @@ A variant is synonymous or not by comparing the two alleles in the codon of the 
 |--------|-------------|
 | `gene_id`, `msp_name` | Catalogue gene and the MSPs it belongs to (empty for a gene of no MSP) |
 | `resfinder`, `resfinderfg`, `mustard`, `mustard_prediction`, `target` | Annotations of the gene (`target`: gyrA, gyrB, parC or parE) |
-| `gene_length`, `alignments`, `multimapped_fraction` | Alignments on the gene and the fraction with a MAPQ <= 1 (reads with equally good hits on other genes) |
+| `gene_length`, `alignments`, `multimapped_fraction` | Alignments on the gene and the fraction with a MAPQ <= 1 (mostly reads with equally good hits on other genes; it also holds rare unique alignments of low MAPQ) |
 | `mean_depth`, `covered_bp`, `covered_fraction`, `interpretable` | Coverage; a gene is interpretable when `covered_fraction` >= `-c` (default 0.8) |
 | `major_snv`, `major_syn`, `major_nonsyn`, `minor_snv`, `minor_syn`, `minor_nonsyn` | Variants |
 | `syn_sites`, `nonsyn_sites` | Synonymous and non-synonymous sites of the covered codons |
 | `major_per_kb`, `minor_per_kb` | Variants per kb covered |
-| `major_dnds`, `minor_pnps` | (non-synonymous / non-synonymous sites) / (synonymous / synonymous sites), against the catalogue (major) and within the sample (minor) |
-| `control_genes`, `control_covered_bp`, `control_major_per_kb`, `control_minor_per_kb` | The same rates on the interpretable marker genes (`--core_size`) of the MSPs of the gene, without the gene itself |
+| `major_dnds`, `minor_pnps` | (non-synonymous / non-synonymous sites) / (synonymous / synonymous sites) — a pN/pS-style ratio, not a model-based dN/dS — against the catalogue (major) and within the sample (minor) |
+| `control_genes`, `control_covered_bp`, `control_major_per_kb`, `control_minor_per_kb` | The same rates on the interpretable marker genes (`--core_size`) of the MSPs of the gene, without the gene itself; the controls of a target gene hold the other target genes of its MSP |
 
 The catalogue gene is the representative of a gene cluster, not a susceptible reference: a variant against the catalogue is not a resistance mutation. Close homologues share their reads (`multimapped_fraction`), and reads diverging from a gene by more than the mapping identity threshold are not aligned on it.
 

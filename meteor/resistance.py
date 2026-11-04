@@ -120,8 +120,12 @@ def gene_variants(
     covered = (depth >= min_depth) & (ref_index >= 0)
     order = np.argsort(-counts, axis=0, kind="stable")
     positions = np.arange(length)
-    major = order[0]
-    second = order[1]
+    top = order[0]
+    ref_count = np.where(ref_index >= 0, counts[np.maximum(ref_index, 0), positions], -1)
+    # an even split is not a major variant: the catalogue base wins ties
+    tie = (top != ref_index) & (counts[top, positions] == ref_count)
+    major = np.where(tie, ref_index, top)
+    second = np.where(tie, top, order[1])
     major_count = counts[major, positions]
     second_count = counts[second, positions]
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -214,6 +218,19 @@ def resistance_worker(
     return rows
 
 
+def load_kegg_targets(path: Path) -> pd.DataFrame:
+    """The genes of the target KEGG orthologs, without loading the whole table:
+    the KEGG annotation of a complete catalogue holds millions of rows"""
+    kos = set(TARGET_KOS)
+    if path.suffix == ".feather":
+        import pyarrow.feather as feather
+
+        table = feather.read_feather(path, columns=["gene_id", "annotation"])
+        return table[table["annotation"].isin(kos)]
+    chunks = pd.read_csv(path, sep="\t", usecols=["gene_id", "annotation"], chunksize=2_000_000)
+    return pd.concat((chunk[chunk["annotation"].isin(kos)] for chunk in chunks), ignore_index=True)
+
+
 def resistance_gene_table(session: Session, ref_dir: Path, ref_json: dict) -> pd.DataFrame:
     """One row per resistance gene of the catalogue: its ResFinder, ResFinderFG
     and MUSTARD annotations, and `target` for the genes of the KEGG orthologs of
@@ -233,11 +250,12 @@ def resistance_gene_table(session: Session, ref_dir: Path, ref_json: dict) -> pd
         )
         if name == "mustard" and "Prediction" in table:
             columns.append(
-                table.groupby("gene_id")["Prediction"].first().rename("mustard_prediction")
+                table.groupby("gene_id")["Prediction"]
+                .agg(lambda values: ",".join(sorted(set(map(str, values)))))
+                .rename("mustard_prediction")
             )
     if "kegg" in annotations:
-        kegg = session.load_data(database_dir / annotations["kegg"]["filename"])
-        kegg = kegg[kegg["annotation"].isin(set(TARGET_KOS))]
+        kegg = load_kegg_targets(database_dir / annotations["kegg"]["filename"])
         columns.append(
             kegg.assign(
                 gene_id=kegg["gene_id"].astype(int),
@@ -294,7 +312,7 @@ class Resistance(Session):
         genes = resistance_gene_table(self, self.meteor.ref_dir, ref_json)
         if genes.empty:
             logging.error(
-                "The catalogue has no resistance annotation (%s, kegg)",
+                "The catalogue has no resistance annotation (%s or kegg)",
                 ", ".join(RESISTANCE_ANNOTATIONS),
             )
             sys.exit(1)
@@ -333,6 +351,12 @@ class Resistance(Session):
 
     def execute(self) -> None:
         """Variants of the resistance genes of the mapped sample"""
+        try:
+            self._execute()
+        finally:
+            rmtree(self.meteor.tmp_dir, ignore_errors=True)
+
+    def _execute(self) -> None:
         start = perf_counter()
         ref_json = self.get_reference_info(self.meteor.ref_dir)
         Component.check_catalogue(ref_json)
@@ -381,6 +405,9 @@ class Resistance(Session):
         # (without the gene itself: gyrA is often a marker gene)
         sums = ["covered_bp", "major_snv", "minor_snv"]
         marker_stats = controls.merge(stats, on="gene_id")
+        # a duplicated (MSP, gene) row in the catalogue would be counted twice
+        # and break the Series lookups below
+        marker_stats = marker_stats.drop_duplicates(["msp_name", "gene_id"])
         marker_stats = marker_stats[marker_stats["interpretable"]].assign(control_genes=1)
         per_msp = marker_stats.groupby("msp_name")[[*sums, "control_genes"]].sum()
         own = marker_stats.set_index(["msp_name", "gene_id"])[[*sums, "control_genes"]]
@@ -428,6 +455,7 @@ class Resistance(Session):
                     "min_gene_coverage": self.min_gene_coverage,
                     "base_quality": self.base_quality,
                     "core_size": self.core_size,
+                    "resistance_genes_total": len(resistance),
                     "genes_with_reads": len(table),
                     "interpretable_genes": int(table["interpretable"].sum()),
                     "resistance_file": output.name,
@@ -441,5 +469,4 @@ class Resistance(Session):
             int(table["interpretable"].sum()),
             output,
         )
-        rmtree(self.meteor.tmp_dir, ignore_errors=True)
         logging.info("Completed resistance analysis in %f seconds", perf_counter() - start)

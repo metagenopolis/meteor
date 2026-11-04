@@ -714,7 +714,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="min_alt_count",
         default=Resistance.DEFAULT_MIN_ALT_COUNT,
         type=int,
-        help="Minimum number of reads carrying a variant allele (default: >= %(default)d).",
+        help="Minimum number of reads carrying a variant allele "
+        "(default: >= %(default)d).",
     )
     resistance_parser.add_argument(
         "-f",
@@ -728,8 +729,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="min_gene_coverage",
         default=Resistance.DEFAULT_MIN_GENE_COVERAGE,
         type=isbounded01,
-        help="Minimum fraction of a gene covered at the minimum depth for the gene to be "
-        "interpretable, from 0 to 1 (default: >= %(default).1f).",
+        help="Minimum fraction of a gene covered at the minimum depth, for the "
+        "gene to be interpretable, from 0 to 1 (default: >= %(default).1f).",
     )
     resistance_parser.add_argument(
         "-q",
@@ -743,8 +744,8 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="core_size",
         type=int,
         default=Component.DEFAULT_CORE_SIZE,
-        help="Number of signature genes per species (MSP) used as controls, as at the mapping step "
-        "(default: %(default)d).",
+        help="Number of signature genes per species (MSP) used as controls, "
+        "as at the mapping step (default: %(default)d).",
     )
     resistance_parser.add_argument(
         "--tmp",

@@ -83,7 +83,9 @@ def test_gene_variants_out_of_frame() -> None:
 LENGTH = 300
 
 
-def _catalogue(root: Path) -> dict[int, str]:
+def _catalogue(
+    root: Path, shared: bool = False, duplicate: bool = False, mustard_prediction: bool = True
+) -> dict[int, str]:
     rng = random.Random(1)
     genes = {gene: "".join(rng.choice("ACGT") for _ in range(LENGTH)) for gene in range(1, 6)}
     (root / "fasta").mkdir(parents=True)
@@ -91,25 +93,28 @@ def _catalogue(root: Path) -> dict[int, str]:
     fasta = root / "fasta" / "cat.fasta"
     fasta.write_text("".join(f">{gene}\n{seq}\n" for gene, seq in genes.items()))
     pysam.faidx(str(fasta))
+    msp_rows = [
+        ["M1", 2, "g2", "core"],
+        ["M1", 3, "g3", "core"],
+        ["M1", 1, "g1", "accessory"],
+        ["M2", 5, "g5", "core"],
+    ]
+    if shared:
+        msp_rows.append(["M2", 1, "g1", "accessory"])  # gene 1 belongs to both MSPs
+    if duplicate:
+        msp_rows.append(msp_rows[1])  # the same marker gene listed twice
     pd.DataFrame(
-        {
-            "msp_name": ["M1", "M1", "M1", "M2"],
-            "gene_id": [2, 3, 1, 5],
-            "gene_name": ["g2", "g3", "g1", "g5"],
-            "gene_category": ["core", "core", "accessory", "core"],
-        }
+        msp_rows, columns=["msp_name", "gene_id", "gene_name", "gene_category"]
     ).to_csv(root / "database" / "msp.tsv", sep="\t", index=False)
     pd.DataFrame(
         {"gene_id": [1, 4], "gene_name": ["g1", "g4"], "annotation": ["tet(W)", "blaTEM-1"]}
     ).to_csv(root / "database" / "resfinder.tsv", sep="\t", index=False)
-    pd.DataFrame(
-        {
-            "gene_id": [1, 1],
-            "gene_name": ["g1", "g1"],
-            "annotation": ["tetM", "tetM"],
-            "Prediction": ["Likely_ref", "Likely_ref"],
-        }
-    ).to_csv(root / "database" / "mustard.tsv", sep="\t", index=False)
+    mustard = pd.DataFrame(
+        {"gene_id": [1, 1], "gene_name": ["g1", "g1"], "annotation": ["tetM", "tetM"]}
+    )
+    if mustard_prediction:
+        mustard["Prediction"] = ["Likely_ref", "Likely_ref"]
+    mustard.to_csv(root / "database" / "mustard.tsv", sep="\t", index=False)
     # gene 3, marker gene of M1, is gyrA
     pd.DataFrame(
         {"gene_id": [3, 3, 2], "gene_name": ["g3", "g3", "g2"], "annotation": ["K02469", "K00001", "K00002"]}
@@ -139,7 +144,9 @@ def _catalogue(root: Path) -> dict[int, str]:
     return genes
 
 
-def _mapped_sample(root: Path, genes: dict[int, str], variants: dict, kr: bool = True) -> Path:
+def _mapped_sample(
+    root: Path, genes: dict[int, str], variants: dict, kr: bool = True, mapped: tuple = (1, 2, 3, 4)
+) -> Path:
     """CRAM of 100 bp reads every 2 bp on genes 1-4 (depth 50); variants:
     {(gene, pos): (base, every)} gives `base` to one read out of `every`"""
     sample = root / "mapping" / "S1"
@@ -151,7 +158,7 @@ def _mapped_sample(root: Path, genes: dict[int, str], variants: dict, kr: bool =
     bam = sample / "S1.bam"
     with pysam.AlignmentFile(str(bam), "wb", header=header) as out:
         n = 0
-        for gene in (1, 2, 3, 4):
+        for gene in mapped:
             for start in range(0, LENGTH - 100 + 1, 2):
                 seq = list(genes[gene][start : start + 100])
                 for (vgene, pos), (base, every) in variants.items():
@@ -197,6 +204,81 @@ def resistance(tmp_path: Path) -> tuple[Resistance, dict[int, str]]:
 def _switch(genes: dict[int, str], gene: int, pos: int) -> str:
     """A base different from the catalogue base"""
     return "A" if genes[gene][pos] != "A" else "C"
+
+
+def _analysis(root: Path, **catalogue_options) -> tuple[Resistance, dict[int, str]]:
+    genes = _catalogue(root, **catalogue_options)
+    meteor = Component
+    meteor.ref_dir = root
+    meteor.resistance_dir = root.parent / "resistance"
+    meteor.tmp_path = root.parent / "tmp"
+    meteor.threads = 1
+    return Resistance(meteor, 10, 3, 0.1, 0.8, 20, 100), genes
+
+
+def test_gene_variants_tie_favors_the_catalogue_base() -> None:
+    sequence = "ATGAAATTTGGGTAA"
+    counts = counts_of(sequence, 20)
+    counts[:, 3] = [10, 0, 10, 0]  # A / C, an even split: not a major variant
+    counts[:, 6] = [0, 15, 0, 5]  # T -> C: a major variant
+    result = gene_variants(sequence, counts, 10, 3, 0.1)
+    assert result["major_snv"] == 1
+    assert result["minor_snv"] == 2  # the even split and the second base of the major site
+    assert result["major_nonsyn"] == 1  # AAA -> CAA
+    assert result["minor_nonsyn"] == 2  # ATG -> CTG, AAA -> CAA
+
+
+def test_execute_controls_of_a_multi_msp_gene(tmp_path: Path) -> None:
+    """A gene shared by two MSPs sums the controls of both MSPs, without itself"""
+    analysis, genes = _analysis(tmp_path / "catalogue", shared=True)
+    variants = {(2, 200): (_switch(genes, 2, 200), 1)}  # major variant on a control
+    analysis.meteor.mapped_sample_dir = _mapped_sample(
+        tmp_path, genes, variants, mapped=(1, 2, 3, 4, 5)
+    )
+    analysis.execute()
+    table = pd.read_table(tmp_path / "resistance" / "S1" / "S1_resistance.tsv")
+    arg = table.set_index("gene_id")
+    assert arg.loc[1, "msp_name"] == "M1;M2"
+    # marker genes of M1 (genes 2 and 3) + marker gene of M2 (gene 5), without gene 1
+    assert arg.loc[1, "control_genes"] == 3
+    assert arg.loc[1, "control_major_per_kb"] == pytest.approx(
+        1000 / arg.loc[1, "control_covered_bp"]
+    )
+    # gene 3 (gyrA) belongs to M1 only: its controls are the other marker, gene 2
+    assert arg.loc[3, "msp_name"] == "M1"
+    assert arg.loc[3, "control_genes"] == 1
+    # the variant on gene 2, alone on 1/3 of the coverage of the controls of gene 1
+    assert arg.loc[3, "control_major_per_kb"] == pytest.approx(3 * arg.loc[1, "control_major_per_kb"])
+
+
+def test_execute_survives_a_duplicated_msp_gene(tmp_path: Path) -> None:
+    """A duplicated (MSP, gene) row in the catalogue must not break the controls"""
+    analysis, genes = _analysis(tmp_path / "catalogue", duplicate=True)
+    analysis.meteor.mapped_sample_dir = _mapped_sample(tmp_path, genes, {})
+    analysis.execute()
+    table = pd.read_table(tmp_path / "resistance" / "S1" / "S1_resistance.tsv")
+    arg = table.set_index("gene_id")
+    # genes 2 and 3, each counted once
+    assert arg.loc[1, "control_genes"] == 2
+    assert arg.loc[3, "control_genes"] == 1
+    assert arg.loc[3, "control_covered_bp"] == arg.loc[1, "control_covered_bp"] - arg.loc[3, "covered_bp"]
+
+
+def test_execute_without_mustard_prediction_and_zero_read_gene(tmp_path: Path) -> None:
+    """A resistance gene without reads is absent from the table but counted in the
+    census; a MUSTARD annotation without a Prediction column still runs"""
+    analysis, genes = _analysis(tmp_path / "catalogue", mustard_prediction=False)
+    analysis.meteor.mapped_sample_dir = _mapped_sample(tmp_path, genes, {}, mapped=(1, 2, 3))
+    analysis.execute()
+    table = pd.read_table(tmp_path / "resistance" / "S1" / "S1_resistance.tsv")
+    arg = table.set_index("gene_id")
+    assert table["gene_id"].tolist() == [1, 3]  # gene 4 has no alignment
+    assert arg.loc[1, "mustard"] == "tetM" and pd.isna(arg.loc[1, "mustard_prediction"])
+    census = json.loads(
+        (tmp_path / "resistance" / "S1" / "S1_census_stage_resistance.json").read_text()
+    )
+    assert census["resistance"]["genes_with_reads"] == 2
+    assert census["resistance"]["resistance_genes_total"] == 3
 
 
 @pytest.mark.parametrize("threads", [1, 2])
