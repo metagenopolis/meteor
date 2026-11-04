@@ -258,6 +258,8 @@ class Counter(Session):
     """Counter session map and count"""
 
     COUNTING_TYPES: ClassVar[list[str]] = ["total", "smart_shared", "unique"]
+    # catalogue annotations of antibiotic resistance genes (--kr)
+    RESISTANCE_ANNOTATIONS: ClassVar[tuple[str, ...]] = ("resfinder", "resfinderfg", "mustard")
     DEFAULT_COUNTING_TYPE: ClassVar[str] = "smart_shared"
     NO_IDENTITY_THRESHOLD: ClassVar[float] = 0.0
     DEFAULT_IDENTITY_THRESHOLD_COMPLETE: ClassVar[float] = 0.95
@@ -272,12 +274,17 @@ class Counter(Session):
     core_size: int
     keep_all_alignments: bool = False
     keep_filtered_alignments: bool = False
+    keep_resistance_alignments: bool = False
     json_data: dict = field(default_factory=dict)
     identity_threshold: float = field(default_factory=float)
 
     def __post_init__(self) -> None:
         if self.counting_type not in Counter.COUNTING_TYPES:
             raise ValueError(f"{self.counting_type} is not a valid counting type")
+        # the alignments on resistance genes go with those on marker genes
+        # (the controls of meteor resistance)
+        if self.keep_resistance_alignments:
+            self.keep_filtered_alignments = True
 
         if self.meteor.tmp_path:
             self.meteor.tmp_path.mkdir(exist_ok=True)
@@ -351,6 +358,23 @@ class Counter(Session):
         )
         return set(msp_content["gene_id"])
 
+    def get_resistance_gene_ids(self, ref_json: dict) -> set[int]:
+        """Genes annotated by ResFinder, ResFinderFG or MUSTARD in the catalogue"""
+        database_dir = self.meteor.ref_dir / ref_json["reference_file"]["database_dir"]
+        annotations = ref_json.get("annotation", {})
+        genes: set[int] = set()
+        for name in self.RESISTANCE_ANNOTATIONS:
+            if name in annotations:
+                table = self.load_data(database_dir / annotations[name]["filename"])
+                genes.update(int(gene) for gene in table["gene_id"])
+        if not genes:
+            logging.error(
+                "--kr: the catalogue has no resistance annotation (%s)",
+                ", ".join(self.RESISTANCE_ANNOTATIONS),
+            )
+            sys.exit(1)
+        return genes
+
     def _streaming_counter(
         self, header: AlignmentHeader, ref_json: dict
     ) -> tuple[StreamingCounter, Path | None]:
@@ -363,6 +387,8 @@ class Counter(Session):
         strain_genes = None
         if self.keep_filtered_alignments:
             strain_genes = self.get_strain_gene_ids(ref_json)
+            if self.keep_resistance_alignments:
+                strain_genes |= self.get_resistance_gene_ids(ref_json)
             # only the name is used: an open descriptor keeps the deleted file
             # (.nfs* on NFS) and makes removing the temporary directory fail
             handle, name = mkstemp(dir=self.meteor.tmp_dir, suffix=".bam")
@@ -483,6 +509,8 @@ class Counter(Session):
                 "final_mapping_rate": round(100 * counted_reads / total_read_count, 2),
                 "identity_threshold": round(self.identity_threshold, 2),
                 "count_file": count_file.name,
+                # the filtered CRAM also holds the resistance genes (--kr)
+                "resistance_alignments": self.keep_resistance_alignments,
             }
         }
 

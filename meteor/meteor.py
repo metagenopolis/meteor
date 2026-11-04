@@ -27,6 +27,7 @@ from meteor.downloader import Downloader
 from meteor.profiler import Profiler
 from meteor.merging import Merging
 from meteor.strain import Strain
+from meteor.resistance import Resistance
 from meteor.treebuilder import TreeBuilder
 from meteor.strainsharing import StrainSharing
 from tempfile import TemporaryDirectory
@@ -343,6 +344,13 @@ def get_arguments() -> Namespace:  # pragma: no cover
         dest="keep_filtered_alignments",
         action="store_true",
         help="Keep filtered alignments on marker genes. Required for strain analysis.",
+    )
+    mapping_parser.add_argument(
+        "--kr",
+        dest="keep_resistance_alignments",
+        action="store_true",
+        help="Keep filtered alignments on marker genes and on antibiotic resistance genes "
+        "(ResFinder, ResFinderFG, MUSTARD annotations; implies --kf). Required for meteor resistance.",
     )
     mapping_parser.add_argument(
         "--tmp",
@@ -668,6 +676,88 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=num_threads,
         help="Number of threads to perform variant calling (default: %(default)d).",
     )
+    resistance_parser = subparsers.add_parser(
+        "resistance",
+        help="Variants of the antibiotic resistance genes against the catalogue",
+    )
+    resistance_parser.add_argument(
+        "-i",
+        dest="mapped_sample_dir",
+        required=True,
+        type=isinputdir,
+        help="Path to the mapped sample directory (meteor mapping --kr).",
+    )
+    resistance_parser.add_argument(
+        "-r",
+        dest="ref_dir",
+        type=isinputdir,
+        required=True,
+        help="Path to reference directory (Path containing *_reference.json)",
+    )
+    resistance_parser.add_argument(
+        "-o",
+        dest="resistance_dir",
+        type=isdir,
+        required=True,
+        help="Path to output directory.",
+    )
+    resistance_parser.add_argument(
+        "-p",
+        dest="min_depth",
+        default=Resistance.DEFAULT_MIN_DEPTH,
+        type=int,
+        help="Minimum read depth of a covered site (default: >= %(default)d).",
+    )
+    resistance_parser.add_argument(
+        "-a",
+        dest="min_alt_count",
+        default=Resistance.DEFAULT_MIN_ALT_COUNT,
+        type=int,
+        help="Minimum number of reads carrying a variant allele (default: >= %(default)d).",
+    )
+    resistance_parser.add_argument(
+        "-f",
+        dest="min_frequency",
+        default=Resistance.DEFAULT_MIN_FREQUENCY,
+        type=isbounded01,
+        help="Minimum frequency of a minor allele (default: >= %(default).2f).",
+    )
+    resistance_parser.add_argument(
+        "-c",
+        dest="min_gene_coverage",
+        default=Resistance.DEFAULT_MIN_GENE_COVERAGE,
+        type=isbounded01,
+        help="Minimum fraction of a gene covered at the minimum depth for the gene to be "
+        "interpretable, from 0 to 1 (default: >= %(default).1f).",
+    )
+    resistance_parser.add_argument(
+        "-q",
+        dest="base_quality",
+        default=Resistance.DEFAULT_BASE_QUALITY,
+        type=int,
+        help="Minimum base quality of a counted base (default: >= %(default)d).",
+    )
+    resistance_parser.add_argument(
+        "--core_size",
+        dest="core_size",
+        type=int,
+        default=Component.DEFAULT_CORE_SIZE,
+        help="Number of signature genes per species (MSP) used as controls, as at the mapping step "
+        "(default: %(default)d).",
+    )
+    resistance_parser.add_argument(
+        "--tmp",
+        dest="tmp_path",
+        type=isdir,
+        help="Path to the directory where temporary files are stored",
+    )
+    resistance_parser.add_argument(
+        "-t",
+        dest="threads",
+        default=Resistance.DEFAULT_NUM_THREADS,
+        type=num_threads,
+        help="Number of threads (default: %(default)d).",
+    )
     tree_parser = subparsers.add_parser(
         "tree", help="Compute phylogenetical tree from detected strains"
     )
@@ -835,6 +925,7 @@ def main() -> None:  # pragma: no cover
             args.core_size,
             args.keep_all_alignments,
             args.keep_filtered_alignments,
+            args.keep_resistance_alignments,
         )
         counter.execute()
     # Run strain
@@ -857,6 +948,22 @@ def main() -> None:  # pragma: no cover
             args.keep_consensus,
         )
         strain_id.execute()
+    # Variants of the resistance genes
+    elif args.command == "resistance":
+        meteor.mapped_sample_dir = args.mapped_sample_dir
+        meteor.ref_dir = args.ref_dir
+        meteor.tmp_path = args.tmp_path
+        meteor.threads = args.threads
+        meteor.resistance_dir = args.resistance_dir
+        Resistance(
+            meteor,
+            args.min_depth,
+            args.min_alt_count,
+            args.min_frequency,
+            args.min_gene_coverage,
+            args.base_quality,
+            args.core_size,
+        ).execute()
     # Compute trees
     elif args.command == "tree":
         meteor.strain_dir = args.strain_dir
