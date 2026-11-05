@@ -296,6 +296,8 @@ def test_mates_sharing_a_name_are_counted_separately(tmp_path: Path) -> None:
         # b(R1) is split 1/1 on genes 2/3 by unique counts (2: 1, 3: 0);
         # c has no unique evidence: 1/2 per alignment, both on gene 4
         "smart_shared": ({1: 2, 2: 2.0, 3: 0, 4: 1.0}, 5),
+        # as smart_shared, but c (no unique read on its genes) is not counted
+        "strict_shared": ({1: 2, 2: 2.0, 3: 0, 4: 0}, 4),
     }
     for counting_type, (abundance, counted) in expected.items():
         with AlignmentFile(str(toy)) as cram:
@@ -304,6 +306,64 @@ def test_mates_sharing_a_name_are_counted_separately(tmp_path: Path) -> None:
                 streamer.feed(element)
         assert streamer.finish() == abundance, counting_type
         assert streamer.counted_reads == counted, counting_type
+        assert streamer.dropped_reads == (1 if counting_type == "strict_shared" else 0)
+
+
+def test_strict_shared_split_and_drop() -> None:
+    """strict_shared keeps the smart_shared split of the reads reaching a gene
+    with unique reads, and drops the reads reaching only genes without them"""
+    from pysam import AlignmentHeader
+    from ..counter import StreamingCounter
+
+    header = AlignmentHeader.from_dict(
+        {"HD": {"VN": "1.6"}, "SQ": [{"SN": str(g), "LN": 1000} for g in (1, 2, 3, 4)]}
+    )
+    results = {}
+    for counting_type in ("smart_shared", "strict_shared"):
+        streamer = StreamingCounter(header, counting_type, 0.95)
+        streamer.unique_on_gene.update({1: 3, 2: 1, 3: 0, 4: 0})
+        streamer.counted_reads = 4 + 4 + 2
+        streamer.multi.update({(1, 2): 4, (3, 4): 2})
+        results[counting_type] = (streamer.finish(), streamer.counted_reads, streamer.dropped_reads)
+    smart, strict = results["smart_shared"], results["strict_shared"]
+    assert smart[0] == {1: 6.0, 2: 2.0, 3: 1.0, 4: 1.0} and smart[1:] == (10, 0)
+    assert strict[0] == {1: 6.0, 2: 2.0, 3: 0, 4: 0} and strict[1:] == (8, 2)
+    # every counted read is in the abundance
+    assert sum(strict[0].values()) == strict[1]
+
+
+def test_launch_counting_strict_shared(
+    counter_smart_shared: Counter, datadir: Path, tmp_path: Path
+):
+    import dataclasses
+
+    census_json_file = counter_smart_shared.meteor.fastq_dir / "part1_census_stage_1.json"
+    ref_json = counter_smart_shared.read_json(
+        counter_smart_shared.meteor.ref_dir / "mock_reference.json"
+    )
+    tables = {}
+    for counting_type in ("smart_shared", "strict_shared"):
+        counter = dataclasses.replace(counter_smart_shared, counting_type=counting_type)
+        countfile = tmp_path / f"{counting_type}.tsv.xz"
+        counter.launch_counting(
+            datadir / "total_raw.cram", tmp_path / f"{counting_type}.cram", countfile,
+            ref_json, counter.read_json(census_json_file), census_json_file,
+        )
+        census = counter.read_json(census_json_file)["counting"]
+        tables[counting_type] = (pd.read_csv(countfile, sep="\t").set_index("gene_id")["value"], census)
+    smart, smart_census = tables["smart_shared"]
+    strict, strict_census = tables["strict_shared"]
+    assert smart_census["counting_type"] == "smart_shared"
+    assert "dropped_shared_reads" not in smart_census
+    assert strict_census["counting_type"] == "strict_shared"
+    dropped = strict_census["dropped_shared_reads"]
+    assert strict_census["counted_reads"] == smart_census["counted_reads"] - dropped
+    assert strict.sum() == pytest.approx(strict_census["counted_reads"])
+    assert smart.sum() - strict.sum() == pytest.approx(dropped)
+    # a gene without unique read keeps no count; the others keep the smart_shared count
+    assert (strict <= smart + 1e-9).all()
+    changed = strict[(strict - smart).abs() > 1e-9]
+    assert (changed == 0).all()
 
 
 def test_launch_counting_without_filtered_alignments(

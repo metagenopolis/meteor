@@ -313,7 +313,9 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=str,
         default=Counter.DEFAULT_COUNTING_TYPE,
         choices=Counter.COUNTING_TYPES,
-        help="Strategy to calculate raw gene counts (default: %(default)s).",
+        help="Strategy to calculate raw gene counts (default: %(default)s). "
+        "strict_shared: as smart_shared, but the multi-mapped reads reaching only "
+        "genes without unique reads are not counted.",
     )
     mapping_parser.add_argument(
         "--core_size",

@@ -38,6 +38,9 @@ class StreamingCounter:
     counts every kept alignment, "smart_shared" adds to the unique counts each
     multi-mapped read split between its genes in proportion to their unique
     counts (1 / number of alignments when none of them has unique reads).
+    "strict_shared" splits the multi-mapped reads in the same way but drops
+    those reaching only genes without unique reads: a gene is counted only
+    when unique reads support it.
     Only the AlignedSegment of the current read is kept in memory.
 
     Every read is counted on its own (single-end counting). bowtie2 writes the
@@ -105,6 +108,8 @@ class StreamingCounter:
         )
         self.multi: TupleCounter = TupleCounter()
         self.counted_reads = 0
+        # strict_shared: multi-mapped reads reaching only genes without unique reads
+        self.dropped_reads = 0
         # current read: name, best identity, reference ids reaching it and
         # alignments on marker genes reaching it
         self._read: str | None = None
@@ -179,7 +184,7 @@ class StreamingCounter:
         else:
             if self.counting_type == "unique":
                 return
-            if self.counting_type == "smart_shared":
+            if self.counting_type in ("smart_shared", "strict_shared"):
                 self.multi[tuple(gene_of_tid[t] for t in tids)] += 1
         if self.counting_type == "total":
             total_on_gene = self.total_on_gene
@@ -211,10 +216,16 @@ class StreamingCounter:
             return self.total_on_gene
         if self.counting_type == "unique":
             return dict(self.unique_on_gene)
-        return self._smart_shared()
+        abundance = self._smart_shared(strict=self.counting_type == "strict_shared")
+        # the dropped reads are not counted
+        self.counted_reads -= self.dropped_reads
+        return abundance
 
-    def _smart_shared(self) -> dict[int, int | float]:
-        """Abundance of every gene in smart_shared mode.
+    def _smart_shared(self, strict: bool = False) -> dict[int, int | float]:
+        """Abundance of every gene in smart_shared (or strict_shared) mode.
+
+        strict: the multi-mapped reads whose genes have no unique reads are
+        dropped (counted in dropped_reads) instead of being split evenly.
 
         Each read contributes its coefficient once per gene and the contributions
         are added with the built-in sum() (Python >= 3.12 sum() is compensated,
@@ -226,6 +237,9 @@ class StreamingCounter:
         for genes, n_reads in self.multi.items():
             som = sum(unique_on_gene[gene] for gene in genes)
             per_gene: dict[int, float] = {}
+            if som == 0 and strict:
+                self.dropped_reads += n_reads
+                continue
             if som == 0:
                 # 1 / nb of alignments for each alignment (a gene reached
                 # twice by the read gets 2 / nb)
@@ -257,7 +271,7 @@ class StreamingCounter:
 class Counter(Session):
     """Counter session map and count"""
 
-    COUNTING_TYPES: ClassVar[list[str]] = ["total", "smart_shared", "unique"]
+    COUNTING_TYPES: ClassVar[list[str]] = ["total", "smart_shared", "strict_shared", "unique"]
     DEFAULT_COUNTING_TYPE: ClassVar[str] = "smart_shared"
     NO_IDENTITY_THRESHOLD: ClassVar[float] = 0.0
     DEFAULT_IDENTITY_THRESHOLD_COMPLETE: ClassVar[float] = 0.95
@@ -398,7 +412,7 @@ class Counter(Session):
         logging.info("Count table written in %f seconds", perf_counter() - start)
         total_read_count = stage1_json_data["mapping"]["total_read_count"]
         config = self.set_counter_config(
-            total_read_count, streamer.counted_reads, count_file
+            total_read_count, streamer.counted_reads, count_file, streamer.dropped_reads
         )
         stage1_json_data.update(config)
         self.save_config(stage1_json_data, stage1_json)
@@ -470,21 +484,30 @@ class Counter(Session):
         )
         logging.info("Completed count table writing in %f seconds", perf_counter() - start)
 
-    def set_counter_config(self, total_read_count: int, counted_reads: float, count_file: Path) -> dict:
+    def set_counter_config(
+        self,
+        total_read_count: int,
+        counted_reads: float,
+        count_file: Path,
+        dropped_reads: int = 0,
+    ) -> dict:
         """Save in the json essential info
         :param total_read_count: (int) Number of reads mapped on the catalogue
         :param counted_read: (float) Number of reads counted after filtering
         :param count_file: (Path) Count file
+        :param dropped_reads: (int) strict_shared: multi-mapped reads dropped
         :return: (Dict) dictionnary data
         """
-        return {
-            "counting": {
-                "counted_reads": counted_reads,
-                "final_mapping_rate": round(100 * counted_reads / total_read_count, 2),
-                "identity_threshold": round(self.identity_threshold, 2),
-                "count_file": count_file.name,
-            }
+        counting = {
+            "counting_type": self.counting_type,
+            "counted_reads": counted_reads,
+            "final_mapping_rate": round(100 * counted_reads / total_read_count, 2),
+            "identity_threshold": round(self.identity_threshold, 2),
+            "count_file": count_file.name,
         }
+        if self.counting_type == "strict_shared":
+            counting["dropped_shared_reads"] = dropped_reads
+        return {"counting": counting}
 
     def write_stat(
         self, output: Path, abundance: dict[int, int | float], database: dict[int, int]
