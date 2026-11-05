@@ -17,6 +17,7 @@ from ..phylogeny import Phylogeny
 import pytest
 from pathlib import Path
 import pickle
+import numpy as np
 import pandas as pd
 
 @pytest.fixture
@@ -220,6 +221,53 @@ def test_execute(phylogeny_builder: Phylogeny):
     # assert result.exists()
     matrix = phylogeny_builder.meteor.tree_dir / "msp_0864.tsv"
     assert matrix.exists()
+    # distances of the model before UPGMA: those of the comparison table
+    raw = pd.read_csv(
+        phylogeny_builder.meteor.tree_dir / "msp_0864_raw_distances.tsv", sep="\t", index_col=0
+    )
+    assert list(raw.index) == list(raw.columns)
+    assert np.allclose(raw.to_numpy(), raw.to_numpy().T)
+    assert (np.diag(raw.to_numpy()) == 0).all()
+    table = pd.read_csv(phylogeny_builder.meteor.tree_dir / "msp_0864_comparison.tsv", sep="\t")
+    expected = [raw.loc[a, b] for a, b in zip(table["sample1"], table["sample2"])]
+    assert table["distance"].tolist() == pytest.approx(expected, rel=1e-5)
+
+
+@pytest.mark.parametrize("gtr", [True, False], ids=["GTR", "TN93"])
+def test_write_distance_matrix_by_name(phylogeny_builder: Phylogeny, tmp_path: Path, gtr: bool):
+    """The raw matrix is in the order of the alignment, each distance read by name"""
+    import random
+    from cogent3 import make_aligned_seqs
+    from cogent3.evolve.distance import EstimateDistances
+    from cogent3.evolve.models import GTR
+
+    rng = random.Random(0)
+    base = [rng.choice("ACGT") for _ in range(600)]
+    sequences = {}
+    for name, rate in (("s3", 0.12), ("s1", 0.02), ("s4", 0.05), ("s2", 0.08)):
+        sequences[name] = "".join(c if rng.random() > rate else rng.choice("ACGT") for c in base)
+    aligned = make_aligned_seqs(sequences, moltype="dna")
+    if gtr:
+        estimate = EstimateDistances(aligned, submodel=GTR())
+        estimate.run(show_progress=False)
+        dists = estimate.get_pairwise_distances()
+    else:
+        dists = phylogeny_builder.tn93_distance_matrix(aligned)
+    output = tmp_path / "raw.tsv"
+    phylogeny_builder._write_distance_matrix_to_tsv(dists, list(aligned.names), output)
+    raw = pd.read_csv(output, sep="\t", index_col=0)
+    assert list(raw.index) == ["s3", "s1", "s4", "s2"] == list(raw.columns)
+    for a in raw.index:
+        for b in raw.columns:
+            expected = 0.0 if a == b else dists[a, b]
+            assert raw.loc[a, b] == pytest.approx(expected, rel=1e-5), (a, b)
+
+
+def test_write_distance_matrix_single_sample(phylogeny_builder: Phylogeny, tmp_path: Path):
+    output = tmp_path / "raw.tsv"
+    phylogeny_builder._write_distance_matrix_to_tsv(None, ["s1"], output)
+    raw = pd.read_csv(output, sep="\t", index_col=0)
+    assert raw.shape == (1, 1) and raw.loc["s1", "s1"] == 0
 
 
 def test_comparison_table_matches_per_pair_loops(phylogeny_builder: Phylogeny, tmp_path: Path):
