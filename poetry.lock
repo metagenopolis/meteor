@@ -408,6 +408,18 @@ more-itertools = ">=2.6"
 docs = ["furo", "jaraco.packaging (>=3.2)", "python-dateutil", "sphinx (>=1.8.2)", "sphinx-tabs (>=1.1.0)", "sphinxcontrib-apidoc (>=0.3.0)"]
 
 [[package]]
+name = "citeable"
+version = "2026.10.15"
+description = "Structured BibTeX citations for developers of scientific software packages."
+optional = false
+python-versions = ">=3.11"
+groups = ["main", "test"]
+files = [
+    {file = "citeable-2026.10.15-py3-none-any.whl", hash = "sha256:1ccb768dafca63e016d24eead65b2dc8f09b4b8b4aba24f3b2ed28115b3fffb7"},
+    {file = "citeable-2026.10.15.tar.gz", hash = "sha256:9199aad9b9a6a89c3ffbbf9c0f496c2a740ccc7a655cd219f8132dc5b324d0e2"},
+]
+
+[[package]]
 name = "click"
 version = "8.3.0"
 description = "Composable command line interface toolkit"
@@ -436,37 +448,34 @@ files = [
 
 [[package]]
 name = "cogent3"
-version = "2025.9.8a11"
+version = "2026.11.5"
 description = "COmparative GENomics Toolkit 3: genomic sequence analysis within notebooks or on compute systems with 1000s of CPUs."
 optional = false
-python-versions = "<3.15,>=3.11"
+python-versions = "<3.16,>=3.11"
 groups = ["main", "test"]
 files = [
-    {file = "cogent3-2025.9.8a11-py3-none-any.whl", hash = "sha256:67d77599b15eb1a7e2d2c4ab9a0a8bf851ff3cfa3983f5043f8d6cce4e498db8"},
-    {file = "cogent3-2025.9.8a11.tar.gz", hash = "sha256:32ed6bb17d2f8292ff825157b98699104c982b73c191d44e5177440a6faa4987"},
+    {file = "cogent3-2026.11.5-py3-none-any.whl", hash = "sha256:cfff5fc537189a3fbbd794bcfbe13baf7f2bd9523e6985917c5695fe02f04e73"},
+    {file = "cogent3-2026.11.5.tar.gz", hash = "sha256:b45c70ce1c201ade9c61904afd81669681bb02a239b6e5a869468b91af094ed7"},
 ]
 
 [package.dependencies]
-charset_normalizer = "*"
-loky = "!=3.5.0"
+charset-normalizer = "*"
+citeable = "*"
 numba = [
-    {version = ">=0.57.0", markers = "python_version == \"3.11\""},
-    {version = ">=0.59.0", markers = "python_version == \"3.12\""},
-    {version = ">=0.61.0", markers = "python_version == \"3.13\""},
+    {version = ">=0.57.0", markers = "python_full_version == \"3.11.*\""},
+    {version = ">=0.59.0", markers = "python_full_version == \"3.12.*\""},
+    {version = ">=0.61.0", markers = "python_full_version == \"3.13.*\""},
 ]
-numpy = "*"
+numpy = "<2.6"
+scinexus = {version = ">=2026.10.2", extras = ["loky"]}
 scipy = "*"
-scitrack = "*"
 stevedore = "*"
 tqdm = "*"
-typing_extensions = "*"
+typeguard = ">=4.0,<5"
+typing-extensions = "*"
 
 [package.extras]
-dev = ["cogent3[doc]", "cogent3[test]", "cogent3[typing]", "flit", "nox", "numpydoc", "scriv", "types-tqdm"]
-doc = ["click", "cogent3-h5seqs (>=0.7.2)", "cogent3[extra]", "iplotx (>=0.6.8)", "jupyter-sphinx", "jupyter_client", "jupytext", "nbconvert (>5.4)", "nbformat", "nbsphinx", "numpydoc", "piqtree (>=0.6) ; python_version >= \"3.11\" and python_version < \"3.14\"", "pydata_sphinx_theme", "sphinx", "sphinx-autobuild", "sphinx_design", "sphinxcontrib-bibtex", "sphinxcontrib-video"]
-extra = ["ipykernel", "ipython", "ipywidgets", "jupyterlab", "kaleido", "notebook", "pandas", "pillow", "plotly", "plotly-stubs", "psutil"]
-test = ["cogent3-h5seqs (>=0.7.2)", "kaleido", "nox", "pandas", "piqtree (>=0.6) ; python_version >= \"3.11\" and python_version < \"3.14\"", "plotly", "plotly-stubs", "psutil", "pytest", "pytest-cov", "pytest-xdist", "ruff (==0.14.7)"]
-typing = ["mypy (==1.19.0)", "plotly-stubs"]
+extra = ["ipykernel", "ipython", "ipywidgets", "jupyterlab", "kaleido", "notebook", "pandas", "pillow", "plotly", "psutil"]
 
 [[package]]
 name = "colorama"
@@ -1235,7 +1244,7 @@ files = [
 astroid = ">=3.3.8,<=3.4.0.dev0"
 colorama = {version = ">=0.4.5", markers = "sys_platform == \"win32\""}
 dill = [
-    {version = ">=0.3.6", markers = "python_version == \"3.11\""},
+    {version = ">=0.3.6", markers = "python_version >= \"3.11\""},
     {version = ">=0.3.7", markers = "python_version >= \"3.12\""},
 ]
 isort = ">=4.2.5,<5.13 || >5.13,<7"
@@ -1407,6 +1416,31 @@ urllib3 = ">=1.21.1,<3"
 [package.extras]
 socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
+
+[[package]]
+name = "scinexus"
+version = "2026.10.26"
+description = "A composable app infrastructure for scientific computing"
+optional = false
+python-versions = ">=3.11"
+groups = ["main", "test"]
+files = [
+    {file = "scinexus-2026.10.26-py3-none-any.whl", hash = "sha256:ef18f560af443e9c2a54f414585c78f20f413f47b52c70aa7b298f9d23cd3947"},
+    {file = "scinexus-2026.10.26.tar.gz", hash = "sha256:2672a588d65806364d82dcca4975c0cc0be5f54a94801416efe78998ae1f17a6"},
+]
+
+[package.dependencies]
+charset-normalizer = "*"
+citeable = "*"
+loky = {version = "*", optional = true, markers = "extra == \"loky\""}
+scitrack = "*"
+tqdm = "*"
+typeguard = "*"
+
+[package.extras]
+loky = ["loky"]
+mpi = ["mpi4py"]
+rich = ["rich"]
 
 [[package]]
 name = "scipy"
@@ -1582,6 +1616,21 @@ files = [
 dev = ["check-manifest"]
 
 [[package]]
+name = "typeguard"
+version = "4.6.0"
+description = "Run-time type checker for Python"
+optional = false
+python-versions = ">=3.10"
+groups = ["main", "test"]
+files = [
+    {file = "typeguard-4.6.0-py3-none-any.whl", hash = "sha256:79878165bb86f2cf5d41d159a0ff1792a796cf496882d2fe1b1c6c7049b9cdd7"},
+    {file = "typeguard-4.6.0.tar.gz", hash = "sha256:e7414f09111317de3e335de92cd397c5c0ca00b1cc1676de12e1d444a79b3f21"},
+]
+
+[package.dependencies]
+typing_extensions = ">=4.14.0"
+
+[[package]]
 name = "types-pytz"
 version = "2025.2.0.20250809"
 description = "Typing stubs for pytz"
@@ -1650,4 +1699,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.14"
-content-hash = "8aff71bfa82e865552b32f5f02e7ec812d0ae38c7582d16a3a51311c47f8674a"
+content-hash = "74093a07959377b08ea8d82303ffcc202e17fcb278a3734017e83cd3a960fec4"
