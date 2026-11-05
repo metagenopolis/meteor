@@ -284,7 +284,7 @@ The options of every command are also listed by `meteor <command> -h`.
 | `-p MAPPING_TYPE` | Strategy to map reads against the catalogue. Choices: `end-to-end`, `local`. | `end-to-end` |
 | `--trim TRIM` | Trim reads exceeding TRIM bases before mapping. If 0, no trim. | `80` |
 | `--align ALIGNMENT_NUMBER` | Maximum number alignments to report for each read. | `100` |
-| `-c COUNTING_TYPE` | Strategy to calculate raw gene counts. Choices: `total`, `smart_shared`, `unique`. | `smart_shared` |
+| `-c COUNTING_TYPE` | Strategy to calculate raw gene counts. Choices: `total`, `smart_shared`, `strict_shared`, `unique`. `smart_shared` splits each multi-mapped read between its genes in proportion to their unique reads (evenly when none has unique reads); `strict_shared` does the same but does not count the multi-mapped reads reaching only genes without unique reads. | `smart_shared` |
 | `--core_size CORE_SIZE` | Number of signature genes per species (MSP) used to estimate their respective abundance. | `100` |
 | `--id IDENTITY_THRESHOLD` | Keep only the read alignments with a nucleotide identity >= IDENTITY_THRESHOLD. If 0.0, no filtering. | auto: `0.95` (complete catalogue), `0.98` (taxonomic catalogue) |
 | `--ka` | Keep raw bowtie2 output in cram format. Required for calculating gene counts with another strategy. | off |
