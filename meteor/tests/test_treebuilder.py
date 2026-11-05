@@ -91,6 +91,8 @@ def test_execute_sample_list(datadir: Path, tmp_path: Path, caplog):
     assert _samples(tree_dir / "msp_0864.fasta") == ["D15B1", "D15B3"]
     assert "D15B2" not in (tree_dir / "msp_0864.tree").read_text()
     assert "D15B1" in (tree_dir / "msp_0864.tree").read_text()
+    raw = tree_dir / "msp_0864_raw_distances.tsv"
+    assert sorted(raw.read_text().splitlines()[0].split("\t")[1:]) == ["D15B1", "D15B3"]
     # every sample: the concatenated fasta and the tree outputs are recomputed
     (tree_dir / "msp_0864_qcflags.tsv").write_text("stale\n")
     _treebuilder(strain_dir, tree_dir, tmp_path, None).execute()
@@ -98,6 +100,7 @@ def test_execute_sample_list(datadir: Path, tmp_path: Path, caplog):
     assert _samples(tree_dir / "msp_0864.fasta") == ["D15B1", "D15B2", "D15B3"]
     assert "D15B2" in (tree_dir / "msp_0864.tree").read_text()
     assert not (tree_dir / "msp_0864_qcflags.tsv").exists()
+    assert sorted(raw.read_text().splitlines()[0].split("\t")[1:]) == ["D15B1", "D15B2", "D15B3"]
     # same samples: the fasta and the tree are reused
     caplog.clear()
     outputs = [tree_dir / name for name in ("msp_0864.fasta", "msp_0864.tree", "msp_0864.tsv")]

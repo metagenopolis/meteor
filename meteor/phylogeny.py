@@ -538,30 +538,23 @@ class Phylogeny(Session):
                     'noIUPAC_info_pc_sample2', 'distance', 'distance_category']
             pd.DataFrame(columns=columns).to_csv(output_file, sep='\t', index=False)
             logging.info(f"Empty pairwise comparison table saved to {output_file}")
-    # def _write_distance_matrix_to_tsv(self, dists, dist_file: Path):
-    #     """Write distance matrix to TSV file."""        
-    #     # Get sequence names
-    #     seq_names = list(dists.names)
-        
-    #     # Convert distance matrix to DataFrame
-    #     dist_data = []
-    #     for i, name1 in enumerate(seq_names):
-    #         row = []
-    #         for j, name2 in enumerate(seq_names):
-    #             if hasattr(dists, 'get_distance'):
-    #                 # For cogent3 distance matrices
-    #                 distance = dists.get_distance(name1, name2)
-    #             else:
-    #                 # For numpy-like matrices
-    #                 distance = dists[i, j]
-    #             row.append(distance)
-    #         dist_data.append(row)
-        
-    #     # Create DataFrame and save to TSV
-    #     df = pd.DataFrame(dist_data, index=seq_names, columns=seq_names)
-    #     df.to_csv(dist_file, sep='\t')
-        
-    #     logging.info(f"Distance matrix saved to {dist_file}")
+    def _write_distance_matrix_to_tsv(self, dists, names: list[str], dist_file: Path) -> None:
+        """Square matrix of the pairwise distances of the model (GTR or TN93), as
+        computed before UPGMA, in the order of the alignment. Distances are read by
+        name: cogent3 sorts the names of the GTR distances.
+
+        :param dists: Distance matrix from cogent3
+        :param names: Names of the aligned sequences
+        :param dist_file: Output TSV file
+        """
+        size = len(names)
+        matrix = np.zeros((size, size), dtype=float)
+        first, second = np.triu_indices(size, k=1)
+        if len(first):
+            distance = self._pair_distances(dists, names, first, second)
+            matrix[first, second] = distance
+            matrix[second, first] = distance
+        pd.DataFrame(matrix, index=names, columns=names).to_csv(dist_file, sep="\t")
 
     def process_msp_file(
         self, msp_file: Path, idx: int, msp_count: int, tree_dir, tmp_dir
@@ -574,14 +567,15 @@ class Phylogeny(Session):
             msp_file.name.replace(".fasta", ""),
         )
         dist_file = tree_dir / f"{msp_file.stem}.tsv"
+        raw_dist_file = tree_dir / f"{msp_file.stem}_raw_distances.tsv"
         tree_file = tree_dir / f"{msp_file.stem}.tree"
         comparison_file = tree_dir / f"{msp_file.stem}_comparison.tsv"
         # Check if tree file already exists and is not empty
         if tree_file.exists() and tree_file.stat().st_size > 0:
             # Also check the distance and comparison files
-            if (
-                dist_file.exists() and dist_file.stat().st_size > 0
-                and comparison_file.exists() and comparison_file.stat().st_size > 0
+            if all(
+                output.exists() and output.stat().st_size > 0
+                for output in (dist_file, raw_dist_file, comparison_file)
             ):
                 logging.info(
                     "%d/%d %s: Tree file already exists, skipping computation",
@@ -594,7 +588,8 @@ class Phylogeny(Session):
                 return tree_file, True
             else:
                 logging.warning(
-                    "%d/%d %s: Tree file exists but distance or comparison file is missing, reprocessing",
+                    "%d/%d %s: Tree file exists but a distance or comparison file is missing, "
+                    "reprocessing",
                     idx,
                     msp_count,
                     msp_file.name.replace(".fasta", ""),
@@ -654,8 +649,8 @@ class Phylogeny(Session):
                 dists = self.tn93_distance_matrix(aligned_seqs)
                 mycluster = upgma(dists)
 
-            # Save distance matrix
-            # self._write_distance_matrix_to_tsv(dists, dist_file)
+            # Distances of the model, before UPGMA
+            self._write_distance_matrix_to_tsv(dists, list(aligned_seqs.names), raw_dist_file)
 
             mycluster = mycluster.unrooted_deepcopy()
             # Get distance matrix and tip order

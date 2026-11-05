@@ -58,7 +58,8 @@ class TreeBuilder(Session):
     min_pairs: int = StrainSharing.DEFAULT_MIN_PAIRS
     # Outputs of an MSP tree, removed when its samples change
     TREE_OUTPUTS: ClassVar[list[str]] = [
-        ".tree", ".tsv", "_comparison.tsv", "_qcflags.tsv", "_shrink.tsv",
+        ".tree", ".tsv", "_raw_distances.tsv", "_comparison.tsv", "_qcflags.tsv",
+        "_shrink.tsv",
     ]
 
     def __post_init__(self) -> None:

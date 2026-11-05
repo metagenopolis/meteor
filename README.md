@@ -194,7 +194,8 @@ meteor tree -i <straindir> -o <treedir>
 `-l <samples.txt>` builds the trees with only the samples of the list (same format as for `meteor merge`). When the output directory already holds the tree of an MSP computed from other samples, it is recomputed.
 
 This profiling step will generate:
-- a mutation rate matrix;
+- a mutation rate matrix, `<msp>.tsv`: the tip-to-tip distances of the UPGMA tree;
+- the distances of the model (GTR, or TN93 with `-r`) before UPGMA, `<msp>_raw_distances.tsv`: a square matrix of the samples, in the order of the alignment;
 - a fasta file of each strain for each sample;
 - a table giving detailed comparison per strain. The file is a tab-separated values (TSV) file with one row per sample pair. Each row contains the following columns:
 
