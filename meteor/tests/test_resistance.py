@@ -144,46 +144,75 @@ def _catalogue(
     return genes
 
 
+MARKER_GENES = {2, 3, 5}  # core genes of M1 and M2
+RESISTANCE_GENES = {1, 3, 4}  # resfinder, mustard and kegg (gyrA) annotations
+
+
 def _mapped_sample(
-    root: Path, genes: dict[int, str], variants: dict, kr: bool = True, mapped: tuple = (1, 2, 3, 4)
+    root: Path,
+    genes: dict[int, str],
+    variants: dict,
+    kr: bool = True,
+    mapped: tuple = (1, 2, 3, 4),
+    split: bool = True,
 ) -> Path:
-    """CRAM of 100 bp reads every 2 bp on genes 1-4 (depth 50); variants:
-    {(gene, pos): (base, every)} gives `base` to one read out of `every`"""
+    """CRAMs of 100 bp reads every 2 bp on genes 1-4 (depth 50); variants:
+    {(gene, pos): (base, every)} gives `base` to one read out of `every`.
+
+    split: as meteor mapping --kr, S1.cram holds the alignments on the marker
+    genes and S1_resistance.cram those on the resistance genes (gene 3 in both);
+    otherwise S1.cram holds every alignment and the census no resistance file.
+    """
     sample = root / "mapping" / "S1"
     sample.mkdir(parents=True)
     header = pysam.AlignmentHeader.from_dict(
         {"HD": {"VN": "1.6", "SO": "coordinate"},
          "SQ": [{"SN": str(g), "LN": LENGTH} for g in genes]}
     )
-    bam = sample / "S1.bam"
-    with pysam.AlignmentFile(str(bam), "wb", header=header) as out:
-        n = 0
-        for gene in mapped:
-            for start in range(0, LENGTH - 100 + 1, 2):
-                seq = list(genes[gene][start : start + 100])
-                for (vgene, pos), (base, every) in variants.items():
-                    if vgene == gene and start <= pos < start + 100 and n % every == 0:
-                        seq[pos - start] = base
-                read = pysam.AlignedSegment(header)
-                read.query_name = f"r{n}"
-                read.reference_id = gene - 1
-                read.reference_start = start
-                read.cigarstring = "100M"
-                read.query_sequence = "".join(seq)
-                read.query_qualities = pysam.qualitystring_to_array("I" * 100)
-                read.mapping_quality = 1 if gene == 4 else 42
-                out.write(read)
-                n += 1
+    files = {"S1": MARKER_GENES, "S1_resistance": RESISTANCE_GENES} if split else {
+        "S1": set(genes)
+    }
+    outputs = {
+        name: pysam.AlignmentFile(str(sample / f"{name}.bam"), "wb", header=header)
+        for name in files
+    }
+    n = 0
+    for gene in mapped:
+        for start in range(0, LENGTH - 100 + 1, 2):
+            seq = list(genes[gene][start : start + 100])
+            for (vgene, pos), (base, every) in variants.items():
+                if vgene == gene and start <= pos < start + 100 and n % every == 0:
+                    seq[pos - start] = base
+            read = pysam.AlignedSegment(header)
+            read.query_name = f"r{n}"
+            read.reference_id = gene - 1
+            read.reference_start = start
+            read.cigarstring = "100M"
+            read.query_sequence = "".join(seq)
+            read.query_qualities = pysam.qualitystring_to_array("I" * 100)
+            read.mapping_quality = 1 if gene == 4 else 42
+            for name, kept in files.items():
+                if gene in kept:
+                    outputs[name].write(read)
+            n += 1
+    for out in outputs.values():
+        out.close()
     reference = root / "catalogue" / "fasta" / "cat.fasta"
-    pysam.view("-C", "-T", str(reference), "-o", str(sample / "S1.cram"), str(bam), catch_stdout=False)
-    pysam.index(str(sample / "S1.cram"))
-    bam.unlink()
+    for name in files:
+        bam = sample / f"{name}.bam"
+        cram = sample / f"{name}.cram"
+        pysam.view("-C", "-T", str(reference), "-o", str(cram), str(bam), catch_stdout=False)
+        pysam.index(str(cram))
+        bam.unlink()
+    counting = {"resistance_alignments": kr}
+    if split and kr:
+        counting["resistance_file"] = "S1_resistance.cram"
     (sample / "S1_census_stage_1.json").write_text(
         json.dumps(
             {
                 "sample_info": {"sample_name": "S1"},
                 "mapping": {"reference_name": "cat"},
-                "counting": {"resistance_alignments": kr},
+                "counting": counting,
             }
         )
     )
@@ -326,6 +355,52 @@ def test_execute(resistance, tmp_path: Path, threads: int) -> None:
     assert census["resistance"]["annotations"] == ["resfinder", "mustard", "kegg"]
 
 
+def test_execute_single_cram_layout(tmp_path: Path) -> None:
+    """Resistance genes in <sample>.cram (no resistance file in the census): same
+    table as with <sample>_resistance.cram"""
+    tables = []
+    for split in (True, False):
+        root = tmp_path / ("split" if split else "single")
+        analysis, genes = _analysis(root / "catalogue")
+        variants = {(1, 150): (_switch(genes, 1, 150), 1), (2, 200): (_switch(genes, 2, 200), 1)}
+        analysis.meteor.mapped_sample_dir = _mapped_sample(root, genes, variants, split=split)
+        analysis.execute()
+        tables.append(pd.read_table(root / "resistance" / "S1" / "S1_resistance.tsv"))
+    pd.testing.assert_frame_equal(tables[0], tables[1])
+
+
+def test_streaming_counter_resistance_file(tmp_path: Path) -> None:
+    """--kr: each alignment goes to the file of its gene, to both for a gene that
+    is a marker gene and a resistance gene; headers list only their genes"""
+    from ..counter import StreamingCounter
+
+    header = pysam.AlignmentHeader.from_dict(
+        {"HD": {"VN": "1.6"}, "SQ": [{"SN": str(g), "LN": 1000} for g in (1, 2, 3, 4)]}
+    )
+    streamer = StreamingCounter(
+        header, "smart_shared", 0.95,
+        tmp_path / "markers.bam", {2, 3},
+        tmp_path / "resistance.bam", {1, 3},
+    )
+    for k, gene in enumerate((1, 2, 3, 4)):
+        aln = pysam.AlignedSegment(header)
+        aln.query_name = f"r{k}"
+        aln.reference_name = str(gene)
+        aln.reference_start = 10
+        aln.cigarstring = "100M"
+        aln.query_sequence = "A" * 100
+        aln.set_tag("NM", 0)
+        streamer.feed(aln)
+    streamer.finish()
+    streamer.strain_out.close()
+    streamer.resistance_out.close()
+    for name, expected in (("markers", ["2", "3"]), ("resistance", ["1", "3"])):
+        with pysam.AlignmentFile(str(tmp_path / f"{name}.bam")) as bam:
+            assert list(bam.references) == expected
+            assert [read.reference_name for read in bam] == expected
+    assert streamer.counted_reads == 4
+
+
 def test_execute_without_kr(resistance, tmp_path: Path) -> None:
     analysis, genes = resistance
     analysis.meteor.mapped_sample_dir = _mapped_sample(tmp_path, genes, {}, kr=False)
@@ -400,12 +475,17 @@ def test_mapping_kr(counter_kr: Counter, monkeypatch) -> None:
     counter_kr.execute()
     census = json.loads((sample_dir / "part1_census_stage_1.json").read_text())
     assert census["counting"]["resistance_alignments"] is True
-    with pysam.AlignmentFile(
-        str(sample_dir / "part1.cram"), "rc", reference_filename=str(reference)
-    ) as cram:
-        genes = {int(read.reference_name) for read in cram}
-    assert set(resistance_genes) <= genes
-    assert genes <= markers | set(resistance_genes)
+    assert census["counting"]["resistance_file"] == "part1_resistance.cram"
+    assert (sample_dir / "part1_resistance.cram.crai").exists()
+    found = {}
+    for name in ("part1.cram", "part1_resistance.cram"):
+        with pysam.AlignmentFile(
+            str(sample_dir / name), "rc", reference_filename=str(reference)
+        ) as cram:
+            found[name] = {int(read.reference_name) for read in cram}
+    # part1.cram is the --kf CRAM: marker genes only
+    assert found["part1.cram"] and found["part1.cram"] <= markers
+    assert found["part1_resistance.cram"] == set(resistance_genes)
 
 
 def test_mapping_kr_no_annotation(counter_kr: Counter) -> None:

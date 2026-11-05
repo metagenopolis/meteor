@@ -369,7 +369,11 @@ class Resistance(Session):
                 sample,
             )
             sys.exit(1)
+        # alignments on the marker genes (controls) and on the resistance genes
         cram = self.meteor.mapped_sample_dir / f"{sample}.cram"
+        resistance_cram = self.meteor.mapped_sample_dir / census["counting"].get(
+            "resistance_file", cram.name
+        )
         reference = (
             self.meteor.ref_dir
             / ref_json["reference_file"]["fasta_dir"]
@@ -387,20 +391,34 @@ class Resistance(Session):
         )
         carrying = {name for names in msp_of_gene for name in names.split(";")}
         controls = markers[markers["msp_name"].isin(carrying)]
-        targets = set(resistance["gene_id"]) | set(controls["gene_id"])
+        resistance_ids = set(resistance["gene_id"])
         helper = VariantCalling(self.meteor, {}, 0, 0, 0, 0.0, 1, self.core_size)
-        bam, header_genes = helper.write_marker_alignments(
-            cram, reference, targets, self.meteor.tmp_dir
-        )
-        fasta = helper.write_marker_reference(reference, header_genes, self.meteor.tmp_dir)
-        with AlignmentFile(str(bam), "rb") as alignments:
-            genes = [
-                (name, length)
-                for name, length in zip(alignments.references, alignments.lengths)
-                if int(name) in targets
-            ]
-        logging.info("Variants of %d genes (resistance genes and controls)", len(genes))
-        stats = self.add_rates(self.gene_stats(bam, fasta, genes))
+        # a resistance gene that is also a marker gene is read once, from the
+        # resistance alignments
+        parts = []
+        for source, targets in (
+            (resistance_cram, resistance_ids),
+            (cram, set(controls["gene_id"]) - resistance_ids),
+        ):
+            if not targets:
+                continue
+            bam, header_genes = helper.write_marker_alignments(
+                source, reference, targets, self.meteor.tmp_dir
+            )
+            fasta = helper.write_marker_reference(reference, header_genes, self.meteor.tmp_dir)
+            with AlignmentFile(str(bam), "rb") as alignments:
+                genes = [
+                    (name, length)
+                    for name, length in zip(alignments.references, alignments.lengths)
+                    if int(name) in targets
+                ]
+            logging.info("Variants of %d genes of %s", len(genes), source.name)
+            if genes:
+                parts.append(self.gene_stats(bam, fasta, genes))
+        if not parts:
+            logging.error("%s: no alignment on the resistance genes or their controls", sample)
+            sys.exit(1)
+        stats = self.add_rates(pd.concat(parts, ignore_index=True))
         # controls: interpretable marker genes of the MSPs carrying the gene
         # (without the gene itself: gyrA is often a marker gene)
         sums = ["covered_bp", "major_snv", "minor_snv"]

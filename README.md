@@ -254,7 +254,7 @@ The tree and the distance matrix are not modified. The test is implemented in me
 ### 6. Variants of the antibiotic resistance genes (experimental)
 -------------------------
 
-`meteor resistance` counts the single nucleotide variants of the antibiotic resistance genes of a sample against the catalogue genes, with the marker genes of the same species as controls. The resistance genes are the catalogue genes annotated by ResFinder, ResFinderFG or MUSTARD (acquired genes), and the genes of the KEGG orthologs of gyrA (K02469), gyrB (K02470), parC (K02621) and parE (K02622), the targets of quinolones, resistant by point mutations. The sample must be mapped with `--kr`, which keeps the filtered alignments on the resistance genes in addition to those on the marker genes (`--kr` implies `--kf`):
+`meteor resistance` counts the single nucleotide variants of the antibiotic resistance genes of a sample against the catalogue genes, with the marker genes of the same species as controls. The resistance genes are the catalogue genes annotated by ResFinder, ResFinderFG or MUSTARD (acquired genes), and the genes of the KEGG orthologs of gyrA (K02469), gyrB (K02470), parC (K02621) and parE (K02622), the targets of quinolones, resistant by point mutations. The sample must be mapped with `--kr`, which writes the filtered alignments on the resistance genes to `<sample>_resistance.cram`, next to `<sample>.cram`, the alignments on the marker genes used as controls (`--kr` implies `--kf`; `<sample>.cram` is the same as with `--kf` alone):
 ```
 meteor mapping -i <fastqdir/sampledir> -o <mappingdir> -r <refdir> --kr
 meteor resistance -i <mappingdir/sampledir> -o <resistancedir> -r <refdir>
@@ -319,7 +319,7 @@ The options of every command are also listed by `meteor <command> -h`.
 | `--id IDENTITY_THRESHOLD` | Keep only the read alignments with a nucleotide identity >= IDENTITY_THRESHOLD. If 0.0, no filtering. | auto: `0.95` (complete catalogue), `0.98` (taxonomic catalogue) |
 | `--ka` | Keep raw bowtie2 output in cram format. Required for calculating gene counts with another strategy. | off |
 | `--kf` | Keep filtered alignments on marker genes. Required for strain analysis. | off |
-| `--kr` | Keep filtered alignments on marker genes and on antibiotic resistance genes (ResFinder, ResFinderFG, MUSTARD annotations, and gyrA, gyrB, parC, parE from the KEGG annotation; implies `--kf`). Required for meteor resistance. | off |
+| `--kr` | Keep filtered alignments on antibiotic resistance genes (ResFinder, ResFinderFG, MUSTARD annotations, and gyrA, gyrB, parC, parE from the KEGG annotation) in `<sample>_resistance.cram`; implies `--kf`. Required for meteor resistance. | off |
 | `--tmp TMP_PATH` | Directory where temporary files (e.g. cram) are stored | none |
 | `-t THREADS` | Number of alignment threads to launch. | `1` |
 

@@ -349,9 +349,10 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "--kr",
         dest="keep_resistance_alignments",
         action="store_true",
-        help="Keep filtered alignments on marker genes and on antibiotic resistance genes "
-        "(ResFinder, ResFinderFG, MUSTARD annotations, and gyrA, gyrB, parC, parE from the KEGG "
-        "annotation; implies --kf). Required for meteor resistance.",
+        help="Keep filtered alignments on antibiotic resistance genes (ResFinder, "
+        "ResFinderFG, MUSTARD annotations, and gyrA, gyrB, parC, parE from the KEGG "
+        "annotation) in <sample>_resistance.cram; implies --kf. "
+        "Required for meteor resistance.",
     )
     mapping_parser.add_argument(
         "--tmp",
