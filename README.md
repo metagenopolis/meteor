@@ -255,6 +255,11 @@ The tree and the distance matrix are not modified. The test is implemented in me
 ### 6. Variants of the antibiotic resistance genes (experimental)
 -------------------------
 
+This mode is dedicated to the **variants** (single nucleotide variants) of the antibiotic resistance genes, not to their presence or abundance:
+- the **abundance** of the resistance genes (the resistome) is given by the standard workflow, in the `mustard`, `resfinder` and `resfinderfg` tables of `meteor merge`, with no extra option;
+- `meteor resistance` tells, for each resistance gene with reads, how much the gene of the sample **differs from the catalogue gene** (major variants), how **polymorphic** it is in the sample (minor variants), whether these variants change the protein, and how this compares with the marker genes of the same species;
+- it does **not** call resistance mutations: the catalogue gene is a cluster representative, not a susceptible reference, so a variant is a difference, not a known resistance mutation.
+
 `meteor resistance` counts the single nucleotide variants of the antibiotic resistance genes of a sample against the catalogue genes, with the marker genes of the same species as controls. The resistance genes are the catalogue genes annotated by ResFinder, ResFinderFG or MUSTARD (acquired genes), and the genes of the KEGG orthologs of gyrA (K02469), gyrB (K02470), parC (K02621) and parE (K02622), the targets of quinolones, resistant by point mutations. The sample must be mapped with `--kr`, which writes the filtered alignments on the resistance genes to `<sample>_resistance.cram`, next to `<sample>.cram`, the alignments on the marker genes used as controls (`--kr` implies `--kf`; `<sample>.cram` is the same as with `--kf` alone):
 ```
 meteor mapping -i <fastqdir/sampledir> -o <mappingdir> -r <refdir> --kr
@@ -278,8 +283,8 @@ A variant is synonymous or not by comparing the two alleles in the codon of the 
 | `major_snv`, `major_syn`, `major_nonsyn`, `minor_snv`, `minor_syn`, `minor_nonsyn` | Variants |
 | `syn_sites`, `nonsyn_sites` | Synonymous and non-synonymous sites of the covered codons |
 | `major_per_kb`, `minor_per_kb` | Variants per kb covered |
-| `major_dnds`, `minor_pnps` | (non-synonymous / non-synonymous sites) / (synonymous / synonymous sites) — a pN/pS-style ratio, not a model-based dN/dS — against the catalogue (major) and within the sample (minor) |
-| `control_genes`, `control_covered_bp`, `control_major_per_kb`, `control_minor_per_kb` | The same rates on the interpretable marker genes (`--core_size`) of the MSPs of the gene, without the gene itself; the controls of a target gene hold the other target genes of its MSP |
+| `major_dnds`, `minor_pnps` | (non-synonymous variants / non-synonymous sites) / (synonymous variants / synonymous sites), against the catalogue (major) and within the sample (minor); a simple count ratio, not a model-based dN/dS; `NA` without synonymous variant |
+| `control_genes`, `control_covered_bp`, `control_major_per_kb`, `control_minor_per_kb` | The same rates on the interpretable marker genes (`--core_size`) of the MSPs of the gene, without the gene itself; the controls of a target gene hold the other target genes of its MSP. A gene of no MSP (often a mobile gene) has no controls |
 
 The catalogue gene is the representative of a gene cluster, not a susceptible reference: a variant against the catalogue is not a resistance mutation. Close homologues share their reads (`multimapped_fraction`), and reads diverging from a gene by more than the mapping identity threshold are not aligned on it.
 
@@ -292,7 +297,7 @@ Every sample must have been analysed against the same catalogue with the same pa
 - `<prefix>_resistance.tsv`: the tables of every sample, one row per sample and gene with reads (`sample` column first);
 - `<prefix>_resistance_major_per_kb.tsv`, `<prefix>_resistance_minor_per_kb.tsv`: gene x sample matrices of the variants per kb covered, `NA` where the gene is not interpretable;
 - `<prefix>_resistance_interpretable.tsv`: gene x sample matrix, 1 where the gene is interpretable;
-- `<prefix>_resistance_genes.tsv`: one row per gene, with its annotations and MSPs, the number of samples where it has reads (`samples_with_reads`) and where it is interpretable (`samples_interpretable`, `interpretable_fraction`), the medians of its rates and of the rates of its controls over the samples where it is interpretable (`median_major_per_kb`, `median_control_major_per_kb`...), and the fraction of these samples (with controls) where it has more variants than its controls (`major_above_controls_fraction`, `minor_above_controls_fraction`);
+- `<prefix>_resistance_genes.tsv`: one row per gene, with its annotations and MSPs, the number of samples where it has reads (`samples_with_reads`) and where it is interpretable (`samples_interpretable`; `interpretable_fraction` divides it by the number of merged samples), the medians of its rates and of the rates of its controls over the samples where it is interpretable (`median_major_per_kb`, `median_minor_per_kb`, `median_control_major_per_kb`, `median_control_minor_per_kb`), the number of these samples where it has controls (`samples_with_controls`), and the fraction of them where its rate is strictly higher than that of its controls (`major_above_controls_fraction`, `minor_above_controls_fraction`);
 - `<prefix>_resistance_census.json`: the catalogue, the parameters and the numbers of samples and genes.
 
 The genes are the catalogue genes (`gene_id`), as in the tables of `meteor merge`.
