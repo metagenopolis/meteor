@@ -53,9 +53,8 @@ class TreeBuilder(Session):
     format: str | None
     tshrink: bool = False
     sample_file: Path | None = None
-    groups_file: Path | None = None
+    individuals_file: Path | None = None
     min_overlap: float = StrainSharing.DEFAULT_MIN_OVERLAP
-    min_pairs: int = StrainSharing.DEFAULT_MIN_PAIRS
     # Outputs of an MSP tree, removed when its samples change
     TREE_OUTPUTS: ClassVar[list[str]] = [
         ".tree", ".tsv", "_raw_distances.tsv", "_comparison.tsv", "_qcflags.tsv",
@@ -241,7 +240,7 @@ class TreeBuilder(Session):
             for tree_file in phylogeny_process.tree_files
         }
         StrainSharing(
-            self.meteor.tree_dir, self.groups_file, self.min_overlap, self.min_pairs
+            self.meteor.tree_dir, self.individuals_file, self.min_overlap
         ).execute(
             {msp: path for msp, path in comparison_files.items() if path.exists()}
         )

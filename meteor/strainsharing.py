@@ -24,110 +24,93 @@ import pandas as pd
 
 @dataclass
 class StrainSharing:
-    """Strain-sharing events, sharing rate of each sample pair and of each MSP.
+    """Strain-sharing events, sharing rate of each sample pair and
+    transmissibility of each MSP.
 
     Two samples are compared on an MSP when the sites informative in both
     cover at least min_overlap % of the alignment. They share its strain when
-    their distance is at most the threshold of the MSP: the
-    THRESHOLD_PERCENTILE-th percentile of the distances between samples of
-    different groups (unrelated samples) when a group file gives enough of
-    them, as StrainPhlAn's strain identity thresholds (Valles-Colomer et al.,
-    Nature 2023), otherwise FIXED_THRESHOLD.
+    their distance is at most THRESHOLD. The transmissibility of an MSP is the
+    fraction of the compared pairs of samples of different individuals that
+    share its strain: two samples of the same individual (time points) are not
+    a transmission.
     """
 
     DEFAULT_MIN_OVERLAP: ClassVar[float] = 10.0
-    DEFAULT_MIN_PAIRS: ClassVar[int] = 10
-    THRESHOLD_PERCENTILE: ClassVar[float] = 3.0
-    # unrelated pairs needed to set the threshold of an MSP from their distances
-    MIN_CALIBRATION_PAIRS: ClassVar[int] = 50
-    # same_strain limit of the comparison tables
-    FIXED_THRESHOLD: ClassVar[float] = 0.0001
+    # strain identity threshold of every MSP (same_strain of the comparison tables)
+    THRESHOLD: ClassVar[float] = 0.0001
     # partial counts are summed every REDUCE_PAIRS pairs (bounded memory)
     REDUCE_PAIRS: ClassVar[int] = 5_000_000
     EVENTS_FILE: ClassVar[str] = "strain_sharing_events.tsv"
     SAMPLES_FILE: ClassVar[str] = "strain_sharing_samples.tsv"
     MSP_FILE: ClassVar[str] = "strain_sharing_msp.tsv"
+    SAME: ClassVar[str] = "same_individual"
+    DIFFERENT: ClassVar[str] = "different_individuals"
 
     output_dir: Path
-    groups_file: Path | None = None
+    individuals_file: Path | None = None
     min_overlap: float = DEFAULT_MIN_OVERLAP
-    min_pairs: int = DEFAULT_MIN_PAIRS
-    groups: dict[str, str] = field(default_factory=dict, init=False)
+    individuals: dict[str, str] = field(default_factory=dict, init=False)
 
     def __post_init__(self) -> None:
-        if self.groups_file is not None:
-            self.groups = self.read_groups(self.groups_file)
+        if self.individuals_file is not None:
+            self.individuals = self.read_individuals(self.individuals_file)
 
     @staticmethod
-    def read_groups(groups_file: Path) -> dict[str, str]:
-        """{sample: group} from a two-column tab-separated file (sample, group).
+    def read_individuals(individuals_file: Path) -> dict[str, str]:
+        """{sample: individual} from a two-column tab-separated file (sample, individual).
 
         Empty lines and lines starting with # are ignored; a header line is
         harmless (its "sample" matches no sample).
         """
-        groups: dict[str, str] = {}
-        with groups_file.open(encoding="utf-8") as lines:
+        individuals: dict[str, str] = {}
+        with individuals_file.open(encoding="utf-8") as lines:
             for number, line in enumerate(lines, start=1):
                 fields = [value.strip() for value in line.rstrip("\r\n").split("\t")]
                 if not fields[0] or fields[0].startswith("#"):
                     continue
                 if len(fields) < 2 or not fields[1]:
                     logging.error(
-                        "Line %d of %s: expected a sample and its group separated by a tab.",
+                        "Line %d of %s: expected a sample and its individual separated by a tab.",
                         number,
-                        groups_file,
+                        individuals_file,
                     )
                     sys.exit(1)
-                sample, group = fields[0], fields[1]
-                if groups.get(sample, group) != group:
+                sample, individual = fields[0], fields[1]
+                if individuals.get(sample, individual) != individual:
                     logging.error(
-                        "Sample %s has two groups in %s: %s and %s.",
+                        "Sample %s has two individuals in %s: %s and %s.",
                         sample,
-                        groups_file,
-                        groups[sample],
-                        group,
+                        individuals_file,
+                        individuals[sample],
+                        individual,
                     )
                     sys.exit(1)
-                groups[sample] = group
-        if not groups:
-            logging.error("No sample and group found in %s.", groups_file)
+                individuals[sample] = individual
+        if not individuals:
+            logging.error("No sample and individual found in %s.", individuals_file)
             sys.exit(1)
-        return groups
+        return individuals
 
     def relation(self, sample1: pd.Series, sample2: pd.Series) -> np.ndarray:
-        """related (same group), unrelated (different groups) or unknown"""
-        if not self.groups:
-            return np.full(len(sample1), "unknown", dtype=object)
-        group1 = sample1.map(self.groups)
-        group2 = sample2.map(self.groups)
-        known = group1.notna().to_numpy() & group2.notna().to_numpy()
-        same = (group1.to_numpy() == group2.to_numpy()) & known
-        return np.where(same, "related", np.where(known, "unrelated", "unknown")).astype(object)
+        """same_individual or different_individuals; a sample missing from the
+        individual file is an individual of its own"""
+        individual1 = sample1.map(self.individuals).fillna(sample1).to_numpy()
+        individual2 = sample2.map(self.individuals).fillna(sample2).to_numpy()
+        return np.where(individual1 == individual2, self.SAME, self.DIFFERENT).astype(object)
 
-    def threshold(self, distance: np.ndarray, relation: np.ndarray) -> tuple[float, str]:
-        """Strain identity threshold of an MSP and how it was set"""
-        unrelated = distance[relation == "unrelated"]
-        if len(unrelated) >= self.MIN_CALIBRATION_PAIRS:
-            return (
-                float(np.percentile(unrelated, self.THRESHOLD_PERCENTILE)),
-                f"unrelated_p{self.THRESHOLD_PERCENTILE:g}",
-            )
-        return self.FIXED_THRESHOLD, "fixed"
-
-    def rate(self, shared: int, compared: int) -> float:
-        """Sharing rate of an MSP, NaN under min_pairs compared pairs"""
-        return shared / compared if compared >= self.min_pairs else np.nan
+    @staticmethod
+    def rate(shared: int, compared: int) -> float:
+        """shared / compared, NaN when nothing is compared"""
+        return shared / compared if compared else np.nan
 
     def execute(self, comparison_files: dict[str, Path]) -> None:
         """Write the events, sample pair and MSP tables.
 
         :param comparison_files: {msp name: <msp>_comparison.tsv}
         """
-        if self.groups_file is None:
-            logging.warning(
-                "No group file (--groups): strain sharing uses the fixed threshold "
-                "%g and no transmissibility is computed.",
-                self.FIXED_THRESHOLD,
+        if self.individuals_file is None:
+            logging.info(
+                "No individual file (--ind): every sample is a distinct individual."
             )
         codes: dict[str, int] = {}
         pair_counts: pd.DataFrame | None = None
@@ -152,24 +135,24 @@ class StrainSharing:
                 ]
                 relation = self.relation(table["sample1"], table["sample2"])
                 distance = table["distance"].to_numpy(dtype=float)
-                threshold, source = self.threshold(distance, relation)
-                shared = distance <= threshold
-                row: dict[str, object] = {
-                    "msp_name": msp_name,
-                    "threshold": threshold,
-                    "threshold_source": source,
-                    "pairs_compared": len(table),
-                    "pairs_shared": int(shared.sum()),
-                }
-                for name in ("related", "unrelated"):
-                    in_relation = relation == name
-                    row[f"{name}_compared"] = int(in_relation.sum())
-                    row[f"{name}_shared"] = int((shared & in_relation).sum())
-                msp_rows.append(row)
+                shared = distance <= self.THRESHOLD
+                different = relation == self.DIFFERENT
+                msp_rows.append(
+                    {
+                        "msp_name": msp_name,
+                        "threshold": self.THRESHOLD,
+                        "n_sample_pairs": int(different.sum()),
+                        "n_shared_pairs": int((shared & different).sum()),
+                        "n_same_individual_pairs": int((~different).sum()),
+                        "n_same_individual_shared": int((shared & ~different).sum()),
+                    }
+                )
                 if not len(table):
                     continue
                 # events
-                event_table = table.loc[shared].assign(relation=relation[shared], threshold=threshold)
+                event_table = table.loc[shared].assign(
+                    relation=relation[shared], threshold=self.THRESHOLD
+                )
                 event_table.insert(0, "msp_name", msp_name)
                 event_table[
                     ["msp_name", "sample1", "sample2", "relation", "distance",
@@ -208,7 +191,7 @@ class StrainSharing:
         return pair_counts.add(counts, fill_value=0).astype(np.int64)
 
     def _write_samples(self, pair_counts: pd.DataFrame | None, codes: dict[str, int]) -> None:
-        columns = ["sample1", "sample2", "relation", "msp_compared", "msp_shared", "sharing_rate"]
+        columns = ["sample1", "sample2", "relation", "sharing_rate", "n_msp", "n_msp_shared"]
         if pair_counts is None:
             pd.DataFrame(columns=columns).to_csv(
                 self.output_dir / self.SAMPLES_FILE, sep="\t", index=False
@@ -227,11 +210,11 @@ class StrainSharing:
                 "sample1": sample1,
                 "sample2": sample2,
                 "relation": self.relation(sample1, sample2),
-                "msp_compared": pair_counts["compared"].to_numpy(),
-                "msp_shared": pair_counts["shared"].to_numpy(),
+                "n_msp": pair_counts["compared"].to_numpy(),
+                "n_msp_shared": pair_counts["shared"].to_numpy(),
             }
         )
-        samples["sharing_rate"] = samples["msp_shared"] / samples["msp_compared"]
+        samples["sharing_rate"] = samples["n_msp_shared"] / samples["n_msp"]
         samples.sort_values(["sample1", "sample2"]).to_csv(
             self.output_dir / self.SAMPLES_FILE, sep="\t", index=False, columns=columns
         )
@@ -240,27 +223,19 @@ class StrainSharing:
         msp = pd.DataFrame(
             msp_rows,
             columns=[
-                "msp_name", "threshold", "threshold_source", "pairs_compared", "pairs_shared",
-                "related_compared", "related_shared", "unrelated_compared", "unrelated_shared",
+                "msp_name", "threshold", "n_sample_pairs", "n_shared_pairs",
+                "n_same_individual_pairs", "n_same_individual_shared",
             ],
         )
-        msp["sharing_rate"] = [
-            self.rate(s, c) for s, c in zip(msp["pairs_shared"], msp["pairs_compared"])
-        ]
         msp["transmissibility"] = [
-            self.rate(s, c) for s, c in zip(msp["related_shared"], msp["related_compared"])
-        ]
-        msp["unrelated_sharing_rate"] = [
-            self.rate(s, c) for s, c in zip(msp["unrelated_shared"], msp["unrelated_compared"])
+            self.rate(s, c) for s, c in zip(msp["n_shared_pairs"], msp["n_sample_pairs"])
         ]
         msp.to_csv(
             self.output_dir / self.MSP_FILE,
             sep="\t",
             index=False,
             columns=[
-                "msp_name", "threshold", "threshold_source",
-                "pairs_compared", "pairs_shared", "sharing_rate",
-                "related_compared", "related_shared", "transmissibility",
-                "unrelated_compared", "unrelated_shared", "unrelated_sharing_rate",
+                "msp_name", "threshold", "transmissibility", "n_sample_pairs", "n_shared_pairs",
+                "n_same_individual_pairs", "n_same_individual_shared",
             ],
         )

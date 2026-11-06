@@ -12,6 +12,7 @@
 
 """Test strain sharing"""
 
+import logging
 from itertools import combinations
 from pathlib import Path
 
@@ -38,16 +39,18 @@ def _read(output_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
 @pytest.fixture
 def cohort(tmp_path: Path) -> tuple[dict[str, Path], Path]:
-    """12 samples in 6 pairs of related samples (s0-s1, s2-s3, ...).
+    """12 samples of 6 individuals (s0-s1, s2-s3, ...: two time points each).
 
-    msp_a: related pairs at 0, unrelated pairs at 0.01 + 0.0001 * k
-    msp_b: 3 pairs only, one below the fixed threshold, one with a low overlap
+    msp_a: pairs of the same individual at 0, the others at 0.01 + 0.0001 * k
+    except s0-s2 and s0-s3 at 0 (transmission between two individuals)
+    msp_b: 3 pairs only, one below the threshold, one with a low overlap
     """
     samples = [f"s{i}" for i in range(12)]
     rows = []
     for k, (first, second) in enumerate(combinations(samples, 2)):
-        related = int(first[1:]) // 2 == int(second[1:]) // 2
-        rows.append((first, second, 80.0, 0.0 if related else 0.01 + 0.0001 * k))
+        same = int(first[1:]) // 2 == int(second[1:]) // 2
+        transmission = (first, second) in {("s0", "s2"), ("s0", "s3")}
+        rows.append((first, second, 80.0, 0.0 if same or transmission else 0.01 + 0.0001 * k))
     files = {
         "msp_a": _comparison(tmp_path / "msp_a_comparison.tsv", rows),
         "msp_b": _comparison(
@@ -56,90 +59,91 @@ def cohort(tmp_path: Path) -> tuple[dict[str, Path], Path]:
         ),
         "msp_c": _comparison(tmp_path / "msp_c_comparison.tsv", []),
     }
-    groups = tmp_path / "groups.tsv"
-    groups.write_text("sample\tgroup\n# comment\n\n" + "".join(f"s{i}\tfam{i // 2}\r\n" for i in range(12)))
-    return files, groups
+    individuals = tmp_path / "individuals.tsv"
+    individuals.write_text(
+        "sample\tindividual\n# comment\n\n" + "".join(f"s{i}\tind{i // 2}\r\n" for i in range(12))
+    )
+    return files, individuals
 
 
-def test_strain_sharing_groups(cohort, tmp_path: Path) -> None:
-    files, groups = cohort
+def test_strain_sharing_individuals(cohort, tmp_path: Path) -> None:
+    files, individuals = cohort
     output_dir = tmp_path / "out"
     output_dir.mkdir()
-    StrainSharing(output_dir, groups).execute(files)
+    StrainSharing(output_dir, individuals).execute(files)
     events, samples, msp = _read(output_dir)
     msp = msp.set_index("msp_name")
-    # msp_a: 6 related + 60 unrelated pairs; threshold = 3rd percentile of the unrelated
-    unrelated = [0.01 + 0.0001 * k for k, (a, b) in enumerate(combinations(range(12), 2)) if a // 2 != b // 2]
-    assert msp.loc["msp_a", "threshold"] == pytest.approx(np.percentile(unrelated, 3))
-    assert msp.loc["msp_a", "threshold_source"] == "unrelated_p3"
-    assert msp.loc["msp_a", ["pairs_compared", "related_compared", "unrelated_compared"]].tolist() == [66, 6, 60]
-    assert msp.loc["msp_a", "related_shared"] == 6
-    assert np.isnan(msp.loc["msp_a", "transmissibility"])  # 6 related pairs < min_pairs
-    assert msp.loc["msp_a", "unrelated_shared"] == int(np.sum(np.array(unrelated) <= np.percentile(unrelated, 3)))
-    assert msp.loc["msp_a", "unrelated_sharing_rate"] == pytest.approx(msp.loc["msp_a", "unrelated_shared"] / 60)
-    # msp_b: too few unrelated pairs for a percentile, low-overlap pair not compared
-    assert msp.loc["msp_b", "threshold"] == StrainSharing.FIXED_THRESHOLD
-    assert msp.loc["msp_b", "threshold_source"] == "fixed"
-    assert msp.loc["msp_b", ["pairs_compared", "pairs_shared"]].tolist() == [2, 1]
-    assert np.isnan(msp.loc["msp_b", "sharing_rate"])
+    assert (msp["threshold"] == StrainSharing.THRESHOLD).all()
+    # msp_a: 60 pairs of different individuals, 2 of them share (s0-s2, s0-s3);
+    # the 6 pairs of the same individual share but are no transmission
+    assert msp.loc["msp_a", ["n_sample_pairs", "n_shared_pairs"]].tolist() == [60, 2]
+    assert msp.loc["msp_a", "transmissibility"] == pytest.approx(2 / 60)
+    assert msp.loc["msp_a", ["n_same_individual_pairs", "n_same_individual_shared"]].tolist() == [6, 6]
+    # msp_b: low-overlap pair not compared; s0-s1 is the same individual; s1-s2
+    # differ: transmissibility computed on 1 pair, however few
+    assert msp.loc["msp_b", ["n_sample_pairs", "n_shared_pairs"]].tolist() == [1, 0]
+    assert msp.loc["msp_b", "transmissibility"] == 0
+    assert msp.loc["msp_b", ["n_same_individual_pairs", "n_same_individual_shared"]].tolist() == [1, 1]
     # empty comparison table
-    assert msp.loc["msp_c", "pairs_compared"] == 0
-    # events = shared pairs, with their relation
-    assert len(events) == msp["pairs_shared"].sum()
-    assert set(events.loc[events["msp_name"] == "msp_b", "sample2"]) == {"s1"}
-    assert set(events.loc[events["relation"] == "related", "sample1"]) == {"s0", "s2", "s4", "s6", "s8", "s10"}
+    assert msp.loc["msp_c", "n_sample_pairs"] == 0 and np.isnan(msp.loc["msp_c", "transmissibility"])
+    # events = every shared pair, with its relation
+    assert len(events) == 6 + 2 + 1
+    assert set(events.loc[events["relation"] == "different_individuals", "sample2"]) == {"s2", "s3"}
+    assert (events.loc[events["msp_name"] == "msp_b", "relation"] == "same_individual").all()
     # sample pairs: one row per compared pair, counts summed over MSPs
     pairs = samples.set_index(["sample1", "sample2"])
     assert len(samples) == 66
-    assert pairs.loc[("s0", "s1"), ["relation", "msp_compared", "msp_shared"]].tolist() == ["related", 2, 2]
-    assert pairs.loc[("s1", "s2"), ["relation", "msp_compared", "msp_shared"]].tolist() == ["unrelated", 2, 0]
-    assert pairs.loc[("s0", "s2"), "msp_compared"] == 1
-    assert samples["sharing_rate"].tolist() == pytest.approx((samples["msp_shared"] / samples["msp_compared"]).tolist())
-    assert samples["msp_compared"].sum() == msp["pairs_compared"].sum()
+    assert list(samples.columns) == ["sample1", "sample2", "relation", "sharing_rate", "n_msp", "n_msp_shared"]
+    assert pairs.loc[("s0", "s1"), ["relation", "n_msp", "n_msp_shared"]].tolist() == ["same_individual", 2, 2]
+    assert pairs.loc[("s1", "s2"), ["relation", "n_msp", "n_msp_shared"]].tolist() == ["different_individuals", 2, 0]
+    assert pairs.loc[("s0", "s2"), ["n_msp", "n_msp_shared", "sharing_rate"]].tolist() == [1, 1, 1.0]
+    assert samples["sharing_rate"].tolist() == pytest.approx((samples["n_msp_shared"] / samples["n_msp"]).tolist())
+    assert samples["n_msp"].sum() == (msp["n_sample_pairs"] + msp["n_same_individual_pairs"]).sum()
 
 
-def test_strain_sharing_transmissibility(tmp_path: Path) -> None:
-    """related pairs >= min_pairs: transmissibility; samples given in either order"""
-    rows = [(f"b{i}", f"a{i}", 50.0, 0.0 if i < 8 else 0.5) for i in range(12)]
-    rows += [(f"a{i}", f"a{j}", 50.0, 0.1 + i * 0.01 + j * 0.001) for i, j in combinations(range(12), 2)]
+def test_strain_sharing_mother_infant(tmp_path: Path) -> None:
+    """mother and infant are different individuals: their shared strains are
+    transmissions; samples given in either order"""
+    rows = [(f"infant{i}", f"mother{i}", 50.0, 0.0 if i < 8 else 0.5) for i in range(12)]
+    rows += [(f"mother{i}", f"mother{j}", 50.0, 0.1 + i * 0.01 + j * 0.001) for i, j in combinations(range(12), 2)]
     files = {"msp_a": _comparison(tmp_path / "msp_a_comparison.tsv", rows)}
-    groups = tmp_path / "groups.tsv"
-    groups.write_text("".join(f"a{i}\tfam{i}\nb{i}\tfam{i}\n" for i in range(12)))
-    StrainSharing(tmp_path, groups, min_pairs=10).execute(files)
+    individuals = tmp_path / "individuals.tsv"
+    individuals.write_text("".join(f"mother{i}\tM{i}\ninfant{i}\tI{i}\n" for i in range(12)))
+    StrainSharing(tmp_path, individuals).execute(files)
     _, samples, msp = _read(tmp_path)
-    assert msp.loc[0, "related_compared"] == 12
-    assert msp.loc[0, "transmissibility"] == pytest.approx(8 / 12)
-    assert msp.loc[0, "unrelated_shared"] == 0 or msp.loc[0, "unrelated_sharing_rate"] < 0.05
-    assert ("a0", "b0") in set(zip(samples["sample1"], samples["sample2"]))
+    assert msp.loc[0, "n_sample_pairs"] == 12 + 66
+    assert msp.loc[0, "n_shared_pairs"] == 8
+    assert msp.loc[0, "transmissibility"] == pytest.approx(8 / 78)
+    assert msp.loc[0, "n_same_individual_pairs"] == 0
+    assert ("infant0", "mother0") in set(zip(samples["sample1"], samples["sample2"]))
     assert (samples["sample1"] < samples["sample2"]).all()
 
 
-def test_strain_sharing_without_groups(cohort, tmp_path: Path, caplog) -> None:
+def test_strain_sharing_without_individuals(cohort, tmp_path: Path, caplog) -> None:
+    caplog.set_level(logging.INFO)
     files, _ = cohort
     output_dir = tmp_path / "out"
     output_dir.mkdir()
-    StrainSharing(output_dir, None, min_overlap=1.0, min_pairs=2).execute(files)
-    assert "No group file" in caplog.text
+    StrainSharing(output_dir, None, min_overlap=1.0).execute(files)
+    assert "No individual file" in caplog.text
     _, samples, msp = _read(output_dir)
     msp = msp.set_index("msp_name")
-    assert (msp["threshold_source"] == "fixed").all()
-    assert (samples["relation"] == "unknown").all()
-    assert msp["related_compared"].sum() == 0
-    assert msp["transmissibility"].isna().all()
+    assert (samples["relation"] == "different_individuals").all()
+    assert msp["n_same_individual_pairs"].sum() == 0
     # min_overlap 1: the 5 % pair of msp_b is compared and shared
-    assert msp.loc["msp_b", ["pairs_compared", "pairs_shared"]].tolist() == [3, 2]
-    assert msp.loc["msp_b", "sharing_rate"] == pytest.approx(2 / 3)
-    assert msp.loc["msp_a", "pairs_shared"] == 6
+    assert msp.loc["msp_b", ["n_sample_pairs", "n_shared_pairs"]].tolist() == [3, 2]
+    assert msp.loc["msp_b", "transmissibility"] == pytest.approx(2 / 3)
+    assert msp.loc["msp_a", ["n_sample_pairs", "n_shared_pairs"]].tolist() == [66, 8]
 
 
 def test_strain_sharing_reduce(cohort, tmp_path: Path, monkeypatch) -> None:
     """Partial pair counts summed in several steps give the same table"""
-    files, groups = cohort
+    files, individuals = cohort
     for name, reduce_pairs in (("once", 10**9), ("often", 1)):
         output_dir = tmp_path / name
         output_dir.mkdir()
         monkeypatch.setattr(StrainSharing, "REDUCE_PAIRS", reduce_pairs)
-        StrainSharing(output_dir, groups).execute(files)
+        StrainSharing(output_dir, individuals).execute(files)
     once, often = (
         (tmp_path / name / StrainSharing.SAMPLES_FILE).read_text() for name in ("once", "often")
     )
@@ -150,15 +154,15 @@ def test_strain_sharing_no_comparison(tmp_path: Path) -> None:
     StrainSharing(tmp_path).execute({})
     events, samples, msp = _read(tmp_path)
     assert events.empty and samples.empty and msp.empty
-    assert list(samples.columns) == ["sample1", "sample2", "relation", "msp_compared", "msp_shared", "sharing_rate"]
+    assert list(samples.columns) == ["sample1", "sample2", "relation", "sharing_rate", "n_msp", "n_msp_shared"]
 
 
 @pytest.mark.parametrize(
     "content",
-    ["s1\n", "s1\tfam1\ns1\tfam2\n", "# only a comment\n"],
+    ["s1\n", "s1\tind1\ns1\tind2\n", "# only a comment\n"],
 )
-def test_read_groups_errors(tmp_path: Path, content: str) -> None:
-    groups = tmp_path / "groups.tsv"
-    groups.write_text(content)
+def test_read_individuals_errors(tmp_path: Path, content: str) -> None:
+    individuals = tmp_path / "individuals.tsv"
+    individuals.write_text(content)
     with pytest.raises(SystemExit):
-        StrainSharing.read_groups(groups)
+        StrainSharing.read_individuals(individuals)
