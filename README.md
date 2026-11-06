@@ -196,7 +196,8 @@ meteor tree -i <straindir> -o <treedir>
 `-l <samples.txt>` builds the trees with only the samples of the list (same format as for `meteor merge`). When the output directory already holds the tree of an MSP computed from other samples, it is recomputed.
 
 This profiling step will generate:
-- a mutation rate matrix;
+- a mutation rate matrix, `<msp>.tsv`: the tip-to-tip distances of the UPGMA tree;
+- the distances of the model (GTR, or TN93 with `-r`) before UPGMA, `<msp>_raw_distances.tsv`: a square matrix of the samples, in the order of the alignment;
 - a fasta file of each strain for each sample;
 - a table giving detailed comparison per strain. The file is a tab-separated values (TSV) file with one row per sample pair. Each row contains the following columns:
 
@@ -238,16 +239,14 @@ Samples sitting on abnormally long branches of a strain tree (rogue taxa) inflat
 At the end of `meteor tree`, the comparison tables of all MSPs are gathered into three tables:
 
 - `strain_sharing_events.tsv`: one row per strain-sharing event, i.e. a sample pair sharing the strain of an MSP (`msp_name`, `sample1`, `sample2`, `relation`, `distance`, `overlap_noN_info_pc`, `threshold`);
-- `strain_sharing_samples.tsv`: one row per sample pair, with the number of MSPs compared (`msp_compared`), shared (`msp_shared`) and the strain-sharing rate (`sharing_rate` = shared / compared);
-- `strain_sharing_msp.tsv`: one row per MSP, with its threshold and, over all pairs, the related pairs and the unrelated pairs, the number of pairs compared and shared and their rate (`sharing_rate`, `transmissibility`, `unrelated_sharing_rate`).
+- `strain_sharing_samples.tsv`: one row per sample pair, with its strain-sharing rate (`sharing_rate`: fraction of the MSPs compared between the two samples whose strain they share) and the numbers it is computed on (`n_msp` compared, `n_msp_shared`);
+- `strain_sharing_msp.tsv`: one row per MSP, with its `transmissibility` (fraction of the compared pairs of samples of different individuals that share its strain) and the numbers it is computed on (`n_sample_pairs`, `n_shared_pairs`), and the pairs of samples of the same individual (`n_same_individual_pairs`, `n_same_individual_shared`).
 
-Two samples are compared on an MSP when the sites informative in both cover at least `--min_overlap` % of the alignment (default 10). They share its strain when their distance is at most the threshold of the MSP.
+Every rate is given with the number of pairs or MSPs it is computed on, however small: filter on these numbers rather than on the rate alone.
 
-With `--groups <groups.tsv>`, a tab-separated file giving the group of each sample (household, mother-infant pair, subject followed over time...), samples of the same group are related and samples of different groups unrelated:
-- the threshold of each MSP is the 3rd percentile of the distances between unrelated samples (at least 50 of them), as the strain identity thresholds of StrainPhlAn (Valles-Colomer et al., Nature 2023); otherwise it is 0.0001 (`threshold_source` = `fixed`);
-- `transmissibility` is the sharing rate of the related pairs, to compare with `unrelated_sharing_rate`, the background of the MSP.
+Two samples are compared on an MSP when the sites informative (not N) in both cover at least `--min_overlap` % of its alignment (default 10): a pair overlapping on a few sites only is neither compared nor shared. They share its strain when their distance is at most 0.0001 (99.99 % identity, the `same_strain` category of the comparison tables), the same threshold for every MSP.
 
-Without `--groups`, every threshold is 0.0001 and no transmissibility is computed. Rates of an MSP are given from `--min_pairs` compared pairs (default 10).
+`--ind <individuals.tsv>`, a tab-separated file giving the individual of each sample (sample, individual), marks the pairs of samples of the same individual (time points of a subject): they are listed (`relation` = `same_individual`) but left out of the transmissibility, since sharing a strain with oneself is not a transmission. Samples of different individuals (`different_individuals`), mother and infant included, count. Without `--ind`, every sample is a distinct individual.
 
 A tree directory computed in GTR by meteor 2.0.22 or earlier has wrong distances in its comparison tables (issue #133): `meteor tree` recomputes them when it runs again in that directory.
 
@@ -343,7 +342,7 @@ The options of every command are also listed by `meteor <command> -h`.
 | `-p MAPPING_TYPE` | Strategy to map reads against the catalogue. Choices: `end-to-end`, `local`. | `end-to-end` |
 | `--trim TRIM` | Trim reads exceeding TRIM bases before mapping. If 0, no trim. | `80` |
 | `--align ALIGNMENT_NUMBER` | Maximum number alignments to report for each read. | `100` |
-| `-c COUNTING_TYPE` | Strategy to calculate raw gene counts. Choices: `total`, `smart_shared`, `unique`. | `smart_shared` |
+| `-c COUNTING_TYPE` | Strategy to calculate raw gene counts. Choices: `total`, `smart_shared`, `strict_shared`, `unique`. `smart_shared` splits each multi-mapped read between its genes in proportion to their unique reads (evenly when none has unique reads); `strict_shared` does the same but does not count the multi-mapped reads reaching only genes without unique reads. | `smart_shared` |
 | `--core_size CORE_SIZE` | Number of signature genes per species (MSP) used to estimate their respective abundance. | `100` |
 | `--id IDENTITY_THRESHOLD` | Keep only the read alignments with a nucleotide identity >= IDENTITY_THRESHOLD. If 0.0, no filtering. | auto: `0.95` (complete catalogue), `0.98` (taxonomic catalogue) |
 | `--ka` | Keep raw bowtie2 output in cram format. Required for calculating gene counts with another strategy. | off |
@@ -446,9 +445,8 @@ The options of every command are also listed by `meteor <command> -h`.
 | `-r` | Compute distances with the TN93 model (faster) instead of GTR. | GTR |
 | `--treeshrink` | Flag the samples on abnormally long branches of each strain tree (per-gene test of TreeShrink): writes <msp>_qcflags.tsv and <msp>_shrink.tsv. | off |
 | `-l SAMPLE_FILE` | Build the trees with only the samples of this file: one sample name per line (first column if tab-separated; empty lines and lines starting with # ignored). | none |
-| `--groups GROUPS_FILE` | Tab-separated file of the group of each sample (sample, group), e.g. household, mother-infant pair or subject. Samples of the same group are related: strain identity thresholds are set from the unrelated pairs and the transmissibility of each MSP from the related pairs. | none |
-| `--min_overlap MIN_OVERLAP` | Compare two samples on an MSP when the sites informative in both cover at least this % of its alignment. | `10.0` |
-| `--min_pairs MIN_PAIRS` | Minimum number of compared sample pairs to report the sharing rate and transmissibility of an MSP. | `10` |
+| `--ind INDIVIDUALS_FILE` | Tab-separated file of the individual of each sample (sample, individual). Pairs of samples of the same individual (time points) are left out of the transmissibility of the MSPs (default: every sample is a distinct individual). | none |
+| `--min_overlap MIN_OVERLAP` | Minimum % of the MSP alignment informative (not N) in both samples for the pair to be counted in strain sharing. | `10.0` |
 | `-f FORMAT` | Output image format of the trees. Choices: `png`, `svg`, `pdf`, `txt`. | no image |
 | `-w WIDTH` | Output image width. | `500` |
 | `-H HEIGHT` | Output image height. | `500` |

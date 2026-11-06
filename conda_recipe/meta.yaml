@@ -34,7 +34,7 @@ requirements:
         - pandas
         - ete4
         - packaging
-        - cogent3
+        - cogent3 >=2026.11.5
         - biom-format
         - py-bgzip
         - freebayes >=1.3.6
