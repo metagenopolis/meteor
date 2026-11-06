@@ -716,29 +716,20 @@ def get_arguments() -> Namespace:  # pragma: no cover
         "(first column if tab-separated; empty lines and lines starting with # ignored).",
     )
     tree_parser.add_argument(
-        "--groups",
-        dest="groups_file",
+        "--ind",
+        dest="individuals_file",
         type=isfile,
-        help="Tab-separated file of the group of each sample (sample, group), e.g. "
-        "household, mother-infant pair or subject. Samples of the same group are related: "
-        "strain identity thresholds are set from the unrelated pairs and the "
-        "transmissibility of each MSP from the related pairs.",
+        help="Tab-separated file of the individual of each sample (sample, individual). "
+        "Pairs of samples of the same individual (time points) are left out of the "
+        "transmissibility of the MSPs (default: every sample is a distinct individual).",
     )
     tree_parser.add_argument(
         "--min_overlap",
         dest="min_overlap",
         type=float,
         default=StrainSharing.DEFAULT_MIN_OVERLAP,
-        help="Compare two samples on an MSP when the sites informative in both cover "
-        "at least this %% of its alignment (default: %(default).0f).",
-    )
-    tree_parser.add_argument(
-        "--min_pairs",
-        dest="min_pairs",
-        type=int,
-        default=StrainSharing.DEFAULT_MIN_PAIRS,
-        help="Minimum number of compared sample pairs to report the sharing rate "
-        "and transmissibility of an MSP (default: %(default)d).",
+        help="Minimum %% of the MSP alignment informative (not N) in both samples for "
+        "the pair to be counted in strain sharing (default: %(default).0f).",
     )
     tree_parser.add_argument(
         "-f",
@@ -875,9 +866,8 @@ def main() -> None:  # pragma: no cover
             args.format,
             args.tshrink,
             args.sample_file,
-            args.groups_file,
+            args.individuals_file,
             args.min_overlap,
-            args.min_pairs,
         )
         trees.execute()
     # Run download catalogues

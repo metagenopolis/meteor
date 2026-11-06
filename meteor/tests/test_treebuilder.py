@@ -122,10 +122,10 @@ def test_execute_strain_sharing_and_stale_comparisons(datadir: Path, tmp_path: P
     meteor <= 2.0.22 gets its comparison tables recomputed (issue #133)"""
     caplog.set_level(logging.INFO)
     tree_dir = tmp_path / "tree"
-    groups = tmp_path / "groups.tsv"
-    groups.write_text("D15B1\tfam1\nD15B2\tfam1\nD15B3\tfam2\n")
+    individuals = tmp_path / "individuals.tsv"
+    individuals.write_text("D15B1\tind1\nD15B2\tind1\nD15B3\tind2\n")
     builder = _treebuilder(datadir / "strain", tree_dir, tmp_path, None)
-    builder.groups_file = groups
+    builder.individuals_file = individuals
     builder.execute()
     for name in ("strain_sharing_events.tsv", "strain_sharing_samples.tsv", "strain_sharing_msp.tsv"):
         assert (tree_dir / name).exists()
