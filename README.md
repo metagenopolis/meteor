@@ -64,6 +64,7 @@ A basic usage of meteor will require to:
 3. **Map reads against the reference catalogue**
 4. **Compute taxonomical and/or functional abundances**
 5. **Strain profiling**
+6. **Resistance variants** (optional: variants of the antibiotic resistance genes)
 
 ### 1. Download a reference
 -------------------------------------------
@@ -250,9 +251,9 @@ Two samples are compared on an MSP when the sites informative (not N) in both co
 
 A tree directory computed in GTR by meteor 2.0.22 or earlier has wrong distances in its comparison tables (issue #133): `meteor tree` recomputes them when it runs again in that directory.
 
-The tree and the distance matrix are not modified. The test is implemented in meteor (no TreeShrink installation needed) and flags the same samples as `run_treeshrink.py -m per-gene` (TreeShrink 1.4.0). Existing trees are not rebuilt, so `meteor tree --treeshrink` on an existing tree directory only adds the QC files.
+The tree and the distance matrix are not modified.
 
-### 6. Variants of the antibiotic resistance genes (experimental)
+### 6. Variants of the antibiotic resistance genes
 -------------------------
 
 This mode is dedicated to the **variants** (single nucleotide variants) of the antibiotic resistance genes, not to their presence or abundance:
