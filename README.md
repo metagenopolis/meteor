@@ -64,6 +64,7 @@ A basic usage of meteor will require to:
 3. **Map reads against the reference catalogue**
 4. **Compute taxonomical and/or functional abundances**
 5. **Strain profiling**
+6. **Resistance variants** (optional: variants of the antibiotic resistance genes)
 
 ### 1. Download a reference
 -------------------------------------------
