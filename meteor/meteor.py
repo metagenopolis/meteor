@@ -28,6 +28,7 @@ from meteor.profiler import Profiler
 from meteor.merging import Merging
 from meteor.strain import Strain
 from meteor.resistance import Resistance
+from meteor.resistancemerging import ResistanceMerging
 from meteor.treebuilder import TreeBuilder
 from meteor.strainsharing import StrainSharing
 from tempfile import TemporaryDirectory
@@ -761,6 +762,37 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=num_threads,
         help="Number of threads (default: %(default)d).",
     )
+    resistance_merging_parser = subparsers.add_parser(
+        "resistance_merge",
+        help="Merge the variants of the antibiotic resistance genes of several samples",
+    )
+    resistance_merging_parser.add_argument(
+        "-i",
+        dest="resistance_dir",
+        required=True,
+        type=isinputdir,
+        help="Directory containing the sample directories of meteor resistance.",
+    )
+    resistance_merging_parser.add_argument(
+        "-o",
+        dest="merging_dir",
+        required=True,
+        type=isdir,
+        help="Directory where the merged tables are saved.",
+    )
+    resistance_merging_parser.add_argument(
+        "-p",
+        dest="prefix",
+        default=ResistanceMerging.DEFAULT_PREFIX,
+        help="Prefix added to output filenames (default: %(default)s).",
+    )
+    resistance_merging_parser.add_argument(
+        "-l",
+        dest="sample_file",
+        type=isfile,
+        help="Merge only the samples of this file, in its order: one sample name per line\n"
+        "(first column if tab-separated; empty lines and lines starting with # ignored).",
+    )
     tree_parser = subparsers.add_parser(
         "tree", help="Compute phylogenetical tree from detected strains"
     )
@@ -967,6 +999,11 @@ def main() -> None:  # pragma: no cover
             args.base_quality,
             args.core_size,
         ).execute()
+    # Merge the variants of the resistance genes of several samples
+    elif args.command == "resistance_merge":
+        meteor.resistance_dir = args.resistance_dir
+        meteor.merging_dir = args.merging_dir
+        ResistanceMerging(meteor, args.prefix, args.sample_file).execute()
     # Compute trees
     elif args.command == "tree":
         meteor.strain_dir = args.strain_dir

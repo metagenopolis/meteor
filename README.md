@@ -52,6 +52,7 @@ Parameters:
 --catalogue Path to a catalogue (overrides --catalogue_name if both are provided).
 --fast Enable fast mode for meteor (no functional analysis) (default: false).
 --check_catalogue Check md5sum of the catalogue is compatible with the input reads (default: false).
+--resistance Variants of the antibiotic resistance genes: meteor mapping --kr, meteor resistance and meteor resistance_merge (complete catalogue only) (default: false).
 ```
 
 ## Getting started
@@ -282,6 +283,20 @@ A variant is synonymous or not by comparing the two alleles in the codon of the 
 
 The catalogue gene is the representative of a gene cluster, not a susceptible reference: a variant against the catalogue is not a resistance mutation. Close homologues share their reads (`multimapped_fraction`), and reads diverging from a gene by more than the mapping identity threshold are not aligned on it.
 
+The abundance of the resistance genes is given by `meteor merge` (`mustard`, `resfinder`, `resfinderfg` tables): `meteor resistance` only adds their variants. The tables of several samples are merged with:
+```
+meteor resistance_merge -i <resistancedir> -o <mergedir>
+```
+
+Every sample must have been analysed against the same catalogue with the same parameters. `-l <samples.txt>` merges only the samples of the list, in its order (same format as for `meteor merge`). It writes in `<mergedir>`:
+- `<prefix>_resistance.tsv`: the tables of every sample, one row per sample and gene with reads (`sample` column first);
+- `<prefix>_resistance_major_per_kb.tsv`, `<prefix>_resistance_minor_per_kb.tsv`: gene x sample matrices of the variants per kb covered, `NA` where the gene is not interpretable;
+- `<prefix>_resistance_interpretable.tsv`: gene x sample matrix, 1 where the gene is interpretable;
+- `<prefix>_resistance_genes.tsv`: one row per gene, with its annotations and MSPs, the number of samples where it has reads (`samples_with_reads`) and where it is interpretable (`samples_interpretable`, `interpretable_fraction`), the medians of its rates and of the rates of its controls over the samples where it is interpretable (`median_major_per_kb`, `median_control_major_per_kb`...), and the fraction of these samples (with controls) where it has more variants than its controls (`major_above_controls_fraction`, `minor_above_controls_fraction`);
+- `<prefix>_resistance_census.json`: the catalogue, the parameters and the numbers of samples and genes.
+
+The genes are the catalogue genes (`gene_id`), as in the tables of `meteor merge`.
+
 ## Options of each command
 
 The options of every command are also listed by `meteor <command> -h`.
@@ -390,6 +405,15 @@ The options of every command are also listed by `meteor <command> -h`.
 | `--core_size CORE_SIZE` | Number of signature genes per species (MSP) used as controls, as at the mapping step. | `100` |
 | `--tmp TMP_PATH` | Path to the directory where temporary files are stored | none |
 | `-t THREADS` | Number of threads. | `1` |
+
+### meteor resistance_merge
+
+| Option | Description | Default |
+|---|---|---|
+| `-i RESISTANCE_DIR` | Directory containing the sample directories of meteor resistance. | required |
+| `-o MERGING_DIR` | Directory where the merged tables are saved. | required |
+| `-p PREFIX` | Prefix added to output filenames. | `output` |
+| `-l SAMPLE_FILE` | Merge only the samples of this file, in its order: one sample name per line (first column if tab-separated; empty lines and lines starting with # ignored). | none |
 
 ### meteor tree
 

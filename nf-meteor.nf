@@ -6,6 +6,7 @@ params.out = ""
 params.cpus =  4
 params.fast = false
 params.check_catalogue = false
+params.resistance = false
 params.catalogue_name = ""
 params.catalogue = ""
 params.allowed_catalogues = "fc_1_3_gut,gg_13_6_caecal,clf_1_0_gut,hs_10_4_gut,hs_8_4_oral,hs_2_9_skin,mm_5_0_gut,oc_5_7_gut,rn_5_9_gut,ssc_9_3_gut"
@@ -19,6 +20,7 @@ def usage() {
     println("--catalogue Path to a custom catalogue (overrides --catalogue_name if both are provided).")
     println("--fast Enable fast mode for meteor (no functional analysis) (default: ${params.fast}).")
     println("--check_catalogue Check md5sum of the catalogue is compatible with the input reads (default: ${params.check_catalogue}).")
+    println("--resistance Variants of the antibiotic resistance genes: meteor mapping --kr, meteor resistance and meteor resistance_merge (complete catalogue only) (default: ${params.resistance}).")
 }
 
 process meteor_download {
@@ -78,8 +80,10 @@ process meteor_mapping {
     tuple val(reads_id), path("mapping/*"), emit: mapping
 
     script:
+    // --kr: alignments on the resistance genes in <sample>_resistance.cram
+    def resistance_option = params.resistance ? "--kr" : ""
     """
-    meteor mapping -i ${fastq} -r ${catalogue} -t ${params.cpus} -o mapping --kf
+    meteor mapping -i ${fastq} -r ${catalogue} -t ${params.cpus} -o mapping --kf ${resistance_option}
     """
 }
 
@@ -172,6 +176,57 @@ process meteor_strain {
     """
 }
 
+process meteor_resistance {
+    tag { reads_id }
+    cpus params.cpus
+    memory {
+        // Measured on hs_10_4_gut (gut samples, 16 threads): 4.2 GB, ~1.5 min
+        // per sample (alignments restricted to the resistance genes and the
+        // marker genes of their species).
+        return (Math.ceil(0.5 * cat_size + 1) * task.attempt).GB
+    }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
+    conda "meteor=2.0.23"
+
+    input:
+    tuple val(reads_id), path(mapping)
+    tuple path(catalogue), val(cat_size), val(cat_type)
+
+    output:
+    path("resistance/*"), emit: resistance
+
+    script:
+    """
+    meteor resistance -i ${mapping} -r ${catalogue} -o resistance -t ${task.cpus}
+    """
+}
+
+process meteor_resistance_merge {
+    cpus 1
+    memory {
+        // One table per sample (a few thousand genes): 0.4 GB and 8 s for
+        // 12 samples on hs_10_4_gut; grows with the number of samples merged.
+        def sample_count = (resistance instanceof List ? resistance : [resistance]).size()
+        return (Math.ceil(2 + 0.01 * sample_count) * task.attempt).GB
+    }
+    errorStrategy { task.exitStatus in 137..140 ? 'retry' : 'terminate' }
+    maxRetries 2
+    conda "meteor=2.0.23"
+    publishDir params.out, mode: 'copy'
+
+    input:
+    path(resistance)
+
+    output:
+    path("resistance_merged")
+
+    script:
+    """
+    meteor resistance_merge -i ./ -o resistance_merged
+    """
+}
+
 process meteor_tree {
     cpus params.cpus
     conda "meteor=2.0.23"
@@ -219,6 +274,12 @@ workflow {
         exit 1
     }
 
+    // the resistance genes are given by the annotations of a complete catalogue
+    if (params.resistance && params.fast) {
+        println "ERROR: --resistance needs a complete catalogue (not --fast)"
+        exit 1
+    }
+
     file(params.out).mkdirs()
 
     // Reference catalogue sizing, used to scale process memory allocations:
@@ -246,6 +307,10 @@ workflow {
         def meta = new groovy.json.JsonSlurper().parseText(json_file.text)
         def ref_name = meta.reference_info.reference_name
         database_type = meta.reference_info.database_type ?: 'complete'
+        if (params.resistance && database_type == 'taxo') {
+            println "ERROR: --resistance needs a complete catalogue, ${params.catalogue} is taxonomic"
+            exit 1
+        }
         def matcher = (ref_name =~ /^[a-z]+_([0-9]+)_([0-9]+)_/)
         if (!matcher) {
             println "ERROR: Unexpected reference name format '${ref_name}'"
@@ -273,6 +338,10 @@ workflow {
         meteor_strain(meteor_mapping.out.mapping, catalogue_ch)
         strains = meteor_strain.out.strains.collect(flat: false)
         meteor_tree(strains)
+        if (params.resistance) {
+            meteor_resistance(meteor_mapping.out.mapping, catalogue_ch)
+            meteor_resistance_merge(meteor_resistance.out.resistance.collect())
+        }
 
     workflow.onComplete = {
         // any workflow property can be used here
