@@ -52,7 +52,8 @@ Parameters:
 --catalogue Path to a catalogue (overrides --catalogue_name if both are provided).
 --fast Enable fast mode for meteor (no functional analysis) (default: false).
 --check_catalogue Check md5sum of the catalogue is compatible with the input reads (default: false).
---resistance Variants of the antibiotic resistance genes: meteor mapping --kr, meteor resistance and meteor resistance_merge (complete catalogue only) (default: false).
+--resistance Variants of the antibiotic resistance genes: meteor mapping --kr, meteor resistance and meteor resistance_summary (complete catalogue only) (default: false).
+--resistance_trees With --resistance, one tree per resistance gene (meteor resistance_summary --trees) (default: false).
 ```
 
 ## Getting started
@@ -288,9 +289,11 @@ A variant is synonymous or not by comparing the two alleles in the codon of the 
 
 The catalogue gene is the representative of a gene cluster, not a susceptible reference: a variant against the catalogue is not a resistance mutation. Close homologues share their reads (`multimapped_fraction`), and reads diverging from a gene by more than the mapping identity threshold are not aligned on it.
 
-The abundance of the resistance genes is given by `meteor merge` (`mustard`, `resfinder`, `resfinderfg` tables): `meteor resistance` only adds their variants. The tables of several samples are merged with:
+`<resistancedir>/<sample>/<sample>_resistance_consensus.fasta.xz` holds the consensus sequence of each interpretable resistance gene in the sample (`>gene_id`): the major base of each covered site, `N` elsewhere, on the coordinates of the catalogue gene. A sample carrying several alleles of a gene (minor variants) gets the major one at each site.
+
+The abundance of the resistance genes is given by `meteor merge` (`mustard`, `resfinder`, `resfinderfg` tables): `meteor resistance` only adds their variants. The tables of several samples are merged, and with `--trees` one tree is built per resistance gene, by:
 ```
-meteor resistance_merge -i <resistancedir> -o <mergedir>
+meteor resistance_summary -i <resistancedir> -o <mergedir> [--trees]
 ```
 
 Every sample must have been analysed against the same catalogue with the same parameters. `-l <samples.txt>` merges only the samples of the list, in its order (same format as for `meteor merge`). It writes in `<mergedir>`:
@@ -298,9 +301,15 @@ Every sample must have been analysed against the same catalogue with the same pa
 - `<prefix>_resistance_major_per_kb.tsv`, `<prefix>_resistance_minor_per_kb.tsv`: gene x sample matrices of the variants per kb covered, `NA` where the gene is not interpretable;
 - `<prefix>_resistance_interpretable.tsv`: gene x sample matrix, 1 where the gene is interpretable;
 - `<prefix>_resistance_genes.tsv`: one row per gene, with its annotations and MSPs, the number of samples where it has reads (`samples_with_reads`) and where it is interpretable (`samples_interpretable`; `interpretable_fraction` divides it by the number of merged samples), the medians of its rates and of the rates of its controls over the samples where it is interpretable (`median_major_per_kb`, `median_minor_per_kb`, `median_control_major_per_kb`, `median_control_minor_per_kb`), the number of these samples where it has controls (`samples_with_controls`), and the fraction of them where its rate is strictly higher than that of its controls (`major_above_controls_fraction`, `minor_above_controls_fraction`);
-- `<prefix>_resistance_census.json`: the catalogue, the parameters and the numbers of samples and genes.
+- `<prefix>_resistance_census.json`: the catalogue, the parameters and the numbers of samples, genes and trees.
 
 The genes are the catalogue genes (`gene_id`), as in the tables of `meteor merge`.
+
+With `--trees`, every resistance gene interpretable in at least `-m` samples (default 4) gets a tree of these samples, built from their consensus sequences as `meteor tree` builds the tree of an MSP (same site filter `-g`, minimum number of sites `-s`, GTR or TN93 distance `-r`, UPGMA). The sequences share the coordinates of the catalogue gene, so no alignment is needed; one tree is built per catalogue gene, not per family. The tree tells which samples carry the same allele of the gene; compared with the tree of the MSP carrying it (`meteor tree`), a discordance points to a transfer of the gene between strains. Close homologues share their reads (`multimapped_fraction`), which can bring alleles closer. In `<mergedir>/<prefix>_resistance_trees/`:
+- `gene_<gene_id>.fasta`: the consensus sequences of the samples;
+- `gene_<gene_id>.tree`, `gene_<gene_id>.tsv` (tip-to-tip distances), `gene_<gene_id>_comparison.tsv` (pairs of samples), as for `meteor tree`.
+
+`<prefix>_resistance_trees.tsv` indexes them: one row per gene with `gene_id`, `family` (the first annotation among ResFinder, ResFinderFG, MUSTARD and the quinolone target), `samples`, `msp_name`, the annotations, and `tree` (`NA` when the gene has fewer sites than `-s`). A tree is recomputed only when the sequences of its gene change.
 
 ## Options of each command
 
@@ -411,14 +420,21 @@ The options of every command are also listed by `meteor <command> -h`.
 | `--tmp TMP_PATH` | Path to the directory where temporary files are stored | none |
 | `-t THREADS` | Number of threads. | `1` |
 
-### meteor resistance_merge
+### meteor resistance_summary
 
 | Option | Description | Default |
 |---|---|---|
 | `-i RESISTANCE_DIR` | Directory containing the sample directories of meteor resistance. | required |
-| `-o MERGING_DIR` | Directory where the merged tables are saved. | required |
+| `-o MERGING_DIR` | Directory where the merged tables (and the trees) are saved. | required |
 | `-p PREFIX` | Prefix added to output filenames. | `output` |
 | `-l SAMPLE_FILE` | Merge only the samples of this file, in its order: one sample name per line (first column if tab-separated; empty lines and lines starting with # ignored). | none |
+| `--trees` | Build one tree per resistance gene from the consensus sequences of the samples where it is interpretable. | off |
+| `-m MIN_SAMPLES` | Minimum number of samples where a gene is interpretable to build its tree. | `4` |
+| `-g MAX_GAP` | Removes sites constitued of >= cutoff gap character. | `1.0` |
+| `-s MIN_INFO_SITES` | Minimum number of informative sites in the alignment. | `10` |
+| `-r` | Compute tn93 model (faster). | GTR |
+| `--tmp TMP_PATH` | Path to the directory where temporary files are stored | none |
+| `-t THREADS` | Number of threads. | `1` |
 
 ### meteor tree
 

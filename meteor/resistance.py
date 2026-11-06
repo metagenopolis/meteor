@@ -14,6 +14,7 @@
 against the catalogue, with the marker genes of the same species as controls"""
 
 import logging
+import lzma
 import sys
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
@@ -105,8 +106,12 @@ def gene_variants(
     min_depth: int,
     min_alt_count: int,
     min_frequency: float,
+    consensus: bool = False,
 ) -> dict:
     """Variants of one gene from its base counts (4 x length, rows A, C, G, T).
+
+    consensus: also return the consensus sequence of the sample: the major base
+    of each covered site, N elsewhere (same coordinates as the catalogue gene).
 
     A major variant is a covered site whose most frequent base is not the
     catalogue base. A minor variant (polymorphic site) is a covered site whose
@@ -150,6 +155,14 @@ def gene_variants(
         "syn_sites": np.nan,
         "nonsyn_sites": np.nan,
     }
+    if consensus:
+        bases = np.frombuffer(COVERAGE_BASES.encode("ascii"), dtype=np.uint8)
+        result["consensus"] = (
+            np.where(covered, bases[np.maximum(major, 0)], ord("N"))
+            .astype(np.uint8)
+            .tobytes()
+            .decode("ascii")
+        )
     if not in_frame:
         for key in ("major_syn", "major_nonsyn", "minor_syn", "minor_nonsyn"):
             result[key] = np.nan
@@ -186,6 +199,7 @@ def resistance_worker(
     min_alt_count: int,
     min_frequency: float,
     base_quality: int,
+    consensus: bool = False,
 ) -> list[dict]:
     """Variants of a batch of genes (module level: run in spawn workers)"""
     rows = []
@@ -211,7 +225,7 @@ def resistance_worker(
             row["multimapped_fraction"] = multimapped / alignments if alignments else np.nan
             row.update(
                 gene_variants(
-                    fasta.fetch(gene), counts, min_depth, min_alt_count, min_frequency
+                    fasta.fetch(gene), counts, min_depth, min_alt_count, min_frequency, consensus
                 )
             )
             rows.append(row)
@@ -318,9 +332,13 @@ class Resistance(Session):
             sys.exit(1)
         return genes
 
-    def gene_stats(self, bam: Path, reference: str, genes: list[tuple[str, int]]) -> pd.DataFrame:
+    def gene_stats(
+        self, bam: Path, reference: str, genes: list[tuple[str, int]], consensus: bool = False
+    ) -> pd.DataFrame:
         """Variants of every gene, in worker processes when threads > 1"""
-        args = (self.min_depth, self.min_alt_count, self.min_frequency, self.base_quality)
+        args = (
+            self.min_depth, self.min_alt_count, self.min_frequency, self.base_quality, consensus
+        )
         workers = max(1, self.meteor.threads)
         if workers == 1 or len(genes) < 2 * workers:
             rows = resistance_worker(str(bam), reference, genes, *args)
@@ -414,11 +432,18 @@ class Resistance(Session):
                 ]
             logging.info("Variants of %d genes of %s", len(genes), source.name)
             if genes:
-                parts.append(self.gene_stats(bam, fasta, genes))
+                # consensus sequences of the resistance genes only
+                parts.append(
+                    self.gene_stats(bam, fasta, genes, consensus=source == resistance_cram)
+                )
         if not parts:
             logging.error("%s: no alignment on the resistance genes or their controls", sample)
             sys.exit(1)
         stats = self.add_rates(pd.concat(parts, ignore_index=True))
+        if "consensus" not in stats:
+            stats["consensus"] = None
+        consensus = stats.set_index("gene_id")["consensus"]
+        stats = stats.drop(columns="consensus")
         # controls: interpretable marker genes of the MSPs carrying the gene
         # (without the gene itself: gyrA is often a marker gene)
         sums = ["covered_bp", "major_snv", "minor_snv"]
@@ -454,7 +479,15 @@ class Resistance(Session):
         sample_dir = self.meteor.resistance_dir / sample
         sample_dir.mkdir(exist_ok=True, parents=True)
         output = sample_dir / f"{sample}_resistance.tsv"
-        table.sort_values("gene_id").to_csv(output, sep="\t", index=False, na_rep="NA")
+        table = table.sort_values("gene_id")
+        table.to_csv(output, sep="\t", index=False, na_rep="NA")
+        # consensus sequences of the interpretable genes (meteor resistance_summary --trees)
+        consensus_file = sample_dir / f"{sample}_resistance_consensus.fasta.xz"
+        with lzma.open(consensus_file, "wt", encoding="UTF-8") as fasta_out:
+            for gene in table.loc[table["interpretable"], "gene_id"]:
+                sequence = consensus.get(gene)
+                if isinstance(sequence, str):
+                    fasta_out.write(f">{gene}\n{sequence}\n")
         self.save_config(
             {
                 "meteor_version": self.meteor.version,
@@ -477,6 +510,7 @@ class Resistance(Session):
                     "genes_with_reads": len(table),
                     "interpretable_genes": int(table["interpretable"].sum()),
                     "resistance_file": output.name,
+                    "consensus_file": consensus_file.name,
                 },
             },
             sample_dir / f"{sample}_census_stage_resistance.json",

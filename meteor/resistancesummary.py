@@ -10,16 +10,20 @@
 #    A copy of the GNU General Public License is available at
 #    http://www.gnu.org/licenses/gpl-3.0.html
 
-"""Tables of the variants of the antibiotic resistance genes of several samples
-(meteor resistance_merge)"""
+"""Tables and trees of the variants of the antibiotic resistance genes of
+several samples (meteor resistance_summary)"""
 
 import fnmatch
 import logging
+import lzma
 import os
 import sys
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from shutil import rmtree
+from tempfile import mkdtemp
 from time import perf_counter
 from typing import ClassVar
 
@@ -49,18 +53,32 @@ GENE_COLUMNS = (
     "target",
     "gene_length",
 )
+# annotations giving the family of a gene, by priority
+FAMILY_COLUMNS = ("resfinder", "resfinderfg", "mustard", "target")
+# outputs of a gene tree, removed when its sequences change
+TREE_OUTPUTS = (".tree", ".tsv", "_comparison.tsv", "_qcflags.tsv", "_shrink.tsv")
 
 
 @dataclass
-class ResistanceMerging(Session):
-    """Merge the meteor resistance tables of several samples"""
+class ResistanceSummary(Session):
+    """Merge the meteor resistance tables of several samples and, with trees,
+    build one tree per resistance gene from the consensus sequences of the samples"""
 
     DEFAULT_PREFIX: ClassVar[str] = "output"
+    DEFAULT_MIN_SAMPLES: ClassVar[int] = 4
+    DEFAULT_MAX_GAP: ClassVar[float] = 1.0
+    DEFAULT_MIN_INFO_SITES: ClassVar[int] = 10
+    DEFAULT_NUM_THREADS: ClassVar[int] = 1
     MATRICES: ClassVar[tuple[str, ...]] = ("major_per_kb", "minor_per_kb")
 
     meteor: type[Component]
     prefix: str = DEFAULT_PREFIX
     sample_file: Path | None = None
+    trees: bool = False
+    min_samples: int = DEFAULT_MIN_SAMPLES
+    max_gap: float = DEFAULT_MAX_GAP
+    min_info_sites: int = DEFAULT_MIN_INFO_SITES
+    gtr: bool = False
 
     def find_samples(self) -> dict[str, tuple[Path, dict]]:
         """{sample name: (resistance table, census)} of the samples of the
@@ -157,6 +175,91 @@ class ResistanceMerging(Session):
         summary["samples_interpretable"] = summary["samples_interpretable"].astype(int)
         return summary.reset_index().sort_values("gene_id")
 
+    @staticmethod
+    def read_consensus(path: Path) -> dict[int, str]:
+        """{gene_id: consensus sequence} of one sample"""
+        sequences: dict[int, str] = {}
+        with lzma.open(path, "rt", encoding="UTF-8") as fasta:
+            gene = None
+            for line in fasta:
+                line = line.strip()
+                if line.startswith(">"):
+                    gene = int(line[1:])
+                elif gene is not None and line:
+                    sequences[gene] = sequences.get(gene, "") + line
+        return sequences
+
+    def build_trees(
+        self, samples: dict[str, tuple[Path, dict]], summary: pd.DataFrame
+    ) -> pd.DataFrame:
+        """One tree per resistance gene interpretable in at least min_samples
+        samples, from the consensus sequences of these samples (the sequences
+        are on the coordinates of the catalogue gene: no alignment needed).
+
+        :return: one row per gene with a FASTA: family, annotations, samples, tree
+        """
+        from meteor.phylogeny import Phylogeny
+
+        tree_dir = self.meteor.merging_dir / f"{self.prefix}_resistance_trees"
+        tree_dir.mkdir(exist_ok=True, parents=True)
+        per_gene: dict[int, dict[str, str]] = defaultdict(dict)
+        for name, (table, census) in samples.items():
+            consensus_name = census["resistance"].get("consensus_file")
+            consensus_file = table.parent / consensus_name if consensus_name else None
+            if consensus_file is None or not consensus_file.exists():
+                logging.error(
+                    "%s has no consensus sequences: run meteor resistance again "
+                    "to build the trees",
+                    name,
+                )
+                sys.exit(1)
+            for gene, sequence in self.read_consensus(consensus_file).items():
+                per_gene[gene][name] = sequence
+        fasta_files = []
+        index = []
+        for gene in sorted(per_gene):
+            sequences = per_gene[gene]
+            if len(sequences) < self.min_samples:
+                continue
+            fasta_file = tree_dir / f"gene_{gene}.fasta"
+            content = "".join(f">{name}\n{seq}\n" for name, seq in sequences.items())
+            # sequences changed (samples, parameters): the tree is recomputed
+            if not fasta_file.exists() or fasta_file.read_text(encoding="UTF-8") != content:
+                for suffix in TREE_OUTPUTS:
+                    (tree_dir / f"{fasta_file.stem}{suffix}").unlink(missing_ok=True)
+                fasta_file.write_text(content, encoding="UTF-8")
+            fasta_files.append(fasta_file)
+            index.append({"gene_id": gene, "samples": len(sequences)})
+        logging.info(
+            "%d resistance genes interpretable in at least %d samples: one tree each",
+            len(fasta_files),
+            self.min_samples,
+        )
+        self.meteor.tree_dir = tree_dir
+        self.meteor.tmp_dir = Path(mkdtemp(dir=self.meteor.tmp_path))
+        try:
+            phylogeny = Phylogeny(
+                self.meteor, fasta_files, self.max_gap, self.min_info_sites, self.gtr
+            )
+            if fasta_files:
+                phylogeny.execute()
+        finally:
+            rmtree(self.meteor.tmp_dir, ignore_errors=True)
+        built = {tree.name for tree in phylogeny.tree_files}
+        annotations = summary.set_index("gene_id")
+        columns = ["msp_name", *[c for c in FAMILY_COLUMNS if c in annotations]]
+        trees = pd.DataFrame(index, columns=["gene_id", "samples"])
+        trees = trees.join(annotations[columns], on="gene_id")
+        family = pd.Series(pd.NA, index=trees.index, dtype=object)
+        for column in reversed([c for c in FAMILY_COLUMNS if c in trees]):
+            family = trees[column].where(trees[column].notna(), family)
+        trees.insert(1, "family", family)
+        trees["tree"] = [
+            f"gene_{gene}.tree" if f"gene_{gene}.tree" in built else pd.NA
+            for gene in trees["gene_id"]
+        ]
+        return trees
+
     def execute(self) -> None:
         """Merge the resistance tables of the samples"""
         start = perf_counter()
@@ -200,17 +303,35 @@ class ResistanceMerging(Session):
         summary.to_csv(
             out / f"{self.prefix}_resistance_genes.tsv", sep="\t", index=False, na_rep="NA"
         )
+        tree_count = None
+        if self.trees:
+            trees = self.build_trees(samples, summary)
+            trees.to_csv(
+                out / f"{self.prefix}_resistance_trees.tsv", sep="\t", index=False, na_rep="NA"
+            )
+            tree_count = int(trees["tree"].notna().sum())
         self.save_config(
             {
                 "meteor_version": self.meteor.version,
-                "resistance_merging": {
-                    "merging_date": datetime.now().strftime("%Y-%m-%d"),
+                "resistance_summary": {
+                    "summary_date": datetime.now().strftime("%Y-%m-%d"),
                     "samples": len(names),
                     "genes": int(table["gene_id"].nunique()),
                     "interpretable_genes": int(
                         table.loc[table["interpretable"], "gene_id"].nunique()
                     ),
                     **parameters,
+                    "trees": tree_count,
+                    **(
+                        {
+                            "tree_min_samples": self.min_samples,
+                            "tree_max_gap": self.max_gap,
+                            "tree_min_info_sites": self.min_info_sites,
+                            "tree_mode": "GTR" if self.gtr else "TN93",
+                        }
+                        if self.trees
+                        else {}
+                    ),
                 },
             },
             out / f"{self.prefix}_resistance_census.json",

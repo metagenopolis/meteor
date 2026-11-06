@@ -28,7 +28,7 @@ from meteor.profiler import Profiler
 from meteor.merging import Merging
 from meteor.strain import Strain
 from meteor.resistance import Resistance
-from meteor.resistancemerging import ResistanceMerging
+from meteor.resistancesummary import ResistanceSummary
 from meteor.treebuilder import TreeBuilder
 from meteor.strainsharing import StrainSharing
 from tempfile import TemporaryDirectory
@@ -762,36 +762,85 @@ def get_arguments() -> Namespace:  # pragma: no cover
         type=num_threads,
         help="Number of threads (default: %(default)d).",
     )
-    resistance_merging_parser = subparsers.add_parser(
-        "resistance_merge",
-        help="Merge the variants of the antibiotic resistance genes of several samples",
+    resistance_summary_parser = subparsers.add_parser(
+        "resistance_summary",
+        help="Merge the variants of the antibiotic resistance genes of several samples "
+        "and build one tree per resistance gene",
     )
-    resistance_merging_parser.add_argument(
+    resistance_summary_parser.add_argument(
         "-i",
         dest="resistance_dir",
         required=True,
         type=isinputdir,
         help="Directory containing the sample directories of meteor resistance.",
     )
-    resistance_merging_parser.add_argument(
+    resistance_summary_parser.add_argument(
         "-o",
         dest="merging_dir",
         required=True,
         type=isdir,
-        help="Directory where the merged tables are saved.",
+        help="Directory where the merged tables (and the trees) are saved.",
     )
-    resistance_merging_parser.add_argument(
+    resistance_summary_parser.add_argument(
         "-p",
         dest="prefix",
-        default=ResistanceMerging.DEFAULT_PREFIX,
+        default=ResistanceSummary.DEFAULT_PREFIX,
         help="Prefix added to output filenames (default: %(default)s).",
     )
-    resistance_merging_parser.add_argument(
+    resistance_summary_parser.add_argument(
         "-l",
         dest="sample_file",
         type=isfile,
         help="Merge only the samples of this file, in its order: one sample name per line\n"
         "(first column if tab-separated; empty lines and lines starting with # ignored).",
+    )
+    resistance_summary_parser.add_argument(
+        "--trees",
+        dest="trees",
+        action="store_true",
+        help="Build one tree per resistance gene from the consensus sequences of the "
+        "samples where it is interpretable.",
+    )
+    resistance_summary_parser.add_argument(
+        "-m",
+        dest="min_samples",
+        default=ResistanceSummary.DEFAULT_MIN_SAMPLES,
+        type=int,
+        help="Minimum number of samples where a gene is interpretable to build its tree "
+        "(default: %(default)d).",
+    )
+    resistance_summary_parser.add_argument(
+        "-g",
+        dest="max_gap",
+        default=ResistanceSummary.DEFAULT_MAX_GAP,
+        type=isbounded01,
+        help="Removes sites constitued of >= cutoff gap character (default: >= %(default).1f).",
+    )
+    resistance_summary_parser.add_argument(
+        "-s",
+        dest="min_info_sites",
+        default=ResistanceSummary.DEFAULT_MIN_INFO_SITES,
+        type=int,
+        help="Minimum number of informative sites in the alignment (default: >= %(default)d).",
+    )
+    resistance_summary_parser.add_argument(
+        "-r",
+        dest="gtr",
+        action="store_false",
+        help="Compute tn93 model (faster) (default: GTR).",
+    )
+    resistance_summary_parser.add_argument(
+        "--tmp",
+        dest="tmp_path",
+        type=isdir,
+        help="Path to the directory where temporary files are stored",
+    )
+    resistance_summary_parser.add_argument(
+        "-t",
+        dest="threads",
+        default=ResistanceSummary.DEFAULT_NUM_THREADS,
+        type=num_threads,
+        help="Number of threads (default: %(default)d).",
     )
     tree_parser = subparsers.add_parser(
         "tree", help="Compute phylogenetical tree from detected strains"
@@ -999,11 +1048,22 @@ def main() -> None:  # pragma: no cover
             args.base_quality,
             args.core_size,
         ).execute()
-    # Merge the variants of the resistance genes of several samples
-    elif args.command == "resistance_merge":
+    # Merge the variants of the resistance genes of several samples (and their trees)
+    elif args.command == "resistance_summary":
         meteor.resistance_dir = args.resistance_dir
         meteor.merging_dir = args.merging_dir
-        ResistanceMerging(meteor, args.prefix, args.sample_file).execute()
+        meteor.tmp_path = args.tmp_path
+        meteor.threads = args.threads
+        ResistanceSummary(
+            meteor,
+            args.prefix,
+            args.sample_file,
+            args.trees,
+            args.min_samples,
+            args.max_gap,
+            args.min_info_sites,
+            args.gtr,
+        ).execute()
     # Compute trees
     elif args.command == "tree":
         meteor.strain_dir = args.strain_dir

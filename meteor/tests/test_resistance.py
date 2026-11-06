@@ -13,6 +13,7 @@
 """Test meteor resistance and mapping --kr"""
 
 import json
+import lzma
 import random
 import shutil
 from pathlib import Path
@@ -352,6 +353,20 @@ def test_execute(resistance, tmp_path: Path, threads: int) -> None:
         (tmp_path / "resistance" / "S1" / "S1_census_stage_resistance.json").read_text()
     )
     assert census["resistance"]["genes_with_reads"] == 3
+    # consensus sequences of the interpretable resistance genes
+    assert census["resistance"]["consensus_file"] == "S1_resistance_consensus.fasta.xz"
+    with lzma.open(tmp_path / "resistance" / "S1" / "S1_resistance_consensus.fasta.xz", "rt") as f:
+        records = f.read().split(">")[1:]
+    consensus = {int(r.split("\n")[0]): r.split("\n")[1] for r in records}
+    assert sorted(consensus) == sorted(arg.index[arg["interpretable"]])
+    gene_1 = consensus[1]
+    assert len(gene_1) == len(genes[1])
+    # the major variant, the catalogue base at the minor variant, N at the ends
+    assert gene_1[150] == _switch(genes, 1, 150) and gene_1[120] == genes[1][120]
+    assert gene_1[0] == "N" and gene_1[-1] == "N"
+    assert gene_1.count("N") == len(gene_1) - arg.loc[1, "covered_bp"]
+    covered = [i for i, base in enumerate(gene_1) if base != "N" and i != 150]
+    assert all(gene_1[i] == genes[1][i] for i in covered)
     assert census["resistance"]["annotations"] == ["resfinder", "mustard", "kegg"]
 
 

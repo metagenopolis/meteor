@@ -10,16 +10,18 @@
 #    A copy of the GNU General Public License is available at
 #    http://www.gnu.org/licenses/gpl-3.0.html
 
-"""Test meteor resistance_merge"""
+"""Test meteor resistance_summary"""
 
 import json
+import lzma
+import random
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from ..resistancemerging import ResistanceMerging
+from ..resistancesummary import ResistanceSummary
 from ..session import Component
 
 PARAMETERS = {
@@ -33,8 +35,15 @@ PARAMETERS = {
 }
 
 
-def _sample(root: Path, name: str, rows: list[dict], reference: str = "cat", **changed) -> None:
-    """Output of meteor resistance for one sample"""
+def _sample(
+    root: Path,
+    name: str,
+    rows: list[dict],
+    reference: str = "cat",
+    consensus: dict[int, str] | None = None,
+    **changed,
+) -> None:
+    """Output of meteor resistance for one sample (consensus: {gene_id: sequence})"""
     sample_dir = root / name
     sample_dir.mkdir(parents=True)
     columns = {
@@ -66,17 +75,25 @@ def _sample(root: Path, name: str, rows: list[dict], reference: str = "cat", **c
                     **PARAMETERS,
                     **changed,
                     "resistance_file": f"{name}_resistance.tsv",
+                    **({"consensus_file": f"{name}_resistance_consensus.fasta.xz"}
+                       if consensus is not None else {}),
                 },
             }
         )
     )
+    if consensus is not None:
+        with lzma.open(sample_dir / f"{name}_resistance_consensus.fasta.xz", "wt") as fasta:
+            for gene, sequence in consensus.items():
+                fasta.write(f">{gene}\n{sequence}\n")
 
 
-def _merging(tmp_path: Path, sample_file: Path | None = None) -> ResistanceMerging:
+def _merging(tmp_path: Path, sample_file: Path | None = None, **options) -> ResistanceSummary:
     meteor = Component
     meteor.resistance_dir = tmp_path / "resistance"
     meteor.merging_dir = tmp_path / "merged"
-    return ResistanceMerging(meteor, "out", sample_file)
+    meteor.tmp_path = tmp_path
+    meteor.threads = 1
+    return ResistanceSummary(meteor, "out", sample_file, **options)
 
 
 @pytest.fixture
@@ -127,9 +144,11 @@ def test_execute(three_samples: Path, tmp_path: Path) -> None:
     assert genes.loc[2, "samples_with_controls"] == 0
     assert pd.isna(genes.loc[2, "major_above_controls_fraction"])
     assert genes.loc[2, "median_major_per_kb"] == pytest.approx(6.0)
-    census = json.loads((out / "out_resistance_census.json").read_text())["resistance_merging"]
+    census = json.loads((out / "out_resistance_census.json").read_text())["resistance_summary"]
     assert census["samples"] == 3 and census["genes"] == 2 and census["interpretable_genes"] == 2
     assert census["reference_name"] == "cat" and census["min_depth"] == 10
+    assert census["trees"] is None
+    assert not (out / "out_resistance_trees.tsv").exists()
 
 
 def test_execute_sample_list(three_samples: Path, tmp_path: Path) -> None:
@@ -170,3 +189,75 @@ def test_execute_missing_table(tmp_path: Path) -> None:
     (tmp_path / "resistance" / "S1" / "S1_resistance.tsv").unlink()
     with pytest.raises(SystemExit):
         _merging(tmp_path).execute()
+
+
+def _consensus_cohort(root: Path, n: int = 6) -> None:
+    """n samples: gene 1 (tet(W)) interpretable in all of them, in two allele
+    groups; gene 2 (gyrA) in 3 samples only (no tree with -m 4)"""
+    rng = random.Random(1)
+    base = "".join(rng.choice("ACGT") for _ in range(600))
+    other = "".join(
+        ("A" if b != "A" else "C") if i % 20 == 0 else b for i, b in enumerate(base)
+    )
+    for k in range(n):
+        allele = base if k < n // 2 else other
+        # a few sample-specific sites and an uncovered end
+        sequence = list(allele)
+        sequence[100 + k] = "G" if sequence[100 + k] != "G" else "T"
+        sequence[-30:] = "N" * 30
+        consensus = {1: "".join(sequence)}
+        rows = [{"gene_id": 1, "gene_length": 600}]
+        if k < 3:
+            consensus[2] = base
+            rows.append({"gene_id": 2, "msp_name": "M2", "resfinder": pd.NA, "target": "gyrA"})
+        _sample(root, f"S{k}", rows, consensus=consensus)
+
+
+def test_execute_trees(tmp_path: Path) -> None:
+    _consensus_cohort(tmp_path / "resistance")
+    _merging(tmp_path, trees=True, min_samples=4, gtr=False).execute()
+    out = tmp_path / "merged"
+    trees = pd.read_table(out / "out_resistance_trees.tsv")
+    # gene 2 is interpretable in 3 samples only
+    assert trees["gene_id"].tolist() == [1]
+    row = trees.iloc[0]
+    assert row["family"] == "tet(W)" and row["msp_name"] == "M1"
+    assert row["samples"] == 6 and row["tree"] == "gene_1.tree"
+    tree_dir = out / "out_resistance_trees"
+    newick = (tree_dir / "gene_1.tree").read_text()
+    assert all(f"S{k}" in newick for k in range(6))
+    distances = pd.read_table(tree_dir / "gene_1.tsv", index_col=0)
+    # the two allele groups are further apart than the samples of a group
+    assert distances.loc["S0", "S1"] < distances.loc["S0", "S5"]
+    census = json.loads((out / "out_resistance_census.json").read_text())["resistance_summary"]
+    assert census["trees"] == 1 and census["tree_mode"] == "TN93"
+    assert census["tree_min_samples"] == 4
+    # same sequences: the tree is reused; a sample less: recomputed
+    before = (tree_dir / "gene_1.tree").stat().st_mtime_ns
+    _merging(tmp_path, trees=True, min_samples=4, gtr=False).execute()
+    assert (tree_dir / "gene_1.tree").stat().st_mtime_ns == before
+    sample_file = tmp_path / "samples.txt"
+    sample_file.write_text("\n".join(f"S{k}" for k in range(5)))
+    _merging(tmp_path, sample_file, trees=True, min_samples=4, gtr=False).execute()
+    assert "S5" not in (tree_dir / "gene_1.tree").read_text()
+
+
+def test_execute_trees_family_priority(tmp_path: Path) -> None:
+    root = tmp_path / "resistance"
+    for k in range(4):
+        _sample(
+            root, f"S{k}",
+            [{"gene_id": 7, "resfinder": pd.NA, "resfinderfg": pd.NA, "mustard": "tetM"}],
+            consensus={7: "ACGT" * 50},
+        )
+    # fewer sites than -s: no tree
+    _merging(tmp_path, trees=True, min_samples=4, min_info_sites=1000, gtr=False).execute()
+    trees = pd.read_table(tmp_path / "merged" / "out_resistance_trees.tsv")
+    assert trees.loc[0, "family"] == "tetM"
+    assert pd.isna(trees.loc[0, "tree"])
+
+
+def test_execute_trees_without_consensus(three_samples: Path, tmp_path: Path) -> None:
+    """Samples of an older meteor resistance (no consensus file)"""
+    with pytest.raises(SystemExit):
+        _merging(tmp_path, trees=True).execute()

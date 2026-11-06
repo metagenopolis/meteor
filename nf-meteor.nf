@@ -7,6 +7,7 @@ params.cpus =  4
 params.fast = false
 params.check_catalogue = false
 params.resistance = false
+params.resistance_trees = false
 params.catalogue_name = ""
 params.catalogue = ""
 params.allowed_catalogues = "fc_1_3_gut,gg_13_6_caecal,clf_1_0_gut,hs_10_4_gut,hs_8_4_oral,hs_2_9_skin,mm_5_0_gut,oc_5_7_gut,rn_5_9_gut,ssc_9_3_gut"
@@ -20,7 +21,8 @@ def usage() {
     println("--catalogue Path to a custom catalogue (overrides --catalogue_name if both are provided).")
     println("--fast Enable fast mode for meteor (no functional analysis) (default: ${params.fast}).")
     println("--check_catalogue Check md5sum of the catalogue is compatible with the input reads (default: ${params.check_catalogue}).")
-    println("--resistance Variants of the antibiotic resistance genes: meteor mapping --kr, meteor resistance and meteor resistance_merge (complete catalogue only) (default: ${params.resistance}).")
+    println("--resistance Variants of the antibiotic resistance genes: meteor mapping --kr, meteor resistance and meteor resistance_summary (complete catalogue only) (default: ${params.resistance}).")
+    println("--resistance_trees With --resistance, one tree per resistance gene (meteor resistance_summary --trees) (default: ${params.resistance_trees}).")
 }
 
 process meteor_download {
@@ -202,11 +204,12 @@ process meteor_resistance {
     """
 }
 
-process meteor_resistance_merge {
-    cpus 1
+process meteor_resistance_summary {
+    cpus { params.resistance_trees ? params.cpus : 1 }
     memory {
         // One table per sample (a few thousand genes): 0.4 GB and 8 s for
-        // 12 samples on hs_10_4_gut; grows with the number of samples merged.
+        // 12 samples on hs_10_4_gut (without trees); grows with the number
+        // of samples merged.
         def sample_count = (resistance instanceof List ? resistance : [resistance]).size()
         return (Math.ceil(2 + 0.01 * sample_count) * task.attempt).GB
     }
@@ -219,11 +222,12 @@ process meteor_resistance_merge {
     path(resistance)
 
     output:
-    path("resistance_merged")
+    path("resistance_summary")
 
     script:
+    def trees_option = params.resistance_trees ? "--trees -t ${task.cpus}" : ""
     """
-    meteor resistance_merge -i ./ -o resistance_merged
+    meteor resistance_summary -i ./ -o resistance_summary ${trees_option}
     """
 }
 
@@ -340,7 +344,7 @@ workflow {
         meteor_tree(strains)
         if (params.resistance) {
             meteor_resistance(meteor_mapping.out.mapping, catalogue_ch)
-            meteor_resistance_merge(meteor_resistance.out.resistance.collect())
+            meteor_resistance_summary(meteor_resistance.out.resistance.collect())
         }
 
     workflow.onComplete = {
