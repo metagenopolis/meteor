@@ -306,7 +306,7 @@ The genes are the catalogue genes (`gene_id`), as in the tables of `meteor merge
 
 With `--trees`, every resistance gene interpretable in at least `-m` samples (default 4) gets a tree of these samples, built from their consensus sequences as `meteor tree` builds the tree of an MSP (same site filter `-g`, minimum number of sites `-s`, GTR or TN93 distance `-r`, UPGMA). The sequences share the coordinates of the catalogue gene, so no alignment is needed; one tree is built per catalogue gene, not per family. The tree tells which samples carry the same allele of the gene; compared with the tree of the MSP carrying it (`meteor tree`), a discordance points to a transfer of the gene between strains. Close homologues share their reads (`multimapped_fraction`), which can bring alleles closer. In `<mergedir>/<prefix>_resistance_trees/`:
 - `gene_<gene_id>.fasta`: the consensus sequences of the samples;
-- `gene_<gene_id>.tree`, `gene_<gene_id>.tsv` (tip-to-tip distances), `gene_<gene_id>_comparison.tsv` (pairs of samples), as for `meteor tree`.
+- `gene_<gene_id>.tree`, `gene_<gene_id>.tsv` (tip-to-tip distances), `gene_<gene_id>_raw_distances.tsv` (distances of the model before UPGMA), `gene_<gene_id>_comparison.tsv` (pairs of samples), as for `meteor tree`.
 
 `<prefix>_resistance_trees.tsv` indexes them: one row per gene with `gene_id`, `family` (the first annotation among ResFinder, ResFinderFG, MUSTARD and the quinolone target), `samples`, `msp_name`, the annotations, and `tree` (`NA` when the gene has fewer sites than `-s`). A tree is recomputed only when the sequences of its gene change.
 

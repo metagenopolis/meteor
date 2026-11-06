@@ -226,6 +226,7 @@ def test_execute_trees(tmp_path: Path) -> None:
     tree_dir = out / "out_resistance_trees"
     newick = (tree_dir / "gene_1.tree").read_text()
     assert all(f"S{k}" in newick for k in range(6))
+    assert (tree_dir / "gene_1_raw_distances.tsv").exists()
     distances = pd.read_table(tree_dir / "gene_1.tsv", index_col=0)
     # the two allele groups are further apart than the samples of a group
     assert distances.loc["S0", "S1"] < distances.loc["S0", "S5"]

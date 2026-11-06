@@ -56,7 +56,9 @@ GENE_COLUMNS = (
 # annotations giving the family of a gene, by priority
 FAMILY_COLUMNS = ("resfinder", "resfinderfg", "mustard", "target")
 # outputs of a gene tree, removed when its sequences change
-TREE_OUTPUTS = (".tree", ".tsv", "_comparison.tsv", "_qcflags.tsv", "_shrink.tsv")
+TREE_OUTPUTS = (
+    ".tree", ".tsv", "_raw_distances.tsv", "_comparison.tsv", "_qcflags.tsv", "_shrink.tsv",
+)
 
 
 @dataclass
