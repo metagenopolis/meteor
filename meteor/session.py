@@ -43,6 +43,7 @@ class Component:
     merging_dir: Path = field(default_factory=Path)
     mapped_sample_dir: Path = field(default_factory=Path)
     strain_dir: Path = field(default_factory=Path)
+    resistance_dir: Path = field(default_factory=Path)
     tree_dir: Path = field(default_factory=Path)
     ref_dir: Path = field(default_factory=Path)
     ref_name: str = field(default_factory=str)

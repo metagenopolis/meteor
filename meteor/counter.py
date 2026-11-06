@@ -17,11 +17,13 @@ import os
 import sys
 import pysam
 import lzma
+import numpy as np
 from dataclasses import dataclass, field
 from tempfile import mkdtemp, mkstemp
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
+from meteor.resistance import RESISTANCE_ANNOTATIONS, resistance_gene_table
 from typing import ClassVar
 from collections import defaultdict, Counter as TupleCounter
 from itertools import chain, repeat
@@ -65,6 +67,8 @@ class StreamingCounter:
         identity_threshold: float,
         strain_path: Path | None = None,
         strain_gene_ids: set[int] | None = None,
+        resistance_path: Path | None = None,
+        resistance_gene_ids: set[int] | None = None,
     ) -> None:
         self.counting_type = counting_type
         self.identity_threshold = identity_threshold
@@ -73,34 +77,22 @@ class StreamingCounter:
         self.gene_of_tid = [int(ref) for ref in references]
         self.database: dict[int, int] = dict(zip(self.gene_of_tid, lengths))
         # bytearray indexed by reference id: 1 when the gene is a marker gene
-        self.strain_tid = bytearray(len(references))
-        self.strain_out: AlignmentFile | None = None
-        self.strain_new_tid: list[int] = []
-        if strain_path is not None and strain_gene_ids is not None:
-            # The filtered alignments get a header restricted to marker genes:
-            # with the bowtie2 header (one @SQ per catalogue gene) every later
-            # reader/writer handles millions of sequences (and writing CRAM
-            # computes the MD5 of every catalogue sequence).
-            marker_tids = [
-                tid
-                for tid, gene in enumerate(self.gene_of_tid)
-                if gene in strain_gene_ids
-            ]
-            self.strain_new_tid = [-1] * len(references)
-            for new, tid in enumerate(marker_tids):
-                self.strain_tid[tid] = 1
-                self.strain_new_tid[tid] = new
-            strain_header = AlignmentHeader.from_dict(
-                {
-                    "HD": {"VN": "1.6", "SO": "unsorted"},
-                    "SQ": [
-                        {"SN": references[tid], "LN": lengths[tid]}
-                        for tid in marker_tids
-                    ],
-                }
-            )
-            self.strain_out = AlignmentFile(
-                str(strain_path.resolve()), "wb0", header=strain_header
+        self.strain_tid, self.strain_new_tid, self.strain_out = self._filtered_output(
+            references, lengths, strain_path, strain_gene_ids
+        )
+        # --kr: alignments on the resistance genes, in a file of their own
+        self.resistance_tid, self.resistance_new_tid, self.resistance_out = (
+            self._filtered_output(references, lengths, resistance_path, resistance_gene_ids)
+        )
+        # alignments kept for the current read: on a gene of a filtered output
+        if self.resistance_out is None:
+            self.kept_tid = self.strain_tid
+        else:
+            self.kept_tid = bytearray(
+                np.bitwise_or(
+                    np.frombuffer(self.strain_tid, dtype=np.uint8),
+                    np.frombuffer(self.resistance_tid, dtype=np.uint8),
+                ).tobytes()
             )
         self.unique_on_gene: dict[int, int] = dict.fromkeys(self.database, 0)
         self.total_on_gene: dict[int, int] = (
@@ -128,6 +120,37 @@ class StreamingCounter:
             )
             self.feed = self._feed_by_name  # type: ignore[method-assign]
 
+    def _filtered_output(
+        self,
+        references: tuple[str, ...],
+        lengths: tuple[int, ...],
+        path: Path | None,
+        gene_ids: set[int] | None,
+    ) -> tuple[bytearray, list[int], AlignmentFile | None]:
+        """Genes of a file of filtered alignments (bytearray indexed by reference
+        id), their reference ids in its header and the open file
+
+        The filtered alignments get a header restricted to their genes: with the
+        bowtie2 header (one @SQ per catalogue gene) every later reader/writer
+        handles millions of sequences (and writing CRAM computes the MD5 of every
+        catalogue sequence).
+        """
+        flags = bytearray(len(references))
+        if path is None or gene_ids is None:
+            return flags, [], None
+        tids = [tid for tid, gene in enumerate(self.gene_of_tid) if gene in gene_ids]
+        new_tid = [-1] * len(references)
+        for new, tid in enumerate(tids):
+            flags[tid] = 1
+            new_tid[tid] = new
+        header = AlignmentHeader.from_dict(
+            {
+                "HD": {"VN": "1.6", "SO": "unsorted"},
+                "SQ": [{"SN": references[tid], "LN": lengths[tid]} for tid in tids],
+            }
+        )
+        return flags, new_tid, AlignmentFile(str(path.resolve()), "wb0", header=header)
+
     def feed(self, element: AlignedSegment) -> None:
         read_id = element.query_name
         if not element.is_secondary or read_id != self._read:
@@ -146,12 +169,12 @@ class StreamingCounter:
         tid = element.reference_id
         if identity == self._best:
             self._tids.append(tid)
-            if self.strain_tid[tid]:
+            if self.kept_tid[tid]:
                 self._alns.append(element)
         elif identity > self._best:
             self._best = identity
             self._tids = [tid]
-            self._alns = [element] if self.strain_tid[tid] else []
+            self._alns = [element] if self.kept_tid[tid] else []
 
     def _feed_by_name(self, element: AlignedSegment) -> None:
         stats = element.get_cigar_stats()[0]
@@ -160,7 +183,7 @@ class StreamingCounter:
         if identity < self.identity_threshold:
             return
         tid = element.reference_id
-        marker = [element] if self.strain_tid[tid] else []
+        marker = [element] if self.kept_tid[tid] else []
         state = self.states.get(element.query_name)
         if state is None:
             self.states[element.query_name] = [identity, [tid], marker]
@@ -191,14 +214,36 @@ class StreamingCounter:
             for t in tids:
                 total_on_gene[gene_of_tid[t]] += 1
         self.counted_reads += 1
-        if self.strain_out is not None and alns:
-            new_tid = self.strain_new_tid
-            write = self.strain_out.write
-            for aln in alns:
-                aln.reference_id = new_tid[aln.reference_id]
-                if aln.next_reference_id >= 0:
-                    aln.next_reference_id = new_tid[aln.next_reference_id]
-                write(aln)
+        if not alns:
+            return
+        if self.resistance_out is None:
+            if self.strain_out is not None:
+                new_tid = self.strain_new_tid
+                write = self.strain_out.write
+                for aln in alns:
+                    aln.reference_id = new_tid[aln.reference_id]
+                    if aln.next_reference_id >= 0:
+                        aln.next_reference_id = new_tid[aln.next_reference_id]
+                    write(aln)
+            return
+        # --kr: an alignment goes to each file listing its gene (a resistance
+        # gene can also be a marker gene)
+        outputs = [
+            (flags, new_tid, out)
+            for flags, new_tid, out in (
+                (self.strain_tid, self.strain_new_tid, self.strain_out),
+                (self.resistance_tid, self.resistance_new_tid, self.resistance_out),
+            )
+            if out is not None
+        ]
+        for aln in alns:
+            tid, next_tid = aln.reference_id, aln.next_reference_id
+            for flags, new_tid, out in outputs:
+                if flags[tid]:
+                    aln.reference_id = new_tid[tid]
+                    aln.next_reference_id = new_tid[next_tid] if next_tid >= 0 else next_tid
+                    out.write(aln)
+            aln.reference_id, aln.next_reference_id = tid, next_tid
 
     def finish(self) -> dict[int, int | float]:
         """Count the last read and return the abundance of every gene."""
@@ -286,12 +331,17 @@ class Counter(Session):
     core_size: int
     keep_all_alignments: bool = False
     keep_filtered_alignments: bool = False
+    keep_resistance_alignments: bool = False
     json_data: dict = field(default_factory=dict)
     identity_threshold: float = field(default_factory=float)
 
     def __post_init__(self) -> None:
         if self.counting_type not in Counter.COUNTING_TYPES:
             raise ValueError(f"{self.counting_type} is not a valid counting type")
+        # meteor resistance also needs the alignments on marker genes (its
+        # controls): --kr writes <sample>_resistance.cram next to <sample>.cram
+        if self.keep_resistance_alignments:
+            self.keep_filtered_alignments = True
 
         if self.meteor.tmp_path:
             self.meteor.tmp_path.mkdir(exist_ok=True)
@@ -365,31 +415,58 @@ class Counter(Session):
         )
         return set(msp_content["gene_id"])
 
+    def get_resistance_gene_ids(self, ref_json: dict) -> set[int]:
+        """Genes annotated by ResFinder, ResFinderFG or MUSTARD, and genes of the
+        KEGG orthologs of gyrA, gyrB, parC and parE"""
+        table = resistance_gene_table(self, self.meteor.ref_dir, ref_json)
+        genes = set(table["gene_id"])
+        if not genes:
+            logging.error(
+                "--kr: the catalogue has no resistance annotation (%s, kegg)",
+                ", ".join(RESISTANCE_ANNOTATIONS),
+            )
+            sys.exit(1)
+        return {int(gene) for gene in genes}
+
+    @staticmethod
+    def resistance_cram(cramfile_strain: Path) -> Path:
+        """<sample>_resistance.cram, next to <sample>.cram (--kr)"""
+        return cramfile_strain.with_name(f"{cramfile_strain.stem}_resistance.cram")
+
+    def _unsorted_bam(self) -> Path:
+        # only the name is used: an open descriptor keeps the deleted file
+        # (.nfs* on NFS) and makes removing the temporary directory fail
+        handle, name = mkstemp(dir=self.meteor.tmp_dir, suffix=".bam")
+        os.close(handle)
+        return Path(name)
+
     def _streaming_counter(
         self, header: AlignmentHeader, ref_json: dict
-    ) -> tuple[StreamingCounter, Path | None]:
-        """Create a StreamingCounter (and the unsorted file of filtered alignments)
+    ) -> tuple[StreamingCounter, Path | None, Path | None]:
+        """Create a StreamingCounter (and the unsorted files of filtered alignments:
+        marker genes, and resistance genes with --kr)
 
         The unsorted filtered alignments are written as uncompressed BAM: an
         unsorted CRAM would fetch reference sequences in random order.
         """
-        strain_unsorted = None
-        strain_genes = None
+        strain_unsorted = resistance_unsorted = None
+        strain_genes = resistance_genes = None
         if self.keep_filtered_alignments:
             strain_genes = self.get_strain_gene_ids(ref_json)
-            # only the name is used: an open descriptor keeps the deleted file
-            # (.nfs* on NFS) and makes removing the temporary directory fail
-            handle, name = mkstemp(dir=self.meteor.tmp_dir, suffix=".bam")
-            os.close(handle)
-            strain_unsorted = Path(name)
+            strain_unsorted = self._unsorted_bam()
+        if self.keep_resistance_alignments:
+            resistance_genes = self.get_resistance_gene_ids(ref_json)
+            resistance_unsorted = self._unsorted_bam()
         streamer = StreamingCounter(
             header,
             self.counting_type,
             self.identity_threshold,
             strain_unsorted,
             strain_genes,
+            resistance_unsorted,
+            resistance_genes,
         )
-        return streamer, strain_unsorted
+        return streamer, strain_unsorted, resistance_unsorted
 
     def _finish_streaming(
         self,
@@ -400,12 +477,15 @@ class Counter(Session):
         stage1_json_data: dict,
         stage1_json: Path,
         ref_json: dict,
+        resistance_unsorted: Path | None = None,
     ) -> None:
-        """Write the count table, the census and the sorted strain CRAM"""
+        """Write the count table, the census and the sorted strain CRAM (and the
+        sorted resistance CRAM with --kr)"""
         start = perf_counter()
         abundance = streamer.finish()
-        if streamer.strain_out is not None:
-            streamer.strain_out.close()
+        for out in (streamer.strain_out, streamer.resistance_out):
+            if out is not None:
+                out.close()
         logging.info("Counted reads in %f seconds", perf_counter() - start)
         start = perf_counter()
         self.write_stat(count_file, abundance, streamer.database)
@@ -414,6 +494,8 @@ class Counter(Session):
         config = self.set_counter_config(
             total_read_count, streamer.counted_reads, count_file, streamer.dropped_reads
         )
+        if resistance_unsorted is not None:
+            config["counting"]["resistance_file"] = self.resistance_cram(cramfile_strain).name
         stage1_json_data.update(config)
         self.save_config(stage1_json_data, stage1_json)
         if strain_unsorted is not None:
@@ -425,6 +507,14 @@ class Counter(Session):
         else:
             logging.info(
                 "Cram file is not kept (--kf). Strain analysis will require a new mapping."
+            )
+        if resistance_unsorted is not None:
+            start = perf_counter()
+            self.sort_index_strain(
+                resistance_unsorted, self.resistance_cram(cramfile_strain), ref_json
+            )
+            logging.info(
+                "Resistance alignments sorted in %f seconds", perf_counter() - start
             )
 
     def sort_index_strain(
@@ -464,9 +554,12 @@ class Counter(Session):
         state: dict = {}
 
         def factory(header: AlignmentHeader) -> StreamingCounter:
-            streamer, strain_unsorted = self._streaming_counter(header, ref_json)
+            streamer, strain_unsorted, resistance_unsorted = self._streaming_counter(
+                header, ref_json
+            )
             state["streamer"] = streamer
             state["strain_unsorted"] = strain_unsorted
+            state["resistance_unsorted"] = resistance_unsorted
             return streamer
 
         pysam.set_verbosity(0)
@@ -481,6 +574,7 @@ class Counter(Session):
             stage1_json_data,
             stage1_json,
             ref_json,
+            state["resistance_unsorted"],
         )
         logging.info("Completed count table writing in %f seconds", perf_counter() - start)
 
@@ -504,6 +598,8 @@ class Counter(Session):
             "final_mapping_rate": round(100 * counted_reads / total_read_count, 2),
             "identity_threshold": round(self.identity_threshold, 2),
             "count_file": count_file.name,
+            # alignments on the resistance genes kept (--kr)
+            "resistance_alignments": self.keep_resistance_alignments,
         }
         if self.counting_type == "strict_shared":
             counting["dropped_shared_reads"] = dropped_reads
@@ -551,7 +647,7 @@ class Counter(Session):
         with AlignmentFile(
             str(raw_cramfile.resolve()), threads=self.meteor.threads
         ) as cramdesc:
-            streamer, strain_unsorted = self._streaming_counter(
+            streamer, strain_unsorted, resistance_unsorted = self._streaming_counter(
                 cramdesc.header, ref_json
             )
             feed = streamer.feed
@@ -565,6 +661,7 @@ class Counter(Session):
             stage1_json_data,
             stage1_json,
             ref_json,
+            resistance_unsorted,
         )
 
     def execute(self) -> None:
