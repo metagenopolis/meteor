@@ -35,13 +35,20 @@ from meteor.variantcalling import VariantCalling
 
 # catalogue annotations of acquired antibiotic resistance genes
 RESISTANCE_ANNOTATIONS: tuple[str, ...] = ("resfinder", "resfinderfg", "mustard")
-# KEGG orthologs of the targets of quinolones (resistance by point mutations)
+# KEGG orthologs of the chromosomal targets of antibiotics, resistant by point
+# mutations: quinolones (gyrA, gyrB, parC, parE), rifampicin (rpoB),
+# streptomycin (rpsL) and sulfonamides (folP)
 TARGET_KOS: dict[str, str] = {
     "K02469": "gyrA",
     "K02470": "gyrB",
     "K02621": "parC",
     "K02622": "parE",
+    "K03043": "rpoB",
+    "K02950": "rpsL",
+    "K00796": "folP",
 }
+# catalogue annotation of the known resistance positions of the target genes
+POSITIONS_ANNOTATION = "resistance_positions"
 
 # standard genetic code, codons in TCAG order
 _BASES = "TCAG"
@@ -191,6 +198,47 @@ def gene_variants(
     return result
 
 
+def codon_residues(
+    bam: AlignmentFile, gene: str, starts: list[int], base_quality: int
+) -> dict[int, dict[str, int]]:
+    """Amino acids carried by the reads at the codons starting at `starts`
+    (0-based) of a gene, read by read: a codon counts for a read when its 3
+    bases are aligned without indel and have a quality >= base_quality.
+    Counting each base separately would mix the bases of different reads into
+    codons that no read carries.
+
+    :return: {codon start: {amino acid: reads}}
+    """
+    residues: dict[int, dict[str, int]] = {start: {} for start in starts}
+    if not starts:
+        return residues
+    low, high = min(starts), max(starts) + 3
+    for read in bam.fetch(gene, low, high):
+        sequence = read.query_sequence
+        qualities = read.query_qualities
+        if not keep_alignment(read) or sequence is None or qualities is None:
+            continue
+        query_of = {
+            ref: query
+            for query, ref in read.get_aligned_pairs(matches_only=True)
+            if low <= ref < high
+        }
+        for start in starts:
+            query = query_of.get(start)
+            if (
+                query is None
+                or query_of.get(start + 1) != query + 1
+                or query_of.get(start + 2) != query + 2
+                or min(qualities[query : query + 3]) < base_quality
+            ):
+                continue
+            amino_acid = CODON_TABLE.get(sequence[query : query + 3].upper())
+            if amino_acid is not None:
+                counts = residues[start]
+                counts[amino_acid] = counts.get(amino_acid, 0) + 1
+    return residues
+
+
 def resistance_worker(
     bam_path: str,
     ref_path: str,
@@ -200,9 +248,12 @@ def resistance_worker(
     min_frequency: float,
     base_quality: int,
     consensus: bool = False,
+    positions: dict[str, list[int]] | None = None,
 ) -> list[dict]:
-    """Variants of a batch of genes (module level: run in spawn workers)"""
+    """Variants of a batch of genes (module level: run in spawn workers);
+    positions: {gene: codon starts} whose residues are counted (`residues`)"""
     rows = []
+    positions = positions or {}
     with AlignmentFile(bam_path, "rb") as bam, FastaFile(ref_path) as fasta:
         for gene, length in genes:
             alignments = multimapped = 0
@@ -221,13 +272,15 @@ def resistance_worker(
                 ),
                 dtype=np.int64,
             )
-            row = {"gene_id": int(gene), "gene_length": length, "alignments": alignments}
+            row: dict = {"gene_id": int(gene), "gene_length": length, "alignments": alignments}
             row["multimapped_fraction"] = multimapped / alignments if alignments else np.nan
             row.update(
                 gene_variants(
                     fasta.fetch(gene), counts, min_depth, min_alt_count, min_frequency, consensus
                 )
             )
+            if gene in positions:
+                row["residues"] = codon_residues(bam, gene, positions[gene], base_quality)
             rows.append(row)
     return rows
 
@@ -248,7 +301,7 @@ def load_kegg_targets(path: Path) -> pd.DataFrame:
 def resistance_gene_table(session: Session, ref_dir: Path, ref_json: dict) -> pd.DataFrame:
     """One row per resistance gene of the catalogue: its ResFinder, ResFinderFG
     and MUSTARD annotations, and `target` for the genes of the KEGG orthologs of
-    gyrA, gyrB, parC and parE (empty table without any of these annotations)"""
+    TARGET_KOS (empty table without any of these annotations)"""
     database_dir = ref_dir / ref_json["reference_file"]["database_dir"]
     annotations = ref_json.get("annotation", {})
     columns = []
@@ -296,6 +349,69 @@ def _ratio(numerator, denominator):
         return np.where(denominator > 0, numerator / denominator, np.nan)
 
 
+# columns of the catalogue table of the known resistance positions
+POSITION_COLUMNS = (
+    "gene_id",
+    "family",
+    "codon_pos",
+    "ref_residue",
+    "resistance_residues",
+    "gene_aa_pos",
+    "gene_nt_pos",
+    "gene_residue",
+    "window_identity",
+)
+
+
+def position_table(
+    positions: pd.DataFrame,
+    residues: dict[int, dict[int, dict[str, int]]],
+    min_depth: int,
+    min_alt_count: int,
+    min_frequency: float,
+) -> pd.DataFrame:
+    """Residues of the sample at the known resistance positions of its genes.
+
+    positions: catalogue positions (gene_nt_pos: first base of the codon,
+    1-based); residues: {gene_id: {codon start (0-based): {amino acid: reads}}}.
+    `known_resistance`: >= min_alt_count reads and >= min_frequency of them
+    carry a resistance residue (a minor resistant population is kept), at a
+    position read by >= min_depth reads.
+    """
+    rows = []
+    for row in positions.itertuples(index=False):
+        counts = residues.get(int(row.gene_id), {}).get(int(row.gene_nt_pos) - 1, {})
+        depth = sum(counts.values())
+        if depth == 0:
+            continue
+        # most reads first, then alphabetical: a stable major residue
+        ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+        resistant = set(str(row.resistance_residues).split(","))
+        resistance_reads = sum(n for residue, n in counts.items() if residue in resistant)
+        rows.append(
+            {
+                **{column: getattr(row, column) for column in POSITION_COLUMNS},
+                "depth": depth,
+                "readable": depth >= min_depth,
+                "major_residue": ordered[0][0],
+                "major_frequency": ordered[0][1] / depth,
+                "major_is_resistance": ordered[0][0] in resistant,
+                "resistance_reads": resistance_reads,
+                "resistance_frequency": resistance_reads / depth,
+                "known_resistance": depth >= min_depth
+                and resistance_reads >= min_alt_count
+                and resistance_reads / depth >= min_frequency,
+                "residue_counts": ",".join(f"{residue}:{n}" for residue, n in ordered),
+            }
+        )
+    columns = [
+        *POSITION_COLUMNS, "depth", "readable", "major_residue", "major_frequency",
+        "major_is_resistance", "resistance_reads", "resistance_frequency",
+        "known_resistance", "residue_counts",
+    ]
+    return pd.DataFrame(rows, columns=columns)
+
+
 @dataclass
 class Resistance(Session):
     """Variants of the antibiotic resistance genes of a sample (meteor resistance)"""
@@ -333,25 +449,44 @@ class Resistance(Session):
         return genes
 
     def gene_stats(
-        self, bam: Path, reference: str, genes: list[tuple[str, int]], consensus: bool = False
-    ) -> pd.DataFrame:
-        """Variants of every gene, in worker processes when threads > 1"""
+        self,
+        bam: Path,
+        reference: str,
+        genes: list[tuple[str, int]],
+        consensus: bool = False,
+        positions: dict[str, list[int]] | None = None,
+    ) -> tuple[pd.DataFrame, dict[int, dict[int, dict[str, int]]]]:
+        """Variants of every gene, in worker processes when threads > 1, and
+        the residues of the reads at the codons of `positions` ({gene: starts})
+
+        :return: (one row per gene, {gene_id: {codon start: {amino acid: reads}}})
+        """
+        positions = positions or {}
         args = (
             self.min_depth, self.min_alt_count, self.min_frequency, self.base_quality, consensus
         )
         workers = max(1, self.meteor.threads)
         if workers == 1 or len(genes) < 2 * workers:
-            rows = resistance_worker(str(bam), reference, genes, *args)
+            rows = resistance_worker(str(bam), reference, genes, *args, positions)
         else:
             batch = max(1, min(2000, len(genes) // (workers * 8)))
             batches = [genes[i : i + batch] for i in range(0, len(genes), batch)]
             with ProcessPoolExecutor(max_workers=workers, mp_context=get_context("spawn")) as pool:
                 results = pool.map(
                     resistance_worker,
-                    *zip(*[(str(bam), reference, b, *args) for b in batches]),
+                    *zip(
+                        *[
+                            (
+                                str(bam), reference, b, *args,
+                                {g: positions[g] for g, _ in b if g in positions},
+                            )
+                            for b in batches
+                        ]
+                    ),
                 )
                 rows = [row for result in results for row in result]
-        return pd.DataFrame(rows)
+        residues = {row["gene_id"]: row.pop("residues") for row in rows if "residues" in row}
+        return pd.DataFrame(rows), residues
 
     def add_rates(self, df: pd.DataFrame) -> pd.DataFrame:
         """Coverage, rates per kb covered, dN/dS against the catalogue (major
@@ -366,6 +501,22 @@ class Resistance(Session):
                 _ratio(df[f"{kind}_syn"], df["syn_sites"]),
             )
         return df
+
+    def load_positions(self, ref_json: dict, gene_ids: set[int]) -> dict:
+        """Known resistance positions of the resistance genes, when the catalogue
+        has them: {"table": catalogue rows, "starts": {gene_id: codon starts (0-based)}}"""
+        annotation = ref_json.get("annotation", {}).get(POSITIONS_ANNOTATION)
+        if annotation is None:
+            return {"table": None, "starts": {}}
+        database_dir = self.meteor.ref_dir / ref_json["reference_file"]["database_dir"]
+        table = self.load_data(database_dir / annotation["filename"])
+        table = table.assign(gene_id=table["gene_id"].astype(int))
+        table = table[table["gene_id"].isin(gene_ids)][list(POSITION_COLUMNS)]
+        starts: dict[int, set[int]] = {}
+        for gene, nt_pos in zip(table["gene_id"], table["gene_nt_pos"]):
+            starts.setdefault(int(gene), set()).add(int(nt_pos) - 1)
+        logging.info("%d known resistance positions on %d genes", len(table), len(starts))
+        return {"table": table, "starts": {gene: sorted(s) for gene, s in starts.items()}}
 
     def execute(self) -> None:
         """Variants of the resistance genes of the mapped sample"""
@@ -410,13 +561,26 @@ class Resistance(Session):
         carrying = {name for names in msp_of_gene for name in names.split(";")}
         controls = markers[markers["msp_name"].isin(carrying)]
         resistance_ids = set(resistance["gene_id"])
+        positions = self.load_positions(ref_json, resistance_ids)
         helper = VariantCalling(self.meteor, {}, 0, 0, 0, 0.0, 1, self.core_size)
-        # a resistance gene that is also a marker gene is read once, from the
-        # resistance alignments
+        # each resistance gene is read from the resistance alignments, or from
+        # the marker alignments when the resistance CRAM does not list it (a
+        # target added to --kr after the mapping: a marker gene is still there);
+        # a resistance gene that is also a marker gene is read once
+        if resistance_cram == cram:
+            # single-file layout: every catalogue gene is in the header
+            in_resistance_cram = resistance_ids
+        else:
+            with AlignmentFile(
+                str(resistance_cram.resolve()), "rc", reference_filename=str(reference.resolve())
+            ) as alignments:
+                in_resistance_cram = resistance_ids & {int(name) for name in alignments.references}
+        from_markers = resistance_ids - in_resistance_cram
         parts = []
-        for source, targets in (
-            (resistance_cram, resistance_ids),
-            (cram, set(controls["gene_id"]) - resistance_ids),
+        residues: dict[int, dict[int, dict[str, int]]] = {}
+        for source, targets, with_consensus in (
+            (resistance_cram, in_resistance_cram, True),
+            (cram, (set(controls["gene_id"]) | from_markers) - in_resistance_cram, bool(from_markers)),
         ):
             if not targets:
                 continue
@@ -432,10 +596,19 @@ class Resistance(Session):
                 ]
             logging.info("Variants of %d genes of %s", len(genes), source.name)
             if genes:
-                # consensus sequences of the resistance genes only
-                parts.append(
-                    self.gene_stats(bam, fasta, genes, consensus=source == resistance_cram)
+                stats_part, residues_part = self.gene_stats(
+                    bam,
+                    fasta,
+                    genes,
+                    consensus=with_consensus,
+                    positions={
+                        name: starts
+                        for name, _ in genes
+                        if (starts := positions["starts"].get(int(name)))
+                    },
                 )
+                parts.append(stats_part)
+                residues.update(residues_part)
         if not parts:
             logging.error("%s: no alignment on the resistance genes or their controls", sample)
             sys.exit(1)
@@ -488,6 +661,28 @@ class Resistance(Session):
                 sequence = consensus.get(gene)
                 if isinstance(sequence, str):
                     fasta_out.write(f">{gene}\n{sequence}\n")
+        # residues at the known resistance positions of the target genes
+        positions_file = None
+        if positions["table"] is not None:
+            position_rows = position_table(
+                positions["table"],
+                residues,
+                self.min_depth,
+                self.min_alt_count,
+                self.min_frequency,
+            )
+            position_rows.insert(1, "msp_name", position_rows["gene_id"].map(msp_of_gene))
+            positions_file = sample_dir / f"{sample}_resistance_positions.tsv"
+            position_rows.sort_values(["gene_id", "codon_pos"]).to_csv(
+                positions_file, sep="\t", index=False, na_rep="NA"
+            )
+            logging.info(
+                "%d known resistance positions read, %d with a resistance residue: %s",
+                int(position_rows["readable"].sum()),
+                int(position_rows["known_resistance"].sum()),
+                positions_file,
+            )
+        annotations = ref_json.get("annotation", {})
         self.save_config(
             {
                 "meteor_version": self.meteor.version,
@@ -497,9 +692,10 @@ class Resistance(Session):
                     "resistance_date": datetime.now().strftime("%Y-%m-%d"),
                     "annotations": [
                         n
-                        for n in (*RESISTANCE_ANNOTATIONS, "kegg")
-                        if n in ref_json.get("annotation", {})
+                        for n in (*RESISTANCE_ANNOTATIONS, "kegg", POSITIONS_ANNOTATION)
+                        if n in annotations
                     ],
+                    "target_kos": sorted(TARGET_KOS),
                     "min_depth": self.min_depth,
                     "min_alt_count": self.min_alt_count,
                     "min_frequency": self.min_frequency,
@@ -509,8 +705,12 @@ class Resistance(Session):
                     "resistance_genes_total": len(resistance),
                     "genes_with_reads": len(table),
                     "interpretable_genes": int(table["interpretable"].sum()),
+                    # resistance genes missing from the resistance CRAM, read from
+                    # the marker alignments (mapped before they were added to --kr)
+                    "genes_read_from_markers": int(table["gene_id"].isin(from_markers).sum()),
                     "resistance_file": output.name,
                     "consensus_file": consensus_file.name,
+                    **({"positions_file": positions_file.name} if positions_file else {}),
                 },
             },
             sample_dir / f"{sample}_census_stage_resistance.json",

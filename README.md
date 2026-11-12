@@ -259,9 +259,9 @@ The tree and the distance matrix are not modified.
 This mode is dedicated to the **variants** (single nucleotide variants) of the antibiotic resistance genes, not to their presence or abundance:
 - the **abundance** of the resistance genes (the resistome) is given by the standard workflow, in the `mustard`, `resfinder` and `resfinderfg` tables of `meteor merge`, with no extra option;
 - `meteor resistance` tells, for each resistance gene with reads, how much the gene of the sample **differs from the catalogue gene** (major variants), how **polymorphic** it is in the sample (minor variants), whether these variants change the protein, and how this compares with the marker genes of the same species;
-- it does **not** call resistance mutations: the catalogue gene is a cluster representative, not a susceptible reference, so a variant is a difference, not a known resistance mutation.
+- these variants are not resistance mutations: the catalogue gene is a cluster representative, not a susceptible reference, so a variant is a difference; the **known resistance positions** of the target genes are read separately, when the catalogue has them (see below).
 
-`meteor resistance` counts the single nucleotide variants of the antibiotic resistance genes of a sample against the catalogue genes, with the marker genes of the same species as controls. The resistance genes are the catalogue genes annotated by ResFinder, ResFinderFG or MUSTARD (acquired genes), and the genes of the KEGG orthologs of gyrA (K02469), gyrB (K02470), parC (K02621) and parE (K02622), the targets of quinolones, resistant by point mutations. The sample must be mapped with `--kr`, which writes the filtered alignments on the resistance genes to `<sample>_resistance.cram`, next to `<sample>.cram`, the alignments on the marker genes used as controls (`--kr` implies `--kf`; `<sample>.cram` is the same as with `--kf` alone):
+`meteor resistance` counts the single nucleotide variants of the antibiotic resistance genes of a sample against the catalogue genes, with the marker genes of the same species as controls. The resistance genes are the catalogue genes annotated by ResFinder, ResFinderFG or MUSTARD (acquired genes), and the target genes, resistant by point mutations: the genes of the KEGG orthologs of gyrA (K02469), gyrB (K02470), parC (K02621) and parE (K02622) (quinolones), rpoB (K03043) (rifampicin), rpsL (K02950) (streptomycin) and folP (K00796) (sulfonamides). The sample must be mapped with `--kr`, which writes the filtered alignments on the resistance genes to `<sample>_resistance.cram`, next to `<sample>.cram`, the alignments on the marker genes used as controls (`--kr` implies `--kf`; `<sample>.cram` is the same as with `--kf` alone). A resistance gene missing from `<sample>_resistance.cram` (a sample mapped before rpoB, rpsL and folP were added to `--kr`) is read from `<sample>.cram` when it is a marker gene, and has no reads otherwise (`genes_read_from_markers` in the census):
 ```
 meteor mapping -i <fastqdir/sampledir> -o <mappingdir> -r <refdir> --kr
 meteor resistance -i <mappingdir/sampledir> -o <resistancedir> -r <refdir>
@@ -278,7 +278,7 @@ A variant is synonymous or not by comparing the two alleles in the codon of the 
 | Column | Description |
 |--------|-------------|
 | `gene_id`, `msp_name` | Catalogue gene and the MSPs it belongs to (empty for a gene of no MSP) |
-| `resfinder`, `resfinderfg`, `mustard`, `mustard_prediction`, `target` | Annotations of the gene (`target`: gyrA, gyrB, parC or parE) |
+| `resfinder`, `resfinderfg`, `mustard`, `mustard_prediction`, `target` | Annotations of the gene (`target`: gyrA, gyrB, parC, parE, rpoB, rpsL or folP) |
 | `gene_length`, `alignments`, `multimapped_fraction` | Alignments on the gene and the fraction with a MAPQ <= 1 (mostly reads with equally good hits on other genes; it also holds rare unique alignments of low MAPQ) |
 | `mean_depth`, `covered_bp`, `covered_fraction`, `interpretable` | Coverage; a gene is interpretable when `covered_fraction` >= `-c` (default 0.8) |
 | `major_snv`, `major_syn`, `major_nonsyn`, `minor_snv`, `minor_syn`, `minor_nonsyn` | Variants |
@@ -291,6 +291,19 @@ The catalogue gene is the representative of a gene cluster, not a susceptible re
 
 `<resistancedir>/<sample>/<sample>_resistance_consensus.fasta.xz` holds the consensus sequence of each interpretable resistance gene in the sample (`>gene_id`): the major base of each covered site, `N` elsewhere, on the coordinates of the catalogue gene. A sample carrying several alleles of a gene (minor variants) gets the major one at each site.
 
+When the catalogue has a `resistance_positions` annotation, `<resistancedir>/<sample>/<sample>_resistance_positions.tsv` gives the residue carried by the reads at the known resistance positions of the target genes with reads. The annotation lists, for each target gene of the catalogue, the positions of the known resistance substitutions (e.g. PointFinder) transferred onto the gene: `gene_id`, `family`, `codon_pos` (numbering of the reference, e.g. gyrA 83 of *E. coli*), `ref_residue`, `resistance_residues` (comma-separated), `gene_aa_pos`, `gene_nt_pos` (first base of the codon in the catalogue gene, 1-based), `gene_residue` and `window_identity` (identity of the alignment around the position). The residues are counted read by read: a read counts when the 3 bases of the codon are aligned without indel, with a base quality >= `-q`. One row per position read by at least one read:
+
+| Column | Description |
+|--------|-------------|
+| `gene_id`, `msp_name`, `family`, `codon_pos`, `ref_residue`, `resistance_residues`, `gene_aa_pos`, `gene_nt_pos`, `gene_residue`, `window_identity` | The position, from the annotation |
+| `depth`, `readable` | Reads carrying the codon; the position is read when `depth` >= `-p` |
+| `major_residue`, `major_frequency`, `major_is_resistance` | Residue of most reads, its frequency, and whether it is a resistance residue |
+| `resistance_reads`, `resistance_frequency` | Reads carrying a resistance residue, and their fraction |
+| `known_resistance` | The position is read and at least `-a` reads and `-f` of the reads carry a resistance residue (a resistant minor population counts) |
+| `residue_counts` | Reads per residue (`S:16,L:4`) |
+
+The positions come from the reference species (*E. coli*, *K. pneumoniae*): in another species, the wild-type residue can be a "resistance" residue. `meteor resistance_summary` compares each sample with the residue of the cohort.
+
 The abundance of the resistance genes is given by `meteor merge` (`mustard`, `resfinder`, `resfinderfg` tables): `meteor resistance` only adds their variants. The tables of several samples are merged, and with `--trees` one tree is built per resistance gene, by:
 ```
 meteor resistance_summary -i <resistancedir> -o <mergedir> [--trees]
@@ -301,6 +314,8 @@ Every sample must have been analysed against the same catalogue with the same pa
 - `<prefix>_resistance_major_per_kb.tsv`, `<prefix>_resistance_minor_per_kb.tsv`: gene x sample matrices of the variants per kb covered, `NA` where the gene is not interpretable;
 - `<prefix>_resistance_interpretable.tsv`: gene x sample matrix, 1 where the gene is interpretable;
 - `<prefix>_resistance_genes.tsv`: one row per gene, with its annotations and MSPs, the number of samples where it has reads (`samples_with_reads`) and where it is interpretable (`samples_interpretable`; `interpretable_fraction` divides it by the number of merged samples), the medians of its rates and of the rates of its controls over the samples where it is interpretable (`median_major_per_kb`, `median_minor_per_kb`, `median_control_major_per_kb`, `median_control_minor_per_kb`), the number of these samples where it has controls (`samples_with_controls`), and the fraction of them where its rate is strictly higher than that of its controls (`major_above_controls_fraction`, `minor_above_controls_fraction`);
+- with the known resistance positions, `<prefix>_resistance_positions.tsv`: the position tables of every sample (`sample` column first), with the residue of the cohort at each gene position (`cohort_residue`: the major residue of most samples where the position is read, `cohort_samples`: these samples) and `differs_from_cohort`;
+- with the known resistance positions, `<prefix>_resistance_positions_samples.tsv`: per sample and target family, the genes read at one known position at least (`genes_readable`), and among them the genes with a resistance residue at one position at least (`genes_resistance`, `known_resistance`: minor populations included), as the major residue (`genes_major_resistance`), and as a major residue different from the cohort residue (`genes_acquired`: candidate acquired mutations, a resistance residue that is the wild type of the species being the cohort residue), with the fractions `fraction_resistance`, `fraction_major_resistance` and `fraction_acquired` (divided by `genes_readable`);
 - `<prefix>_resistance_census.json`: the catalogue, the parameters and the numbers of samples, genes and trees.
 
 The genes are the catalogue genes (`gene_id`), as in the tables of `meteor merge`.
@@ -309,7 +324,7 @@ With `--trees`, every resistance gene interpretable in at least `-m` samples (de
 - `gene_<gene_id>.fasta`: the consensus sequences of the samples;
 - `gene_<gene_id>.tree`, `gene_<gene_id>.tsv` (tip-to-tip distances), `gene_<gene_id>_raw_distances.tsv` (distances of the model before UPGMA), `gene_<gene_id>_comparison.tsv` (pairs of samples), as for `meteor tree`.
 
-`<prefix>_resistance_trees.tsv` indexes them: one row per gene with `gene_id`, `family` (the first annotation among ResFinder, ResFinderFG, MUSTARD and the quinolone target), `samples`, `msp_name`, the annotations, and `tree` (`NA` when the gene has fewer sites than `-s`). A tree is recomputed only when the sequences of its gene change.
+`<prefix>_resistance_trees.tsv` indexes them: one row per gene with `gene_id`, `family` (the first annotation among ResFinder, ResFinderFG, MUSTARD and the target gene), `samples`, `msp_name`, the annotations, and `tree` (`NA` when the gene has fewer sites than `-s`). A tree is recomputed only when the sequences of its gene change.
 
 ## Options of each command
 
@@ -348,7 +363,7 @@ The options of every command are also listed by `meteor <command> -h`.
 | `--id IDENTITY_THRESHOLD` | Keep only the read alignments with a nucleotide identity >= IDENTITY_THRESHOLD. If 0.0, no filtering. | auto: `0.95` (complete catalogue), `0.98` (taxonomic catalogue) |
 | `--ka` | Keep raw bowtie2 output in cram format. Required for calculating gene counts with another strategy. | off |
 | `--kf` | Keep filtered alignments on marker genes. Required for strain analysis. | off |
-| `--kr` | Keep filtered alignments on antibiotic resistance genes (ResFinder, ResFinderFG, MUSTARD annotations, and gyrA, gyrB, parC, parE from the KEGG annotation) in `<sample>_resistance.cram`; implies `--kf`. Required for meteor resistance. | off |
+| `--kr` | Keep filtered alignments on antibiotic resistance genes (ResFinder, ResFinderFG, MUSTARD annotations, and gyrA, gyrB, parC, parE, rpoB, rpsL, folP from the KEGG annotation) in `<sample>_resistance.cram`; implies `--kf`. Required for meteor resistance. | off |
 | `--tmp TMP_PATH` | Directory where temporary files (e.g. cram) are stored | none |
 | `-t THREADS` | Number of alignment threads to launch. | `1` |
 

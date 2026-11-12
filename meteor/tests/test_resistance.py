@@ -27,9 +27,12 @@ from ..counter import Counter
 from ..resistance import (
     COVERAGE_BASES,
     SYNONYMOUS_SITES,
+    CODON_TABLE,
     Resistance,
+    codon_residues,
     gene_variants,
     is_synonymous,
+    position_table,
 )
 from ..session import Component
 
@@ -85,8 +88,14 @@ LENGTH = 300
 
 
 def _catalogue(
-    root: Path, shared: bool = False, duplicate: bool = False, mustard_prediction: bool = True
+    root: Path,
+    shared: bool = False,
+    duplicate: bool = False,
+    mustard_prediction: bool = True,
+    positions: list[dict] | None = None,
 ) -> dict[int, str]:
+    """positions: rows of the known resistance positions table; with them,
+    gene 2 (marker of M1) is rpoB and gene 5 (marker of M2) is rpsL"""
     rng = random.Random(1)
     genes = {gene: "".join(rng.choice("ACGT") for _ in range(LENGTH)) for gene in range(1, 6)}
     (root / "fasta").mkdir(parents=True)
@@ -117,9 +126,15 @@ def _catalogue(
         mustard["Prediction"] = ["Likely_ref", "Likely_ref"]
     mustard.to_csv(root / "database" / "mustard.tsv", sep="\t", index=False)
     # gene 3, marker gene of M1, is gyrA
-    pd.DataFrame(
-        {"gene_id": [3, 3, 2], "gene_name": ["g3", "g3", "g2"], "annotation": ["K02469", "K00001", "K00002"]}
-    ).to_csv(root / "database" / "kegg.tsv", sep="\t", index=False)
+    kegg = {"gene_id": [3, 3, 2], "gene_name": ["g3", "g3", "g2"], "annotation": ["K02469", "K00001", "K00002"]}
+    if positions is not None:
+        kegg = {
+            "gene_id": [3, 2, 5],
+            "gene_name": ["g3", "g2", "g5"],
+            "annotation": ["K02469", "K03043", "K02950"],
+        }
+        pd.DataFrame(positions).to_csv(root / "database" / "positions.tsv", sep="\t", index=False)
+    pd.DataFrame(kegg).to_csv(root / "database" / "kegg.tsv", sep="\t", index=False)
     (root / "cat_reference.json").write_text(
         json.dumps(
             {
@@ -138,6 +153,11 @@ def _catalogue(
                     "resfinder": {"filename": "resfinder.tsv"},
                     "mustard": {"filename": "mustard.tsv"},
                     "kegg": {"filename": "kegg.tsv"},
+                    **(
+                        {"resistance_positions": {"filename": "positions.tsv", "version": "4.1.1"}}
+                        if positions is not None
+                        else {}
+                    ),
                 },
             }
         )
@@ -156,6 +176,7 @@ def _mapped_sample(
     kr: bool = True,
     mapped: tuple = (1, 2, 3, 4),
     split: bool = True,
+    own_headers: bool = False,
 ) -> Path:
     """CRAMs of 100 bp reads every 2 bp on genes 1-4 (depth 50); variants:
     {(gene, pos): (base, every)} gives `base` to one read out of `every`.
@@ -163,18 +184,23 @@ def _mapped_sample(
     split: as meteor mapping --kr, S1.cram holds the alignments on the marker
     genes and S1_resistance.cram those on the resistance genes (gene 3 in both);
     otherwise S1.cram holds every alignment and the census no resistance file.
+    own_headers: each CRAM header lists only its genes, as meteor mapping writes
+    them (a resistance gene added after the mapping is missing from S1_resistance).
     """
     sample = root / "mapping" / "S1"
     sample.mkdir(parents=True)
-    header = pysam.AlignmentHeader.from_dict(
-        {"HD": {"VN": "1.6", "SO": "coordinate"},
-         "SQ": [{"SN": str(g), "LN": LENGTH} for g in genes]}
-    )
     files = {"S1": MARKER_GENES, "S1_resistance": RESISTANCE_GENES} if split else {
         "S1": set(genes)
     }
+    headers = {
+        name: pysam.AlignmentHeader.from_dict(
+            {"HD": {"VN": "1.6", "SO": "coordinate"},
+             "SQ": [{"SN": str(g), "LN": LENGTH} for g in genes if g in kept or not own_headers]}
+        )
+        for name, kept in files.items()
+    }
     outputs = {
-        name: pysam.AlignmentFile(str(sample / f"{name}.bam"), "wb", header=header)
+        name: pysam.AlignmentFile(str(sample / f"{name}.bam"), "wb", header=headers[name])
         for name in files
     }
     n = 0
@@ -184,16 +210,16 @@ def _mapped_sample(
             for (vgene, pos), (base, every) in variants.items():
                 if vgene == gene and start <= pos < start + 100 and n % every == 0:
                     seq[pos - start] = base
-            read = pysam.AlignedSegment(header)
-            read.query_name = f"r{n}"
-            read.reference_id = gene - 1
-            read.reference_start = start
-            read.cigarstring = "100M"
-            read.query_sequence = "".join(seq)
-            read.query_qualities = pysam.qualitystring_to_array("I" * 100)
-            read.mapping_quality = 1 if gene == 4 else 42
             for name, kept in files.items():
                 if gene in kept:
+                    read = pysam.AlignedSegment(headers[name])
+                    read.query_name = f"r{n}"
+                    read.reference_name = str(gene)
+                    read.reference_start = start
+                    read.cigarstring = "100M"
+                    read.query_sequence = "".join(seq)
+                    read.query_qualities = pysam.qualitystring_to_array("I" * 100)
+                    read.mapping_quality = 1 if gene == 4 else 42
                     outputs[name].write(read)
             n += 1
     for out in outputs.values():
@@ -429,6 +455,113 @@ def test_resistance_genes_no_annotation(resistance, tmp_path: Path) -> None:
     ref_json["annotation"] = {"msp": ref_json["annotation"]["msp"]}
     with pytest.raises(SystemExit):
         analysis.resistance_genes(ref_json)
+
+
+def _codon(residue: str) -> str:
+    return next(codon for codon, aa in CODON_TABLE.items() if aa == residue)
+
+
+def test_codon_residues_read_by_read(tmp_path: Path) -> None:
+    """A codon counts once per read with its 3 bases aligned, without indel and
+    at the base quality; bases of different reads are never mixed"""
+    header = pysam.AlignmentHeader.from_dict({"HD": {"VN": "1.6"}, "SQ": [{"SN": "1", "LN": 60}]})
+    path = tmp_path / "reads.bam"
+    reads = [
+        ("TTG", "30M", None),  # L
+        ("TTG", "30M", None),
+        ("TCG", "30M", None),  # S
+        ("TTG", "30M", 3),  # low quality on the codon: skipped
+        ("TTG", "11M1D19M", None),  # deletion inside the codon: skipped
+    ]
+    with pysam.AlignmentFile(str(path), "wb", header=header) as out:
+        for k, (codon, cigar, low) in enumerate(reads):
+            read = pysam.AlignedSegment(header)
+            read.query_name = f"r{k}"
+            read.reference_id = 0
+            read.reference_start = 0
+            read.cigarstring = cigar
+            read.query_sequence = "A" * 10 + codon + "A" * 17
+            qualities = [40] * 30
+            if low is not None:
+                qualities[11] = low
+            read.query_qualities = pysam.qualitystring_to_array("".join(chr(q + 33) for q in qualities))
+            out.write(read)
+    pysam.index(str(path))
+    with pysam.AlignmentFile(str(path), "rb") as bam:
+        residues = codon_residues(bam, "1", [10, 40], base_quality=20)
+    assert residues == {10: {"L": 2, "S": 1}, 40: {}}
+
+
+def test_position_table() -> None:
+    positions = pd.DataFrame(
+        {
+            "gene_id": [7, 7, 8], "family": ["gyrA", "gyrA", "rpsL"], "codon_pos": [83, 87, 43],
+            "ref_residue": ["S", "D", "K"], "resistance_residues": ["L,W", "N", "R"],
+            "gene_aa_pos": [80, 84, 40], "gene_nt_pos": [238, 250, 118],
+            "gene_residue": ["S", "D", "K"], "window_identity": [0.9, 0.9, 0.8],
+        }
+    )
+    residues = {7: {237: {"S": 16, "L": 4}, 249: {"N": 3}}, 8: {117: {}}}
+    table = position_table(positions, residues, 10, 3, 0.1).set_index("codon_pos")
+    # a minor resistant population (4/20 reads), the catalogue residue in the majority
+    assert table.loc[83, "depth"] == 20 and table.loc[83, "readable"]
+    assert table.loc[83, "major_residue"] == "S" and not table.loc[83, "major_is_resistance"]
+    assert table.loc[83, "resistance_reads"] == 4 and table.loc[83, "known_resistance"]
+    assert table.loc[83, "residue_counts"] == "S:16,L:4"
+    # 3 reads only: the position is not read
+    assert not table.loc[87, "readable"] and not table.loc[87, "known_resistance"]
+    assert table.loc[87, "major_is_resistance"]
+    assert 43 not in table.index  # no read on the codon
+
+
+def test_execute_positions_and_targets_missing_from_the_cram(tmp_path: Path) -> None:
+    """Residues at the known positions; rpoB (gene 2) and rpsL (gene 5), added to
+    the targets after the mapping, are read from the marker alignments"""
+    rng = random.Random(1)
+    genes = {g: "".join(rng.choice("ACGT") for _ in range(LENGTH)) for g in range(1, 6)}
+    gyra = CODON_TABLE[genes[3][147:150]]
+    resistant = "W" if gyra != "W" else "M"
+    positions = [
+        {"gene_id": 3, "family": "gyrA", "codon_pos": 83, "ref_residue": "S",
+         "resistance_residues": resistant, "gene_aa_pos": 50, "gene_nt_pos": 148,
+         "gene_residue": gyra, "is_resistance": False, "identity": 0.8, "window_identity": 0.9},
+        {"gene_id": 2, "family": "rpoB", "codon_pos": 531, "ref_residue": "S",
+         "resistance_residues": "F", "gene_aa_pos": 30, "gene_nt_pos": 88,
+         "gene_residue": CODON_TABLE[genes[2][87:90]], "is_resistance": False,
+         "identity": 0.7, "window_identity": 0.8},
+        {"gene_id": 5, "family": "rpsL", "codon_pos": 43, "ref_residue": "K",
+         "resistance_residues": "R", "gene_aa_pos": 10, "gene_nt_pos": 28,
+         "gene_residue": CODON_TABLE[genes[5][27:30]], "is_resistance": False,
+         "identity": 0.7, "window_identity": 0.8},
+    ]
+    analysis, genes = _analysis(tmp_path / "catalogue", positions=positions)
+    # 1 read out of 4 carries the resistance codon at gyrA 83
+    codon = _codon(resistant)
+    variants = {(3, 147 + i): (codon[i], 4) for i in range(3)}
+    analysis.meteor.mapped_sample_dir = _mapped_sample(tmp_path, genes, variants, own_headers=True)
+    analysis.execute()
+    out = tmp_path / "resistance" / "S1"
+    table = pd.read_table(out / "S1_resistance.tsv").set_index("gene_id")
+    # rpoB (gene 2): not in S1_resistance.cram, read from S1.cram; rpsL (gene 5): no read
+    assert table.loc[2, "target"] == "rpoB" and table.loc[2, "interpretable"]
+    assert 5 not in table.index
+    census = json.loads((out / "S1_census_stage_resistance.json").read_text())["resistance"]
+    assert census["genes_read_from_markers"] == 1
+    assert census["positions_file"] == "S1_resistance_positions.tsv"
+    assert census["annotations"][-1] == "resistance_positions"
+    assert "K03043" in census["target_kos"]
+    with lzma.open(out / "S1_resistance_consensus.fasta.xz", "rt") as f:
+        assert ">2\n" in f.read()  # consensus of rpoB too
+    residues = pd.read_table(out / "S1_resistance_positions.tsv").set_index("family")
+    assert sorted(residues.index) == ["gyrA", "rpoB"]
+    # reads every 2 bp: 49 reads span the codon at 147-149, 12 of them (read
+    # numbers 228 to 272, every 4) carry the resistance codon
+    gyr = residues.loc["gyrA"]
+    assert gyr["msp_name"] == "M1" and gyr["depth"] == 49
+    assert gyr["major_residue"] == gyra and gyr["resistance_reads"] == 12
+    assert gyr["known_resistance"] and not gyr["major_is_resistance"]
+    rpob = residues.loc["rpoB"]
+    assert rpob["depth"] == 44 and rpob["readable"] and not rpob["known_resistance"]
 
 
 # mapping --kr on the test catalogue of test_counter

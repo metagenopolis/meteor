@@ -36,6 +36,7 @@ CENSUS_PATTERN = "*_census_stage_resistance.json"
 # parameters that must be the same in every sample: rates are not comparable otherwise
 SHARED_PARAMETERS = (
     "annotations",
+    "target_kos",
     "min_depth",
     "min_alt_count",
     "min_frequency",
@@ -178,6 +179,83 @@ class ResistanceSummary(Session):
         return summary.reset_index().sort_values("gene_id")
 
     @staticmethod
+    def merge_positions(samples: dict[str, tuple[Path, dict]]) -> pd.DataFrame | None:
+        """Residues of every sample at the known resistance positions, with the
+        cohort residue of each gene position: the major residue of most samples
+        where the position is read. A resistance residue that is also the
+        cohort residue is the wild type of the species carrying the gene (the
+        positions come from E. coli and K. pneumoniae), not an acquired mutation.
+
+        :return: long table, None when the samples have no positions table
+        """
+        files = {}
+        for name, (table, census) in samples.items():
+            positions_name = census["resistance"].get("positions_file")
+            if positions_name is None:
+                continue
+            path = table.parent / positions_name
+            if not path.exists():
+                logging.error("%s is missing", path)
+                sys.exit(1)
+            files[name] = path
+        if not files:
+            return None
+        residue_columns = ("ref_residue", "resistance_residues", "gene_residue", "major_residue")
+        long = pd.concat(
+            [
+                pd.read_table(path, dtype=dict.fromkeys(residue_columns, str)).assign(sample=name)
+                for name, path in files.items()
+            ],
+            ignore_index=True,
+        )
+        for column in ("readable", "major_is_resistance", "known_resistance"):
+            long[column] = long[column].astype(bool)
+        readable = long[long["readable"]]
+        votes = (
+            readable.groupby(["gene_id", "codon_pos", "major_residue"])
+            .size()
+            .rename("samples")
+            .reset_index()
+            .sort_values(
+                ["gene_id", "codon_pos", "samples", "major_residue"],
+                ascending=[True, True, False, True],
+            )
+        )
+        cohort = votes.groupby(["gene_id", "codon_pos"]).agg(
+            cohort_residue=("major_residue", "first"), cohort_samples=("samples", "sum")
+        )
+        long = long.join(cohort, on=["gene_id", "codon_pos"])
+        long["cohort_samples"] = long["cohort_samples"].fillna(0).astype(int)
+        long["differs_from_cohort"] = long["readable"] & (
+            long["major_residue"] != long["cohort_residue"]
+        )
+        return long[["sample", *[c for c in long.columns if c != "sample"]]]
+
+    @staticmethod
+    def position_samples(long: pd.DataFrame) -> pd.DataFrame:
+        """Per sample and target family: genes read at >= 1 known resistance
+        position, and how many carry a resistance residue (minor population
+        included), as their major residue, and as a major residue that differs
+        from the cohort residue (candidate acquired mutation)"""
+        readable = long[long["readable"]].assign(
+            acquired=lambda t: t["major_is_resistance"] & t["differs_from_cohort"]
+        )
+        genes = readable.groupby(["sample", "family", "gene_id"])[
+            ["known_resistance", "major_is_resistance", "acquired"]
+        ].any()
+        per_sample = genes.groupby(["sample", "family"]).agg(
+            genes_readable=("known_resistance", "size"),
+            genes_resistance=("known_resistance", "sum"),
+            genes_major_resistance=("major_is_resistance", "sum"),
+            genes_acquired=("acquired", "sum"),
+        )
+        for column in ("resistance", "major_resistance", "acquired"):
+            per_sample[f"fraction_{column}"] = (
+                per_sample[f"genes_{column}"] / per_sample["genes_readable"]
+            )
+        return per_sample.reset_index()
+
+    @staticmethod
     def read_consensus(path: Path) -> dict[int, str]:
         """{gene_id: consensus sequence} of one sample"""
         sequences: dict[int, str] = {}
@@ -305,6 +383,23 @@ class ResistanceSummary(Session):
         summary.to_csv(
             out / f"{self.prefix}_resistance_genes.tsv", sep="\t", index=False, na_rep="NA"
         )
+        positions = self.merge_positions(samples)
+        positions_census = {}
+        if positions is not None:
+            positions.to_csv(
+                out / f"{self.prefix}_resistance_positions.tsv", sep="\t", index=False, na_rep="NA"
+            )
+            per_sample = self.position_samples(positions)
+            per_sample.to_csv(
+                out / f"{self.prefix}_resistance_positions_samples.tsv",
+                sep="\t",
+                index=False,
+                na_rep="NA",
+            )
+            positions_census = {
+                "positions_read": int(positions["readable"].sum()),
+                "positions_with_resistance": int(positions["known_resistance"].sum()),
+            }
         tree_count = None
         if self.trees:
             trees = self.build_trees(samples, summary)
@@ -323,6 +418,7 @@ class ResistanceSummary(Session):
                         table.loc[table["interpretable"], "gene_id"].nunique()
                     ),
                     **parameters,
+                    **positions_census,
                     "trees": tree_count,
                     **(
                         {
