@@ -231,7 +231,9 @@ def test_execute_positions(tmp_path: Path) -> None:
          "major_frequency": 0.8, "residue_counts": "S:16,L:4"},
         rpsl,
     ])
-    _sample(root, "S2", [{"gene_id": 10}], positions=[{}, rpsl])
+    # gene 12: another catalogue allele of gyrA in M1, carrying L83
+    _sample(root, "S2", [{"gene_id": 10}], positions=[{}, rpsl, {**leucine, "gene_id": 12}])
+    _sample(root, "S4", [{"gene_id": 10}], positions=[{}])
     _sample(root, "S3", [{"gene_id": 10}], positions=[
         leucine,
         {**rpsl, "depth": 5, "readable": False, "known_resistance": False},  # not read: ignored
@@ -242,21 +244,28 @@ def test_execute_positions(tmp_path: Path) -> None:
     long = pd.read_table(out / "out_resistance_positions.tsv")
     assert list(long.columns[:2]) == ["sample", "gene_id"]
     gyra = long[(long["gene_id"] == 10) & (long["codon_pos"] == 83)].set_index("sample")
-    assert set(gyra["cohort_residue"]) == {"S"} and set(gyra["cohort_samples"]) == {3}
-    assert gyra["differs_from_cohort"].to_dict() == {"S1": False, "S2": False, "S3": True}
+    # S in 3 of the 5 gyrA genes read at 83 in M1 (4 samples)
+    assert set(gyra["cohort_residue"]) == {"S"} and set(gyra["cohort_samples"]) == {4}
+    assert gyra["differs_from_cohort"].to_dict() == {
+        "S1": False, "S2": False, "S3": True, "S4": False
+    }
+    # the allele of gene 12 carries L, but the species carries S: acquired
+    gene_12 = long[long["gene_id"] == 12].iloc[0]
+    assert gene_12["cohort_residue"] == "S" and gene_12["differs_from_cohort"]
     per_sample = pd.read_table(out / "out_resistance_positions_samples.tsv")
     per_sample = per_sample.set_index(["sample", "family"])
     assert per_sample.loc[("S1", "gyrA"), "genes_readable"] == 1
     assert per_sample.loc[("S1", "gyrA"), "fraction_resistance"] == 1  # minor population
     assert per_sample.loc[("S1", "gyrA"), "fraction_major_resistance"] == 0
     assert per_sample.loc[("S3", "gyrA"), "fraction_acquired"] == 1
-    assert per_sample.loc[("S2", "gyrA"), "genes_resistance"] == 0
+    assert per_sample.loc[("S2", "gyrA"), "genes_readable"] == 2
+    assert per_sample.loc[("S2", "gyrA"), "fraction_acquired"] == 0.5
     # rpsL: resistance residue as the cohort residue, never acquired
     assert per_sample.loc[("S1", "rpsL"), "fraction_major_resistance"] == 1
     assert per_sample.loc[("S1", "rpsL"), "genes_acquired"] == 0
     assert ("S3", "rpsL") not in per_sample.index
     census = json.loads((out / "out_resistance_census.json").read_text())["resistance_summary"]
-    assert census["positions_read"] == 5 and census["positions_with_resistance"] == 4
+    assert census["positions_read"] == 7 and census["positions_with_resistance"] == 5
 
 
 def test_execute_positions_missing_file(tmp_path: Path) -> None:

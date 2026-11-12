@@ -181,10 +181,13 @@ class ResistanceSummary(Session):
     @staticmethod
     def merge_positions(samples: dict[str, tuple[Path, dict]]) -> pd.DataFrame | None:
         """Residues of every sample at the known resistance positions, with the
-        cohort residue of each gene position: the major residue of most samples
-        where the position is read. A resistance residue that is also the
-        cohort residue is the wild type of the species carrying the gene (the
-        positions come from E. coli and K. pneumoniae), not an acquired mutation.
+        cohort residue of each position: the major residue of most of the genes
+        read at this position, among the genes of the family in the MSP (several
+        catalogue genes can be alleles of the gene of one species, one of them
+        carrying a resistance residue; a gene of no MSP stands alone). A
+        resistance residue that is also the cohort residue is the wild type of
+        the species carrying the gene (the positions come from E. coli and
+        K. pneumoniae), not an acquired mutation.
 
         :return: long table, None when the samples have no positions table
         """
@@ -201,30 +204,29 @@ class ResistanceSummary(Session):
         if not files:
             return None
         residue_columns = ("ref_residue", "resistance_residues", "gene_residue", "major_residue")
-        long = pd.concat(
-            [
-                pd.read_table(path, dtype=dict.fromkeys(residue_columns, str)).assign(sample=name)
-                for name, path in files.items()
-            ],
-            ignore_index=True,
-        )
+        tables = [
+            pd.read_table(path, dtype=dict.fromkeys(residue_columns, str)).assign(sample=name)
+            for name, path in files.items()
+        ]
+        # samples without any position read: left out of the concatenation
+        long = pd.concat([t for t in tables if not t.empty] or tables[:1], ignore_index=True)
         for column in ("readable", "major_is_resistance", "known_resistance"):
             long[column] = long[column].astype(bool)
+        key = ["cohort_group", "family", "codon_pos"]
+        long["cohort_group"] = long["msp_name"].where(
+            long["msp_name"].notna(), "gene_" + long["gene_id"].astype(str)
+        )
         readable = long[long["readable"]]
         votes = (
-            readable.groupby(["gene_id", "codon_pos", "major_residue"])
+            readable.groupby([*key, "major_residue"])
             .size()
-            .rename("samples")
+            .rename("votes")
             .reset_index()
-            .sort_values(
-                ["gene_id", "codon_pos", "samples", "major_residue"],
-                ascending=[True, True, False, True],
-            )
+            .sort_values([*key, "votes", "major_residue"], ascending=[True] * 3 + [False, True])
         )
-        cohort = votes.groupby(["gene_id", "codon_pos"]).agg(
-            cohort_residue=("major_residue", "first"), cohort_samples=("samples", "sum")
-        )
-        long = long.join(cohort, on=["gene_id", "codon_pos"])
+        cohort = votes.groupby(key)["major_residue"].first().rename("cohort_residue").to_frame()
+        cohort["cohort_samples"] = readable.groupby(key)["sample"].nunique()
+        long = long.join(cohort, on=key).drop(columns="cohort_group")
         long["cohort_samples"] = long["cohort_samples"].fillna(0).astype(int)
         long["differs_from_cohort"] = long["readable"] & (
             long["major_residue"] != long["cohort_residue"]
