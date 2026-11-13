@@ -41,9 +41,11 @@ def _sample(
     rows: list[dict],
     reference: str = "cat",
     consensus: dict[int, str] | None = None,
+    positions: list[dict] | None = None,
     **changed,
 ) -> None:
-    """Output of meteor resistance for one sample (consensus: {gene_id: sequence})"""
+    """Output of meteor resistance for one sample (consensus: {gene_id: sequence},
+    positions: rows of its table of the known resistance positions)"""
     sample_dir = root / name
     sample_dir.mkdir(parents=True)
     columns = {
@@ -77,14 +79,30 @@ def _sample(
                     "resistance_file": f"{name}_resistance.tsv",
                     **({"consensus_file": f"{name}_resistance_consensus.fasta.xz"}
                        if consensus is not None else {}),
+                    **({"positions_file": f"{name}_resistance_positions.tsv"}
+                       if positions is not None else {}),
                 },
             }
         )
     )
+    if positions is not None:
+        pd.DataFrame([{**POSITION, **row} for row in positions]).to_csv(
+            sample_dir / f"{name}_resistance_positions.tsv", sep="\t", index=False, na_rep="NA"
+        )
     if consensus is not None:
         with lzma.open(sample_dir / f"{name}_resistance_consensus.fasta.xz", "wt") as fasta:
             for gene, sequence in consensus.items():
                 fasta.write(f">{gene}\n{sequence}\n")
+
+
+# a read gyrA 83 position with its catalogue residue
+POSITION = {
+    "gene_id": 10, "msp_name": "M1", "family": "gyrA", "codon_pos": 83, "ref_residue": "S",
+    "resistance_residues": "L,W", "gene_aa_pos": 80, "gene_nt_pos": 238, "gene_residue": "S",
+    "window_identity": 0.9, "depth": 20, "readable": True, "major_residue": "S",
+    "major_frequency": 1.0, "major_is_resistance": False, "resistance_reads": 0,
+    "resistance_frequency": 0.0, "known_resistance": False, "residue_counts": "S:20",
+}
 
 
 def _merging(tmp_path: Path, sample_file: Path | None = None, **options) -> ResistanceSummary:
@@ -163,8 +181,13 @@ def test_execute_sample_list(three_samples: Path, tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "changed",
-    [{"reference": "other"}, {"min_depth": 5}, {"annotations": ["resfinder"]}],
-    ids=["catalogue", "min_depth", "annotations"],
+    [
+        {"reference": "other"},
+        {"min_depth": 5},
+        {"annotations": ["resfinder"]},
+        {"target_kos": ["K02469"]},
+    ],
+    ids=["catalogue", "min_depth", "annotations", "target_kos"],
 )
 def test_execute_incompatible_samples(tmp_path: Path, changed: dict) -> None:
     root = tmp_path / "resistance"
@@ -187,6 +210,67 @@ def test_execute_errors(tmp_path: Path) -> None:
 def test_execute_missing_table(tmp_path: Path) -> None:
     _sample(tmp_path / "resistance", "S1", [{"gene_id": 1}])
     (tmp_path / "resistance" / "S1" / "S1_resistance.tsv").unlink()
+    with pytest.raises(SystemExit):
+        _merging(tmp_path).execute()
+
+
+def test_execute_positions(tmp_path: Path) -> None:
+    """Cohort residue of each position and, per sample and family, the genes
+    read with a resistance residue: a residue carried by most samples is the
+    wild type of the species, not an acquired mutation"""
+    root = tmp_path / "resistance"
+    leucine = {"major_residue": "L", "major_is_resistance": True, "resistance_reads": 20,
+               "resistance_frequency": 1.0, "known_resistance": True, "residue_counts": "L:20"}
+    # rpsL gene 11: K43R everywhere (wild type of its species)
+    rpsl = {"gene_id": 11, "family": "rpsL", "codon_pos": 43, "resistance_residues": "R",
+            "major_residue": "R", "major_is_resistance": True, "resistance_reads": 20,
+            "resistance_frequency": 1.0, "known_resistance": True, "residue_counts": "R:20"}
+    _sample(root, "S1", [{"gene_id": 10}], positions=[
+        # a minor resistant population, S in the majority
+        {"resistance_reads": 4, "resistance_frequency": 0.2, "known_resistance": True,
+         "major_frequency": 0.8, "residue_counts": "S:16,L:4"},
+        rpsl,
+    ])
+    # gene 12: another catalogue allele of gyrA in M1, carrying L83
+    _sample(root, "S2", [{"gene_id": 10}], positions=[{}, rpsl, {**leucine, "gene_id": 12}])
+    _sample(root, "S4", [{"gene_id": 10}], positions=[{}])
+    _sample(root, "S3", [{"gene_id": 10}], positions=[
+        leucine,
+        {**rpsl, "depth": 5, "readable": False, "known_resistance": False},  # not read: ignored
+        {"codon_pos": 87, "depth": 0, "readable": False, "residue_counts": ""},
+    ])
+    _merging(tmp_path).execute()
+    out = tmp_path / "merged"
+    long = pd.read_table(out / "out_resistance_positions.tsv")
+    assert list(long.columns[:2]) == ["sample", "gene_id"]
+    gyra = long[(long["gene_id"] == 10) & (long["codon_pos"] == 83)].set_index("sample")
+    # S in 3 of the 5 gyrA genes read at 83 in M1 (4 samples)
+    assert set(gyra["cohort_residue"]) == {"S"} and set(gyra["cohort_samples"]) == {4}
+    assert gyra["differs_from_cohort"].to_dict() == {
+        "S1": False, "S2": False, "S3": True, "S4": False
+    }
+    # the allele of gene 12 carries L, but the species carries S: acquired
+    gene_12 = long[long["gene_id"] == 12].iloc[0]
+    assert gene_12["cohort_residue"] == "S" and gene_12["differs_from_cohort"]
+    per_sample = pd.read_table(out / "out_resistance_positions_samples.tsv")
+    per_sample = per_sample.set_index(["sample", "family"])
+    assert per_sample.loc[("S1", "gyrA"), "genes_readable"] == 1
+    assert per_sample.loc[("S1", "gyrA"), "fraction_resistance"] == 1  # minor population
+    assert per_sample.loc[("S1", "gyrA"), "fraction_major_resistance"] == 0
+    assert per_sample.loc[("S3", "gyrA"), "fraction_acquired"] == 1
+    assert per_sample.loc[("S2", "gyrA"), "genes_readable"] == 2
+    assert per_sample.loc[("S2", "gyrA"), "fraction_acquired"] == 0.5
+    # rpsL: resistance residue as the cohort residue, never acquired
+    assert per_sample.loc[("S1", "rpsL"), "fraction_major_resistance"] == 1
+    assert per_sample.loc[("S1", "rpsL"), "genes_acquired"] == 0
+    assert ("S3", "rpsL") not in per_sample.index
+    census = json.loads((out / "out_resistance_census.json").read_text())["resistance_summary"]
+    assert census["positions_read"] == 7 and census["positions_with_resistance"] == 5
+
+
+def test_execute_positions_missing_file(tmp_path: Path) -> None:
+    _sample(tmp_path / "resistance", "S1", [{"gene_id": 10}], positions=[{}])
+    (tmp_path / "resistance" / "S1" / "S1_resistance_positions.tsv").unlink()
     with pytest.raises(SystemExit):
         _merging(tmp_path).execute()
 

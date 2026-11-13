@@ -417,7 +417,7 @@ class Counter(Session):
 
     def get_resistance_gene_ids(self, ref_json: dict) -> set[int]:
         """Genes annotated by ResFinder, ResFinderFG or MUSTARD, and genes of the
-        KEGG orthologs of gyrA, gyrB, parC and parE"""
+        KEGG orthologs of the target genes (resistance.TARGET_KOS)"""
         table = resistance_gene_table(self, self.meteor.ref_dir, ref_json)
         genes = set(table["gene_id"])
         if not genes:
