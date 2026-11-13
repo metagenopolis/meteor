@@ -110,11 +110,16 @@ def test_execute_sample_list(datadir: Path, tmp_path: Path, caplog):
     assert [path.stat().st_mtime_ns for path in outputs] == written
 
 
-def test_execute_sample_list_no_sample(datadir: Path, tmp_path: Path):
+def test_execute_sample_list_no_sample(datadir: Path, tmp_path: Path, caplog):
+    """No sample of the list in the strain directory: a warning, no tree"""
     sample_file = tmp_path / "samples.txt"
     sample_file.write_text("unknown\n")
-    with pytest.raises(SystemExit):
-        _treebuilder(datadir / "strain", tmp_path / "tree", tmp_path, sample_file).execute()
+    builder = _treebuilder(datadir / "strain", tmp_path / "tree", tmp_path, sample_file)
+    builder.execute()
+    assert f"No sample of {sample_file} was found." in caplog.text
+    assert "No tree built" in caplog.text
+    assert not list((tmp_path / "tree").iterdir())
+    assert not builder.meteor.tmp_dir.exists()
 
 
 def test_execute_strain_sharing_and_stale_comparisons(datadir: Path, tmp_path: Path, caplog):

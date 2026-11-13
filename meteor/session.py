@@ -122,16 +122,18 @@ class Session(Protocol):
     """Class inheritating from Protocol that present shared function."""
 
     def select_samples(
-        self, samples: dict[str, SampleT], sample_file: Path | None
+        self, samples: dict[str, SampleT], sample_file: Path | None, required: bool = True
     ) -> dict[str, SampleT]:
         """Keep the samples named in a sample list, in the order of the list.
 
         The list has one sample name per line (first tab-separated column);
         empty lines and lines starting with # are ignored. Samples of the list
-        that are not found are reported; no sample found stops meteor.
+        that are not found are reported; no sample found stops meteor, or only
+        warns when not required.
 
         :param samples: {sample name: value} of every sample found
         :param sample_file: sample list, or None to keep every sample
+        :param required: stop meteor when no sample of the list is found
         :return: {sample name: value} of the selected samples
         """
         if sample_file is None:
@@ -149,6 +151,9 @@ class Session(Protocol):
             )
         selected = {name: samples[name] for name in wanted if name in samples}
         if not selected:
+            if not required:
+                logging.warning("No sample of %s was found.", sample_file)
+                return selected
             logging.error("No sample of %s was found.", sample_file)
             sys.exit(1)
         logging.info(
