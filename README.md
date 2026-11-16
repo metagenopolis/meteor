@@ -194,7 +194,7 @@ Meteor computes mutation rates and trees between strains from samples using a GT
 meteor tree -i <straindir> -o <treedir>
 ```
 
-`-l <samples.txt>` builds the trees with only the samples of the list (same format as for `meteor merge`). When the output directory already holds the tree of an MSP computed from other samples, it is recomputed.
+`-l <samples.txt>` builds the trees with only the samples of the list (same format as for `meteor merge`). An MSP carried by none of the samples of the list gets no tree; when no sample of the list is in the strain directory, meteor tree warns and builds no tree. When the output directory already holds the tree of an MSP computed from other samples, it is recomputed.
 
 This profiling step will generate:
 - a mutation rate matrix, `<msp>.tsv`: the tip-to-tip distances of the UPGMA tree;

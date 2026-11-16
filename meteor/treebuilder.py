@@ -204,8 +204,13 @@ class TreeBuilder(Session):
         selected_dirs = None
         if self.sample_file is not None:
             selected_dirs = set(
-                self.select_samples(sample_dirs, self.sample_file).values()
+                self.select_samples(sample_dirs, self.sample_file, required=False).values()
             )
+            if not selected_dirs:
+                # e.g. a strain directory of other samples: nothing to build
+                logging.warning("No tree built in %s.", self.meteor.tree_dir)
+                rmtree(self.meteor.tmp_dir, ignore_errors=True)
+                return
         msp_file_dict = defaultdict(list)
         # for filepath in self.meteor.strain_dir.glob("**/*.fasta.xz"):
             # if not filepath.name.endswith("_consensus.fasta.xz"):
