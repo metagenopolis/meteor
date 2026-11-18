@@ -35,9 +35,13 @@ from meteor.variantcalling import VariantCalling
 
 # catalogue annotations of acquired antibiotic resistance genes
 RESISTANCE_ANNOTATIONS: tuple[str, ...] = ("resfinder", "resfinderfg", "mustard")
-# KEGG orthologs of the chromosomal targets of antibiotics, resistant by point
-# mutations: quinolones (gyrA, gyrB, parC, parE), rifampicin (rpoB),
-# streptomycin (rpsL) and sulfonamides (folP)
+# KEGG orthologs of the chromosomal genes conferring resistance, by point
+# mutation or inactivation: quinolones (gyrA, gyrB, parC, parE), rifampicin
+# (rpoB), streptomycin (rpsL), sulfonamides (folP), trimethoprim (folA),
+# fosfomycin (murA, glpT, uhpT), nitrofurans (nfsA, nfsB) and colistin
+# (pmrA, pmrB, phoP, phoQ); the uptake and activation genes (glpT, uhpT,
+# nfsA, nfsB, pmrA, pmrB, phoP, phoQ) are inactivated rather than mutated at
+# one position (#158)
 TARGET_KOS: dict[str, str] = {
     "K02469": "gyrA",
     "K02470": "gyrB",
@@ -46,6 +50,16 @@ TARGET_KOS: dict[str, str] = {
     "K03043": "rpoB",
     "K02950": "rpsL",
     "K00796": "folP",
+    "K00287": "folA",
+    "K00790": "murA",
+    "K02445": "glpT",
+    "K07784": "uhpT",
+    "K10678": "nfsA",
+    "K10679": "nfsB",
+    "K07771": "pmrA",
+    "K07643": "pmrB",
+    "K07660": "phoP",
+    "K07637": "phoQ",
 }
 # catalogue annotation of the known resistance positions of the target genes
 POSITIONS_ANNOTATION = "resistance_positions"
