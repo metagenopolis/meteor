@@ -458,7 +458,7 @@ def position_table(
         resistance_reads = sum(n for residue, n in counts.items() if residue in resistant)
         rows.append(
             {
-                **{column: getattr(row, column) for column in POSITION_COLUMNS},
+                **{column: getattr(row, column) for column in positions.columns},
                 "depth": depth,
                 "readable": depth >= min_depth,
                 "major_residue": ordered[0][0],
@@ -473,7 +473,7 @@ def position_table(
             }
         )
     columns = [
-        *POSITION_COLUMNS, "depth", "readable", "major_residue", "major_frequency",
+        *positions.columns, "depth", "readable", "major_residue", "major_frequency",
         "major_is_resistance", "resistance_reads", "resistance_frequency",
         "known_resistance", "residue_counts",
     ]
@@ -582,7 +582,10 @@ class Resistance(Session):
         database_dir = self.meteor.ref_dir / ref_json["reference_file"]["database_dir"]
         table = self.load_data(database_dir / annotation["filename"])
         table = table.assign(gene_id=table["gene_id"].astype(int))
-        table = table[table["gene_id"].isin(gene_ids)][list(POSITION_COLUMNS)]
+        # residue_classes: optional annotation of the antibiotic classes of each
+        # resistance residue ("S:QUINOLONE;L:QUINOLONE/AMINOCOUMARIN")
+        keep = [*POSITION_COLUMNS, "residue_classes"] if "residue_classes" in table.columns else list(POSITION_COLUMNS)
+        table = table[table["gene_id"].isin(gene_ids)][keep]
         starts: dict[int, set[int]] = {}
         for gene, nt_pos in zip(table["gene_id"], table["gene_nt_pos"]):
             starts.setdefault(int(gene), set()).add(int(nt_pos) - 1)

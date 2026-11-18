@@ -593,7 +593,8 @@ def test_execute_positions_and_targets_missing_from_the_cram(tmp_path: Path) -> 
     positions = [
         {"gene_id": 3, "family": "gyrA", "codon_pos": 83, "ref_residue": "S",
          "resistance_residues": resistant, "gene_aa_pos": 50, "gene_nt_pos": 148,
-         "gene_residue": gyra, "is_resistance": False, "identity": 0.8, "window_identity": 0.9},
+         "gene_residue": gyra, "is_resistance": False, "identity": 0.8,
+         "window_identity": 0.9, "residue_classes": f"{resistant}:QUINOLONE"},
         {"gene_id": 2, "family": "rpoB", "codon_pos": 531, "ref_residue": "S",
          "resistance_residues": "F", "gene_aa_pos": 30, "gene_nt_pos": 88,
          "gene_residue": CODON_TABLE[genes[2][87:90]], "is_resistance": False,
@@ -631,6 +632,9 @@ def test_execute_positions_and_targets_missing_from_the_cram(tmp_path: Path) -> 
     assert gyr["known_resistance"] and not gyr["major_is_resistance"]
     rpob = residues.loc["rpoB"]
     assert rpob["depth"] == 44 and rpob["readable"] and not rpob["known_resistance"]
+    # the optional residue_classes of the annotation is carried to the output
+    assert residues.loc["gyrA", "residue_classes"] == f"{resistant}:QUINOLONE"
+    assert pd.isna(residues.loc["rpoB", "residue_classes"])
 
 
 # mapping --kr on the test catalogue of test_counter

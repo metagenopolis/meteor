@@ -56,6 +56,26 @@ GENE_COLUMNS = (
 )
 # annotations giving the family of a gene, by priority
 FAMILY_COLUMNS = ("resfinder", "resfinderfg", "mustard", "target")
+
+
+def residue_classes_map(value) -> dict[str, frozenset[str]]:
+    """`residue_classes` of the resistance_positions annotation, e.g.
+    "S:QUINOLONE;L:QUINOLONE/AMINOCOUMARIN" ->
+    {"S": frozenset({"QUINOLONE"}), "L": frozenset({"QUINOLONE", "AMINOCOUMARIN"})}"""
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return {}
+    classes: dict[str, set[str]] = {}
+    for part in str(value).split(";"):
+        if ":" not in part:
+            continue
+        residue, names = part.split(":", 1)
+        if residue:
+            classes.setdefault(residue, set()).update(
+                name for name in (n.strip() for n in names.split("/")) if name
+            )
+    return {residue: frozenset(names) for residue, names in classes.items() if names}
+
+
 # outputs of a gene tree, removed when its sequences change
 TREE_OUTPUTS = (
     ".tree", ".tsv", "_raw_distances.tsv", "_comparison.tsv", "_qcflags.tsv", "_shrink.tsv",
@@ -309,6 +329,62 @@ class ResistanceSummary(Session):
                 per_sample["reads_resistant"] / (per_sample["reads_resistant"] + per_sample["reads_wt"]),
                 np.nan,
             )
+        if "residue_classes" in long.columns:
+            # per antibiotic class of the known residues: the genes read at one
+            # position of the class at least, and among them the genes whose
+            # major residue is a resistance residue of the class (and differs
+            # from the cohort residue); without the column, the family is its
+            # only class (the current columns)
+            entries: dict[tuple, dict[str, set]] = {}
+            for row in readable.itertuples(index=False):
+                position_classes = residue_classes_map(row.residue_classes)
+                if not position_classes:
+                    continue
+                entry = entries.setdefault(
+                    (row.sample, row.family, row.gene_id),
+                    {"positions": set(), "major": set(), "acquired": set()},
+                )
+                entry["positions"].update(set().union(*position_classes.values()))
+                entry["major"].update(position_classes.get(row.major_residue, ()))
+                if row.differs_from_cohort:
+                    entry["acquired"].update(position_classes.get(row.major_residue, ()))
+            all_classes = (
+                sorted(set().union(*[e["positions"] for e in entries.values()])) if entries else []
+            )
+            classes_table = pd.DataFrame(
+                [
+                    {
+                        "sample": sample,
+                        "family": family,
+                        **{c: int(c in e["positions"]) for c in all_classes},
+                        **{f"major_{c}": int(c in e["major"]) for c in all_classes},
+                        **{f"acquired_{c}": int(c in e["acquired"]) for c in all_classes},
+                    }
+                    for (sample, family, _), e in entries.items()
+                ]
+            )
+            per_class = classes_table.groupby(["sample", "family"]).sum()
+            per_sample = per_sample.join(
+                per_class.rename(
+                    columns={
+                        **{c: f"genes_{c}_readable" for c in all_classes},
+                        **{f"major_{c}": f"genes_{c}_major_resistance" for c in all_classes},
+                        **{f"acquired_{c}": f"genes_{c}_acquired" for c in all_classes},
+                    }
+                ),
+                how="left",
+            )
+            class_columns = [
+                f"genes_{c}_{suffix}"
+                for c in all_classes
+                for suffix in ("readable", "major_resistance", "acquired")
+            ]
+            per_sample[class_columns] = per_sample[class_columns].fillna(0).astype(int)
+            for c in all_classes:
+                for prefix in ("major_resistance", "acquired"):
+                    per_sample[f"fraction_{c}_{prefix}"] = (
+                        per_sample[f"genes_{c}_{prefix}"] / per_sample[f"genes_{c}_readable"]
+                    )
         return per_sample.reset_index()
 
     @staticmethod

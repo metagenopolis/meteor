@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from ..resistancesummary import ResistanceSummary
+from ..resistancesummary import ResistanceSummary, residue_classes_map
 from ..session import Component
 
 PARAMETERS = {
@@ -324,6 +324,47 @@ def test_execute_positions_old_tables(tmp_path: Path) -> None:
     per_sample = pd.read_table(tmp_path / "merged" / "out_resistance_positions_samples.tsv")
     assert "reads_resistant" not in per_sample.columns
     assert int(per_sample["genes_readable"].sum()) == 2
+
+
+def test_residue_classes_map() -> None:
+    """The antibiotic classes of the resistance residues (issue 155)"""
+    assert residue_classes_map("S:QUINOLONE;L:QUINOLONE/AMINOCOUMARIN") == {
+        "S": frozenset({"QUINOLONE"}),
+        "L": frozenset({"QUINOLONE", "AMINOCOUMARIN"}),
+    }
+    assert residue_classes_map("S:QUINOLONE") == {"S": frozenset({"QUINOLONE"})}
+    assert residue_classes_map("") == {}
+    assert residue_classes_map(float("nan")) == {}
+    assert residue_classes_map("S:") == {}
+
+
+def test_execute_positions_residue_classes(tmp_path: Path) -> None:
+    """Per antibiotic class counts: the cohort residue is S, one sample carries
+    the QUINOLONE residue L as its major: it is the only one with a quinolone
+    major resistance, and it is acquired"""
+    root = tmp_path / "resistance"
+    quinolone = "L:QUINOLONE;W:QUINOLONE"
+    _sample(root, "S1", [{"gene_id": 10, "target": "gyrA"}], positions=[
+        {"major_residue": "L", "major_is_resistance": True, "resistance_reads": 20,
+         "resistance_frequency": 1.0, "known_resistance": True, "residue_counts": "L:20",
+         "residue_classes": quinolone},
+    ])
+    _sample(root, "S2", [{"gene_id": 10, "target": "gyrA"}], positions=[{"residue_classes": quinolone}])
+    _sample(root, "S3", [{"gene_id": 10, "target": "gyrA"}], positions=[{"residue_classes": quinolone}])
+    _merging(tmp_path).execute()
+    out = tmp_path / "merged"
+    long = pd.read_table(out / "out_resistance_positions.tsv")
+    assert long["residue_classes"].tolist() == [quinolone] * 3
+    assert set(long["cohort_residue"]) == {"S"}
+    per_sample = pd.read_table(out / "out_resistance_positions_samples.tsv")
+    per_sample = per_sample.set_index(["sample", "family"])
+    assert per_sample.loc[("S1", "gyrA"), "genes_QUINOLONE_readable"] == 1
+    assert per_sample.loc[("S1", "gyrA"), "genes_QUINOLONE_major_resistance"] == 1
+    assert per_sample.loc[("S1", "gyrA"), "genes_QUINOLONE_acquired"] == 1
+    assert per_sample.loc[("S1", "gyrA"), "fraction_QUINOLONE_major_resistance"] == 1
+    assert per_sample.loc[("S2", "gyrA"), "genes_QUINOLONE_readable"] == 1
+    assert per_sample.loc[("S2", "gyrA"), "genes_QUINOLONE_major_resistance"] == 0
+    assert per_sample.loc[("S2", "gyrA"), "fraction_QUINOLONE_major_resistance"] == 0
 
 
 def _consensus_cohort(root: Path, n: int = 6) -> None:
