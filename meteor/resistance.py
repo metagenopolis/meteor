@@ -39,8 +39,8 @@ RESISTANCE_ANNOTATIONS: tuple[str, ...] = ("resfinder", "resfinderfg", "mustard"
 # mutation or inactivation: quinolones (gyrA, gyrB, parC, parE), rifampicin
 # (rpoB), streptomycin (rpsL), sulfonamides (folP), trimethoprim (folA),
 # fosfomycin (murA, glpT, uhpT), nitrofurans (nfsA, nfsB) and colistin
-# (pmrA, pmrB, phoP, phoQ); the uptake and activation genes (glpT, uhpT,
-# nfsA, nfsB, pmrA, pmrB, phoP, phoQ) are inactivated rather than mutated at
+# (basR, basS, phoP, phoQ); the uptake and activation genes (glpT, uhpT,
+# nfsA, nfsB, basR, basS, phoP, phoQ) are inactivated rather than mutated at
 # one position (#158)
 TARGET_KOS: dict[str, str] = {
     "K02469": "gyrA",
@@ -56,8 +56,8 @@ TARGET_KOS: dict[str, str] = {
     "K07784": "uhpT",
     "K10678": "nfsA",
     "K10679": "nfsB",
-    "K07771": "pmrA",
-    "K07643": "pmrB",
+    "K07771": "basR",
+    "K07643": "basS",
     "K07660": "phoP",
     "K07637": "phoQ",
 }

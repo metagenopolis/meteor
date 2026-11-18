@@ -72,8 +72,8 @@ def test_target_kos() -> None:
         "K07784": "uhpT",
         "K10678": "nfsA",
         "K10679": "nfsB",
-        "K07771": "pmrA",
-        "K07643": "pmrB",
+        "K07771": "basR",
+        "K07643": "basS",
         "K07660": "phoP",
         "K07637": "phoQ",
     }

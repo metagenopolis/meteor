@@ -354,7 +354,7 @@ def get_arguments() -> Namespace:  # pragma: no cover
         action="store_true",
         help="Keep filtered alignments on antibiotic resistance genes (ResFinder, "
         "ResFinderFG, MUSTARD annotations, and gyrA, gyrB, parC, parE, rpoB, rpsL, "
-        "folP, folA, murA, glpT, uhpT, nfsA, nfsB, pmrA, pmrB, phoP and phoQ from "
+        "folP, folA, murA, glpT, uhpT, nfsA, nfsB, basR, basS, phoP and phoQ from "
         "the KEGG annotation) in <sample>_resistance.cram; implies --kf. "
         "Required for meteor resistance.",
     )
