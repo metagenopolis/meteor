@@ -28,6 +28,7 @@ from ..resistance import (
     COVERAGE_BASES,
     SYNONYMOUS_SITES,
     CODON_TABLE,
+    TARGET_KOS,
     Resistance,
     codon_residues,
     gene_variants,
@@ -53,6 +54,29 @@ def test_synonymous_sites() -> None:
     assert is_synonymous("AAATTT", 2, "A", "G")  # AAA/AAG: K
     assert not is_synonymous("AAATTT", 3, "T", "C")  # TTT/CTT: F/L
     assert is_synonymous("AAATT", 4, "T", "C") is None  # incomplete codon
+
+
+def test_target_kos() -> None:
+    """The KEGG orthologs kept by --kr (issue 154)"""
+    assert TARGET_KOS == {
+        "K02469": "gyrA",
+        "K02470": "gyrB",
+        "K02621": "parC",
+        "K02622": "parE",
+        "K03043": "rpoB",
+        "K02950": "rpsL",
+        "K00796": "folP",
+        "K00287": "folA",
+        "K00790": "murA",
+        "K02445": "glpT",
+        "K07784": "uhpT",
+        "K10678": "nfsA",
+        "K10679": "nfsB",
+        "K07771": "basR",
+        "K07643": "basS",
+        "K07660": "phoP",
+        "K07637": "phoQ",
+    }
 
 
 def test_gene_variants() -> None:
