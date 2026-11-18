@@ -253,6 +253,54 @@ def codon_residues(
     return residues
 
 
+def read_totals(
+    bam: AlignmentFile, gene: str, positions: list[tuple[int, frozenset[str]]], base_quality: int
+) -> dict[str, int]:
+    """Read totals of a gene at its known resistance positions, read by read.
+
+    positions: [(codon start (0-based), resistance residues of the position)].
+    A read covering no codon of a known position is `other`; covering at least
+    one, it is `resistant` when it carries a resistance residue at one of them
+    (at least two: `linked`, e.g. gyrA S83L + D87N) and `wt` otherwise.
+    """
+    if not positions:
+        return {"reads_resistant": 0, "reads_wt": 0, "reads_other": 0, "reads_linked": 0}
+    low, high = min(start for start, _ in positions), max(start for start, _ in positions) + 3
+    totals = {"reads_resistant": 0, "reads_wt": 0, "reads_other": 0, "reads_linked": 0}
+    for read in bam.fetch(gene, low, high):
+        sequence = read.query_sequence
+        qualities = read.query_qualities
+        if not keep_alignment(read) or sequence is None or qualities is None:
+            continue
+        query_of = {
+            ref: query
+            for query, ref in read.get_aligned_pairs(matches_only=True)
+            if low <= ref < high
+        }
+        resistant = 0
+        covered = 0
+        for start, residues in positions:
+            query = query_of.get(start)
+            if (
+                query is None
+                or query_of.get(start + 1) != query + 1
+                or query_of.get(start + 2) != query + 2
+                or min(qualities[query : query + 3]) < base_quality
+            ):
+                continue
+            covered += 1
+            amino_acid = CODON_TABLE.get(sequence[query : query + 3].upper())
+            resistant += amino_acid is not None and amino_acid in residues
+        if covered == 0:
+            totals["reads_other"] += 1
+        elif resistant:
+            totals["reads_resistant"] += 1
+            totals["reads_linked"] += resistant >= 2
+        else:
+            totals["reads_wt"] += 1
+    return totals
+
+
 def resistance_worker(
     bam_path: str,
     ref_path: str,
@@ -263,11 +311,15 @@ def resistance_worker(
     base_quality: int,
     consensus: bool = False,
     positions: dict[str, list[int]] | None = None,
+    totals: dict[str, list[tuple[int, frozenset[str]]]] | None = None,
 ) -> list[dict]:
     """Variants of a batch of genes (module level: run in spawn workers);
-    positions: {gene: codon starts} whose residues are counted (`residues`)"""
+    positions: {gene: codon starts} whose residues are counted (`residues`),
+    totals: {gene: [(codon start, resistance residues)]} whose read totals
+    are counted (`reads_*`)"""
     rows = []
     positions = positions or {}
+    totals = totals or {}
     with AlignmentFile(bam_path, "rb") as bam, FastaFile(ref_path) as fasta:
         for gene, length in genes:
             alignments = multimapped = 0
@@ -295,6 +347,8 @@ def resistance_worker(
             )
             if gene in positions:
                 row["residues"] = codon_residues(bam, gene, positions[gene], base_quality)
+            if gene in totals:
+                row.update(read_totals(bam, gene, totals[gene], base_quality))
             rows.append(row)
     return rows
 
@@ -469,6 +523,7 @@ class Resistance(Session):
         genes: list[tuple[str, int]],
         consensus: bool = False,
         positions: dict[str, list[int]] | None = None,
+        totals: dict[str, list[tuple[int, frozenset[str]]]] | None = None,
     ) -> tuple[pd.DataFrame, dict[int, dict[int, dict[str, int]]]]:
         """Variants of every gene, in worker processes when threads > 1, and
         the residues of the reads at the codons of `positions` ({gene: starts})
@@ -476,12 +531,13 @@ class Resistance(Session):
         :return: (one row per gene, {gene_id: {codon start: {amino acid: reads}}})
         """
         positions = positions or {}
+        totals = totals or {}
         args = (
             self.min_depth, self.min_alt_count, self.min_frequency, self.base_quality, consensus
         )
         workers = max(1, self.meteor.threads)
         if workers == 1 or len(genes) < 2 * workers:
-            rows = resistance_worker(str(bam), reference, genes, *args, positions)
+            rows = resistance_worker(str(bam), reference, genes, *args, positions, totals)
         else:
             batch = max(1, min(2000, len(genes) // (workers * 8)))
             batches = [genes[i : i + batch] for i in range(0, len(genes), batch)]
@@ -493,6 +549,7 @@ class Resistance(Session):
                             (
                                 str(bam), reference, b, *args,
                                 {g: positions[g] for g, _ in b if g in positions},
+                                {g: totals[g] for g, _ in b if g in totals},
                             )
                             for b in batches
                         ]
@@ -576,6 +633,17 @@ class Resistance(Session):
         controls = markers[markers["msp_name"].isin(carrying)]
         resistance_ids = set(resistance["gene_id"])
         positions = self.load_positions(ref_json, resistance_ids)
+        # same positions as tuples (codon start, resistance residues): the
+        # read totals are counted read by read at these codons
+        position_totals: dict[int, list[tuple[int, frozenset[str]]]] = {}
+        if positions["table"] is not None:
+            for row in positions["table"].itertuples(index=False):
+                position_totals.setdefault(int(row.gene_id), []).append(
+                    (
+                        int(row.gene_nt_pos) - 1,
+                        frozenset(str(row.resistance_residues).split(",")),
+                    )
+                )
         helper = VariantCalling(self.meteor, {}, 0, 0, 0, 0.0, 1, self.core_size)
         # each resistance gene is read from the resistance alignments, or from
         # the marker alignments when the resistance CRAM does not list it (a
@@ -619,6 +687,9 @@ class Resistance(Session):
                         name: starts
                         for name, _ in genes
                         if (starts := positions["starts"].get(int(name)))
+                    },
+                    totals={
+                        name: pos for name, _ in genes if (pos := position_totals.get(int(name)))
                     },
                 )
                 parts.append(stats_part)

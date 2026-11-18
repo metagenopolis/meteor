@@ -34,6 +34,7 @@ from ..resistance import (
     gene_variants,
     is_synonymous,
     position_table,
+    read_totals,
 )
 from ..session import Component
 
@@ -514,6 +515,50 @@ def test_codon_residues_read_by_read(tmp_path: Path) -> None:
     with pysam.AlignmentFile(str(path), "rb") as bam:
         residues = codon_residues(bam, "1", [10, 40], base_quality=20)
     assert residues == {10: {"L": 2, "S": 1}, 40: {}}
+
+
+def test_read_totals(tmp_path: Path) -> None:
+    """Read totals of the known positions, read by read (issue 157): a read
+    counts once, resistant when it carries a resistance residue at one
+    position at least, linked when it carries them at two positions at
+    least, wt when it reads a codon without any"""
+    header = pysam.AlignmentHeader.from_dict({"HD": {"VN": "1.6"}, "SQ": [{"SN": "1", "LN": 60}]})
+    path = tmp_path / "reads.bam"
+    reads = [
+        # (codon 1, codon 2, reference start, cigar, quality of codon 2)
+        ("TTG", "GAA", 0, "60M", None),  # L: resistant
+        ("TCG", "AAT", 0, "60M", None),  # N: resistant
+        ("TTG", "AAT", 0, "60M", None),  # L + N: resistant and linked
+        ("TCG", "GAA", 0, "60M", None),  # no resistance residue: wt
+        ("TCG", "GAA", 0, "60M", 5),  # codon 2 under the base quality: wt
+        ("", "", 8, "4M", None),  # no codon aligned: other
+    ]
+    with pysam.AlignmentFile(str(path), "wb", header=header) as out:
+        for k, (codon1, codon2, start, cigar, quality2) in enumerate(reads):
+            read = pysam.AlignedSegment(header)
+            read.query_name = f"r{k}"
+            read.reference_id = 0
+            read.reference_start = start
+            read.cigarstring = cigar
+            if codon1 or codon2:
+                read.query_sequence = "A" * 10 + codon1 + "A" * 27 + codon2 + "A" * 17
+                qualities = [40] * 60
+                if quality2 is not None:
+                    qualities[40:43] = [quality2] * 3
+            else:
+                read.query_sequence = "AAAA"
+                qualities = [40] * 4
+            read.query_qualities = pysam.qualitystring_to_array(
+                "".join(chr(q + 33) for q in qualities)
+            )
+            out.write(read)
+    pysam.index(str(path))
+    positions = [(10, frozenset("LW")), (40, frozenset("N"))]
+    with pysam.AlignmentFile(str(path), "rb") as bam:
+        totals = read_totals(bam, "1", positions, base_quality=20)
+    assert totals == {
+        "reads_resistant": 3, "reads_wt": 2, "reads_other": 1, "reads_linked": 1
+    }
 
 
 def test_position_table() -> None:

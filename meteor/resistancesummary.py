@@ -265,11 +265,19 @@ class ResistanceSummary(Session):
         return long[["sample", *[c for c in long.columns if c != "sample"]]]
 
     @staticmethod
-    def position_samples(long: pd.DataFrame) -> pd.DataFrame:
+    def position_samples(
+        long: pd.DataFrame, table: pd.DataFrame | None = None
+    ) -> pd.DataFrame:
         """Per sample and target family: genes read at >= 1 known resistance
         position, and how many carry a resistance residue (minor population
         included), as their major residue, and as a major residue that differs
-        from the cohort residue (candidate acquired mutation)"""
+        from the cohort residue (candidate acquired mutation). With `table`
+        (the merged per-gene table): the reads of the family genes at the
+        known positions, resistant (a resistance residue on at least one),
+        wt (a codon read, no resistance residue), other (no codon read),
+        linked (a resistance residue on at least two positions, e.g. gyrA
+        S83L + D87N) and the fraction of the resistant reads over the reads
+        reading a position"""
         readable = long[long["readable"]].assign(
             acquired=lambda t: t["major_is_resistance"] & t["differs_from_cohort"]
         )
@@ -285,6 +293,21 @@ class ResistanceSummary(Session):
         for column in ("resistance", "major_resistance", "acquired"):
             per_sample[f"fraction_{column}"] = (
                 per_sample[f"genes_{column}"] / per_sample["genes_readable"]
+            )
+        read_totals = ("reads_resistant", "reads_wt", "reads_other", "reads_linked")
+        if table is not None and "target" in table and all(c in table for c in read_totals):
+            reads = (
+                table[table["target"].notna()]
+                .groupby(["sample", "target"])[list(read_totals)]
+                .sum(min_count=1)
+                .rename(columns={"target": "family"})
+            )
+            per_sample = per_sample.join(reads, how="left")
+            per_sample["resistant_reads_fraction"] = np.where(
+                per_sample["reads_resistant"].notna()
+                & (per_sample["reads_resistant"] + per_sample["reads_wt"] > 0),
+                per_sample["reads_resistant"] / (per_sample["reads_resistant"] + per_sample["reads_wt"]),
+                np.nan,
             )
         return per_sample.reset_index()
 
@@ -422,7 +445,7 @@ class ResistanceSummary(Session):
             positions.to_csv(
                 out / f"{self.prefix}_resistance_positions.tsv", sep="\t", index=False, na_rep="NA"
             )
-            per_sample = self.position_samples(positions)
+            per_sample = self.position_samples(positions, table)
             per_sample.to_csv(
                 out / f"{self.prefix}_resistance_positions_samples.tsv",
                 sep="\t",
