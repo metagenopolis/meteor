@@ -181,10 +181,12 @@ class ResistanceSummary(Session):
     @staticmethod
     def merge_positions(samples: dict[str, tuple[Path, dict]]) -> pd.DataFrame | None:
         """Residues of every sample at the known resistance positions, with the
-        cohort residue of each position: the major residue of most of the genes
-        read at this position, among the genes of the family in the MSP (several
-        catalogue genes can be alleles of the gene of one species, one of them
-        carrying a resistance residue; a gene of no MSP stands alone). A
+        cohort residue of each position: the individual residue of most of the
+        individuals reading the position. The individual residue of a sample is
+        the residue of its reads at the position, over the genes of the family
+        in the MSP, weighted by depth (several catalogue genes can be alleles
+        of the gene of one species, and one of them carrying a resistance
+        residue must not outvote the sample; a gene of no MSP stands alone). A
         resistance residue that is also the cohort residue is the wild type of
         the species carrying the gene (the positions come from E. coli and
         K. pneumoniae), not an acquired mutation.
@@ -217,17 +219,46 @@ class ResistanceSummary(Session):
             long["msp_name"].notna(), "gene_" + long["gene_id"].astype(str)
         )
         readable = long[long["readable"]]
-        votes = (
-            readable.groupby([*key, "major_residue"])
-            .size()
-            .rename("votes")
+        # one vote per individual: the residue of its reads at the position,
+        # over the genes of the family in the MSP, weighted by depth (most
+        # reads first, then alphabetical: a stable individual residue)
+        individual = (
+            readable.groupby(["sample", *key, "major_residue"], sort=False)["depth"].sum()
             .reset_index()
-            .sort_values([*key, "votes", "major_residue"], ascending=[True] * 3 + [False, True])
+            .rename(columns={"depth": "individual_reads"})
+            .sort_values(
+                ["sample", *key, "individual_reads", "major_residue"],
+                ascending=[True] * 4 + [False, True],
+            )
+            .groupby(["sample", *key], sort=False)["major_residue"]
+            .first()
+            .rename("individual_residue")
+            .reset_index()
         )
-        cohort = votes.groupby(key)["major_residue"].first().rename("cohort_residue").to_frame()
-        cohort["cohort_samples"] = readable.groupby(key)["sample"].nunique()
+        # the cohort residue: the individual residue of most individuals
+        votes = (
+            individual.assign(major_residue=individual["individual_residue"])
+            .groupby([*key, "major_residue"], sort=False)
+            .size()
+            .rename("individuals")
+            .reset_index()
+            .sort_values(
+                [*key, "individuals", "major_residue"], ascending=[True] * 3 + [False, True]
+            )
+        )
+        cohort = (
+            votes.groupby(key, sort=False)["major_residue"]
+            .first()
+            .rename("cohort_residue")
+            .to_frame()
+        )
+        cohort["cohort_samples"] = individual.groupby(key, sort=False)["sample"].nunique()
+        cohort["cohort_share"] = (
+            votes.groupby(key, sort=False)["individuals"].max() / cohort["cohort_samples"]
+        )
         long = long.join(cohort, on=key).drop(columns="cohort_group")
         long["cohort_samples"] = long["cohort_samples"].fillna(0).astype(int)
+        long["cohort_share"] = long["cohort_share"].fillna(0.0)
         long["differs_from_cohort"] = long["readable"] & (
             long["major_residue"] != long["cohort_residue"]
         )

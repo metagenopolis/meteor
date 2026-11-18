@@ -231,8 +231,12 @@ def test_execute_positions(tmp_path: Path) -> None:
          "major_frequency": 0.8, "residue_counts": "S:16,L:4"},
         rpsl,
     ])
-    # gene 12: another catalogue allele of gyrA in M1, carrying L83
-    _sample(root, "S2", [{"gene_id": 10}], positions=[{}, rpsl, {**leucine, "gene_id": 12}])
+    # gene 12: another catalogue allele of gyrA in M1, carrying L83 at a
+    # lower depth: the sample votes S (20 reads) over L (10 reads)
+    _sample(root, "S2", [{"gene_id": 10}], positions=[
+        {}, rpsl, {**leucine, "gene_id": 12, "depth": 10, "resistance_reads": 10,
+                   "residue_counts": "L:10"}
+    ])
     _sample(root, "S4", [{"gene_id": 10}], positions=[{}])
     _sample(root, "S3", [{"gene_id": 10}], positions=[
         leucine,
@@ -244,12 +248,15 @@ def test_execute_positions(tmp_path: Path) -> None:
     long = pd.read_table(out / "out_resistance_positions.tsv")
     assert list(long.columns[:2]) == ["sample", "gene_id"]
     gyra = long[(long["gene_id"] == 10) & (long["codon_pos"] == 83)].set_index("sample")
-    # S in 3 of the 5 gyrA genes read at 83 in M1 (4 samples)
-    assert set(gyra["cohort_residue"]) == {"S"} and set(gyra["cohort_samples"]) == {4}
+    # one vote per individual (issue 156): S for S1, S2 and S4, L for S3
+    assert set(gyra["cohort_residue"]) == {
+        "S"
+    } and set(gyra["cohort_samples"]) == {4}
+    assert (gyra["cohort_share"] == 0.75).all()
     assert gyra["differs_from_cohort"].to_dict() == {
         "S1": False, "S2": False, "S3": True, "S4": False
     }
-    # the allele of gene 12 carries L, but the species carries S: acquired
+    # the allele of gene 12 carries L, but the sample votes S: acquired
     gene_12 = long[long["gene_id"] == 12].iloc[0]
     assert gene_12["cohort_residue"] == "S" and gene_12["differs_from_cohort"]
     per_sample = pd.read_table(out / "out_resistance_positions_samples.tsv")
