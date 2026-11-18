@@ -63,6 +63,10 @@ def _sample(
         "control_genes": 2,
         "control_major_per_kb": 2.0,
         "control_minor_per_kb": 0.5,
+        "reads_resistant": np.nan,
+        "reads_wt": np.nan,
+        "reads_other": np.nan,
+        "reads_linked": np.nan,
     }
     table = pd.DataFrame([{**columns, **row} for row in rows])
     table = table[["gene_id", *columns]]
@@ -225,7 +229,10 @@ def test_execute_positions(tmp_path: Path) -> None:
     rpsl = {"gene_id": 11, "family": "rpsL", "codon_pos": 43, "resistance_residues": "R",
             "major_residue": "R", "major_is_resistance": True, "resistance_reads": 20,
             "resistance_frequency": 1.0, "known_resistance": True, "residue_counts": "R:20"}
-    _sample(root, "S1", [{"gene_id": 10}], positions=[
+    _sample(root, "S1", [{
+        "gene_id": 10, "target": "gyrA", "reads_resistant": 4, "reads_wt": 16,
+        "reads_other": 0, "reads_linked": 0,
+    }], positions=[
         # a minor resistant population, S in the majority
         {"resistance_reads": 4, "resistance_frequency": 0.2, "known_resistance": True,
          "major_frequency": 0.8, "residue_counts": "S:16,L:4"},
@@ -233,12 +240,23 @@ def test_execute_positions(tmp_path: Path) -> None:
     ])
     # gene 12: another catalogue allele of gyrA in M1, carrying L83 at a
     # lower depth: the sample votes S (20 reads) over L (10 reads)
-    _sample(root, "S2", [{"gene_id": 10}], positions=[
+    _sample(root, "S2", [
+        {"gene_id": 10, "target": "gyrA", "reads_resistant": 0, "reads_wt": 20,
+         "reads_other": 0, "reads_linked": 0},
+        {"gene_id": 12, "target": "gyrA", "reads_resistant": 10, "reads_wt": 0,
+         "reads_other": 0, "reads_linked": 0},
+    ], positions=[
         {}, rpsl, {**leucine, "gene_id": 12, "depth": 10, "resistance_reads": 10,
                    "residue_counts": "L:10"}
     ])
-    _sample(root, "S4", [{"gene_id": 10}], positions=[{}])
-    _sample(root, "S3", [{"gene_id": 10}], positions=[
+    _sample(root, "S4", [{
+        "gene_id": 10, "target": "gyrA", "reads_resistant": 0, "reads_wt": 20,
+        "reads_other": 0, "reads_linked": 0,
+    }], positions=[{}])
+    _sample(root, "S3", [{
+        "gene_id": 10, "target": "gyrA", "reads_resistant": 20, "reads_wt": 0,
+        "reads_other": 0, "reads_linked": 0,
+    }], positions=[
         leucine,
         {**rpsl, "depth": 5, "readable": False, "known_resistance": False},  # not read: ignored
         {"codon_pos": 87, "depth": 0, "readable": False, "residue_counts": ""},
@@ -267,6 +285,14 @@ def test_execute_positions(tmp_path: Path) -> None:
     assert per_sample.loc[("S3", "gyrA"), "fraction_acquired"] == 1
     assert per_sample.loc[("S2", "gyrA"), "genes_readable"] == 2
     assert per_sample.loc[("S2", "gyrA"), "fraction_acquired"] == 0.5
+    # read totals of the family genes, summed over the genes (issue 157)
+    assert per_sample.loc[("S1", "gyrA"), "reads_resistant"] == 4
+    assert per_sample.loc[("S1", "gyrA"), "resistant_reads_fraction"] == 4 / 20
+    assert per_sample.loc[("S3", "gyrA"), "resistant_reads_fraction"] == 1
+    assert per_sample.loc[("S4", "gyrA"), "resistant_reads_fraction"] == 0
+    assert per_sample.loc[("S2", "gyrA"), "reads_resistant"] == 10  # gene 12 only
+    assert per_sample.loc[("S2", "gyrA"), "reads_wt"] == 20  # gene 10 only
+    assert per_sample.loc[("S2", "gyrA"), "resistant_reads_fraction"] == pytest.approx(10 / 30)
     # rpsL: resistance residue as the cohort residue, never acquired
     assert per_sample.loc[("S1", "rpsL"), "fraction_major_resistance"] == 1
     assert per_sample.loc[("S1", "rpsL"), "genes_acquired"] == 0
@@ -280,6 +306,24 @@ def test_execute_positions_missing_file(tmp_path: Path) -> None:
     (tmp_path / "resistance" / "S1" / "S1_resistance_positions.tsv").unlink()
     with pytest.raises(SystemExit):
         _merging(tmp_path).execute()
+
+
+def test_execute_positions_old_tables(tmp_path: Path) -> None:
+    """Sample tables of an older meteor resistance, without the read totals:
+    the positions still merge, the read columns are left out"""
+    root = tmp_path / "resistance"
+    for name in ("S1", "S2"):
+        _sample(root, name, [{"gene_id": 10, "target": "gyrA"}], positions=[{}])
+        path = root / name / f"{name}_resistance.tsv"
+        table = pd.read_table(path)
+        table = table.drop(
+            columns=["reads_resistant", "reads_wt", "reads_other", "reads_linked"]
+        )
+        table.to_csv(path, sep="\t", index=False, na_rep="NA")
+    _merging(tmp_path).execute()
+    per_sample = pd.read_table(tmp_path / "merged" / "out_resistance_positions_samples.tsv")
+    assert "reads_resistant" not in per_sample.columns
+    assert int(per_sample["genes_readable"].sum()) == 2
 
 
 def _consensus_cohort(root: Path, n: int = 6) -> None:
