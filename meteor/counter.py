@@ -23,7 +23,7 @@ from tempfile import mkdtemp, mkstemp
 from pathlib import Path
 from meteor.mapper import Mapper
 from meteor.session import Session, Component
-from meteor.resistance import RESISTANCE_ANNOTATIONS, resistance_gene_table
+from meteor.resistance import RESISTANCE_ANNOTATIONS, TARGETS_ANNOTATION, resistance_gene_table
 from typing import ClassVar
 from collections import defaultdict, Counter as TupleCounter
 from itertools import chain, repeat
@@ -416,14 +416,16 @@ class Counter(Session):
         return set(msp_content["gene_id"])
 
     def get_resistance_gene_ids(self, ref_json: dict) -> set[int]:
-        """Genes annotated by ResFinder, ResFinderFG or MUSTARD, and genes of the
-        KEGG orthologs of the target genes (resistance.TARGET_KOS)"""
+        """Genes annotated by ResFinder, ResFinderFG or MUSTARD, genes of the
+        KEGG orthologs of the target genes (resistance.TARGET_KOS), and genes of
+        the resistance_targets annotation (targets without a KEGG ortholog)"""
         table = resistance_gene_table(self, self.meteor.ref_dir, ref_json)
         genes = set(table["gene_id"])
         if not genes:
             logging.error(
-                "--kr: the catalogue has no resistance annotation (%s, kegg)",
+                "--kr: the catalogue has no resistance annotation (%s, kegg, %s)",
                 ", ".join(RESISTANCE_ANNOTATIONS),
+                TARGETS_ANNOTATION,
             )
             sys.exit(1)
         return {int(gene) for gene in genes}

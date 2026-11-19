@@ -77,6 +77,7 @@ def test_target_kos() -> None:
         "K07643": "basS",
         "K07660": "phoP",
         "K07637": "phoQ",
+        "K18143": "adeS",
     }
 
 
@@ -482,6 +483,35 @@ def test_resistance_genes_no_annotation(resistance, tmp_path: Path) -> None:
         analysis.resistance_genes(ref_json)
 
 
+def _with_targets(root: Path, rows: dict, only: bool = False) -> dict:
+    """reference.json of the test catalogue with a resistance_targets
+    annotation (only: no other resistance annotation)"""
+    pd.DataFrame(rows).to_csv(root / "database" / "targets.tsv", sep="\t", index=False)
+    ref_json = json.loads((root / "cat_reference.json").read_text())
+    if only:
+        ref_json["annotation"] = {"msp": ref_json["annotation"]["msp"]}
+    ref_json["annotation"]["resistance_targets"] = {"filename": "targets.tsv"}
+    return ref_json
+
+
+def test_resistance_genes_targets_annotation(resistance, tmp_path: Path) -> None:
+    """Target genes without a KEGG ortholog: the genes of the
+    resistance_targets annotation, merged with the KEGG targets"""
+    analysis, _ = resistance
+    ref_json = _with_targets(
+        tmp_path / "catalogue", {"gene_id": [5, 3], "family": ["mgrB", "mgrB"]}
+    )
+    table = analysis.resistance_genes(ref_json).set_index("gene_id")
+    assert set(table.index) == {1, 3, 4, 5}
+    assert table.loc[5, "target"] == "mgrB" and pd.isna(table.loc[5, "resfinder"])
+    assert table.loc[3, "target"] == "gyrA,mgrB"  # KEGG and resistance_targets
+    assert pd.isna(table.loc[1, "target"])
+    # the annotation alone is enough
+    ref_json = _with_targets(tmp_path / "catalogue", {"gene_id": [5], "family": ["mgrB"]}, only=True)
+    table = analysis.resistance_genes(ref_json)
+    assert table["gene_id"].tolist() == [5] and table["target"].tolist() == ["mgrB"]
+
+
 def _codon(residue: str) -> str:
     return next(codon for codon, aa in CODON_TABLE.items() if aa == residue)
 
@@ -717,3 +747,15 @@ def test_mapping_kr(counter_kr: Counter, monkeypatch) -> None:
 def test_mapping_kr_no_annotation(counter_kr: Counter) -> None:
     with pytest.raises(SystemExit):
         counter_kr.execute()
+
+
+def test_mapping_kr_targets_annotation(counter_kr: Counter) -> None:
+    """--kr keeps the genes of the resistance_targets annotation (target
+    genes without a KEGG ortholog)"""
+    catalogue = counter_kr.meteor.ref_dir
+    ref_json = json.loads((catalogue / "mock_reference.json").read_text())
+    pd.DataFrame({"gene_id": [7, 8], "family": ["mgrB", "mgrB"]}).to_csv(
+        catalogue / "database" / "mock_resistance_targets.tsv", sep="\t", index=False
+    )
+    ref_json["annotation"]["resistance_targets"] = {"filename": "mock_resistance_targets.tsv"}
+    assert counter_kr.get_resistance_gene_ids(ref_json) == {7, 8}
