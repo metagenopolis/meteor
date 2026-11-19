@@ -582,9 +582,9 @@ class Resistance(Session):
         database_dir = self.meteor.ref_dir / ref_json["reference_file"]["database_dir"]
         table = self.load_data(database_dir / annotation["filename"])
         table = table.assign(gene_id=table["gene_id"].astype(int))
-        # residue_classes: optional annotation of the antibiotic classes of each
-        # resistance residue ("S:QUINOLONE;L:QUINOLONE/AMINOCOUMARIN")
-        keep = [*POSITION_COLUMNS, "residue_classes"] if "residue_classes" in table.columns else list(POSITION_COLUMNS)
+        # optional columns of the annotation, carried as is to the outputs
+        optional = ("source", "residue_sources", "residue_classes")
+        keep = [*POSITION_COLUMNS, *[c for c in optional if c in table.columns]]
         table = table[table["gene_id"].isin(gene_ids)][keep]
         starts: dict[int, set[int]] = {}
         for gene, nt_pos in zip(table["gene_id"], table["gene_nt_pos"]):

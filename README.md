@@ -292,7 +292,24 @@ The catalogue gene is the representative of a gene cluster, not a susceptible re
 
 `<resistancedir>/<sample>/<sample>_resistance_consensus.fasta.xz` holds the consensus sequence of each interpretable resistance gene in the sample (`>gene_id`): the major base of each covered site, `N` elsewhere, on the coordinates of the catalogue gene. A sample carrying several alleles of a gene (minor variants) gets the major one at each site.
 
-When the catalogue has a `resistance_positions` annotation, `<resistancedir>/<sample>/<sample>_resistance_positions.tsv` gives the residue carried by the reads at the known resistance positions of the target genes with reads. The annotation lists, for each target gene of the catalogue, the positions of the known resistance substitutions (e.g. PointFinder) transferred onto the gene: `gene_id`, `family`, `codon_pos` (numbering of the reference, e.g. gyrA 83 of *E. coli*), `ref_residue`, `resistance_residues` (comma-separated), `gene_aa_pos`, `gene_nt_pos` (first base of the codon in the catalogue gene, 1-based), `gene_residue` and `window_identity` (identity of the alignment around the position), and optionally `residue_classes`, the antibiotic class of each resistance residue (`S:QUINOLONE;L:QUINOLONE/AMINOCOUMARIN`). The residues are counted read by read: a read counts when the 3 bases of the codon are aligned without indel, with a base quality >= `-q`. One row per position read by at least one read:
+When the catalogue has a `resistance_positions` annotation, `<resistancedir>/<sample>/<sample>_resistance_positions.tsv` gives the residue carried by the reads at the known resistance positions of the target genes with reads. The annotation is built outside of meteor, one row per catalogue gene x known resistance position (e.g. the union of PointFinder and AMRFinderPlus, the known resistance substitutions of the reference species transferred onto the gene):
+
+| Column | Description |
+|--------|-------------|
+| `gene_id` | Catalogue gene of the row |
+| `family` | Family of the target gene (gyrA, gyrB, parC, parE, rpoB, rpsL, folP, ...) |
+| `codon_pos` | Position in the numbering of the reference (e.g. gyrA 83 of *E. coli*) |
+| `ref_residue` | Residue of the reference at this position |
+| `resistance_residues` | Known resistance residues, comma-separated |
+| `gene_aa_pos` | Position of the codon in the catalogue gene (amino acid, 1-based) |
+| `gene_nt_pos` | First base of the codon in the catalogue gene, 1-based |
+| `gene_residue` | Residue of the catalogue gene at this position |
+| `window_identity` | Identity of the alignment of the gene on the reference around the position |
+| `source`, `residue_sources`, `residue_classes` | Optional: the origin of the position (PointFinder, AMRFinderPlus), the origin of each resistance residue, and the antibiotic class of each resistance residue (`L:QUINOLONE;W:QUINOLONE/AMINOCOUMARIN`) |
+
+The optional columns, when they are in the annotation, are carried as is to `<sample>_resistance_positions.tsv` and to the merged tables of `meteor resistance_summary`.
+
+The residues are counted read by read: a read counts when the 3 bases of the codon are aligned without indel, with a base quality >= `-q`. One row per position read by at least one read:
 
 | Column | Description |
 |--------|-------------|
