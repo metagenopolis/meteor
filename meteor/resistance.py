@@ -39,9 +39,9 @@ RESISTANCE_ANNOTATIONS: tuple[str, ...] = ("resfinder", "resfinderfg", "mustard"
 # mutation or inactivation: quinolones (gyrA, gyrB, parC, parE), rifampicin
 # (rpoB), streptomycin (rpsL), sulfonamides (folP), trimethoprim (folA),
 # fosfomycin (murA, glpT, uhpT), nitrofurans (nfsA, nfsB) and colistin
-# (basR, basS, phoP, phoQ); the uptake and activation genes (glpT, uhpT,
-# nfsA, nfsB, basR, basS, phoP, phoQ) are inactivated rather than mutated at
-# one position (#158)
+# (basR, basS, phoP, phoQ, adeS: the KEGG ortholog of the CrrB sensor of
+# Klebsiella); the uptake and activation genes (glpT, uhpT, nfsA, nfsB, basR,
+# basS, phoP, phoQ) are inactivated rather than mutated at one position (#158)
 TARGET_KOS: dict[str, str] = {
     "K02469": "gyrA",
     "K02470": "gyrB",
@@ -60,7 +60,11 @@ TARGET_KOS: dict[str, str] = {
     "K07643": "basS",
     "K07660": "phoP",
     "K07637": "phoQ",
+    "K18143": "adeS",
 }
+# catalogue annotation of the target genes without a KEGG ortholog, found by
+# alignment on a reference protein (gene_id, family; e.g. mgrB of Klebsiella)
+TARGETS_ANNOTATION = "resistance_targets"
 # catalogue annotation of the known resistance positions of the target genes
 POSITIONS_ANNOTATION = "resistance_positions"
 
@@ -369,7 +373,8 @@ def load_kegg_targets(path: Path) -> pd.DataFrame:
 def resistance_gene_table(session: Session, ref_dir: Path, ref_json: dict) -> pd.DataFrame:
     """One row per resistance gene of the catalogue: its ResFinder, ResFinderFG
     and MUSTARD annotations, and `target` for the genes of the KEGG orthologs of
-    TARGET_KOS (empty table without any of these annotations)"""
+    TARGET_KOS and the genes of the resistance_targets annotation (empty table
+    without any of these annotations)"""
     database_dir = ref_dir / ref_json["reference_file"]["database_dir"]
     annotations = ref_json.get("annotation", {})
     columns = []
@@ -389,13 +394,27 @@ def resistance_gene_table(session: Session, ref_dir: Path, ref_json: dict) -> pd
                 .agg(lambda values: ",".join(sorted(set(map(str, values)))))
                 .rename("mustard_prediction")
             )
+    targets = []
     if "kegg" in annotations:
         kegg = load_kegg_targets(database_dir / annotations["kegg"]["filename"])
-        columns.append(
-            kegg.assign(
-                gene_id=kegg["gene_id"].astype(int),
-                target=kegg["annotation"].map(TARGET_KOS),
+        targets.append(
+            pd.DataFrame(
+                {
+                    "gene_id": kegg["gene_id"].astype(int),
+                    "target": kegg["annotation"].map(TARGET_KOS),
+                }
             )
+        )
+    if TARGETS_ANNOTATION in annotations:
+        table = session.load_data(database_dir / annotations[TARGETS_ANNOTATION]["filename"])
+        targets.append(
+            pd.DataFrame(
+                {"gene_id": table["gene_id"].astype(int), "target": table["family"].astype(str)}
+            )
+        )
+    if targets:
+        columns.append(
+            pd.concat(targets)
             .groupby("gene_id")["target"]
             .agg(lambda values: ",".join(sorted(set(values))))
         )
@@ -510,8 +529,9 @@ class Resistance(Session):
         genes = resistance_gene_table(self, self.meteor.ref_dir, ref_json)
         if genes.empty:
             logging.error(
-                "The catalogue has no resistance annotation (%s or kegg)",
+                "The catalogue has no resistance annotation (%s, kegg or %s)",
                 ", ".join(RESISTANCE_ANNOTATIONS),
+                TARGETS_ANNOTATION,
             )
             sys.exit(1)
         return genes
@@ -780,7 +800,12 @@ class Resistance(Session):
                     "resistance_date": datetime.now().strftime("%Y-%m-%d"),
                     "annotations": [
                         n
-                        for n in (*RESISTANCE_ANNOTATIONS, "kegg", POSITIONS_ANNOTATION)
+                        for n in (
+                            *RESISTANCE_ANNOTATIONS,
+                            "kegg",
+                            TARGETS_ANNOTATION,
+                            POSITIONS_ANNOTATION,
+                        )
                         if n in annotations
                     ],
                     "target_kos": sorted(TARGET_KOS),
