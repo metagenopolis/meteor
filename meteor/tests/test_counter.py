@@ -18,6 +18,7 @@ from ..counter import Counter
 from pathlib import Path
 from hashlib import md5
 from pysam import AlignmentFile
+import pysam
 import pytest
 import pandas as pd
 import json
@@ -129,7 +130,8 @@ def test_launch_mapping(counter_total: Counter):
     # Compute md5 of alignments in the cram file
     # Cannot compute md5 of the entire file as header may change
     h = md5()
-    with AlignmentFile(str(cram.resolve()), "rc") as cramdesc:
+    reference = counter_total.reference_fasta(ref_json)
+    with AlignmentFile(str(cram.resolve()), "rc", reference_filename=str(reference.resolve())) as cramdesc:
         for element in cramdesc:
             h.update(str(element).encode())
     assert h.hexdigest() == "65cdcef09a3f82403765dbbef6e1ae0c"
@@ -396,6 +398,23 @@ def test_execute_keep_all_then_recount(counter_smart_shared: Counter, tmp_path: 
     assert count_file.read_bytes() == first
     with count_file.open("rb") as out:
         assert md5(out.read()).hexdigest() == "5db950a4404793f73ba034e99cb676fa"
+
+
+def test_cram_files_have_no_ur_tag(counter_smart_shared: Counter, tmp_path: Path) -> None:
+    """With HTSlib >= 1.25, the raw and strain CRAM files are written without the
+    UR tag of the @SQ lines (#100), and the counting reads them back."""
+    from meteor.mapper import CRAM_FORMAT_OPTIONS
+
+    if not CRAM_FORMAT_OPTIONS:
+        pytest.skip(f"HTSlib {pysam.version.__htslib_version__} < 1.25: no remove_ur option")
+    counter_smart_shared.keep_all_alignments = True
+    counter_smart_shared.execute()
+    crams = [tmp_path / "part1" / "part1_raw.cram", tmp_path / "part1" / "part1.cram"]
+    for cram in crams:
+        assert cram.exists()
+        sq = [line for line in pysam.view("-H", str(cram)).splitlines() if line.startswith("@SQ")]
+        assert sq and not any("\tUR:" in line for line in sq)
+    assert (tmp_path / "part1" / "part1.tsv.xz").exists()
 
 
 def test_mapping_without_kept_alignments(counter_total: Counter) -> None:

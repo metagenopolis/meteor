@@ -385,6 +385,8 @@ The options of every command are also listed by `meteor <command> -h`.
 | `--tmp TMP_PATH` | Directory where temporary files (e.g. cram) are stored | none |
 | `-t THREADS` | Number of alignment threads to launch. | `1` |
 
+With pysam built on HTSlib >= 1.25, the CRAM files of `--ka`, `--kf` and `--kr` are written without the UR tag (path of the catalogue FASTA) on the `@SQ` lines, which keeps the header of large catalogues under the CRAM size limit. To read them outside meteor, give the catalogue FASTA: `samtools view -T <ref_dir>/fasta/<catalogue>.fasta.gz <sample>.cram`.
+
 ### meteor profile
 
 | Option | Description | Default |
