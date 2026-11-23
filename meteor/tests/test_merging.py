@@ -371,7 +371,8 @@ def test_merge_filter_write_edge_cases(merging_profiles: Merging, tmp_path: Path
     keys = merging_profiles._merge_filter_write({"s1": a, "s2": b}, ["annotation"], out)
     assert list(keys["annotation"]) == ["K1", "K3"]
     expected = out.read_text()
-    assert expected == "annotation\ts1\ts2\nK1\t1.0\t0.5\nK3\t\t2.5\n"
+    # K3 is missing from s1: written as 0.0, not as an empty (NA) field
+    assert expected == "annotation\ts1\ts2\nK1\t1.0\t0.5\nK3\t0.0\t2.5\n"
     # pandas helper failing (e.g. another signature): indexes combined with
     # pd.concat, same table. Only the first call (meteor's) fails.
     import pandas.core.indexes.api as pandas_api

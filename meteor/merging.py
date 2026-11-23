@@ -259,7 +259,10 @@ class Merging(Session):
             df.set_index(key_merging, inplace=True)
 
         # Now you can concatenate using the aligned index
-        merged_df = pd.concat(list_df, join="outer", axis=1).reset_index()
+        merged_df = pd.concat(list_df, join="outer", axis=1)
+        # A row missing from a sample file (feature not detected, MSP absent
+        # for the module completeness) is a 0, not a missing value
+        merged_df = merged_df.fillna(0.0).reset_index()
         return merged_df
 
     def _write_annotations(
@@ -473,8 +476,9 @@ class Merging(Session):
                 return None
         if not union.is_unique:
             return None
-        # Column-major matrix, as DataFrame.to_numpy() of the merged sparse columns
-        matrix = np.full((len(union), len(indexes)), np.nan, order="F")
+        # Column-major matrix, as DataFrame.to_numpy() of the merged sparse columns;
+        # rows missing from a sample are 0 (as merge_df)
+        matrix = np.full((len(union), len(indexes)), 0.0, order="F")
         for j, (index, vals) in enumerate(zip(indexes, values)):
             positions = union.get_indexer(index)
             if np.bincount(positions, minlength=len(union)).max(initial=0) > 1:
