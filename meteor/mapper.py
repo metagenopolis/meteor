@@ -27,6 +27,16 @@ import pysam
 import logging
 import sys
 
+# HTSlib >= 1.25 can leave out the UR tag (path of the reference FASTA) of the
+# @SQ lines when it writes a CRAM. With a large catalogue, the UR tags push the
+# CRAM header past the HTSlib size limit (#100). meteor passes the reference to
+# every reader of its CRAM files, so the UR tag is not needed.
+CRAM_FORMAT_OPTIONS: list[str] = (
+    ["remove_ur=1"]
+    if parse(pysam.version.__htslib_version__) >= parse("1.25")
+    else []
+)
+
 
 @dataclass
 class Mapper(Session):
@@ -176,6 +186,7 @@ class Mapper(Session):
                         "wc",
                         template=samdesc,
                         reference_filename=str(reference.resolve()),
+                        format_options=CRAM_FORMAT_OPTIONS,
                         threads=self.meteor.threads,
                     )
                     if self.keep_raw

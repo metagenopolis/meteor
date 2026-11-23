@@ -21,7 +21,7 @@ import numpy as np
 from dataclasses import dataclass, field
 from tempfile import mkdtemp, mkstemp
 from pathlib import Path
-from meteor.mapper import Mapper
+from meteor.mapper import CRAM_FORMAT_OPTIONS, Mapper
 from meteor.session import Session, Component
 from meteor.resistance import RESISTANCE_ANNOTATIONS, TARGETS_ANNOTATION, resistance_gene_table
 from typing import ClassVar
@@ -519,21 +519,25 @@ class Counter(Session):
                 "Resistance alignments sorted in %f seconds", perf_counter() - start
             )
 
-    def sort_index_strain(
-        self, unsorted: Path, cramfile_strain: Path, ref_json: dict
-    ) -> None:
-        reference = (
+    def reference_fasta(self, ref_json: dict) -> Path:
+        """FASTA of the catalogue genes (reference of the CRAM files)"""
+        return (
             self.meteor.ref_dir
             / ref_json["reference_file"]["fasta_dir"]
             / ref_json["reference_file"]["fasta_filename"]
         )
+
+    def sort_index_strain(
+        self, unsorted: Path, cramfile_strain: Path, ref_json: dict
+    ) -> None:
+        reference = self.reference_fasta(ref_json)
         sort(
             "-o",
             str(cramfile_strain.resolve()),
             "-@",
             str(self.meteor.threads),
             "-O",
-            "cram",
+            ",".join(["cram", *CRAM_FORMAT_OPTIONS]),
             "--reference",
             str(reference.resolve()),
             str(unsorted.resolve()),
@@ -646,8 +650,12 @@ class Counter(Session):
         else:
             logging.info("Launch counting")
         pysam.set_verbosity(0)
+        # explicit reference: the CRAM may have no UR tag (CRAM_FORMAT_OPTIONS)
         with AlignmentFile(
-            str(raw_cramfile.resolve()), threads=self.meteor.threads
+            str(raw_cramfile.resolve()),
+            "rc",
+            reference_filename=str(self.reference_fasta(ref_json).resolve()),
+            threads=self.meteor.threads,
         ) as cramdesc:
             streamer, strain_unsorted, resistance_unsorted = self._streaming_counter(
                 cramdesc.header, ref_json
