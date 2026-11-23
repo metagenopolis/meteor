@@ -156,7 +156,7 @@ All tables are merged by default, except the gene tables (`-g`). `-t` merges onl
 meteor merge -i <profiledir> -r <refdir> -o <mergingdir> -t msp
 ```
 
-Tables: `msp` (species), `genes` (gene counts, same as `-g`), `modules_completeness`, `modules`, and the annotation tables `mustard`, `resfinder`, `resfinderfg`, `dbcan`, `kegg` (each `_as_genes_sum` and `_as_msp_sum`). Functional tables need a complete catalogue.
+Tables: `msp` (species), `genes` (gene counts, same as `-g`), `modules_completeness`, `modules`, and the annotation tables `mustard`, `resfinder`, `resfinderfg`, `dbcan`, `kegg` (each `_as_genes_sum` and `_as_msp_sum`). Functional tables need a complete catalogue. A row missing from a sample (feature not detected; for `modules_completeness`, MSP not detected in the sample) is written as 0, not left empty.
 
 `-l <samples.txt>` merges only the samples named in a text file, one sample name per line (first column if the file is tab-separated; empty lines and lines starting with `#` are ignored), in the order of the file. Samples of the list that are not found are reported in the log.
 
