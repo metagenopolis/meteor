@@ -315,7 +315,7 @@ class Merging(Session):
             kegg_annotation_path = Path(
                 str(
                     importlib.resources.files("meteor")
-                    / "data/ko_list_v116.feather"
+                    / "data/ko_list_v120.feather"
                 )
             )
             kegg_annotation = self.load_data(kegg_annotation_path)
