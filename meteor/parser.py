@@ -50,6 +50,12 @@ class Parser(Session):
         mod_def = re.sub(r"\s?--\s?", r" ", mod_def).strip()
         # Remove '-XXX'
         mod_def = re.sub(r"\-\w+", r"", mod_def)
+        # Collapse the spaces left around a removed optional step ('K1 -K2 K3'),
+        # or each of them would become an empty step
+        mod_def = re.sub(r"\s+", " ", mod_def)
+        mod_def = re.sub(r"\(\s+", "(", mod_def)
+        mod_def = re.sub(r"\s+\)", ")", mod_def)
+        mod_def = re.sub(r"\s*,\s*", ",", mod_def).strip()
         # Replace ' ' by '+'
         mod_def = mod_def.replace(" ", "+")
         # Add parenthesis around the whole mod_def (in case we have such case : KXXX,KYYY
