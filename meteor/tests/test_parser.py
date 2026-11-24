@@ -59,6 +59,13 @@ def test_clean_module(parser_standard: Parser) -> None:
     assert mod_def == "(K1+(K2,K3))"
     mod_def = parser_standard.clean_module("K1 (K2,K3+K4)+K5")
     assert mod_def == "(K1+(K2,K3+K4)+K5)"
+    # optional step between two steps (KEGG M00564): no empty step left
+    mod_def = parser_standard.clean_module("K1 -K2 K3 -K4 -K5 K6")
+    assert mod_def == "K1+K3+K6"
+    mod_def = parser_standard.clean_module("(K1 -K2) K3  K4")
+    assert mod_def == "K1+K3+K4"
+    mod_def = parser_standard.clean_module("-K1 K2 (K3, K4 -K5)")
+    assert mod_def == "(K2+(K3,K4))"
 
 
 def test_replace_submod(parser_standard: Parser) -> None:
