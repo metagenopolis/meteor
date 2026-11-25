@@ -14,6 +14,7 @@
 
 import logging
 from itertools import combinations
+import json
 from pathlib import Path
 
 import numpy as np
@@ -73,7 +74,9 @@ def test_strain_sharing_individuals(cohort, tmp_path: Path) -> None:
     StrainSharing(output_dir, individuals).execute(files)
     events, samples, msp = _read(output_dir)
     msp = msp.set_index("msp_name")
-    assert (msp["threshold"] == StrainSharing.THRESHOLD).all()
+    # approx: the threshold is written to the TSV and read back (float
+    # round-trip of the CSV column)
+    assert np.allclose(msp["threshold"], StrainSharing.THRESHOLD)
     # msp_a: 60 pairs of different individuals, 2 of them share (s0-s2, s0-s3);
     # the 6 pairs of the same individual share but are no transmission
     assert msp.loc["msp_a", ["n_sample_pairs", "n_shared_pairs"]].tolist() == [60, 2]
@@ -166,3 +169,62 @@ def test_read_individuals_errors(tmp_path: Path, content: str) -> None:
     individuals.write_text(content)
     with pytest.raises(SystemExit):
         StrainSharing.read_individuals(individuals)
+
+
+def test_strain_sharing_per_msp_threshold(tmp_path: Path) -> None:
+    """An MSP listed in the strain_thresholds file of its catalogue uses its
+    own threshold; MSPs not listed, and catalogues without the file, keep the
+    default StrainSharing.THRESHOLD."""
+    import pandas as pd
+
+    from ..strainsharing import catalogue_strain_thresholds
+
+    # a minimal catalogue with a strain_thresholds annotation
+    ref_dir = tmp_path / "catalogue"
+    database = ref_dir / "database"
+    database.mkdir(parents=True)
+    pd.DataFrame(
+        {"msp_name": ["msp_t", "msp_u"], "threshold": [0.0002, 0.0003], "exact": [True, False]}
+    ).to_feather(database / "catalogue_strain_thresholds.feather")
+    (ref_dir / "catalogue_reference.json").write_text(
+        json.dumps(
+            {
+                "reference_file": {"database_dir": "database"},
+                "annotation": {
+                    "strain_thresholds": {"filename": "catalogue_strain_thresholds.feather"}
+                },
+            }
+        )
+    )
+    strain_thresholds = catalogue_strain_thresholds(ref_dir)
+    assert strain_thresholds == {"msp_t": 0.0002, "msp_u": 0.0003}
+    # distance below the default but above/below the per-MSP thresholds
+    mid = (0.0002 + 0.0003) / 2
+    rows = [("s0", "s1", 80.0, mid)]
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+    StrainSharing(output_dir, strain_thresholds=strain_thresholds).execute(
+        {
+            "msp_t": _comparison(tmp_path / "msp_t_comparison.tsv", rows),
+            "msp_u": _comparison(tmp_path / "msp_u_comparison.tsv", rows),
+            "msp_x": _comparison(tmp_path / "msp_x_comparison.tsv", rows),
+        }
+    )
+    _, _, msp = _read(output_dir)
+    msp = msp.set_index("msp_name")
+    # msp_t threshold 0.0002 < mid: not shared, threshold reported
+    assert msp.loc["msp_t", "threshold"] == 0.0002
+    assert msp.loc["msp_t", "n_shared_pairs"] == 0
+    # msp_u threshold 0.0003 > mid: shared, threshold reported
+    assert msp.loc["msp_u", "threshold"] == 0.0003
+    assert msp.loc["msp_u", "n_shared_pairs"] == 1
+    # msp_x not listed: default threshold, shared (mid < default)
+    assert msp.loc["msp_x", "threshold"] == pytest.approx(StrainSharing.THRESHOLD)
+    assert msp.loc["msp_x", "n_shared_pairs"] == 1
+    # catalogue without the annotation, or without any reference: no thresholds
+    (ref_dir / "catalogue_reference.json").write_text(
+        json.dumps({"reference_file": {"database_dir": "database"}, "annotation": {}})
+    )
+    assert catalogue_strain_thresholds(ref_dir) == {}
+    assert catalogue_strain_thresholds(tmp_path) == {}
+    assert catalogue_strain_thresholds(None) == {}

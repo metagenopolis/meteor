@@ -12,6 +12,7 @@
 
 """Strain sharing between samples, from the comparison tables of meteor tree"""
 
+import json
 import logging
 import sys
 from dataclasses import dataclass, field
@@ -21,6 +22,33 @@ from typing import ClassVar
 import numpy as np
 import pandas as pd
 
+# Strain identity thresholds of a catalogue, computed per MSP on its trees
+# (e.g. data/msp_strain_thresholds.feather: msp_name, threshold, exact).
+# They live in the database directory of the catalogue and are referenced by
+# the `strain_thresholds` annotation of its *_reference.json. Catalogues
+# without them use the default THRESHOLD of the strain sharing / tree code.
+
+
+def catalogue_strain_thresholds(ref_dir: Path | None) -> dict[str, float]:
+    """{msp_name: strain identity threshold} of the catalogue of ref_dir,
+    from the `strain_thresholds` annotation of its *_reference.json.
+    {} when the catalogue (or the annotation) is not available, so that the
+    default threshold is used."""
+    if ref_dir is None:
+        return {}
+    ref_files = list(ref_dir.glob("*_reference.json"))
+    if len(ref_files) != 1:
+        return {}
+    ref_config = json.loads(ref_files[0].read_text())
+    entry = ref_config.get("annotation", {}).get("strain_thresholds")
+    if not entry:
+        return {}
+    database_dir = ref_dir / ref_config["reference_file"]["database_dir"]
+    table = pd.read_feather(
+        database_dir / entry["filename"], columns=["msp_name", "threshold"]
+    )
+    return dict(zip(table["msp_name"], table["threshold"]))
+
 
 @dataclass
 class StrainSharing:
@@ -29,15 +57,19 @@ class StrainSharing:
 
     Two samples are compared on an MSP when the sites informative in both
     cover at least min_overlap % of the alignment. They share its strain when
-    their distance is at most THRESHOLD. The transmissibility of an MSP is the
-    fraction of the compared pairs of samples of different individuals that
-    share its strain: two samples of the same individual (time points) are not
-    a transmission.
+    their distance is at most the strain identity threshold of the MSP: the
+    per-MSP value of the catalogue (see catalogue_strain_thresholds) when
+    the MSP is listed there, THRESHOLD otherwise. The transmissibility of an
+    MSP is the fraction of the compared pairs of samples of different
+    individuals that share its strain: two samples of the same individual
+    (time points) are not a transmission.
     """
 
     DEFAULT_MIN_OVERLAP: ClassVar[float] = 10.0
-    # strain identity threshold of every MSP (same_strain of the comparison tables)
-    THRESHOLD: ClassVar[float] = 0.0001
+    # default strain identity threshold (same_strain of the comparison
+    # tables), applied when the catalogue has no per-MSP threshold, or the
+    # MSP is not listed in its strain_thresholds file
+    THRESHOLD: ClassVar[float] = 0.000594809910301849
     # partial counts are summed every REDUCE_PAIRS pairs (bounded memory)
     REDUCE_PAIRS: ClassVar[int] = 5_000_000
     EVENTS_FILE: ClassVar[str] = "strain_sharing_events.tsv"
@@ -49,6 +81,9 @@ class StrainSharing:
     output_dir: Path
     individuals_file: Path | None = None
     min_overlap: float = DEFAULT_MIN_OVERLAP
+    # {msp_name: strain identity threshold} of the catalogue
+    # (catalogue_strain_thresholds); empty when the catalogue has none
+    strain_thresholds: dict[str, float] = field(default_factory=dict)
     individuals: dict[str, str] = field(default_factory=dict, init=False)
 
     def __post_init__(self) -> None:
@@ -123,6 +158,7 @@ class StrainSharing:
                 "msp_name\tsample1\tsample2\trelation\tdistance\toverlap_noN_info_pc\tthreshold\n"
             )
             for msp_name, comparison_file in sorted(comparison_files.items()):
+                threshold = self.strain_thresholds.get(msp_name, self.THRESHOLD)
                 table = pd.read_csv(
                     comparison_file,
                     sep="\t",
@@ -135,12 +171,12 @@ class StrainSharing:
                 ]
                 relation = self.relation(table["sample1"], table["sample2"])
                 distance = table["distance"].to_numpy(dtype=float)
-                shared = distance <= self.THRESHOLD
+                shared = distance <= threshold
                 different = relation == self.DIFFERENT
                 msp_rows.append(
                     {
                         "msp_name": msp_name,
-                        "threshold": self.THRESHOLD,
+                        "threshold": threshold,
                         "n_sample_pairs": int(different.sum()),
                         "n_shared_pairs": int((shared & different).sum()),
                         "n_same_individual_pairs": int((~different).sum()),
@@ -151,7 +187,7 @@ class StrainSharing:
                     continue
                 # events
                 event_table = table.loc[shared].assign(
-                    relation=relation[shared], threshold=self.THRESHOLD
+                    relation=relation[shared], threshold=threshold
                 )
                 event_table.insert(0, "msp_name", msp_name)
                 event_table[

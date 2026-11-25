@@ -34,7 +34,7 @@ from tempfile import NamedTemporaryFile
 # from packaging.version import parse
 from collections import OrderedDict
 from datetime import datetime
-from typing import Iterable, Tuple
+from typing import ClassVar, Iterable, Tuple
 from cogent3 import load_aligned_seqs
 from cogent3.evolve.distance import EstimateDistances
 from cogent3.evolve.models import GTR
@@ -95,6 +95,13 @@ class Phylogeny(Session):
     gtr: bool
     tree_files: list[Path] = field(default_factory=list)
     tshrink: bool = False
+    # {msp_name: same_strain threshold} of the catalogue; empty when the
+    # catalogue has none
+    strain_thresholds: dict[str, float] = field(default_factory=dict)
+    # default same_strain threshold of the comparison tables, applied when
+    # the catalogue has no per-MSP threshold, or the MSP is not listed in
+    # its strain_thresholds file
+    SAME_STRAIN_THRESHOLD: ClassVar[float] = 0.000594809910301849
 
     def compute_site_info(self, sequences: Iterable[str]) -> list[float]:
         """Calculate the percentage of "_" at each position
@@ -182,6 +189,8 @@ class Phylogeny(Session):
                 "phylogeny_tool": "cogent3",
                 "phylogeny_date": datetime.now().strftime("%Y-%m-%d"),
                 "tree_mode": "GTR" if self.gtr else "TN93",
+                # MSPs with their own same-strain threshold (catalogue, -r)
+                "per_msp_strain_thresholds": len(self.strain_thresholds),
                 "tree_files": ",".join([tree.name for tree in self.tree_files]),
             },
         }
@@ -327,7 +336,10 @@ class Phylogeny(Session):
             dtype=float,
         )
 
-    def _generate_pairwise_comparison_table(self, sequences: dict, dists, output_file: Path) -> None:
+    def _generate_pairwise_comparison_table(
+        self, sequences: dict, dists, output_file: Path,
+        same_strain_threshold: float | None = None,
+    ) -> None:
         """Generate a pairwise comparison table for each tree with detailed statistics.
 
         Same table as _generate_pairwise_comparison_table_python, with the per-site
@@ -336,7 +348,11 @@ class Phylogeny(Session):
         :param sequences: Dictionary of sequence IDs and their sequences or cogent3 Alignment object
         :param dists: Distance matrix from cogent3
         :param output_file: Output TSV file path
+        :param same_strain_threshold: distance below which two samples are the same
+            strain (SAME_STRAIN_THRESHOLD when None)
         """
+        if same_strain_threshold is None:
+            same_strain_threshold = self.SAME_STRAIN_THRESHOLD
         if hasattr(sequences, "keys"):
             seq_names = list(sequences.keys())
             seq_strs = [str(sequences[name]).upper() for name in seq_names]
@@ -346,7 +362,9 @@ class Phylogeny(Session):
         lengths = {len(seq) for seq in seq_strs}
         if len(seq_names) < 2 or len(lengths) != 1 or not all(seq.isascii() for seq in seq_strs):
             # empty table or sequences of different lengths: per-pair implementation
-            self._generate_pairwise_comparison_table_python(sequences, dists, output_file)
+            self._generate_pairwise_comparison_table_python(
+                sequences, dists, output_file, same_strain_threshold
+            )
             return
         n_seqs, total_length = len(seq_names), lengths.pop()
         matrix = np.frombuffer("".join(seq_strs).encode("ascii"), dtype=np.uint8).reshape(
@@ -393,7 +411,7 @@ class Phylogeny(Session):
                 "noIUPAC_info_pc_sample2": percent(maximal_count)[second],
                 "distance": distance,
                 "distance_category": np.where(
-                    distance <= 0.0001,
+                    distance <= same_strain_threshold,
                     "same_strain",
                     np.where(distance <= 0.015, "same_subspecies", "divergent"),
                 ),
@@ -403,18 +421,25 @@ class Phylogeny(Session):
         table.to_csv(output_file, sep="\t", index=False)
         logging.info(f"Pairwise comparison table saved to {output_file}")
 
-    def _generate_pairwise_comparison_table_python(self, sequences: dict, dists, output_file: Path) -> None:
+    def _generate_pairwise_comparison_table_python(
+        self, sequences: dict, dists, output_file: Path,
+        same_strain_threshold: float | None = None,
+    ) -> None:
         """Generate a pairwise comparison table for each tree with detailed statistics.
         
         Distance categories (based on similarity thresholds):
-        - <= 0.0001: same_strain (99.99% similarity)
+        - <= the same_strain threshold of the MSP (SAME_STRAIN_THRESHOLD by
+          default): same_strain
         - <= 0.015: same_subspecies (≥97% similarity)
         - > 0.015: divergent (<97% similarity)
         
         :param sequences: Dictionary of sequence IDs and their sequences or cogent3 Alignment object
         :param dists: Distance matrix from cogent3
         :param output_file: Output TSV file path
+        :param same_strain_threshold: distance below which two samples are the same strain
         """
+        if same_strain_threshold is None:
+            same_strain_threshold = self.SAME_STRAIN_THRESHOLD
         # Define nucleotide information categories
         # Maximal information: strictly A, C, G, or T (unambiguous)
         MAXIMAL_INFO = {'A', 'C', 'G', 'T'}
@@ -501,7 +526,7 @@ class Phylogeny(Session):
                 distance = self._pair_distance(dists, name1, name2)
                 
                 # Categorize distance based on similarity thresholds
-                if distance <= 0.0001:
+                if distance <= same_strain_threshold:
                     distance_category = "same_strain"
                 elif distance <= 0.015:
                     distance_category = "same_subspecies"
@@ -556,6 +581,28 @@ class Phylogeny(Session):
             matrix[second, first] = distance
         pd.DataFrame(matrix, index=names, columns=names).to_csv(dist_file, sep="\t")
 
+    @staticmethod
+    def update_distance_categories(comparison_file: Path, same_strain_threshold: float) -> None:
+        """Rewrite the distance_category column of an existing comparison table
+        when it was computed with another same-strain threshold (e.g. a tree
+        directory computed without the catalogue thresholds, -r)."""
+        table = pd.read_csv(comparison_file, sep="\t", float_precision="round_trip")
+        if table.empty or "distance_category" not in table.columns:
+            return
+        category = np.where(
+            table["distance"] <= same_strain_threshold,
+            "same_strain",
+            np.where(table["distance"] <= 0.015, "same_subspecies", "divergent"),
+        )
+        if (table["distance_category"].to_numpy() != category).any():
+            table["distance_category"] = category
+            table.to_csv(comparison_file, sep="\t", index=False)
+            logging.info(
+                "%s: distance categories updated to the same-strain threshold %g",
+                comparison_file.name,
+                same_strain_threshold,
+            )
+
     def process_msp_file(
         self, msp_file: Path, idx: int, msp_count: int, tree_dir, tmp_dir
     ) -> Tuple[Path, bool]:
@@ -582,6 +629,11 @@ class Phylogeny(Session):
                     idx,
                     msp_count,
                     msp_file.name.replace(".fasta", ""),
+                )
+                # the same-strain threshold may differ from the previous run (-r)
+                self.update_distance_categories(
+                    comparison_file,
+                    self.strain_thresholds.get(msp_file.stem, self.SAME_STRAIN_THRESHOLD),
                 )
                 if self.tshrink:
                     self.treeshrink_qc(tree_file)
@@ -662,7 +714,12 @@ class Phylogeny(Session):
 
             # Generate pairwise comparison table
             comparison_table_file = tree_dir / f"{msp_file.stem}_comparison.tsv"
-            self._generate_pairwise_comparison_table(aligned_seqs, dists, comparison_table_file)
+            same_strain_threshold = self.strain_thresholds.get(
+                msp_file.stem, self.SAME_STRAIN_THRESHOLD
+            )
+            self._generate_pairwise_comparison_table(
+                aligned_seqs, dists, comparison_table_file, same_strain_threshold
+            )
 
             with tree_file.open("w") as f:
                 f.write(

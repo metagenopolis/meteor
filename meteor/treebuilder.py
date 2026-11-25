@@ -21,7 +21,7 @@ from pathlib import Path
 from collections import defaultdict
 from meteor.session import Session, Component
 from meteor.phylogeny import Phylogeny
-from meteor.strainsharing import StrainSharing
+from meteor.strainsharing import StrainSharing, catalogue_strain_thresholds
 from packaging.version import InvalidVersion, Version
 import json
 from dataclasses import dataclass
@@ -148,6 +148,37 @@ class TreeBuilder(Session):
     #             distance_matrix.loc[j.name, i.name] = distance
     #     return distance_matrix
 
+    def remove_other_model_trees(self) -> None:
+        """Remove the trees and distances of a previous run with the other model.
+
+        The default model changed from GTR to TN93: a tree directory computed in
+        GTR, run again without --gtr (or the reverse), would otherwise reuse the
+        trees of the other model. Their MSPs are recomputed.
+        """
+        census = self.meteor.tree_dir / "census_stage_4.json"
+        if not census.exists():
+            return
+        try:
+            previous = json.loads(census.read_text(encoding="UTF-8"))["phylogeny"]["tree_mode"]
+        except (KeyError, ValueError):
+            return
+        current = "GTR" if self.gtr else "TN93"
+        if previous not in ("GTR", "TN93") or previous == current:
+            return
+        trees = list(self.meteor.tree_dir.glob("*.tree"))
+        logging.warning(
+            "The %d trees of %s were computed in %s, not in %s: their MSPs are recomputed.",
+            len(trees),
+            self.meteor.tree_dir,
+            previous,
+            current,
+        )
+        for tree in trees:
+            msp = tree.stem
+            for name in (f"{msp}.tree", f"{msp}.tsv", f"{msp}_raw_distances.tsv",
+                         f"{msp}_comparison.tsv", f"{msp}_qcflags.tsv", f"{msp}_shrink.tsv"):
+                (self.meteor.tree_dir / name).unlink(missing_ok=True)
+
     def remove_stale_comparisons(self) -> None:
         """Remove the comparison tables of a previous GTR run of meteor <= 2.0.22.
 
@@ -222,13 +253,26 @@ class TreeBuilder(Session):
                 if not filename.endswith("_consensus.fasta.xz"):
                     msp_file_dict[filename].append(Path(root) / filename)
 
-        # Reuse no wrong comparison table of an older meteor
+        # Reuse no tree of the other model, no wrong comparison table of an older meteor
+        self.remove_other_model_trees()
         self.remove_stale_comparisons()
         # Concatenate msp files
         msp_file_list = self.concatenate(
             msp_file_dict, {path: name for name, path in sample_dirs.items()}
         )
         # Compute phylogenies
+        # Same-strain thresholds of the catalogue (its strain_thresholds
+        # annotation), for the comparison tables and the strain sharing
+        # (default threshold when there is no catalogue reference)
+        strain_thresholds = catalogue_strain_thresholds(
+            getattr(self.meteor, "ref_dir", None)
+        )
+        if strain_thresholds and self.gtr:
+            # thresholds of the catalogue calibrated on TN93 distances
+            logging.warning(
+                "The same-strain thresholds of the catalogue were computed on TN93 "
+                "distances: use the TN93 model (meteor tree without --gtr)."
+            )
         phylogeny_process = Phylogeny(
             self.meteor,
             msp_file_list,
@@ -236,6 +280,7 @@ class TreeBuilder(Session):
             self.min_info_sites,
             self.gtr,
             tshrink=self.tshrink,
+            strain_thresholds=strain_thresholds,
         )
         phylogeny_process.execute()
         # Strain sharing between samples, by sample pair and by MSP
@@ -245,7 +290,10 @@ class TreeBuilder(Session):
             for tree_file in phylogeny_process.tree_files
         }
         StrainSharing(
-            self.meteor.tree_dir, self.individuals_file, self.min_overlap
+            self.meteor.tree_dir,
+            self.individuals_file,
+            self.min_overlap,
+            strain_thresholds=strain_thresholds,
         ).execute(
             {msp: path for msp, path in comparison_files.items() if path.exists()}
         )

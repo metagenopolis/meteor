@@ -189,16 +189,20 @@ To use Meteor for strain profiling, use the following command:
 meteor strain -i <mappingdir/sampledir> -o <straindir> -r <refdir>
 ```
 
-Meteor computes mutation rates and trees between strains from samples using a GTR+GAMMA model with the following command:
+Meteor computes mutation rates and trees between strains from samples (TN93 distances by default, GTR with `--gtr`) with the following command:
 ```
-meteor tree -i <straindir> -o <treedir>
+meteor tree -i <straindir> -o <treedir> -r <refdir>
 ```
 
 `-l <samples.txt>` builds the trees with only the samples of the list (same format as for `meteor merge`). An MSP carried by none of the samples of the list gets no tree; when no sample of the list is in the strain directory, meteor tree warns and builds no tree. When the output directory already holds the tree of an MSP computed from other samples, it is recomputed.
 
+`-r <refdir>` gives the catalogue the strains were profiled on: the MSPs listed in its `strain_thresholds` annotation use their own same-strain threshold (comparison tables and strain sharing); without `-r`, or for an MSP not listed, the default threshold 0.000594809910301849 (≈ 99.94 % identity) is used.
+
+The thresholds of a catalogue are computed on TN93 distances (the default model), with the consensus sequences of `meteor strain` at its default min allele frequency (0.1); they apply whatever the min allele frequency. For each MSP present in at least 100 samples, pairs of samples of the same individual (all visits) are the positives, pairs of distinct individuals the negatives: the threshold maximises Youden's J (sensitivity + specificity − 1), capped at the 5th percentile of the negative distances (at most 5 % potential false positives, as in Valles-Colomer et al., Nature 2023); these MSPs have `exact` = True. The other MSPs get the median of these thresholds, 0.000594809910301849 for hs_10_4_gut, also the default threshold. `meteor tree -r --gtr` warns that the distances (GTR) are not those of the thresholds.
+
 This profiling step will generate:
 - a mutation rate matrix, `<msp>.tsv`: the tip-to-tip distances of the UPGMA tree;
-- the distances of the model (GTR, or TN93 with `-r`) before UPGMA, `<msp>_raw_distances.tsv`: a square matrix of the samples, in the order of the alignment;
+- the distances of the model (TN93, or GTR with `--gtr`) before UPGMA, `<msp>_raw_distances.tsv`: a square matrix of the samples, in the order of the alignment;
 - a fasta file of each strain for each sample;
 - a table giving detailed comparison per strain. The file is a tab-separated values (TSV) file with one row per sample pair. Each row contains the following columns:
 
@@ -223,7 +227,7 @@ Samples are automatically classified based on their genetic distance:
 
 | Category | Distance Threshold | Approximate Similarity | Biological Interpretation |
 |----------|-------------------|------------------------|---------------------------|
-| `same_strain` | ≤ 0.0001 | ≥ 99.99% | Same strain/clone |
+| `same_strain` | ≤ the same-strain threshold of the MSP (its catalogue, default 0.0005948) | ≥ 99.94% by default | Same strain/clone |
 | `same_subspecies` | ≤ 0.015 | ≥ 97% | Same subspecies |
 | `divergent` | > 0.015 | < 97% | Different lineage |
 
@@ -245,11 +249,13 @@ At the end of `meteor tree`, the comparison tables of all MSPs are gathered into
 
 Every rate is given with the number of pairs or MSPs it is computed on, however small: filter on these numbers rather than on the rate alone.
 
-Two samples are compared on an MSP when the sites informative (not N) in both cover at least `--min_overlap` % of its alignment (default 10): a pair overlapping on a few sites only is neither compared nor shared. They share its strain when their distance is at most 0.0001 (99.99 % identity, the `same_strain` category of the comparison tables), the same threshold for every MSP.
+Two samples are compared on an MSP when the sites informative (not N) in both cover at least `--min_overlap` % of its alignment (default 10): a pair overlapping on a few sites only is neither compared nor shared. They share its strain when their distance is at most the same-strain threshold of the MSP: the `threshold` of the MSP in the `strain_thresholds` annotation of its catalogue, given with `-r` (a per-MSP file in the database directory of the catalogue, computed on its trees), 0.000594809910301849 (≈ 99.94 % identity) when the catalogue has no such file or the MSP is not listed in it. The same threshold defines the `same_strain` category of the comparison tables, and the one actually used is reported in the `threshold` column of the events and MSP tables.
 
 `--ind <individuals.tsv>`, a tab-separated file giving the individual of each sample (sample, individual), marks the pairs of samples of the same individual (time points of a subject): they are listed (`relation` = `same_individual`) but left out of the transmissibility, since sharing a strain with oneself is not a transmission. Samples of different individuals (`different_individuals`), mother and infant included, count. Without `--ind`, every sample is a distinct individual.
 
 A tree directory computed in GTR by meteor 2.0.22 or earlier has wrong distances in its comparison tables (issue #133): `meteor tree` recomputes them when it runs again in that directory.
+
+The default model is TN93 (GTR with `--gtr`; GTR was the default up to meteor 2.0.23): when `meteor tree` runs again in a tree directory computed with the other model, it recomputes its trees and distances.
 
 The tree and the distance matrix are not modified.
 
@@ -338,7 +344,7 @@ Every sample must have been analysed against the same catalogue with the same pa
 
 The genes are the catalogue genes (`gene_id`), as in the tables of `meteor merge`.
 
-With `--trees`, every resistance gene interpretable in at least `-m` samples (default 4) gets a tree of these samples, built from their consensus sequences as `meteor tree` builds the tree of an MSP (same site filter `-g`, minimum number of sites `-s`, GTR or TN93 distance `-r`, UPGMA). The sequences share the coordinates of the catalogue gene, so no alignment is needed; one tree is built per catalogue gene, not per family. The tree tells which samples carry the same allele of the gene; compared with the tree of the MSP carrying it (`meteor tree`), a discordance points to a transfer of the gene between strains. Close homologues share their reads (`multimapped_fraction`), which can bring alleles closer. In `<mergedir>/<prefix>_resistance_trees/`:
+With `--trees`, every resistance gene interpretable in at least `-m` samples (default 4) gets a tree of these samples, built from their consensus sequences as `meteor tree` builds the tree of an MSP (same site filter `-g`, minimum number of sites `-s`, TN93 or GTR (`--gtr`) distance, UPGMA). The sequences share the coordinates of the catalogue gene, so no alignment is needed; one tree is built per catalogue gene, not per family. The tree tells which samples carry the same allele of the gene; compared with the tree of the MSP carrying it (`meteor tree`), a discordance points to a transfer of the gene between strains. Close homologues share their reads (`multimapped_fraction`), which can bring alleles closer. In `<mergedir>/<prefix>_resistance_trees/`:
 - `gene_<gene_id>.fasta`: the consensus sequences of the samples;
 - `gene_<gene_id>.tree`, `gene_<gene_id>.tsv` (tip-to-tip distances), `gene_<gene_id>_raw_distances.tsv` (distances of the model before UPGMA), `gene_<gene_id>_comparison.tsv` (pairs of samples), as for `meteor tree`.
 
@@ -467,7 +473,7 @@ With pysam built on HTSlib >= 1.25, the CRAM files of `--ka`, `--kf` and `--kr` 
 | `-m MIN_SAMPLES` | Minimum number of samples where a gene is interpretable to build its tree. | `4` |
 | `-g MAX_GAP` | Removes sites constitued of >= cutoff gap character. | `1.0` |
 | `-s MIN_INFO_SITES` | Minimum number of informative sites in the alignment. | `10` |
-| `-r` | Compute tn93 model (faster). | GTR |
+| `--gtr` | Compute distances with the GTR model (slower) instead of TN93. | TN93 |
 | `--tmp TMP_PATH` | Path to the directory where temporary files are stored | none |
 | `-t THREADS` | Number of threads. | `1` |
 
@@ -478,7 +484,8 @@ With pysam built on HTSlib >= 1.25, the CRAM files of `--ka`, `--kf` and `--kr` 
 | `-i STRAIN_DIR` | Path to the strain directory. | required |
 | `-g MAX_GAP` | Removes sites constitued of >= cutoff gap character. | `1.0` |
 | `-s MIN_INFO_SITES` | Minimum number of informative sites in the alignment. | `10` |
-| `-r` | Compute distances with the TN93 model (faster) instead of GTR. | GTR |
+| `-r REF_DIR` | Path to the catalogue directory: the MSPs listed in its strain_thresholds annotation use their own same-strain threshold. | default threshold for every MSP |
+| `--gtr` | Compute distances with the GTR model (slower) instead of TN93. | TN93 |
 | `--treeshrink` | Flag the samples on abnormally long branches of each strain tree (per-gene test of TreeShrink): writes <msp>_qcflags.tsv and <msp>_shrink.tsv. | off |
 | `-l SAMPLE_FILE` | Build the trees with only the samples of this file: one sample name per line (first column if tab-separated; empty lines and lines starting with # ignored). | none |
 | `--ind INDIVIDUALS_FILE` | Tab-separated file of the individual of each sample (sample, individual). Pairs of samples of the same individual (time points) are left out of the transmissibility of the MSPs (default: every sample is a distinct individual). | none |

@@ -828,10 +828,10 @@ def get_arguments() -> Namespace:  # pragma: no cover
         help="Minimum number of informative sites in the alignment (default: >= %(default)d).",
     )
     resistance_summary_parser.add_argument(
-        "-r",
+        "--gtr",
         dest="gtr",
-        action="store_false",
-        help="Compute tn93 model (faster) (default: GTR).",
+        action="store_true",
+        help="Compute distances with the GTR model (slower) (default: TN93).",
     )
     resistance_summary_parser.add_argument(
         "--tmp",
@@ -872,9 +872,17 @@ def get_arguments() -> Namespace:  # pragma: no cover
     )
     tree_parser.add_argument(
         "-r",
+        dest="ref_dir",
+        type=isinputdir,
+        help="Path to the catalogue directory: the MSPs listed in its strain_thresholds\n"
+        "annotation use their own same-strain threshold (default: the default threshold\n"
+        "for every MSP).",
+    )
+    tree_parser.add_argument(
+        "--gtr",
         dest="gtr",
-        action="store_false",
-        help="Compute tn93 model (faster) (default: GTR).",
+        action="store_true",
+        help="Compute distances with the GTR model (slower) (default: TN93).",
     )
     tree_parser.add_argument(
         "--treeshrink",
@@ -1063,6 +1071,8 @@ def main() -> None:  # pragma: no cover
     elif args.command == "tree":
         meteor.strain_dir = args.strain_dir
         meteor.tree_dir = args.tree_dir
+        # catalogue of the per-MSP same-strain thresholds (None: default threshold)
+        meteor.ref_dir = args.ref_dir
         meteor.threads = args.threads
         meteor.tmp_path = args.tmp_path
         trees = TreeBuilder(
