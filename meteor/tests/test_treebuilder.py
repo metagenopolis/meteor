@@ -14,11 +14,14 @@
 
 from ..session import Component
 from ..treebuilder import TreeBuilder
+import pandas as pd
 import pytest
 from pathlib import Path
 from hashlib import md5
 import json
 import logging
+import lzma
+import random
 import shutil
 
 
@@ -66,12 +69,16 @@ def test_concatenate(treebuilder_builder: TreeBuilder, datadir: Path):
 #     assert matrix.exists()
 
 
-def _treebuilder(strain_dir: Path, tree_dir: Path, tmp_path: Path, sample_file: Path | None) -> TreeBuilder:
+def _treebuilder(
+    strain_dir: Path, tree_dir: Path, tmp_path: Path, sample_file: Path | None,
+    ref_dir: Path | None = None,
+) -> TreeBuilder:
     meteor = Component
     meteor.tmp_path = tmp_path
     meteor.tree_dir = tree_dir
     meteor.threads = 1
     meteor.strain_dir = strain_dir
+    meteor.ref_dir = ref_dir
     return TreeBuilder(meteor, 0.5, 4, False, 500, 500, None, sample_file=sample_file)
 
 
@@ -145,9 +152,46 @@ def test_execute_strain_sharing_and_stale_comparisons(datadir: Path, tmp_path: P
     config = json.loads(census.read_text())
     config["phylogeny"].update(tree_mode="GTR", phylogeny_meteor_version="2.0.22")
     census.write_text(json.dumps(config))
-    _treebuilder(datadir / "strain", tree_dir, tmp_path, None).execute()
+    builder = _treebuilder(datadir / "strain", tree_dir, tmp_path, None)
+    builder.gtr = True
+    builder.execute()
     assert "computed in GTR by meteor 2.0.22" in caplog.text
     assert comparison.exists() and comparison.stat().st_mtime_ns != written
+
+
+def test_execute_model_change(tmp_path: Path, caplog):
+    """A tree directory of the other model (GTR, the former default, run again in
+    TN93, or the reverse) gets its trees and distances recomputed"""
+    strain_dir = _strain_dir(tmp_path / "strain")
+    tree_dir = tmp_path / "tree"
+    outputs = [tree_dir / name for name in ("msp_0001.tree", "msp_0001.tsv",
+               "msp_0001_raw_distances.tsv", "msp_0001_comparison.tsv")]
+
+    def run(gtr: bool) -> list[int]:
+        builder = _treebuilder(strain_dir, tree_dir, tmp_path, None)
+        builder.gtr = gtr
+        builder.execute()
+        return [path.stat().st_mtime_ns for path in outputs]
+
+    def mode() -> str:
+        return json.loads((tree_dir / "census_stage_4.json").read_text())["phylogeny"]["tree_mode"]
+
+    written = run(True)
+    assert mode() == "GTR"
+    gtr_distances = (tree_dir / "msp_0001_raw_distances.tsv").read_text()
+    # same model: reused
+    assert run(True) == written
+    # TN93: recomputed
+    caplog.clear()
+    tn93 = run(False)
+    assert "were computed in GTR, not in TN93" in caplog.text
+    assert all(after != before for after, before in zip(tn93, written))
+    assert mode() == "TN93"
+    assert (tree_dir / "msp_0001_raw_distances.tsv").read_text() != gtr_distances
+    # TN93 again: reused, no warning
+    caplog.clear()
+    assert run(False) == tn93
+    assert "not in" not in caplog.text
 
 
 @pytest.mark.parametrize(
@@ -166,3 +210,92 @@ def test_remove_stale_comparisons_kept(treebuilder_builder: TreeBuilder, phyloge
     treebuilder_builder.remove_stale_comparisons()
     assert (tree_dir / "msp_1_comparison.tsv").exists()
 
+
+
+def _catalogue(ref_dir: Path, thresholds: dict[str, float]) -> Path:
+    """Minimal catalogue with a strain_thresholds annotation"""
+    database = ref_dir / "database"
+    database.mkdir(parents=True)
+    pd.DataFrame(
+        {"msp_name": list(thresholds), "threshold": list(thresholds.values()),
+         "exact": [True] * len(thresholds)}
+    ).to_feather(database / "cat_strain_thresholds.feather")
+    (ref_dir / "cat_reference.json").write_text(
+        json.dumps(
+            {
+                "reference_file": {"database_dir": "database"},
+                "annotation": {"strain_thresholds": {"filename": "cat_strain_thresholds.feather"}},
+            }
+        )
+    )
+    return ref_dir
+
+
+def _strain_dir(path: Path) -> Path:
+    """Strain directory of 4 samples, one MSP (msp_0001) of 2000 bases: s1, s2
+    and s3 differ from s0 at 1, 4 and 40 sites"""
+    rng = random.Random(1)
+    base = [rng.choice("ACGT") for _ in range(2000)]
+    for sample, n_diff in {"s0": 0, "s1": 1, "s2": 4, "s3": 40}.items():
+        seq = list(base)
+        for position in range(0, n_diff * 50, 50):
+            seq[position] = "A" if seq[position] != "A" else "C"
+        (path / sample).mkdir(parents=True)
+        (path / sample / f"{sample}_census_stage_3.json").write_text(
+            json.dumps({"sample_info": {"sample_name": sample}})
+        )
+        with lzma.open(path / sample / "msp_0001.fasta.xz", "wt") as fasta:
+            fasta.write(f">{sample}\n{''.join(seq)}\n")
+    return path
+
+
+def test_execute_catalogue_strain_thresholds(tmp_path: Path, caplog):
+    """meteor tree -r: the MSPs of the strain_thresholds annotation of the catalogue
+    use their own threshold, in the comparison tables (also when they are reused
+    from a run without -r) and in the strain sharing"""
+    strain_dir = _strain_dir(tmp_path / "strain")
+    tree_dir = tmp_path / "tree"
+    comparison = tree_dir / "msp_0001_comparison.tsv"
+
+    def same_strain() -> set[tuple[str, str]]:
+        table = pd.read_csv(comparison, sep="\t")
+        return {
+            tuple(sorted(pair))
+            for pair in table.loc[table["distance_category"] == "same_strain", ["sample1", "sample2"]]
+            .itertuples(index=False)
+        }
+
+    def shared() -> tuple[float, int]:
+        msp = pd.read_csv(tree_dir / "strain_sharing_msp.tsv", sep="\t").set_index("msp_name")
+        return msp.loc["msp_0001", "threshold"], msp.loc["msp_0001", "n_shared_pairs"]
+
+    # default threshold (5.9e-4): s0-s1 only (1 site / 2000)
+    _treebuilder(strain_dir, tree_dir, tmp_path, None).execute()
+    assert same_strain() == {("s0", "s1")}
+    assert shared() == (pytest.approx(0.000594809910301849), 1)
+    distances = pd.read_csv(comparison, sep="\t")["distance"].tolist()
+    # threshold of the catalogue (3e-3): s0-s2, s1-s2 too; the tree and the
+    # distances are reused, the categories updated
+    ref_dir = _catalogue(tmp_path / "catalogue", {"msp_0001": 0.003, "msp_other": 1e-9})
+    caplog.clear()
+    _treebuilder(strain_dir, tree_dir, tmp_path, None, ref_dir).execute()
+    assert same_strain() == {("s0", "s1"), ("s0", "s2"), ("s1", "s2")}
+    assert shared() == (0.003, 3)
+    # TN93 (the default, as _treebuilder): the distances of the thresholds, no warning
+    assert "were computed on TN93 distances" not in caplog.text
+    assert pd.read_csv(comparison, sep="\t")["distance"].tolist() == distances
+    census = json.loads((tree_dir / "census_stage_4.json").read_text())
+    assert census["phylogeny"]["per_msp_strain_thresholds"] == 2
+    # without -r again: back to the default threshold
+    _treebuilder(strain_dir, tree_dir, tmp_path, None).execute()
+    assert same_strain() == {("s0", "s1")}
+    # a new tree directory with -r: the threshold of the catalogue from the start;
+    # GTR distances with thresholds computed on TN93: a warning
+    tree_dir = tmp_path / "tree_ref"
+    comparison = tree_dir / "msp_0001_comparison.tsv"
+    caplog.clear()
+    builder = _treebuilder(strain_dir, tree_dir, tmp_path, None, ref_dir)
+    builder.gtr = True
+    builder.execute()
+    assert same_strain() == {("s0", "s1"), ("s0", "s2"), ("s1", "s2")}
+    assert "were computed on TN93 distances" in caplog.text

@@ -248,14 +248,18 @@ process meteor_tree {
     publishDir params.out, mode: 'copy'
 
     input:
-    path(strain)
+    // the sample directories in strains/, apart from the catalogue
+    path(strain, stageAs: "strains/*")
+    tuple path(catalogue), val(cat_size), val(cat_type)
 
     output:
     path("tree")
 
     script:
+    // -r: per-MSP same-strain thresholds of the catalogue (strain_thresholds
+    // annotation), computed on TN93 distances (the default model)
     """
-    meteor tree -i  ./ -r  -o tree -t ${params.cpus}
+    meteor tree -i strains -r ${catalogue} -o tree -t ${params.cpus}
     """
 }
 
@@ -341,7 +345,7 @@ workflow {
         meteor_merge(collected_prof, catalogue_ch)
         meteor_strain(meteor_mapping.out.mapping, catalogue_ch)
         strains = meteor_strain.out.strains.collect(flat: false)
-        meteor_tree(strains)
+        meteor_tree(strains, catalogue_ch)
         if (params.resistance) {
             meteor_resistance(meteor_mapping.out.mapping, catalogue_ch)
             meteor_resistance_summary(meteor_resistance.out.resistance.collect())

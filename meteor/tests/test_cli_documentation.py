@@ -70,3 +70,25 @@ def test_readme_documents_every_option(subcommands) -> None:
             for flag in action.option_strings
         }
         assert options == documented[command], command
+
+
+def test_tree_catalogue_and_model(subcommands, tmp_path: Path) -> None:
+    """meteor tree: -r is the catalogue directory, as in the other commands;
+    TN93 distances by default, GTR with --gtr (also in resistance_summary)"""
+
+    def parse(command: str, argv: list[str]) -> argparse.Namespace:
+        # parse_args is captured by the fixture
+        args, unknown = subcommands[command].parse_known_args(argv)
+        assert not unknown
+        return args
+
+    args = parse(
+        "tree", ["-i", str(tmp_path), "-o", str(tmp_path / "tree"), "-r", str(tmp_path), "--gtr"]
+    )
+    assert args.ref_dir == tmp_path and args.gtr is True
+    args = parse("tree", ["-i", str(tmp_path), "-o", str(tmp_path / "tree")])
+    assert args.ref_dir is None and args.gtr is False
+    args = parse(
+        "resistance_summary", ["-i", str(tmp_path), "-o", str(tmp_path / "out"), "--gtr"]
+    )
+    assert args.gtr is True
