@@ -315,12 +315,15 @@ class ResistanceSummary(Session):
                 per_sample[f"genes_{column}"] / per_sample["genes_readable"]
             )
         read_totals = ("reads_resistant", "reads_wt", "reads_other", "reads_linked")
-        if table is not None and "target" in table and all(c in table for c in read_totals):
+        if table is not None and all(c in table for c in read_totals):
+            # family of each gene from its positions (not the target column of
+            # the gene table: a gene of two KOs is "gyrB,parE" there)
+            family = long.drop_duplicates("gene_id").set_index("gene_id")["family"]
             reads = (
-                table[table["target"].notna()]
-                .groupby(["sample", "target"])[list(read_totals)]
+                table.assign(family=table["gene_id"].map(family))
+                .dropna(subset=["family"])
+                .groupby(["sample", "family"])[list(read_totals)]
                 .sum(min_count=1)
-                .rename(columns={"target": "family"})
             )
             per_sample = per_sample.join(reads, how="left")
             per_sample["resistant_reads_fraction"] = np.where(
