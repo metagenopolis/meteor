@@ -301,6 +301,36 @@ def test_execute_positions(tmp_path: Path) -> None:
     assert census["positions_read"] == 7 and census["positions_with_resistance"] == 5
 
 
+def test_execute_positions_several_families(tmp_path: Path) -> None:
+    """One row per sample and family when several target families are read,
+    with the reads of the genes of that family only; a gene of two KOs
+    (target "gyrB,parE") counts in the family of its positions"""
+    root = tmp_path / "resistance"
+    gyrb = {"gene_id": 13, "family": "gyrB", "codon_pos": 426, "ref_residue": "D",
+            "resistance_residues": "N", "major_residue": "D"}
+    rpsl = {"gene_id": 11, "family": "rpsL", "codon_pos": 43, "ref_residue": "K",
+            "resistance_residues": "R", "major_residue": "K"}
+    for name in ("S1", "S2"):
+        _sample(root, name, [
+            {"gene_id": 10, "target": "gyrA", "reads_resistant": 4, "reads_wt": 16,
+             "reads_other": 0, "reads_linked": 0},
+            {"gene_id": 11, "target": "rpsL", "reads_resistant": 0, "reads_wt": 30,
+             "reads_other": 1, "reads_linked": 0},
+            {"gene_id": 13, "target": "gyrB,parE", "reads_resistant": 5, "reads_wt": 5,
+             "reads_other": 0, "reads_linked": 0},
+        ], positions=[{}, rpsl, gyrb])
+    _merging(tmp_path).execute()
+    per_sample = pd.read_table(tmp_path / "merged" / "out_resistance_positions_samples.tsv")
+    assert "target" not in per_sample.columns
+    assert len(per_sample) == 6 and not per_sample.duplicated(["sample", "family"]).any()
+    per_sample = per_sample.set_index(["sample", "family"])
+    assert per_sample.loc[("S1", "gyrA"), "reads_resistant"] == 4
+    assert per_sample.loc[("S1", "gyrA"), "reads_wt"] == 16
+    assert per_sample.loc[("S1", "rpsL"), "reads_wt"] == 30
+    assert per_sample.loc[("S1", "rpsL"), "resistant_reads_fraction"] == 0
+    assert per_sample.loc[("S1", "gyrB"), "resistant_reads_fraction"] == 0.5
+
+
 def test_execute_positions_missing_file(tmp_path: Path) -> None:
     _sample(tmp_path / "resistance", "S1", [{"gene_id": 10}], positions=[{}])
     (tmp_path / "resistance" / "S1" / "S1_resistance_positions.tsv").unlink()
