@@ -141,6 +141,7 @@ This profiling step will generate:
 - a DBCAN abundance table (full catalogue only);
 - a Gut Metabolic Modules ([GMM](https://www.nature.com/articles/nmicrobiol201688)) abundance table (from the KO annotation) (full catalogue only).
 - a Gut Brain Modules ([GBM](https://www.nature.com/articles/s41564-018-0337-x)) abundance table (from the KO, EGGNOG and TIGRFAM annotations) (full catalogue only).
+- the KEGG modules (release 120) and the [MetaCyc](https://metacyc.org) pathways (type `metacyc`, defined with KOs; a reaction without KO is a `KO_unknown_N` step, never detected) in the same module tables (full catalogue only). `meteor merge` writes the type, name and ontology (KEGG module class, MetaCyc pathway classes separated by ` // `, `GMM` or `GBM`) of the merged modules in `<prefix>_modules_definition.tsv`.
 
 ### 5. Merging
 
