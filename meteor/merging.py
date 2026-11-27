@@ -288,6 +288,7 @@ class Merging(Session):
                     "id",
                     "type",
                     "name",
+                    "ontology",
                 ]
             ].to_csv(
                 Path(f"{output_name}_definition.tsv"),

@@ -43,14 +43,17 @@ def profiler_standard(datadir: Path, tmp_path: Path) -> Profiler:
 def test_module_definition_format(profiler_standard: Profiler) -> None:
     # Check the file format is correct
     module_def = profiler_standard.load_data(profiler_standard.module_path)
-    assert module_def.shape[1] == 4
-    expected_columns = ["id", "type", "name", "definition"]
+    assert module_def.shape[1] == 5
+    expected_columns = ["id", "type", "name", "definition", "ontology"]
     assert list(module_def.columns) == expected_columns
+    assert not module_def["id"].duplicated().any()
     # Check no NA
     assert not module_def.isna().any().any(), "Missing values in the module definition file."
     assert not (module_def == "").any().any(), "Empty fields in the module definition file."
     # Check column type
-    valid_types = {"GMM", "GBM", "KEGG", "Pathway Module", "Complex Module", "Signature Module"}
+    valid_types = {
+        "GMM", "GBM", "KEGG", "Pathway Module", "Complex Module", "Signature Module", "metacyc"
+    }
     invalid = set(module_def["type"].dropna().unique()) - valid_types
     assert not invalid, f"Unexpected values in the column 'type' : {invalid}"
     # Check column definition

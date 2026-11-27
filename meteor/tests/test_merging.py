@@ -586,6 +586,10 @@ def test_execute_tables(
                 for table in (real, reference)
             )
             pd.testing.assert_frame_equal(real, reference, check_dtype=False, check_exact=False, rtol=1e-10)
+    if "modules" in expected:
+        definition = pd.read_table(merging_dir / "my_test_modules_definition.tsv")
+        assert list(definition.columns) == ["id", "type", "name", "ontology"]
+        assert not definition.isna().any().any()
 
 
 def test_execute_prefix_with_dots(merging_fast: Merging, datadir: Path, tmp_path: Path) -> None:
